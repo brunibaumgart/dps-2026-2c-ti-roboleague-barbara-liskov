@@ -10,19 +10,15 @@ import java.util.Objects;
  * Team aggregate in the tournament context.
  */
 public class Team {
-    private final String id;
-    private final String name;
-    private final String institution;
+    private final TeamProfile profile;
     private final List<TeamMember> members;
     private Robot robot;
     private Category category;
     private final Documentation documentation;
     private final LocalDate registrationDate;
 
-    public Team(String id, String name, String institution, Category category, Robot robot) {
-        this.id = Objects.requireNonNull(id, "id cannot be null");
-        this.name = Objects.requireNonNull(name, "name cannot be null");
-        this.institution = institution != null ? institution : "";
+    public Team(TeamProfile profile, Category category, Robot robot) {
+        this.profile = Objects.requireNonNull(profile, "profile cannot be null");
         this.category = Objects.requireNonNull(category, "category cannot be null");
         this.robot = Objects.requireNonNull(robot, "robot cannot be null");
         this.members = new ArrayList<>();
@@ -30,16 +26,20 @@ public class Team {
         this.registrationDate = LocalDate.now();
     }
 
+    public TeamProfile getProfile() {
+        return profile;
+    }
+
     public String getId() {
-        return id;
+        return profile.id();
     }
 
     public String getName() {
-        return name;
+        return profile.name();
     }
 
     public String getInstitution() {
-        return institution;
+        return profile.institution();
     }
 
     public Category getCategory() {
@@ -82,15 +82,27 @@ public class Team {
         return registrationDate;
     }
 
+    public static Team of(TeamProfile profile, Category category, Robot robot) {
+        return new Team(profile, category, robot);
+    }
+
+    public static Team of(String id, String name, Category category, Robot robot) {
+        return new Team(new TeamProfile(id, name, ""), category, robot);
+    }
+
+    public static Team of(String id, String name, String institution, Category category, Robot robot) {
+        return new Team(new TeamProfile(id, name, institution != null ? institution : ""), category, robot);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof Team team)) return false;
-        return Objects.equals(id, team.id);
+        return Objects.equals(getId(), team.getId());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id);
+        return Objects.hash(getId());
     }
 }

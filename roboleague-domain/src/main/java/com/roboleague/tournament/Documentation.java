@@ -13,6 +13,7 @@ public class Documentation {
     private boolean verified;
     private LocalDateTime verifiedAt;
     private String verifiedBy;
+    private String revocationReason;
     private final Map<String, String> documents;
 
     public Documentation() {
@@ -30,12 +31,14 @@ public class Documentation {
         this.verified = true;
         this.verifiedAt = LocalDateTime.now();
         this.verifiedBy = Objects.requireNonNull(verifiedBy, "verifiedBy cannot be null");
+        this.revocationReason = null;
     }
 
     public void revokeVerification(String reason) {
         this.verified = false;
         this.verifiedAt = null;
         this.verifiedBy = null;
+        this.revocationReason = reason != null ? reason : "Revoked without stated reason";
     }
 
     public boolean isVerified() {
@@ -48,6 +51,10 @@ public class Documentation {
 
     public String getVerifiedBy() {
         return verifiedBy;
+    }
+
+    public String getRevocationReason() {
+        return revocationReason;
     }
 
     public Map<String, String> getDocuments() {

@@ -13,56 +13,50 @@ import java.util.Objects;
  * Publishes and binds an immutable version of the ScoringPolicy (Rulebook).
  */
 public class Edition {
-    private final String id;
-    private final Tournament tournament;
-    private final int editionNumber;
-    private final String name;
-    private final LocalDate startDate;
-    private final LocalDate endDate;
+    private final EditionContext context;
+    private final DateRange dates;
     private final ScoringPolicy scoringPolicy;
     private final List<Category> categories;
     private final List<Team> registeredTeams;
 
-    public Edition(String id, Tournament tournament, int editionNumber, String name,
-                   LocalDate startDate, LocalDate endDate, ScoringPolicy scoringPolicy,
-                   List<Category> categories) {
-        this.id = Objects.requireNonNull(id, "id cannot be null");
-        this.tournament = Objects.requireNonNull(tournament, "tournament cannot be null");
-        this.editionNumber = editionNumber;
-        this.name = Objects.requireNonNull(name, "name cannot be null");
-        this.startDate = Objects.requireNonNull(startDate, "startDate cannot be null");
-        this.endDate = Objects.requireNonNull(endDate, "endDate cannot be null");
+    public Edition(EditionContext context, DateRange dates, ScoringPolicy scoringPolicy) {
+        this.context = Objects.requireNonNull(context, "context cannot be null");
+        this.dates = Objects.requireNonNull(dates, "dates cannot be null");
         this.scoringPolicy = Objects.requireNonNull(scoringPolicy, "scoringPolicy cannot be null");
-        this.categories = categories != null ? new ArrayList<>(categories) : new ArrayList<>();
+        this.categories = new ArrayList<>();
         this.registeredTeams = new ArrayList<>();
+    }
 
-        if (endDate.isBefore(startDate)) {
-            throw new IllegalArgumentException("endDate cannot be before startDate");
-        }
+    public EditionContext getContext() {
+        return context;
     }
 
     public String getId() {
-        return id;
+        return context.header().id();
     }
 
     public Tournament getTournament() {
-        return tournament;
+        return context.tournament();
     }
 
     public int getEditionNumber() {
-        return editionNumber;
+        return context.header().editionNumber();
     }
 
     public String getName() {
-        return name;
+        return context.header().name();
+    }
+
+    public DateRange getDates() {
+        return dates;
     }
 
     public LocalDate getStartDate() {
-        return startDate;
+        return dates.startDate();
     }
 
     public LocalDate getEndDate() {
-        return endDate;
+        return dates.endDate();
     }
 
     public ScoringPolicy getScoringPolicy() {
@@ -99,5 +93,22 @@ public class Edition {
         return registeredTeams.stream()
                 .filter(t -> t.getCategory().id().equals(categoryId))
                 .toList();
+    }
+
+    public static Edition of(EditionContext context, DateRange dates, ScoringPolicy scoringPolicy) {
+        return new Edition(context, dates, scoringPolicy);
+    }
+
+    public static Edition of(String id, Tournament tournament, int editionNumber, String name,
+                              LocalDate startDate, LocalDate endDate, ScoringPolicy scoringPolicy, List<Category> categories) {
+        Edition edition = new Edition(
+                new EditionContext(tournament, new EditionHeader(id, name, editionNumber)),
+                new DateRange(startDate, endDate),
+                scoringPolicy
+        );
+        if (categories != null) {
+            categories.forEach(edition::addCategory);
+        }
+        return edition;
     }
 }

@@ -8,22 +8,37 @@ import java.util.Objects;
  * Team member participant.
  */
 public record TeamMember(
-        String id,
-        String fullName,
+        MemberProfile profile,
         LocalDate birthDate,
         String role
 ) {
     public TeamMember {
-        Objects.requireNonNull(id, "id cannot be null");
-        Objects.requireNonNull(fullName, "fullName cannot be null");
+        Objects.requireNonNull(profile, "profile cannot be null");
         Objects.requireNonNull(birthDate, "birthDate cannot be null");
+        role = role != null ? role : "MEMBER";
         if (birthDate.isAfter(LocalDate.now())) {
             throw new IllegalArgumentException("birthDate cannot be in the future");
         }
     }
 
+    public String id() {
+        return profile.id();
+    }
+
+    public String fullName() {
+        return profile.fullName();
+    }
+
     public int getAgeAt(LocalDate referenceDate) {
         Objects.requireNonNull(referenceDate, "referenceDate cannot be null");
         return Period.between(birthDate, referenceDate).getYears();
+    }
+
+    public static TeamMember of(MemberProfile profile, LocalDate birthDate, String role) {
+        return new TeamMember(profile, birthDate, role);
+    }
+
+    public static TeamMember of(String id, String fullName, LocalDate birthDate, String role) {
+        return new TeamMember(new MemberProfile(id, fullName), birthDate, role);
     }
 }
