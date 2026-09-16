@@ -15,7 +15,7 @@ class ScoringEngineTest {
     @DisplayName("TimeBasedRule awards bonus points for completing under target time")
     void timeBasedRuleBonusForSpeed() {
         // Base 100, target 60s, +2 pts per second under, -3 pts per second over
-        TimeBasedRule rule = new TimeBasedRule("Tiempo de Carrera", 100.0, 60.0, 2.0, 3.0, 0.0);
+        TimeBasedRule rule = new TimeBasedRule("Tiempo de Carrera", TimeRuleConfig.of(100.0, 60.0, 2.0, 3.0, 0.0));
 
         // Completed in 45 seconds (15 seconds faster)
         RawMetrics metrics = RawMetrics.of(45.0, 0, 0);
@@ -33,7 +33,7 @@ class ScoringEngineTest {
     @Test
     @DisplayName("TimeBasedRule penalizes when exceeding target time")
     void timeBasedRuleDeductsForSlowness() {
-        TimeBasedRule rule = new TimeBasedRule("Tiempo de Carrera", 100.0, 60.0, 2.0, 3.0, 0.0);
+        TimeBasedRule rule = new TimeBasedRule("Tiempo de Carrera", TimeRuleConfig.of(100.0, 60.0, 2.0, 3.0, 0.0));
 
         // Completed in 70 seconds (10 seconds slower)
         RawMetrics metrics = RawMetrics.of(70.0, 0, 0);
@@ -49,7 +49,7 @@ class ScoringEngineTest {
     @DisplayName("ObjectiveBonusRule computes points per milestone plus all-completed bonus")
     void objectiveBonusRuleCalculations() {
         // 20 pts per objective, 4 total objectives, 30 pts all-completed bonus
-        ObjectiveBonusRule rule = new ObjectiveBonusRule("Hitos de Navegación", 20.0, 4, 30.0);
+        ObjectiveBonusRule rule = new ObjectiveBonusRule("Hitos de Navegación", new ObjectiveRuleConfig(20.0, 4, 30.0));
 
         // Scenario 1: 3 out of 4 completed
         RawMetrics metricsPartial = RawMetrics.of(50.0, 3, 0);
@@ -101,8 +101,8 @@ class ScoringEngineTest {
     @Test
     @DisplayName("CompositeScoreRule consolidates multiple rules into explainable ScoreBreakdown")
     void compositeRuleConsolidatesExplainableBreakdown() {
-        ScoreRule timeRule = new TimeBasedRule("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0);
-        ScoreRule objRule = new ObjectiveBonusRule("Objetivos", 25.0, 4, 20.0);
+        ScoreRule timeRule = new TimeBasedRule("Tiempo", TimeRuleConfig.of(100.0, 60.0, 1.0, 2.0, 0.0));
+        ScoreRule objRule = new ObjectiveBonusRule("Objetivos", new ObjectiveRuleConfig(25.0, 4, 20.0));
         ScoreRule penaltyRule = new PenaltyRule("Penalizaciones", 10.0);
         ScoreRule judgeRule = new JudgeSubjectiveRule("Jueces", 2.0);
 
@@ -113,7 +113,10 @@ class ScoringEngineTest {
         // Penalties: 2 (-20 => -20)
         // Judges: avg 8.0 * 2.0 = 16.0
         // Expected total = 110 + 120 - 20 + 16 = 226.0
-        RawMetrics metrics = new RawMetrics(50.0, 4, 2, 0.0, Map.of("j1", 8.0, "j2", 8.0), Map.of());
+        RawMetrics metrics = new RawMetrics(
+                new TrackPerformance(50.0, 4, 2),
+                new EvaluationFeedback(0.0, Map.of("j1", 8.0, "j2", 8.0), Map.of())
+        );
 
         ScoreBreakdown breakdown = composite.evaluateBreakdown(metrics);
 
@@ -129,11 +132,11 @@ class ScoringEngineTest {
     @Test
     @DisplayName("ScoringPolicy versioning ensures historical reproducibility")
     void scoringPolicyVersioning() {
-        ScoreRule ruleV1 = new TimeBasedRule("Tiempo", 100.0, 60.0, 1.0, 1.0, 0.0);
+        ScoreRule ruleV1 = new TimeBasedRule("Tiempo", TimeRuleConfig.of(100.0, 60.0, 1.0, 1.0, 0.0));
         ScoringPolicy policyV1 = ScoringPolicy.of("pol-1", "v1.0.2026", "Reglamento Inicial", List.of(ruleV1));
 
         // In v2, base points increased to 150
-        ScoreRule ruleV2 = new TimeBasedRule("Tiempo", 150.0, 60.0, 1.0, 1.0, 0.0);
+        ScoreRule ruleV2 = new TimeBasedRule("Tiempo", TimeRuleConfig.of(150.0, 60.0, 1.0, 1.0, 0.0));
         ScoringPolicy policyV2 = ScoringPolicy.of("pol-1", "v2.0.2026", "Reglamento Actualizado", List.of(ruleV2));
 
         RawMetrics metrics = RawMetrics.of(50.0, 0, 0); // 10s under target => +10 bonus

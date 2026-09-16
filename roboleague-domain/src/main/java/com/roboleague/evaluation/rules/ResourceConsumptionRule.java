@@ -35,7 +35,7 @@ public class ResourceConsumptionRule implements ScoreRule {
                 ? String.format(Locale.US, "Exceso %.2f * -%.2f pts", excess, penaltyPerExcessUnit)
                 : "Dentro del límite permitido";
 
-        ScoreItem item = new ScoreItem(ruleName, rawMetric, formula, subtotal);
+        ScoreItem item = ScoreItem.of(ruleName, rawMetric, formula, subtotal);
         String note = excess > 0
                 ? String.format(Locale.US, "Consumo excesivo: %.2f unidades sobre el límite", excess)
                 : "Consumo de recursos eficiente";

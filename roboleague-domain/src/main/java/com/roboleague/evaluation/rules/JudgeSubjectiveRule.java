@@ -35,7 +35,7 @@ public class JudgeSubjectiveRule implements ScoreRule {
         String rawMetric = String.format(Locale.US, "Promedio %.2f (%d jueces)", avg, judgeCount);
         String formula = String.format(Locale.US, "%.2f * %.2f peso", avg, weightMultiplier);
 
-        ScoreItem item = new ScoreItem(
+        ScoreItem item = ScoreItem.of(
                 ruleName,
                 rawMetric,
                 formula,

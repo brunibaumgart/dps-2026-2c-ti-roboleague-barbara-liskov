@@ -2,7 +2,6 @@ package com.roboleague.evaluation;
 
 import com.roboleague.evaluation.audit.*;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -23,45 +22,47 @@ public class Attempt {
         DISQUALIFIED
     }
 
-    private final String attemptId;
-    private final String teamId;
-    private final String slotId;
-    private final String roundId;
-    private final int attemptNumber;
+    private final AttemptIdentity identity;
+    private final SlotReference slotReference;
     private AttemptStatus status;
 
     private final List<AttemptScoreSnapshot> revisionHistory;
     private final List<AttemptEvent> eventHistory;
 
-    public Attempt(String attemptId, String teamId, String slotId, String roundId, int attemptNumber) {
-        this.attemptId = Objects.requireNonNull(attemptId, "attemptId cannot be null");
-        this.teamId = Objects.requireNonNull(teamId, "teamId cannot be null");
-        this.slotId = Objects.requireNonNull(slotId, "slotId cannot be null");
-        this.roundId = Objects.requireNonNull(roundId, "roundId cannot be null");
-        this.attemptNumber = attemptNumber;
+    public Attempt(AttemptIdentity identity, SlotReference slotReference) {
+        this.identity = Objects.requireNonNull(identity, "identity cannot be null");
+        this.slotReference = Objects.requireNonNull(slotReference, "slotReference cannot be null");
         this.status = AttemptStatus.PENDING;
         this.revisionHistory = new ArrayList<>();
         this.eventHistory = new ArrayList<>();
     }
 
+    public AttemptIdentity getIdentity() {
+        return identity;
+    }
+
+    public SlotReference getSlotReference() {
+        return slotReference;
+    }
+
     public String getAttemptId() {
-        return attemptId;
+        return identity.attemptId();
     }
 
     public String getTeamId() {
-        return teamId;
+        return identity.teamId();
     }
 
     public String getSlotId() {
-        return slotId;
+        return slotReference.slotId();
     }
 
     public String getRoundId() {
-        return roundId;
+        return slotReference.roundId();
     }
 
     public int getAttemptNumber() {
-        return attemptNumber;
+        return identity.attemptNumber();
     }
 
     public AttemptStatus getStatus() {
@@ -113,17 +114,16 @@ public class Attempt {
         Objects.requireNonNull(breakdown, "breakdown cannot be null");
         Objects.requireNonNull(judgeId, "judgeId cannot be null");
 
-        AttemptScoreSnapshot snapshot = new AttemptScoreSnapshot(
+        AttemptScoreSnapshot snapshot = AttemptScoreSnapshot.of(
                 UUID.randomUUID().toString(),
                 1,
-                LocalDateTime.now(),
                 judgeId,
                 metrics,
                 breakdown,
                 "Initial attempt result registration"
         );
         revisionHistory.add(snapshot);
-        eventHistory.add(ResultRegisteredEvent.create(attemptId, teamId, metrics, breakdown, judgeId));
+        eventHistory.add(ResultRegisteredEvent.create(getAttemptId(), getTeamId(), metrics, breakdown, judgeId));
         this.status = AttemptStatus.EVALUATED;
     }
 
@@ -132,22 +132,19 @@ public class Attempt {
             throw new IllegalStateException("Cannot adjust an uncompleted attempt");
         }
         RawMetrics currentMetrics = getLatestMetrics();
-        RawMetrics updatedMetrics = new RawMetrics(
+        RawMetrics updatedMetrics = RawMetrics.of(
                 currentMetrics.timeTakenSeconds(),
                 currentMetrics.objectivesCompleted(),
                 currentMetrics.penaltiesCount() + additionalPenalties,
-                currentMetrics.resourceConsumption(),
-                currentMetrics.judgeSubjectiveScores(),
-                currentMetrics.customMetrics()
+                currentMetrics.judgeSubjectiveScores()
         );
 
         ScoreBreakdown updatedBreakdown = policy.evaluate(updatedMetrics);
         int nextRev = revisionHistory.size() + 1;
 
-        AttemptScoreSnapshot snapshot = new AttemptScoreSnapshot(
+        AttemptScoreSnapshot snapshot = AttemptScoreSnapshot.of(
                 UUID.randomUUID().toString(),
                 nextRev,
-                LocalDateTime.now(),
                 judgeId,
                 updatedMetrics,
                 updatedBreakdown,
@@ -155,8 +152,8 @@ public class Attempt {
         );
 
         revisionHistory.add(snapshot);
-        eventHistory.add(PenaltyAppliedEvent.create(attemptId, additionalPenalties, reason, judgeId));
-        eventHistory.add(ScoreAdjustedEvent.create(attemptId, nextRev, updatedMetrics, updatedBreakdown, reason, judgeId));
+        eventHistory.add(PenaltyAppliedEvent.create(getAttemptId(), additionalPenalties, reason, judgeId));
+        eventHistory.add(ScoreAdjustedEvent.create(getAttemptId(), nextRev, updatedMetrics, updatedBreakdown, reason, judgeId));
         this.status = AttemptStatus.ADJUSTED;
     }
 
@@ -168,10 +165,9 @@ public class Attempt {
                                   String resolutionNotes, String reviewerId) {
         int nextRev = revisionHistory.size() + 1;
 
-        AttemptScoreSnapshot snapshot = new AttemptScoreSnapshot(
+        AttemptScoreSnapshot snapshot = AttemptScoreSnapshot.of(
                 UUID.randomUUID().toString(),
                 nextRev,
-                LocalDateTime.now(),
                 reviewerId,
                 revisedMetrics,
                 revisedBreakdown,
@@ -179,8 +175,8 @@ public class Attempt {
         );
 
         revisionHistory.add(snapshot);
-        eventHistory.add(AppealAcceptedEvent.create(attemptId, appealId, resolutionNotes, reviewerId));
-        eventHistory.add(ScoreAdjustedEvent.create(attemptId, nextRev, revisedMetrics, revisedBreakdown, resolutionNotes, reviewerId));
+        eventHistory.add(AppealAcceptedEvent.create(getAttemptId(), appealId, resolutionNotes, reviewerId));
+        eventHistory.add(ScoreAdjustedEvent.create(getAttemptId(), nextRev, revisedMetrics, revisedBreakdown, resolutionNotes, reviewerId));
         this.status = AttemptStatus.ADJUSTED;
     }
 
@@ -192,10 +188,9 @@ public class Attempt {
         ScoreBreakdown recalculated = policy.evaluate(currentMetrics);
         int nextRev = revisionHistory.size() + 1;
 
-        AttemptScoreSnapshot snapshot = new AttemptScoreSnapshot(
+        AttemptScoreSnapshot snapshot = AttemptScoreSnapshot.of(
                 UUID.randomUUID().toString(),
                 nextRev,
-                LocalDateTime.now(),
                 authorId,
                 currentMetrics,
                 recalculated,
@@ -203,11 +198,22 @@ public class Attempt {
         );
 
         revisionHistory.add(snapshot);
-        eventHistory.add(ScoreAdjustedEvent.create(attemptId, nextRev, currentMetrics, recalculated, reason, authorId));
+        eventHistory.add(ScoreAdjustedEvent.create(getAttemptId(), nextRev, currentMetrics, recalculated, reason, authorId));
         this.status = AttemptStatus.ADJUSTED;
     }
 
     public void disqualify(String reason, String judgeId) {
         this.status = AttemptStatus.DISQUALIFIED;
+    }
+
+    public static Attempt of(AttemptIdentity identity, SlotReference slotReference) {
+        return new Attempt(identity, slotReference);
+    }
+
+    public static Attempt of(String attemptId, String teamId, String slotId, String roundId, int attemptNumber) {
+        return new Attempt(
+                new AttemptIdentity(attemptId, teamId, attemptNumber),
+                new SlotReference(slotId, roundId)
+        );
     }
 }

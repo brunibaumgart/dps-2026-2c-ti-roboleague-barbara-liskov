@@ -32,7 +32,7 @@ public class PenaltyRule implements ScoreRule {
         double subtotal = -(penalties * deductionPerPenalty);
         String formula = String.format(Locale.US, "%d faltas * -%.1f pts", penalties, deductionPerPenalty);
 
-        ScoreItem item = new ScoreItem(
+        ScoreItem item = ScoreItem.of(
                 ruleName,
                 String.format(Locale.US, "%d faltas", penalties),
                 formula,
