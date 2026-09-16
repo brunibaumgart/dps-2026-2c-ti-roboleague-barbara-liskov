@@ -18,53 +18,51 @@ public class Slot {
         CANCELLED
     }
 
-    private final String slotId;
-    private final String roundId;
-    private final String teamId;
+    private final SlotIdentity identity;
     private final Track track;
-    private final LocalDateTime startTime;
-    private final LocalDateTime endTime;
+    private final TimeWindow timeWindow;
     private final List<Judge> assignedJudges;
     private SlotStatus status;
 
-    public Slot(String slotId, String roundId, String teamId, Track track,
-                LocalDateTime startTime, LocalDateTime endTime, List<Judge> assignedJudges) {
-        this.slotId = Objects.requireNonNull(slotId, "slotId cannot be null");
-        this.roundId = Objects.requireNonNull(roundId, "roundId cannot be null");
-        this.teamId = Objects.requireNonNull(teamId, "teamId cannot be null");
-        this.track = Objects.requireNonNull(track, "track cannot be null");
-        this.startTime = Objects.requireNonNull(startTime, "startTime cannot be null");
-        this.endTime = Objects.requireNonNull(endTime, "endTime cannot be null");
-        this.assignedJudges = assignedJudges != null ? new ArrayList<>(assignedJudges) : new ArrayList<>();
+    public Slot(SlotIdentity identity, SlotAssignment assignment, TimeWindow timeWindow) {
+        this.identity = Objects.requireNonNull(identity, "identity cannot be null");
+        Objects.requireNonNull(assignment, "assignment cannot be null");
+        this.track = assignment.track();
+        this.assignedJudges = new ArrayList<>(assignment.assignedJudges());
+        this.timeWindow = Objects.requireNonNull(timeWindow, "timeWindow cannot be null");
         this.status = SlotStatus.SCHEDULED;
+    }
 
-        if (endTime.isBefore(startTime)) {
-            throw new IllegalArgumentException("endTime cannot be before startTime");
-        }
+    public SlotIdentity getIdentity() {
+        return identity;
     }
 
     public String getSlotId() {
-        return slotId;
+        return identity.slotId();
     }
 
     public String getRoundId() {
-        return roundId;
+        return identity.roundId();
     }
 
     public String getTeamId() {
-        return teamId;
+        return identity.teamId();
     }
 
     public Track getTrack() {
         return track;
     }
 
+    public TimeWindow getTimeWindow() {
+        return timeWindow;
+    }
+
     public LocalDateTime getStartTime() {
-        return startTime;
+        return timeWindow.startTime();
     }
 
     public LocalDateTime getEndTime() {
-        return endTime;
+        return timeWindow.endTime();
     }
 
     public List<Judge> getAssignedJudges() {
@@ -92,5 +90,9 @@ public class Slot {
         if (!assignedJudges.contains(judge)) {
             assignedJudges.add(judge);
         }
+    }
+
+    public static Slot of(SlotIdentity identity, SlotAssignment assignment, TimeWindow timeWindow) {
+        return new Slot(identity, assignment, timeWindow);
     }
 }

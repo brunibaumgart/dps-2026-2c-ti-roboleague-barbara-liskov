@@ -16,42 +16,38 @@ public class Round {
         COMPLETED
     }
 
-    private final String id;
-    private final String editionId;
-    private final String categoryId;
-    private final int roundNumber;
-    private final String name;
+    private final RoundInfo info;
     private RoundStatus status;
     private final List<Slot> slots;
 
-    public Round(String id, String editionId, String categoryId, int roundNumber, String name) {
-        this.id = Objects.requireNonNull(id, "id cannot be null");
-        this.editionId = Objects.requireNonNull(editionId, "editionId cannot be null");
-        this.categoryId = Objects.requireNonNull(categoryId, "categoryId cannot be null");
-        this.roundNumber = roundNumber;
-        this.name = Objects.requireNonNull(name, "name cannot be null");
+    public Round(RoundInfo info) {
+        this.info = Objects.requireNonNull(info, "info cannot be null");
         this.status = RoundStatus.SCHEDULED;
         this.slots = new ArrayList<>();
     }
 
+    public RoundInfo getInfo() {
+        return info;
+    }
+
     public String getId() {
-        return id;
-    }
-
-    public String getEditionId() {
-        return editionId;
-    }
-
-    public String getCategoryId() {
-        return categoryId;
-    }
-
-    public int getRoundNumber() {
-        return roundNumber;
+        return info.id();
     }
 
     public String getName() {
-        return name;
+        return info.name();
+    }
+
+    public String getEditionId() {
+        return info.scope().editionId();
+    }
+
+    public String getCategoryId() {
+        return info.scope().categoryId();
+    }
+
+    public int getRoundNumber() {
+        return info.scope().roundNumber();
     }
 
     public RoundStatus getStatus() {
@@ -73,5 +69,9 @@ public class Round {
 
     public void complete() {
         this.status = RoundStatus.COMPLETED;
+    }
+
+    public static Round of(RoundInfo info) {
+        return new Round(info);
     }
 }
