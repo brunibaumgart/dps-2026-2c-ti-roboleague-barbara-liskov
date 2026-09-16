@@ -4,7 +4,6 @@ import com.roboleague.tournament.Category;
 import com.roboleague.tournament.RobotSpecification;
 import com.roboleague.tournament.Team;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -20,20 +19,8 @@ public class RobotSpecificationLimit implements EligibilitySpecification<Team> {
 
         Category category = team.getCategory();
         RobotSpecification spec = team.getRobot().getSpecification();
-        List<String> violations = new ArrayList<>();
 
-        if (spec.weightGrams() > category.maxRobotWeightGrams()) {
-            violations.add("Robot weight (" + spec.weightGrams() + "g) exceeds category limit (" + category.maxRobotWeightGrams() + "g)");
-        }
-        if (spec.lengthMm() > category.maxRobotLengthMm()) {
-            violations.add("Robot length (" + spec.lengthMm() + "mm) exceeds category limit (" + category.maxRobotLengthMm() + "mm)");
-        }
-        if (spec.widthMm() > category.maxRobotWidthMm()) {
-            violations.add("Robot width (" + spec.widthMm() + "mm) exceeds category limit (" + category.maxRobotWidthMm() + "mm)");
-        }
-        if (spec.heightMm() > category.maxRobotHeightMm()) {
-            violations.add("Robot height (" + spec.heightMm() + "mm) exceeds category limit (" + category.maxRobotHeightMm() + "mm)");
-        }
+        List<String> violations = category.restrictions().robotLimits().checkViolations(spec);
 
         if (violations.isEmpty()) {
             return EligibilityResult.eligible();
