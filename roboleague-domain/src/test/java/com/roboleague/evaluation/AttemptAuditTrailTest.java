@@ -3,6 +3,7 @@ package com.roboleague.evaluation;
 import com.roboleague.evaluation.audit.AttemptScoreSnapshot;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.TimeBasedRule;
+import com.roboleague.evaluation.rules.TimeRuleConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,7 +19,7 @@ class AttemptAuditTrailTest {
 
     @BeforeEach
     void setUp() {
-        TimeBasedRule timeRule = new TimeBasedRule("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0);
+        TimeBasedRule timeRule = new TimeBasedRule("Tiempo", TimeRuleConfig.of(100.0, 60.0, 1.0, 2.0, 0.0));
         PenaltyRule penaltyRule = new PenaltyRule("Penalizaciones", 10.0);
         standardPolicy = ScoringPolicy.of("pol-std", "v1.0", "Reglamento Estandar", List.of(timeRule, penaltyRule));
     }
@@ -26,7 +27,7 @@ class AttemptAuditTrailTest {
     @Test
     @DisplayName("Attempt preserves append-only snapshot history and never overwrites previous scores")
     void preservesAppendOnlySnapshotHistory() {
-        Attempt attempt = new Attempt("att-1", "team-1", "slot-1", "round-1", 1);
+        Attempt attempt = Attempt.of("att-1", "team-1", "slot-1", "round-1", 1);
 
         // Initial result: 50s, 0 objectives, 0 penalties => Score: 100 + 10 = 110.0
         RawMetrics initialMetrics = RawMetrics.of(50.0, 0, 0);
@@ -68,7 +69,7 @@ class AttemptAuditTrailTest {
     @Test
     @DisplayName("Cannot call registerInitialResult twice on the same attempt")
     void cannotRegisterInitialResultTwice() {
-        Attempt attempt = new Attempt("att-2", "team-1", "slot-1", "round-1", 1);
+        Attempt attempt = Attempt.of("att-2", "team-1", "slot-1", "round-1", 1);
         RawMetrics metrics = RawMetrics.of(50.0, 0, 0);
         ScoreBreakdown breakdown = standardPolicy.evaluate(metrics);
 
