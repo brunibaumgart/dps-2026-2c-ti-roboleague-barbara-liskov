@@ -17,9 +17,7 @@ public class Ranking {
         OFFICIAL
     }
 
-    private final String rankingId;
-    private final String editionId;
-    private final String categoryId;
+    private final RankingScope scope;
     private final String roundId;
     private RankingStatus status;
     private final LocalDateTime generatedAt;
@@ -27,26 +25,28 @@ public class Ranking {
     private String publicationNotes;
     private final List<RankingEntry> entries;
 
-    public Ranking(String rankingId, String editionId, String categoryId, String roundId, List<RankingEntry> entries) {
-        this.rankingId = Objects.requireNonNull(rankingId, "rankingId cannot be null");
-        this.editionId = Objects.requireNonNull(editionId, "editionId cannot be null");
-        this.categoryId = Objects.requireNonNull(categoryId, "categoryId cannot be null");
+    public Ranking(RankingScope scope, String roundId, List<RankingEntry> entries) {
+        this.scope = Objects.requireNonNull(scope, "scope cannot be null");
         this.roundId = roundId != null ? roundId : "";
         this.entries = entries != null ? List.copyOf(entries) : List.of();
         this.status = RankingStatus.PROVISIONAL;
         this.generatedAt = LocalDateTime.now();
     }
 
+    public RankingScope getScope() {
+        return scope;
+    }
+
     public String getRankingId() {
-        return rankingId;
+        return scope.rankingId();
     }
 
     public String getEditionId() {
-        return editionId;
+        return scope.editionId();
     }
 
     public String getCategoryId() {
-        return categoryId;
+        return scope.categoryId();
     }
 
     public String getRoundId() {
@@ -85,5 +85,13 @@ public class Ranking {
         this.status = RankingStatus.OFFICIAL;
         this.publishedAt = LocalDateTime.now();
         this.publicationNotes = notes != null ? notes : "Official ranking published.";
+    }
+
+    public static Ranking of(RankingScope scope, String roundId, List<RankingEntry> entries) {
+        return new Ranking(scope, roundId, entries);
+    }
+
+    public static Ranking of(String rankingId, String editionId, String categoryId, String roundId, List<RankingEntry> entries) {
+        return new Ranking(new RankingScope(rankingId, editionId, categoryId), roundId, entries);
     }
 }

@@ -4,7 +4,10 @@ import com.roboleague.evaluation.Attempt;
 import com.roboleague.ranking.tiebreakers.TieBreakerChain;
 import com.roboleague.tournament.Team;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * Domain service calculating leaderboards and ranking positions for a category in an edition.
@@ -21,25 +24,23 @@ public class RankingCalculatorService {
         this(TieBreakerChain.defaultRules());
     }
 
-    public Ranking calculateProvisionalRanking(String rankingId, String editionId, String categoryId, String roundId,
-                                              List<Team> teams, Map<String, List<Attempt>> attemptsByTeamId) {
-        Objects.requireNonNull(rankingId, "rankingId cannot be null");
-        Objects.requireNonNull(teams, "teams cannot be null");
+    public Ranking calculateProvisionalRanking(RankingScope scope, String roundId, RankingCalculationData data) {
+        Objects.requireNonNull(scope, "scope cannot be null");
+        Objects.requireNonNull(data, "data cannot be null");
 
         List<TeamScore> teamScores = new ArrayList<>();
-        for (Team team : teams) {
-            List<Attempt> teamAttempts = attemptsByTeamId.getOrDefault(team.getId(), List.of());
+        for (Team team : data.teams()) {
+            List<Attempt> teamAttempts = data.attemptsByTeamId().getOrDefault(team.getId(), List.of());
             TeamScore score = TeamScore.fromBestAttempt(
                     team.getId(),
                     team.getName(),
-                    categoryId,
-                    editionId,
+                    scope.categoryId(),
+                    scope.editionId(),
                     teamAttempts
             );
             teamScores.add(score);
         }
 
-        // Sort according to the tie-breaking comparator chain
         teamScores.sort(tieBreakerChain);
 
         List<RankingEntry> entries = new ArrayList<>();
@@ -52,11 +53,7 @@ public class RankingCalculatorService {
 
             if (i > 0) {
                 TeamScore prev = teamScores.get(i - 1);
-                // If compare returns 0 on score, time, penalties and judges, it's a tie
-                if (current.totalScore() == prev.totalScore()
-                        && current.bestAttemptTime() == prev.bestAttemptTime()
-                        && current.totalPenalties() == prev.totalPenalties()
-                        && current.judgeSubjectiveScore() == prev.judgeSubjectiveScore()) {
+                if (current.isTiedWith(prev)) {
                     tiedWithPrev = true;
                     explanation = "Empate técnico con posición previa en puntaje, tiempo, faltas y jueces";
                 } else {
@@ -64,9 +61,16 @@ public class RankingCalculatorService {
                 }
             }
 
-            entries.add(new RankingEntry(currentRank, current, tiedWithPrev, explanation));
+            entries.add(RankingEntry.of(currentRank, current, tiedWithPrev, explanation));
         }
 
-        return new Ranking(rankingId, editionId, categoryId, roundId, entries);
+        return new Ranking(scope, roundId, entries);
+    }
+
+    public Ranking calculateProvisionalRanking(String rankingId, String editionId, String categoryId, String roundId,
+                                              List<Team> teams, Map<String, List<Attempt>> attemptsByTeamId) {
+        RankingScope scope = RankingScope.of(rankingId, editionId, categoryId);
+        RankingCalculationData data = RankingCalculationData.of(teams, attemptsByTeamId);
+        return calculateProvisionalRanking(scope, roundId, data);
     }
 }

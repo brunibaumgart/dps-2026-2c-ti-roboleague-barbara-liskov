@@ -11,34 +11,75 @@ import java.util.Objects;
  * Aggregated score summary for a team in a category and edition.
  */
 public record TeamScore(
-        String teamId,
-        String teamName,
-        String categoryId,
-        String editionId,
-        double totalScore,
-        double bestAttemptTime,
-        int totalPenalties,
-        double judgeSubjectiveScore,
+        TeamEntryHeader header,
+        PerformanceSummary performance,
         List<Attempt> evaluatedAttempts
 ) {
     public TeamScore {
-        Objects.requireNonNull(teamId, "teamId cannot be null");
-        Objects.requireNonNull(teamName, "teamName cannot be null");
-        Objects.requireNonNull(categoryId, "categoryId cannot be null");
-        Objects.requireNonNull(editionId, "editionId cannot be null");
+        Objects.requireNonNull(header, "header cannot be null");
+        Objects.requireNonNull(performance, "performance cannot be null");
         evaluatedAttempts = evaluatedAttempts != null ? Collections.unmodifiableList(evaluatedAttempts) : Collections.emptyList();
     }
 
-    /**
-     * Creates a consolidated TeamScore from a list of attempts by picking the best attempt score,
-     * or consolidating all attempts.
-     */
+    public String teamId() {
+        return header.team().teamId();
+    }
+
+    public String teamName() {
+        return header.team().teamName();
+    }
+
+    public String categoryId() {
+        return header.context().categoryId();
+    }
+
+    public String editionId() {
+        return header.context().editionId();
+    }
+
+    public double totalScore() {
+        return performance.totalScore();
+    }
+
+    public double bestAttemptTime() {
+        return performance.bestAttemptTime();
+    }
+
+    public int totalPenalties() {
+        return performance.totalPenalties();
+    }
+
+    public double judgeSubjectiveScore() {
+        return performance.judgeSubjectiveScore();
+    }
+
+    public boolean isTiedWith(TeamScore other) {
+        if (other == null) return false;
+        return performance.isTiedWith(other.performance);
+    }
+
+    public static TeamScore of(TeamEntryHeader header, PerformanceSummary performance, List<Attempt> evaluatedAttempts) {
+        return new TeamScore(header, performance, evaluatedAttempts);
+    }
+
+    public static TeamScore of(String teamId, String teamName, String categoryId, String editionId,
+                               PerformanceSummary performance, List<Attempt> evaluatedAttempts) {
+        return new TeamScore(
+                TeamEntryHeader.of(teamId, teamName, categoryId, editionId),
+                performance,
+                evaluatedAttempts
+        );
+    }
+
     public static TeamScore fromBestAttempt(String teamId, String teamName, String categoryId, String editionId, List<Attempt> attempts) {
         if (attempts == null || attempts.isEmpty()) {
-            return new TeamScore(teamId, teamName, categoryId, editionId, 0.0, Double.MAX_VALUE, 0, 0.0, List.of());
+            return TeamScore.of(
+                    teamId, teamName, categoryId, editionId,
+                    PerformanceSummary.of(0.0, Double.MAX_VALUE, 0, 0.0),
+                    List.of()
+            );
         }
 
-        // Find attempt with highest final score
         Attempt bestAttempt = attempts.stream()
                 .filter(a -> a.getStatus() != Attempt.AttemptStatus.DISQUALIFIED)
                 .max((a1, a2) -> Double.compare(a1.getFinalScore(), a2.getFinalScore()))
@@ -50,6 +91,10 @@ public record TeamScore(
         int penalties = metrics != null ? metrics.penaltiesCount() : 0;
         double judgeAvg = metrics != null ? metrics.getAverageJudgeScore() : 0.0;
 
-        return new TeamScore(teamId, teamName, categoryId, editionId, score, time, penalties, judgeAvg, attempts);
+        return TeamScore.of(
+                teamId, teamName, categoryId, editionId,
+                PerformanceSummary.of(score, time, penalties, judgeAvg),
+                attempts
+        );
     }
 }

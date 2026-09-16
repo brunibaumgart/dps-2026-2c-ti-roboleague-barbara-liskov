@@ -11,13 +11,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class TieBreakerRankingTest {
 
+    private TeamScore createScore(String teamId, String teamName, double totalScore, double bestAttemptTime, int totalPenalties, double judgeScore) {
+        return TeamScore.of(
+                teamId, teamName, "cat-1", "ed-1",
+                PerformanceSummary.of(totalScore, bestAttemptTime, totalPenalties, judgeScore),
+                List.of()
+        );
+    }
+
     @Test
     @DisplayName("TieBreakerChain prioritizes total score first")
     void tieBreakerTotalScoreFirst() {
         TieBreakerChain chain = TieBreakerChain.defaultRules();
 
-        TeamScore scoreA = new TeamScore("t-1", "Team A", "cat-1", "ed-1", 100.0, 50.0, 1, 8.0, List.of());
-        TeamScore scoreB = new TeamScore("t-2", "Team B", "cat-1", "ed-1", 120.0, 60.0, 3, 7.0, List.of());
+        TeamScore scoreA = createScore("t-1", "Team A", 100.0, 50.0, 1, 8.0);
+        TeamScore scoreB = createScore("t-2", "Team B", 120.0, 60.0, 3, 7.0);
 
         List<TeamScore> list = new ArrayList<>(List.of(scoreA, scoreB));
         list.sort(chain);
@@ -33,8 +41,8 @@ class TieBreakerRankingTest {
         TieBreakerChain chain = TieBreakerChain.defaultRules();
 
         // Equal score (100.0), Team A was faster (40s vs 55s)
-        TeamScore scoreA = new TeamScore("t-1", "Team A", "cat-1", "ed-1", 100.0, 40.0, 2, 8.0, List.of());
-        TeamScore scoreB = new TeamScore("t-2", "Team B", "cat-1", "ed-1", 100.0, 55.0, 0, 9.0, List.of());
+        TeamScore scoreA = createScore("t-1", "Team A", 100.0, 40.0, 2, 8.0);
+        TeamScore scoreB = createScore("t-2", "Team B", 100.0, 55.0, 0, 9.0);
 
         List<TeamScore> list = new ArrayList<>(List.of(scoreB, scoreA));
         list.sort(chain);
@@ -49,8 +57,8 @@ class TieBreakerRankingTest {
         TieBreakerChain chain = TieBreakerChain.defaultRules();
 
         // Equal score (100.0), equal time (45.0s), Team A has 1 penalty, Team B has 3
-        TeamScore scoreA = new TeamScore("t-1", "Team A", "cat-1", "ed-1", 100.0, 45.0, 1, 7.0, List.of());
-        TeamScore scoreB = new TeamScore("t-2", "Team B", "cat-1", "ed-1", 100.0, 45.0, 3, 9.0, List.of());
+        TeamScore scoreA = createScore("t-1", "Team A", 100.0, 45.0, 1, 7.0);
+        TeamScore scoreB = createScore("t-2", "Team B", 100.0, 45.0, 3, 9.0);
 
         List<TeamScore> list = new ArrayList<>(List.of(scoreB, scoreA));
         list.sort(chain);
@@ -65,8 +73,8 @@ class TieBreakerRankingTest {
         TieBreakerChain chain = TieBreakerChain.defaultRules();
 
         // Equal score, time and penalties. Team B has higher judge score (9.5 vs 8.0)
-        TeamScore scoreA = new TeamScore("t-1", "Team A", "cat-1", "ed-1", 100.0, 45.0, 1, 8.0, List.of());
-        TeamScore scoreB = new TeamScore("t-2", "Team B", "cat-1", "ed-1", 100.0, 45.0, 1, 9.5, List.of());
+        TeamScore scoreA = createScore("t-1", "Team A", 100.0, 45.0, 1, 8.0);
+        TeamScore scoreB = createScore("t-2", "Team B", 100.0, 45.0, 1, 9.5);
 
         List<TeamScore> list = new ArrayList<>(List.of(scoreA, scoreB));
         list.sort(chain);
