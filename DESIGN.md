@@ -260,10 +260,10 @@ roboleague-domain/
 
 ## 5. Estrategia de Verificación y Cobertura de Pruebas
 
-El diseño implementado se valida mediante una suite completa de **27 pruebas automatizadas** en `src/test/java`, divididas en:
+El diseño implementado se valida mediante una suite completa de **31 pruebas automatizadas** en `src/test/java`, divididas en:
 - **Pruebas Unitarias de Scoring y Auditoría**:
   - `ScoringEngineTest`: Evalúa el comportamiento de cada regla elemental (`TimeBasedRule`, `ObjectiveBonusRule`, `PenaltyRule`, `JudgeSubjectiveRule`) y su agregación en `CompositeScoreRule`, verificando los desgloses paso a paso.
-  - `AttemptAuditTrailTest`: Valida que cada modificación sobre un intento genere snapshots inmutables con numeración correlativa, preservando la revisión original intacta y registrando eventos de dominio.
+  - `AttemptAuditTrailTest`: Valida que cada modificación sobre un intento genere snapshots inmutables con numeración correlativa, preservando la revisión original intacta y registrando eventos de dominio. Cubre además la descalificación auditada (`AttemptDisqualifiedEvent`) y la restauración del estado del intento tras una apelación rechazada.
 - **Pruebas Unitarias de Dominio y Flujos de Estado**:
   - `AppealStateFlowTest`: Verifica la imposibilidad de transiciones ilegales en la máquina de estados de apelaciones y comprueba las consultas polimórficas de habilitación de publicación oficial.
   - `TieBreakerRankingTest`: Valida el comportamiento de `TieBreakerChain` resolviendo empates por mayor puntaje, menor tiempo, menores faltas y notas de jueces, documentando la justificación en `TieStatus`.
@@ -271,5 +271,6 @@ El diseño implementado se valida mediante una suite completa de **27 pruebas au
 - **Pruebas de Casos de Uso y de Integración de Punta a Punta**:
   - `RegisterTeamUseCaseTest`: Verifica la correcta admisión y el rechazo fundamentado de equipos según su elegibilidad.
   - `ScheduleRoundUseCaseTest`: Verifica la generación ordenada de slots, asignación balanceada de jueces y pistas, y prevención de turnos solapados.
-  - `PublishOfficialRankingUseCaseTest`: Comprueba el bloqueo automático de la publicación del ranking oficial mientras existan apelaciones abiertas o en revisión.
+  - `PublishOfficialRankingUseCaseTest`: Comprueba el bloqueo automático de la publicación del ranking oficial mientras existan apelaciones abiertas o en revisión sobre intentos de ese ranking, que apelaciones de otras rondas no bloquean, y que un ranking oficial no puede republicarse.
+  - `ResolveAppealUseCaseTest`: Verifica que rechazar una apelación conserva el puntaje original y libera el intento del estado de apelación.
   - `AppealAndRecalculateIntegrationTest`: **Prueba de integración end-to-end** que ejecuta el ciclo de vida completo: Registro de equipos -> Planificación de ronda -> Captura inicial de intentos -> Cálculo de ranking provisional -> Presentación de apelación por controversia en penalizaciones -> Bloqueo de publicación oficial -> Revisión técnica arbitral -> Aceptación del reclamo con métricas corregidas -> Verificación del rastro de auditoría en el intento -> Recálculo automático del ranking con inversión legítima de posiciones -> Publicación exitosa del ranking oficial.

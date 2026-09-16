@@ -5,7 +5,6 @@ Domain module for a robotics competition platform. The project models tournament
 ## Project Structure
 
 - `roboleague-domain/`: Java domain model, use cases, repositories, and tests.
-- `roboleague-mydomain/`: standalone domain-model entry point.
 - [`DESIGN.md`](DESIGN.md): domain contexts, design decisions, applied patterns, and rejected alternatives.
 
 ## Requirements
