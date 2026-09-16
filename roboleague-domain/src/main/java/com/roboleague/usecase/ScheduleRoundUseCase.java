@@ -1,9 +1,6 @@
 package com.roboleague.usecase;
 
-import com.roboleague.scheduling.Judge;
-import com.roboleague.scheduling.Round;
-import com.roboleague.scheduling.RoundSchedulerService;
-import com.roboleague.scheduling.Track;
+import com.roboleague.scheduling.*;
 import com.roboleague.tournament.Edition;
 import com.roboleague.tournament.Team;
 import com.roboleague.repository.EditionRepository;
@@ -41,9 +38,12 @@ public class ScheduleRoundUseCase {
         }
 
         String roundId = UUID.randomUUID().toString();
-        return schedulerService.scheduleRound(
-                roundId, editionId, categoryId, roundNumber, roundName,
-                teamIds, tracks, judges, startTime, slotDuration, interval
-        );
+        RoundScope scope = RoundScope.of(editionId, categoryId, roundNumber);
+        RoundInfo info = RoundInfo.of(roundId, roundName, scope);
+        RoundResources resources = RoundResources.of(tracks, judges);
+        RoundScheduleTiming timing = RoundScheduleTiming.of(startTime, slotDuration, interval);
+        RoundScheduleRequest request = RoundScheduleRequest.of(info, resources, timing);
+
+        return schedulerService.scheduleRound(request, teamIds);
     }
 }

@@ -43,8 +43,8 @@ class RegisterTeamUseCaseTest {
         Edition edition = mock(Edition.class);
         when(editionRepository.findById("ed-1")).thenReturn(Optional.of(edition));
 
-        Robot robot = new Robot("r-1", "Bot", new RobotSpecification(2000, 100, 100, 100, 2, Set.of()));
-        Team team = new Team("t-1", "RoboDevs", "ITBA", category, robot);
+        Robot robot = new Robot("r-1", "Bot", RobotSpecification.of(2000, 100, 100, 100, 2, Set.of()));
+        Team team = Team.of("t-1", "RoboDevs", "ITBA", category, robot);
 
         when(eligibilitySpecification.isSatisfiedBy(team)).thenReturn(EligibilityResult.eligible());
 
@@ -64,8 +64,8 @@ class RegisterTeamUseCaseTest {
         Edition edition = mock(Edition.class);
         when(editionRepository.findById("ed-1")).thenReturn(Optional.of(edition));
 
-        Robot robot = new Robot("r-1", "Bot", new RobotSpecification(2000, 100, 100, 100, 2, Set.of()));
-        Team team = new Team("t-1", "RoboDevs", "ITBA", category, robot);
+        Robot robot = new Robot("r-1", "Bot", RobotSpecification.of(2000, 100, 100, 100, 2, Set.of()));
+        Team team = Team.of("t-1", "RoboDevs", "ITBA", category, robot);
 
         when(eligibilitySpecification.isSatisfiedBy(team))
                 .thenReturn(EligibilityResult.ineligible(List.of("Robot exceeds maximum weight limit")));

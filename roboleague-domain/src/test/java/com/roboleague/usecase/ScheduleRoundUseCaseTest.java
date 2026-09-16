@@ -30,15 +30,15 @@ class ScheduleRoundUseCaseTest {
 
         Category category = Category.of("cat-sumo", "Sumo", 2, 4, 15, 20, 2500);
         Season season = new Season("s-1", 2026, "2026");
-        Tournament tournament = new Tournament("t-1", "Torneo", "Desc", season);
+        Tournament tournament = Tournament.of("t-1", "Torneo", "Desc", season);
         ScoringPolicy policy = ScoringPolicy.of("pol-1", "v1", "Reglamento", List.of());
 
-        Edition edition = new Edition("ed-1", tournament, 1, "Edicion 1",
+        Edition edition = Edition.of("ed-1", tournament, 1, "Edicion 1",
                 LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 2), policy, List.of(category));
 
-        Robot robot = new Robot("r-1", "Bot", new RobotSpecification(2000, 100, 100, 100, 2, Set.of()));
-        Team t1 = new Team("t-1", "Alpha", "ITBA", category, robot);
-        Team t2 = new Team("t-2", "Beta", "ITBA", category, robot);
+        Robot robot = new Robot("r-1", "Bot", RobotSpecification.of(2000, 100, 100, 100, 2, Set.of()));
+        Team t1 = Team.of("t-1", "Alpha", "ITBA", category, robot);
+        Team t2 = Team.of("t-2", "Beta", "ITBA", category, robot);
         edition.registerTeam(t1);
         edition.registerTeam(t2);
         editionRepo.save(edition);
@@ -64,10 +64,10 @@ class ScheduleRoundUseCaseTest {
 
         Category category = Category.of("cat-sumo", "Sumo", 2, 4, 15, 20, 2500);
         Season season = new Season("s-1", 2026, "2026");
-        Tournament tournament = new Tournament("t-1", "Torneo", "Desc", season);
+        Tournament tournament = Tournament.of("t-1", "Torneo", "Desc", season);
         ScoringPolicy policy = ScoringPolicy.of("pol-1", "v1", "Reglamento", List.of());
 
-        Edition edition = new Edition("ed-1", tournament, 1, "Edicion 1",
+        Edition edition = Edition.of("ed-1", tournament, 1, "Edicion 1",
                 LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 2), policy, List.of(category));
         editionRepo.save(edition);
 

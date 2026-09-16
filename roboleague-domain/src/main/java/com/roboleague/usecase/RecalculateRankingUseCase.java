@@ -3,7 +3,6 @@ package com.roboleague.usecase;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.ranking.Ranking;
 import com.roboleague.ranking.RankingCalculatorService;
-import com.roboleague.ranking.tiebreakers.TieBreakerChain;
 import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.RankingRepository;
@@ -29,7 +28,7 @@ public class RecalculateRankingUseCase {
         this.editionRepository = Objects.requireNonNull(editionRepository, "editionRepository cannot be null");
         this.attemptRepository = Objects.requireNonNull(attemptRepository, "attemptRepository cannot be null");
         this.rankingRepository = Objects.requireNonNull(rankingRepository, "rankingRepository cannot be null");
-        this.rankingCalculatorService = rankingCalculatorService != null ? rankingCalculatorService : new RankingCalculatorService();
+        this.rankingCalculatorService = Objects.requireNonNull(rankingCalculatorService, "rankingCalculatorService cannot be null");
     }
 
     public Ranking execute(String editionId, String categoryId, String roundId) {
@@ -41,7 +40,6 @@ public class RecalculateRankingUseCase {
 
         for (Team team : teams) {
             List<Attempt> teamAttempts = attemptRepository.findByTeamId(team.getId());
-            // Filter attempts matching the round if roundId is specified
             if (roundId != null && !roundId.isEmpty()) {
                 teamAttempts = teamAttempts.stream()
                         .filter(a -> a.getRoundId().equals(roundId))

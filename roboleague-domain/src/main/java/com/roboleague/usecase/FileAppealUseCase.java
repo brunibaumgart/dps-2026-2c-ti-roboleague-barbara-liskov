@@ -29,7 +29,7 @@ public class FileAppealUseCase {
         }
 
         String appealId = UUID.randomUUID().toString();
-        Appeal appeal = new Appeal(appealId, attemptId, teamId, reason, evidenceDescription);
+        Appeal appeal = Appeal.of(appealId, attemptId, teamId, reason, evidenceDescription);
 
         attempt.markUnderAppeal();
         attemptRepository.save(attempt);

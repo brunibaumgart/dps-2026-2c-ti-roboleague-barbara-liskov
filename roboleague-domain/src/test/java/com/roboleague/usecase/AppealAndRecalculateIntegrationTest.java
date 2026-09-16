@@ -80,21 +80,21 @@ class AppealAndRecalculateIntegrationTest {
 
         // Setup Domain: Season, Tournament, Category, Edition
         Season season2026 = new Season("s-2026", 2026, "Temporada 2026");
-        Tournament tournament = new Tournament("tourn-latam", "RoboCup Latam", "Torneo regional", season2026);
+        Tournament tournament = Tournament.of("tourn-latam", "RoboCup Latam", "Torneo regional", season2026);
 
-        mazeCategory = new Category(
-                "cat-maze", "Laberinto Autonomo", "Desafio de laberinto",
+        mazeCategory = Category.of(
+                "cat-maze", "Laberinto Autonomo",
                 2, 4, 15, 25, 2000.0, 300.0, 300.0, 300.0
         );
 
         // Rulebook / ScoringPolicy: Time + Objectives + Penalties
         ScoringPolicy rulebook = ScoringPolicy.of("pol-maze-v1", "v1.0.2026", "Reglamento Laberinto 2026", List.of(
-                new TimeBasedRule("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0),
-                new ObjectiveBonusRule("Objetivos", 20.0, 5, 25.0),
+                TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0),
+                ObjectiveBonusRule.of("Objetivos", 20.0, 5, 25.0),
                 new PenaltyRule("Penalizaciones", 15.0)
         ));
 
-        edition2026 = new Edition(
+        edition2026 = Edition.of(
                 "ed-2026", tournament, 1, "Edición Buenos Aires 2026",
                 LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 5),
                 rulebook, List.of(mazeCategory)
@@ -103,12 +103,12 @@ class AppealAndRecalculateIntegrationTest {
     }
 
     private Team createTeam(String id, String name) {
-        RobotSpecification spec = new RobotSpecification(1500.0, 200.0, 200.0, 150.0, 2, Set.of("LIDAR"));
+        RobotSpecification spec = RobotSpecification.of(1500.0, 200.0, 200.0, 150.0, 2, Set.of("LIDAR"));
         Robot robot = new Robot("rob-" + id, name + "-Bot", spec);
-        Team team = new Team(id, name, "ITBA", mazeCategory, robot);
+        Team team = Team.of(id, name, "ITBA", mazeCategory, robot);
 
-        team.addMember(new TeamMember("m1-" + id, name + " Alpha", LocalDate.of(2005, 5, 1), "LEADER"));
-        team.addMember(new TeamMember("m2-" + id, name + " Beta", LocalDate.of(2004, 8, 12), "DEV"));
+        team.addMember(TeamMember.of("m1-" + id, name + " Alpha", LocalDate.of(2005, 5, 1), "LEADER"));
+        team.addMember(TeamMember.of("m2-" + id, name + " Beta", LocalDate.of(2004, 8, 12), "DEV"));
 
         team.getDocumentation().addDocument("CONSENT", "consent.pdf");
         team.getDocumentation().verify("Inspector Juez");

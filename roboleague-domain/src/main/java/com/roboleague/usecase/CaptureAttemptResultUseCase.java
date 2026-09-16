@@ -32,7 +32,7 @@ public class CaptureAttemptResultUseCase {
         ScoringPolicy policy = edition.getScoringPolicy();
         ScoreBreakdown breakdown = policy.evaluate(metrics);
 
-        Attempt attempt = new Attempt(attemptId, teamId, slotId, roundId, attemptNumber);
+        Attempt attempt = Attempt.of(attemptId, teamId, slotId, roundId, attemptNumber);
         attempt.registerInitialResult(metrics, breakdown, judgeId);
 
         attemptRepository.save(attempt);

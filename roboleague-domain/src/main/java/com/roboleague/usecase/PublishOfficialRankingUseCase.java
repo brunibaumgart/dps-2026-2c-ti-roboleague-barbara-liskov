@@ -25,12 +25,12 @@ public class PublishOfficialRankingUseCase {
         Ranking ranking = rankingRepository.findById(rankingId)
                 .orElseThrow(() -> new IllegalArgumentException("Ranking not found: " + rankingId));
 
-        List<Appeal> pendingOrUnderReview = appealRepository.findAll().stream()
-                .filter(a -> a.isPending() || "UNDER_REVIEW".equals(a.getStatusName()))
+        List<Appeal> blockingAppeals = appealRepository.findAll().stream()
+                .filter(a -> !a.canPublishOfficialRanking())
                 .toList();
 
-        if (!pendingOrUnderReview.isEmpty()) {
-            throw new IllegalStateException("Cannot publish official ranking while " + pendingOrUnderReview.size() + " appeal(s) remain unresolved");
+        if (!blockingAppeals.isEmpty()) {
+            throw new IllegalStateException("Cannot publish official ranking while " + blockingAppeals.size() + " appeal(s) remain unresolved");
         }
 
         ranking.publishOfficial(officialNotes);
