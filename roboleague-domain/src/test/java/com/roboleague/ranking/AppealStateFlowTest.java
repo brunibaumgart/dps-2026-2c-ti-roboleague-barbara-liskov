@@ -13,7 +13,7 @@ class AppealStateFlowTest {
     @Test
     @DisplayName("Appeal follows valid state transitions: Pending -> UnderReview -> Accepted")
     void validAcceptanceFlow() {
-        Appeal appeal = new Appeal("app-1", "att-1", "team-1", "Error en medicion de tiempo", "Video de camara 2");
+        Appeal appeal = Appeal.of("app-1", "att-1", "team-1", "Error en medicion de tiempo", "Video de camara 2");
 
         assertThat(appeal.getStatusName()).isEqualTo("PENDING");
         assertThat(appeal.isPending()).isTrue();
@@ -52,7 +52,7 @@ class AppealStateFlowTest {
     @Test
     @DisplayName("Appeal follows rejection flow: Pending -> UnderReview -> Rejected")
     void rejectionFlow() {
-        Appeal appeal = new Appeal("app-2", "att-2", "team-2", "Falta no cometida", "Ninguna");
+        Appeal appeal = Appeal.of("app-2", "att-2", "team-2", "Falta no cometida", "Ninguna");
 
         appeal.beginReview("arb-1");
         appeal.reject("Las grabaciones confirman que el robot salio de la pista", "arb-1");

@@ -35,4 +35,34 @@ public class UnderReviewAppealState implements AppealState {
         appeal.setResolvedAt(LocalDateTime.now());
         appeal.transitionToState(new RejectedAppealState());
     }
+
+    @Override
+    public boolean isPending() {
+        return false;
+    }
+
+    @Override
+    public boolean isUnderReview() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccepted() {
+        return false;
+    }
+
+    @Override
+    public boolean isRejected() {
+        return false;
+    }
+
+    @Override
+    public boolean isResolved() {
+        return false;
+    }
+
+    @Override
+    public boolean canPublishOfficialRanking() {
+        return false;
+    }
 }

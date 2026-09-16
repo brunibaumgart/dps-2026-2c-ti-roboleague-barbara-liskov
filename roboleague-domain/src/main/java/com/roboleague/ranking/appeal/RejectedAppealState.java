@@ -26,4 +26,34 @@ public class RejectedAppealState implements AppealState {
     public void reject(Appeal appeal, String resolutionNotes, String reviewerId) {
         throw new IllegalStateException("Appeal has already been rejected");
     }
+
+    @Override
+    public boolean isPending() {
+        return false;
+    }
+
+    @Override
+    public boolean isUnderReview() {
+        return false;
+    }
+
+    @Override
+    public boolean isAccepted() {
+        return false;
+    }
+
+    @Override
+    public boolean isRejected() {
+        return true;
+    }
+
+    @Override
+    public boolean isResolved() {
+        return true;
+    }
+
+    @Override
+    public boolean canPublishOfficialRanking() {
+        return true;
+    }
 }

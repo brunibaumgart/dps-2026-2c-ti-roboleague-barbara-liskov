@@ -10,11 +10,8 @@ import java.util.Objects;
  * Managed through the State Pattern (Pending -> UnderReview -> Accepted / Rejected).
  */
 public class Appeal {
-    private final String appealId;
-    private final String attemptId;
-    private final String teamId;
-    private final String reason;
-    private final String evidenceDescription;
+    private final AppealTarget target;
+    private final AppealClaim claim;
     private final LocalDateTime submittedAt;
 
     private AppealState state;
@@ -23,34 +20,39 @@ public class Appeal {
     private RawMetrics revisedMetrics;
     private LocalDateTime resolvedAt;
 
-    public Appeal(String appealId, String attemptId, String teamId, String reason, String evidenceDescription) {
-        this.appealId = Objects.requireNonNull(appealId, "appealId cannot be null");
-        this.attemptId = Objects.requireNonNull(attemptId, "attemptId cannot be null");
-        this.teamId = Objects.requireNonNull(teamId, "teamId cannot be null");
-        this.reason = Objects.requireNonNull(reason, "reason cannot be null");
-        this.evidenceDescription = evidenceDescription != null ? evidenceDescription : "";
+    public Appeal(AppealTarget target, AppealClaim claim) {
+        this.target = Objects.requireNonNull(target, "target cannot be null");
+        this.claim = Objects.requireNonNull(claim, "claim cannot be null");
         this.submittedAt = LocalDateTime.now();
         this.state = new PendingAppealState();
     }
 
+    public AppealTarget getTarget() {
+        return target;
+    }
+
+    public AppealClaim getClaim() {
+        return claim;
+    }
+
     public String getAppealId() {
-        return appealId;
+        return target.appealId();
     }
 
     public String getAttemptId() {
-        return attemptId;
+        return target.attemptId();
     }
 
     public String getTeamId() {
-        return teamId;
+        return target.teamId();
     }
 
     public String getReason() {
-        return reason;
+        return claim.reason();
     }
 
     public String getEvidenceDescription() {
-        return evidenceDescription;
+        return claim.evidenceDescription();
     }
 
     public LocalDateTime getSubmittedAt() {
@@ -99,7 +101,6 @@ public class Appeal {
         this.reviewerId = reviewerId;
     }
 
-    // Business methods delegating to current state
     public void beginReview(String reviewerId) {
         state.beginReview(this, reviewerId);
     }
@@ -113,14 +114,37 @@ public class Appeal {
     }
 
     public boolean isPending() {
-        return "PENDING".equals(getStatusName());
+        return state.isPending();
+    }
+
+    public boolean isUnderReview() {
+        return state.isUnderReview();
     }
 
     public boolean isAccepted() {
-        return "ACCEPTED".equals(getStatusName());
+        return state.isAccepted();
     }
 
     public boolean isRejected() {
-        return "REJECTED".equals(getStatusName());
+        return state.isRejected();
+    }
+
+    public boolean isResolved() {
+        return state.isResolved();
+    }
+
+    public boolean canPublishOfficialRanking() {
+        return state.canPublishOfficialRanking();
+    }
+
+    public static Appeal of(AppealTarget target, AppealClaim claim) {
+        return new Appeal(target, claim);
+    }
+
+    public static Appeal of(String appealId, String attemptId, String teamId, String reason, String evidenceDescription) {
+        return new Appeal(
+                new AppealTarget(appealId, attemptId, teamId),
+                new AppealClaim(reason, evidenceDescription)
+        );
     }
 }

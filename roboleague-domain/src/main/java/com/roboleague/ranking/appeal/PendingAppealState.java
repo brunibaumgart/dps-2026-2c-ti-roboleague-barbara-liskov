@@ -27,4 +27,34 @@ public class PendingAppealState implements AppealState {
     public void reject(Appeal appeal, String resolutionNotes, String reviewerId) {
         throw new IllegalStateException("Appeal must be placed under review before being rejected");
     }
+
+    @Override
+    public boolean isPending() {
+        return true;
+    }
+
+    @Override
+    public boolean isUnderReview() {
+        return false;
+    }
+
+    @Override
+    public boolean isAccepted() {
+        return false;
+    }
+
+    @Override
+    public boolean isRejected() {
+        return false;
+    }
+
+    @Override
+    public boolean isResolved() {
+        return false;
+    }
+
+    @Override
+    public boolean canPublishOfficialRanking() {
+        return false;
+    }
 }

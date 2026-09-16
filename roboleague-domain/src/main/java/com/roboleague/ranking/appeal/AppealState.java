@@ -13,4 +13,16 @@ public interface AppealState {
     void accept(Appeal appeal, String resolutionNotes, RawMetrics revisedMetrics, String reviewerId);
 
     void reject(Appeal appeal, String resolutionNotes, String reviewerId);
+
+    boolean isPending();
+
+    boolean isUnderReview();
+
+    boolean isAccepted();
+
+    boolean isRejected();
+
+    boolean isResolved();
+
+    boolean canPublishOfficialRanking();
 }
