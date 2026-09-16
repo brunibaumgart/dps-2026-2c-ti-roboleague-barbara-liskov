@@ -76,7 +76,7 @@ class AppealAndRecalculateIntegrationTest {
         resolveAppealUseCase = new ResolveAppealUseCase(
                 appealRepository, attemptRepository, editionRepository, recalculateRankingUseCase
         );
-        publishOfficialRankingUseCase = new PublishOfficialRankingUseCase(rankingRepository, appealRepository);
+        publishOfficialRankingUseCase = new PublishOfficialRankingUseCase(rankingRepository, appealRepository, attemptRepository);
 
         // Setup Domain: Season, Tournament, Category, Edition
         Season season2026 = new Season("s-2026", 2026, "Temporada 2026");

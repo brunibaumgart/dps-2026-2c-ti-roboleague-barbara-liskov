@@ -89,7 +89,7 @@ public class Main {
                 appealRepository, attemptRepository, editionRepository, recalculateRankingUseCase
         );
         PublishOfficialRankingUseCase publishOfficialRankingUseCase = new PublishOfficialRankingUseCase(
-                rankingRepository, appealRepository
+                rankingRepository, appealRepository, attemptRepository
         );
 
         Main app = new Main(
