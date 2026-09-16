@@ -79,4 +79,31 @@ class AttemptAuditTrailTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("already has registered results");
     }
+    @Test
+    @DisplayName("Disqualification is audited and a rejected appeal restores the previous status")
+    void disqualificationAndRejectedAppealAreTracked() {
+        Attempt attempt = Attempt.of("att-3", "team-1", "slot-1", "round-1", 1);
+        RawMetrics metrics = RawMetrics.of(50.0, 3, 1);
+        attempt.registerInitialResult(metrics, standardPolicy.evaluate(metrics), "judge-1");
+
+        attempt.markUnderAppeal();
+        assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.UNDER_APPEAL);
+
+        attempt.restoreAfterRejectedAppeal();
+        assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.EVALUATED);
+        assertThat(attempt.getRevisionHistory()).hasSize(1);
+
+        attempt.disqualify("Robot abandono la pista", "judge-2");
+        assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.DISQUALIFIED);
+        assertThat(attempt.getEventHistory())
+                .last()
+                .satisfies(event -> {
+                    assertThat(event.eventType()).isEqualTo("ATTEMPT_DISQUALIFIED");
+                    assertThat(event.description()).contains("judge-2").contains("Robot abandono la pista");
+                });
+
+        assertThatThrownBy(attempt::markUnderAppeal)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("disqualified");
+    }
 }

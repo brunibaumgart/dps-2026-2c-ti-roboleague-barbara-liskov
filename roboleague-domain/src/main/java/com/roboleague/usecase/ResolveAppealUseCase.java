@@ -67,7 +67,13 @@ public class ResolveAppealUseCase {
         Appeal appeal = appealRepository.findById(appealId)
                 .orElseThrow(() -> new IllegalArgumentException("Appeal not found: " + appealId));
 
+        Attempt attempt = attemptRepository.findById(appeal.getAttemptId())
+                .orElseThrow(() -> new IllegalArgumentException("Attempt not found: " + appeal.getAttemptId()));
+
         appeal.reject(resolutionNotes, reviewerId);
+        attempt.restoreAfterRejectedAppeal();
+
+        attemptRepository.save(attempt);
         appealRepository.save(appeal);
 
         return appeal;

@@ -158,7 +158,24 @@ public class Attempt {
     }
 
     public void markUnderAppeal() {
+        if (revisionHistory.isEmpty()) {
+            throw new IllegalStateException("Cannot appeal an attempt without registered results");
+        }
+        if (status == AttemptStatus.DISQUALIFIED) {
+            throw new IllegalStateException("Cannot appeal a disqualified attempt");
+        }
         this.status = AttemptStatus.UNDER_APPEAL;
+    }
+
+    /**
+     * Closes an appeal that was rejected: the score stays untouched and the attempt
+     * returns to the status it had before the appeal was filed.
+     */
+    public void restoreAfterRejectedAppeal() {
+        if (status != AttemptStatus.UNDER_APPEAL) {
+            throw new IllegalStateException("Attempt is not under appeal");
+        }
+        this.status = revisionHistory.size() > 1 ? AttemptStatus.ADJUSTED : AttemptStatus.EVALUATED;
     }
 
     public void adjustAfterAppeal(String appealId, RawMetrics revisedMetrics, ScoreBreakdown revisedBreakdown,
@@ -203,6 +220,12 @@ public class Attempt {
     }
 
     public void disqualify(String reason, String judgeId) {
+        Objects.requireNonNull(reason, "reason cannot be null");
+        Objects.requireNonNull(judgeId, "judgeId cannot be null");
+        if (status == AttemptStatus.DISQUALIFIED) {
+            throw new IllegalStateException("Attempt is already disqualified");
+        }
+        eventHistory.add(AttemptDisqualifiedEvent.create(getAttemptId(), reason, judgeId));
         this.status = AttemptStatus.DISQUALIFIED;
     }
 
