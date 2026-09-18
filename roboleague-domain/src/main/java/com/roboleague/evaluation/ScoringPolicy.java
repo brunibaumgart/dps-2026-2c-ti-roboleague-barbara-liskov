@@ -6,10 +6,6 @@ import com.roboleague.evaluation.rules.ScoreRule;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * Immutable rulebook scoring policy versioned per edition.
- * Guarantees that historical recalculations always use the exact rulebook version.
- */
 public record ScoringPolicy(
         PolicyInfo info,
         CompositeScoreRule compositeRule

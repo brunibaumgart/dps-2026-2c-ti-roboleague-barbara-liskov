@@ -128,27 +128,27 @@ class AppealAndRecalculateIntegrationTest {
         List<Track> tracks = List.of(Track.active("trk-1", "Pista Principal", "Madera"));
         List<Judge> judges = List.of(Judge.of("j-1", "Dr. Turing", "Autonomia"), Judge.of("j-2", "Ing. Lovelace", "Control"));
 
-        Round round1 = scheduleRoundUseCase.execute(
+        Round round1 = scheduleRoundUseCase.execute(ScheduleRoundCommand.of(
                 edition2026.getId(), mazeCategory.id(), 1, "Ronda Clasificatoria",
                 tracks, judges, LocalDateTime.now(), Duration.ofMinutes(15), Duration.ofMinutes(5)
-        );
+        ));
         assertThat(round1.getSlots()).hasSize(2);
 
         // 3. Capture Initial Attempt Results
         // Team Alpha: 55s (5s under target => 105), 4 objectives (80 pts), 0 penalties => Total: 185.0
         RawMetrics metricsAlpha = RawMetrics.of(55.0, 4, 0);
-        Attempt attemptAlpha = captureAttemptResultUseCase.execute(
+        Attempt attemptAlpha = captureAttemptResultUseCase.execute(CaptureAttemptResultCommand.of(
                 edition2026.getId(), "att-alpha-1", teamAlpha.getId(),
                 round1.getSlots().get(0).getSlotId(), round1.getId(), 1, metricsAlpha, "j-1"
-        );
+        ));
 
         // Team Beta: 50s (10s under target => 110), 5 objectives (all done: 100 + 25 = 125 pts),
         // BUT wrongly assigned 4 penalties (-60 pts) => Total: 110 + 125 - 60 = 175.0
         RawMetrics initialMetricsBeta = RawMetrics.of(50.0, 5, 4);
-        Attempt attemptBeta = captureAttemptResultUseCase.execute(
+        Attempt attemptBeta = captureAttemptResultUseCase.execute(CaptureAttemptResultCommand.of(
                 edition2026.getId(), "att-beta-1", teamBeta.getId(),
                 round1.getSlots().get(1).getSlotId(), round1.getId(), 1, initialMetricsBeta, "j-2"
-        );
+        ));
 
         // 4. Initial Ranking Calculation (Provisional)
         Ranking provisionalRanking = recalculateRankingUseCase.execute(edition2026.getId(), mazeCategory.id(), round1.getId());

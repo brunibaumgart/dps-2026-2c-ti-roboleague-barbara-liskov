@@ -4,9 +4,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Value object grouping resource consumption and subjective/custom evaluations.
- */
 public record EvaluationFeedback(
         double resourceConsumption,
         Map<String, Double> judgeSubjectiveScores,

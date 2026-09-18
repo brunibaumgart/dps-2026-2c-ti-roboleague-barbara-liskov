@@ -2,9 +2,6 @@ package com.roboleague.evaluation;
 
 import java.util.Objects;
 
-/**
- * Value object referencing the scheduled slot and round where an attempt takes place.
- */
 public record SlotReference(String slotId, String roundId) {
     public SlotReference {
         Objects.requireNonNull(slotId, "slotId cannot be null");

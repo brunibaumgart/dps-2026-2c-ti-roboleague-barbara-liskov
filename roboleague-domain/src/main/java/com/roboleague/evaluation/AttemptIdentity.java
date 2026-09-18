@@ -2,9 +2,6 @@ package com.roboleague.evaluation;
 
 import java.util.Objects;
 
-/**
- * Value object identifying an attempt within a team's sequence.
- */
 public record AttemptIdentity(String attemptId, String teamId, int attemptNumber) {
     public AttemptIdentity {
         Objects.requireNonNull(attemptId, "attemptId cannot be null");

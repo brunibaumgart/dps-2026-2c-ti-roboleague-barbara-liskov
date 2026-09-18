@@ -167,10 +167,6 @@ public class Attempt {
         this.status = AttemptStatus.UNDER_APPEAL;
     }
 
-    /**
-     * Closes an appeal that was rejected: the score stays untouched and the attempt
-     * returns to the status it had before the appeal was filed.
-     */
     public void restoreAfterRejectedAppeal() {
         if (status != AttemptStatus.UNDER_APPEAL) {
             throw new IllegalStateException("Attempt is not under appeal");

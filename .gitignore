@@ -9,3 +9,4 @@ target/
 *.log
 .DS_Store
 .agents/
+.DS_Store/

@@ -5,10 +5,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * Immutable score breakdown explaining in full detail every item, penalty,
- * bonus, and the consolidated final score.
- */
 public record ScoreBreakdown(
         List<ScoreItem> items,
         List<String> notesAndPenalties,

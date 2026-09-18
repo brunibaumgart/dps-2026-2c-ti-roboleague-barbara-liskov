@@ -2,9 +2,6 @@ package com.roboleague.evaluation;
 
 import java.util.Objects;
 
-/**
- * Immutable line-item representing a single contribution to the final score.
- */
 public record ScoreItem(
         String concept,
         EvaluationDetails details,

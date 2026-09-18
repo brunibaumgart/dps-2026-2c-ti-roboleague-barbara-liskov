@@ -3,9 +3,6 @@ package com.roboleague.evaluation;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * Raw metrics captured during an attempt on the track/arena.
- */
 public record RawMetrics(
         TrackPerformance performance,
         EvaluationFeedback feedback

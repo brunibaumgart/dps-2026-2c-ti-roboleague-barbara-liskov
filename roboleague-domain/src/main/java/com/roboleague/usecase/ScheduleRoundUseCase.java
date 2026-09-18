@@ -5,8 +5,6 @@ import com.roboleague.tournament.Edition;
 import com.roboleague.tournament.Team;
 import com.roboleague.repository.EditionRepository;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -23,25 +21,25 @@ public class ScheduleRoundUseCase {
         this.schedulerService = Objects.requireNonNull(schedulerService, "schedulerService cannot be null");
     }
 
-    public Round execute(String editionId, String categoryId, int roundNumber, String roundName,
-                         List<Track> tracks, List<Judge> judges, LocalDateTime startTime,
-                         Duration slotDuration, Duration interval) {
-        Edition edition = editionRepository.findById(editionId)
-                .orElseThrow(() -> new IllegalArgumentException("Edition not found: " + editionId));
+    public Round execute(ScheduleRoundCommand command) {
+        Objects.requireNonNull(command, "command cannot be null");
+        Edition edition = editionRepository.findById(command.editionId())
+                .orElseThrow(() -> new IllegalArgumentException("Edition not found: " + command.editionId()));
 
-        List<String> teamIds = edition.getTeamsByCategory(categoryId).stream()
+        List<String> teamIds = edition.getTeamsByCategory(command.categoryId()).stream()
                 .map(Team::getId)
                 .toList();
 
         if (teamIds.isEmpty()) {
-            throw new IllegalStateException("No teams registered for category " + categoryId + " in edition " + editionId);
+            throw new IllegalStateException("No teams registered for category " + command.categoryId()
+                    + " in edition " + command.editionId());
         }
 
         String roundId = UUID.randomUUID().toString();
-        RoundScope scope = RoundScope.of(editionId, categoryId, roundNumber);
-        RoundInfo info = RoundInfo.of(roundId, roundName, scope);
-        RoundResources resources = RoundResources.of(tracks, judges);
-        RoundScheduleTiming timing = RoundScheduleTiming.of(startTime, slotDuration, interval);
+        RoundScope scope = RoundScope.of(command.editionId(), command.categoryId(), command.roundNumber());
+        RoundInfo info = RoundInfo.of(roundId, command.roundName(), scope);
+        RoundResources resources = RoundResources.of(command.tracks(), command.judges());
+        RoundScheduleTiming timing = RoundScheduleTiming.of(command.startTime(), command.slotDuration(), command.interval());
         RoundScheduleRequest request = RoundScheduleRequest.of(info, resources, timing);
 
         return schedulerService.scheduleRound(request, teamIds);

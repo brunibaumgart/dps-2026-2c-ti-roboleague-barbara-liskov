@@ -1,7 +1,6 @@
 package com.roboleague.usecase;
 
 import com.roboleague.evaluation.Attempt;
-import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ScoreBreakdown;
 import com.roboleague.evaluation.ScoringPolicy;
 import com.roboleague.repository.AttemptRepository;
@@ -23,17 +22,22 @@ public class CaptureAttemptResultUseCase {
         this.editionRepository = Objects.requireNonNull(editionRepository, "editionRepository cannot be null");
     }
 
-    public Attempt execute(String editionId, String attemptId, String teamId, String slotId, String roundId,
-                           int attemptNumber, RawMetrics metrics, String judgeId) {
-        Objects.requireNonNull(metrics, "metrics cannot be null");
-        Edition edition = editionRepository.findById(editionId)
-                .orElseThrow(() -> new IllegalArgumentException("Edition not found: " + editionId));
+    public Attempt execute(CaptureAttemptResultCommand command) {
+        Objects.requireNonNull(command, "command cannot be null");
+        Edition edition = editionRepository.findById(command.editionId())
+                .orElseThrow(() -> new IllegalArgumentException("Edition not found: " + command.editionId()));
 
         ScoringPolicy policy = edition.getScoringPolicy();
-        ScoreBreakdown breakdown = policy.evaluate(metrics);
+        ScoreBreakdown breakdown = policy.evaluate(command.metrics());
 
-        Attempt attempt = Attempt.of(attemptId, teamId, slotId, roundId, attemptNumber);
-        attempt.registerInitialResult(metrics, breakdown, judgeId);
+        Attempt attempt = Attempt.of(
+                command.attemptId(),
+                command.teamId(),
+                command.slotId(),
+                command.roundId(),
+                command.attemptNumber()
+        );
+        attempt.registerInitialResult(command.metrics(), breakdown, command.judgeId());
 
         attemptRepository.save(attempt);
         return attempt;

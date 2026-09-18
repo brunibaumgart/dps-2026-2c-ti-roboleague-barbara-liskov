@@ -46,8 +46,10 @@ class ScheduleRoundUseCaseTest {
         List<Track> tracks = List.of(Track.active("trk-1", "Pista 1", "Piedra"));
         List<Judge> judges = List.of(Judge.of("j-1", "Juez Uno", "General"), Judge.of("j-2", "Juez Dos", "General"));
 
-        Round round = useCase.execute("ed-1", "cat-sumo", 1, "Ronda 1", tracks, judges,
-                LocalDateTime.now(), Duration.ofMinutes(10), Duration.ofMinutes(2));
+        Round round = useCase.execute(ScheduleRoundCommand.of(
+                "ed-1", "cat-sumo", 1, "Ronda 1", tracks, judges,
+                LocalDateTime.now(), Duration.ofMinutes(10), Duration.ofMinutes(2)
+        ));
 
         assertThat(round).isNotNull();
         assertThat(round.getSlots()).hasSize(2);
@@ -74,8 +76,10 @@ class ScheduleRoundUseCaseTest {
         List<Track> tracks = List.of(Track.active("trk-1", "Pista 1", "Piedra"));
         List<Judge> judges = List.of(Judge.of("j-1", "Juez Uno", "General"));
 
-        assertThatThrownBy(() -> useCase.execute("ed-1", "cat-sumo", 1, "Ronda 1", tracks, judges,
-                LocalDateTime.now(), Duration.ofMinutes(10), Duration.ofMinutes(2)))
+        assertThatThrownBy(() -> useCase.execute(ScheduleRoundCommand.of(
+                "ed-1", "cat-sumo", 1, "Ronda 1", tracks, judges,
+                LocalDateTime.now(), Duration.ofMinutes(10), Duration.ofMinutes(2)
+        )))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("No teams registered");
     }

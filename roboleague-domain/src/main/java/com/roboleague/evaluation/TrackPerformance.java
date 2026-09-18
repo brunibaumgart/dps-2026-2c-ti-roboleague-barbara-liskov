@@ -1,8 +1,5 @@
 package com.roboleague.evaluation;
 
-/**
- * Value object representing direct track measurements during an attempt.
- */
 public record TrackPerformance(
         double timeTakenSeconds,
         int objectivesCompleted,

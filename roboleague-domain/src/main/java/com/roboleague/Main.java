@@ -26,10 +26,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-/**
- * Composition Root for RoboLeague.
- * Assembles all dependencies, repositories, services, and use cases.
- */
 public class Main {
 
     private final RegisterTeamUseCase registerTeamUseCase;
@@ -149,22 +145,22 @@ public class Main {
         List<Track> tracks = List.of(Track.active("trk-1", "Dojo 1", "Madera"));
         List<Judge> judges = List.of(Judge.of("j-1", "Chief Judge", "Principal"), Judge.of("j-2", "Field Judge", "Pista"));
 
-        Round round = scheduleRoundUseCase.execute(
+        Round round = scheduleRoundUseCase.execute(ScheduleRoundCommand.of(
                 edition.getId(), sumoCategory.id(), 1, "Ronda Clasificatoria",
                 tracks, judges, LocalDateTime.now(), Duration.ofMinutes(10), Duration.ofMinutes(2)
-        );
+        ));
 
         // Capture Results
-        Attempt attA = captureAttemptResultUseCase.execute(
+        Attempt attA = captureAttemptResultUseCase.execute(CaptureAttemptResultCommand.of(
                 edition.getId(), "att-a1", teamA.getId(),
                 round.getSlots().get(0).getSlotId(), round.getId(), 1,
                 RawMetrics.of(50.0, 4, 0), "j-1"
-        );
-        Attempt attB = captureAttemptResultUseCase.execute(
+        ));
+        Attempt attB = captureAttemptResultUseCase.execute(CaptureAttemptResultCommand.of(
                 edition.getId(), "att-b1", teamB.getId(),
                 round.getSlots().get(1).getSlotId(), round.getId(), 1,
                 RawMetrics.of(45.0, 5, 2), "j-2"
-        );
+        ));
 
         // Calculate Provisional Ranking
         Ranking provRanking = recalculateRankingUseCase.execute(edition.getId(), sumoCategory.id(), round.getId());
