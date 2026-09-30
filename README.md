@@ -22,6 +22,8 @@ El perfil `demo` vacía la base, aplica las migraciones y carga `DemoFixture` a 
 
 Sin el perfil `demo`, la app levanta en `http://localhost:8080` sobre la base tal como esté.
 
+Si el puerto 5432 ya está ocupado (otro Postgres local), elegí otro con `DB_PORT` en los dos comandos: `DB_PORT=5433 docker compose up -d --wait` y `DB_PORT=5433 java -jar ...`.
+
 Para apagar Postgres: `docker compose down` (con `-v` también borra los datos).
 
 ## Tests

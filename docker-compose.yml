@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: roboleague
       POSTGRES_PASSWORD: roboleague
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - roboleague-data:/var/lib/postgresql/data
     healthcheck:
