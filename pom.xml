@@ -9,11 +9,12 @@
     <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <!-- Hexagonal: every dependency points inwards (application -> domain; infrastructure -> domain). -->
+    <!-- Hexagonal: every dependency points inwards (api -> application -> domain; infrastructure -> domain). -->
     <modules>
         <module>roboleague-domain</module>
         <module>roboleague-application</module>
         <module>roboleague-infrastructure</module>
+        <module>roboleague-api</module>
     </modules>
 
     <properties>
