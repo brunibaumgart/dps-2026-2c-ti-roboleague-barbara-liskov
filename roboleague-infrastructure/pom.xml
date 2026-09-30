@@ -10,9 +10,16 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>roboleague-domain</artifactId>
+    <artifactId>roboleague-infrastructure</artifactId>
     <packaging>jar</packaging>
 
-    <name>RoboLeague :: Domain</name>
-    <description>Aggregates, value objects, domain services and ports. Plain Java: no framework dependency.</description>
+    <name>RoboLeague :: Infrastructure</name>
+    <description>Driven adapters: in-memory repositories.</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.roboleague</groupId>
+            <artifactId>roboleague-domain</artifactId>
+        </dependency>
+    </dependencies>
 </project>
