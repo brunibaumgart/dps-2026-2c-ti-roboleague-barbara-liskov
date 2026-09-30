@@ -1,0 +1,4 @@
+# Profile "demo": wipes the database on startup and loads DemoFixture, so the demo is always the same.
+spring:
+  flyway:
+    clean-disabled: false
