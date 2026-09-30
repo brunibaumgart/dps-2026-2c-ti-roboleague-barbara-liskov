@@ -1,11 +1,9 @@
 package com.roboleague.api.config;
 
-import com.roboleague.repository.AppealRepository;
 import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.RankingRepository;
 import com.roboleague.repository.TeamRepository;
-import com.roboleague.repository.memory.InMemoryAppealRepository;
 import com.roboleague.repository.memory.InMemoryAttemptRepository;
 import com.roboleague.repository.memory.InMemoryEditionRepository;
 import com.roboleague.repository.memory.InMemoryRankingRepository;
@@ -14,7 +12,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Wires every repository port to its in-memory adapter until the Postgres adapters exist.
+ * Ports that do not have a Postgres adapter yet. When an aggregate gets its Jpa*Repository
+ * (a @Repository in roboleague-infrastructure), delete its bean here; if both exist the app fails to start.
  */
 @Configuration(proxyBeanMethods = false)
 class InMemoryRepositoryConfig {
@@ -37,10 +36,5 @@ class InMemoryRepositoryConfig {
     @Bean
     RankingRepository rankingRepository() {
         return new InMemoryRankingRepository();
-    }
-
-    @Bean
-    AppealRepository appealRepository() {
-        return new InMemoryAppealRepository();
     }
 }

@@ -21,10 +21,29 @@ public class Appeal {
     private LocalDateTime resolvedAt;
 
     public Appeal(AppealTarget target, AppealClaim claim) {
+        this(target, claim, LocalDateTime.now());
+    }
+
+    private Appeal(AppealTarget target, AppealClaim claim, LocalDateTime submittedAt) {
         this.target = Objects.requireNonNull(target, "target cannot be null");
         this.claim = Objects.requireNonNull(claim, "claim cannot be null");
-        this.submittedAt = LocalDateTime.now();
+        this.submittedAt = Objects.requireNonNull(submittedAt, "submittedAt cannot be null");
         this.state = new PendingAppealState();
+    }
+
+    /**
+     * Rebuilds a stored appeal as it was, without replaying its transitions.
+     * Only persistence mappers use it; business code creates appeals with {@code of} and moves them through their states.
+     */
+    public static Appeal restore(AppealTarget target, AppealClaim claim, AppealProgress progress) {
+        Objects.requireNonNull(progress, "progress cannot be null");
+        Appeal appeal = new Appeal(target, claim, progress.submittedAt());
+        appeal.state = progress.state();
+        appeal.reviewerId = progress.reviewerId();
+        appeal.resolutionNotes = progress.resolutionNotes();
+        appeal.revisedMetrics = progress.revisedMetrics();
+        appeal.resolvedAt = progress.resolvedAt();
+        return appeal;
     }
 
     public AppealTarget getTarget() {
