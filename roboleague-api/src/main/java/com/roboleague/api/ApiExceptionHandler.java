@@ -3,6 +3,7 @@ package com.roboleague.api;
 import com.roboleague.usecase.TeamIneligibleException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -18,6 +19,11 @@ class ApiExceptionHandler {
     @ExceptionHandler(TeamIneligibleException.class)
     ResponseEntity<ErrorDto> ineligible(TeamIneligibleException e) {
         return error(HttpStatus.UNPROCESSABLE_CONTENT, e.getMessage(), e.getViolations());
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ResponseEntity<ErrorDto> unreadable(HttpMessageNotReadableException e) {
+        return error(HttpStatus.BAD_REQUEST, "Malformed request body", List.of());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
