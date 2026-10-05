@@ -8,8 +8,8 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * How a rulebook ranks teams in its challenge: which rounds count (F1) and the ordered tie-break chain.
- * Each criterion names itself when it decides an order.
+ * How a rulebook ranks teams in its challenge: which rounds count (F1) and the ordered chain of criteria.
+ * The chain starts with the total; the rest break ties. Each criterion names itself when it decides an order.
  */
 public record RankingScheme(RoundSelection roundSelection, List<TieBreakCriterion> criteria)
         implements Comparator<ChallengeScore> {
@@ -22,6 +22,10 @@ public record RankingScheme(RoundSelection roundSelection, List<TieBreakCriterio
         }
         if (criteria.stream().map(TieBreakCriterion::code).distinct().count() < criteria.size()) {
             throw new IllegalArgumentException("a ranking scheme cannot repeat a criterion");
+        }
+        if (!criteria.getFirst().code().equals(HigherTotal.CODE)) {
+            throw new IllegalArgumentException(
+                    "a ranking scheme orders by total before breaking ties: '" + HigherTotal.CODE + "' goes first");
         }
     }
 
