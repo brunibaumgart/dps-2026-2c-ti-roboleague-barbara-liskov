@@ -39,10 +39,17 @@ public interface ScoreRule {
         }
 
         public static RuleEvaluation combining(List<ScoreRule> rules, RawMetrics metrics) {
+            List<RuleEvaluation> evaluations = new ArrayList<>();
+            for (ScoreRule rule : rules) {
+                evaluations.add(rule.evaluate(metrics));
+            }
+            return concat(evaluations);
+        }
+
+        public static RuleEvaluation concat(List<RuleEvaluation> evaluations) {
             List<ScoreItem> items = new ArrayList<>();
             List<String> notes = new ArrayList<>();
-            for (ScoreRule rule : rules) {
-                RuleEvaluation evaluation = rule.evaluate(metrics);
+            for (RuleEvaluation evaluation : evaluations) {
                 items.addAll(evaluation.items());
                 notes.addAll(evaluation.notes());
             }

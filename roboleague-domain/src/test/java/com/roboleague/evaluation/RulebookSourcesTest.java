@@ -41,7 +41,7 @@ class RulebookSourcesTest {
     private static final ScoreRule VICTIMS = new VictimsRule("Víctimas", RESCUED, new VictimTariff(4, 25.0, 10.0));
 
     private static Rulebook rulebookWith(List<ScoreRule> rules) {
-        return new Rulebook(RulebookVersion.first(), rules, ANY_SCHEME);
+        return new Rulebook(RulebookVersion.first(), ScoringScheme.withoutBonuses(rules), ANY_SCHEME);
     }
 
     @ParameterizedTest(name = "{0} → {1}")
@@ -111,7 +111,7 @@ class RulebookSourcesTest {
     }
 
     @Test
-    @DisplayName("Las contribuciones separan los ítems por fuente y entre las dos suman el total")
+    @DisplayName("Sin tope, las contribuciones separan los ítems por fuente y entre las dos suman el total")
     void givenAMixedRulebookThenContributionsSplitItemsBySourceAndAddUpToTheTotal() {
         Rulebook rescue = rulebookWith(List.of(TIME, VICTIMS, JUDGES));
         RawMetrics metrics = new RawMetrics(new TrackPerformance(50.0, 0, 0),
