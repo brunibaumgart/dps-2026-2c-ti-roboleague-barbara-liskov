@@ -4,6 +4,7 @@ import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ScoreItem;
 
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * Scoring rule calculating penalties or efficiency bonuses based on resource/energy consumption.
@@ -14,7 +15,13 @@ public class ResourceConsumptionRule implements ScoreRule {
     private final double penaltyPerExcessUnit;
 
     public ResourceConsumptionRule(String ruleName, double maxAllowedConsumption, double penaltyPerExcessUnit) {
-        this.ruleName = ruleName;
+        if (maxAllowedConsumption < 0) {
+            throw new IllegalArgumentException("maxAllowedConsumption cannot be negative");
+        }
+        if (penaltyPerExcessUnit < 0) {
+            throw new IllegalArgumentException("penaltyPerExcessUnit cannot be negative: excess consumption never adds points");
+        }
+        this.ruleName = Objects.requireNonNull(ruleName, "ruleName cannot be null");
         this.maxAllowedConsumption = maxAllowedConsumption;
         this.penaltyPerExcessUnit = penaltyPerExcessUnit;
     }

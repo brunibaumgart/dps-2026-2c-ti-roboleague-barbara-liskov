@@ -4,6 +4,7 @@ import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ScoreItem;
 
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * Scoring rule incorporating subjective evaluations by human judges (e.g. design, innovation, robustness).
@@ -13,7 +14,10 @@ public class JudgeSubjectiveRule implements ScoreRule {
     private final double weightMultiplier;
 
     public JudgeSubjectiveRule(String ruleName, double weightMultiplier) {
-        this.ruleName = ruleName;
+        if (weightMultiplier < 0) {
+            throw new IllegalArgumentException("weightMultiplier cannot be negative: a judge score never subtracts points");
+        }
+        this.ruleName = Objects.requireNonNull(ruleName, "ruleName cannot be null");
         this.weightMultiplier = weightMultiplier;
     }
 
