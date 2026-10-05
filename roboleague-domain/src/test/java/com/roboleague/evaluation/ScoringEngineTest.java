@@ -40,7 +40,7 @@ class ScoringEngineTest {
         Locale previous = Locale.getDefault();
         Locale.setDefault(Locale.GERMANY);
         try {
-            ScoreItem item = ObjectiveBonusRule.of("Objetivos", 20.0, 5, 25.0).evaluate(RawMetrics.of(50.0, 5, 0))
+            ScoreItem item = ObjectivesRule.of("Objetivos", 20.0, 5, 25.0).evaluate(RawMetrics.of(50.0, 5, 0))
                     .items().getFirst();
 
             assertThat(item.appliedFormula()).isEqualTo("5 obj * 20.0 pts + 25.0 pts (bonificación total)");
@@ -65,10 +65,10 @@ class ScoringEngineTest {
     }
 
     @Test
-    @DisplayName("ObjectiveBonusRule computes points per milestone plus all-completed bonus")
+    @DisplayName("ObjectivesRule computes points per milestone plus all-completed bonus")
     void objectiveBonusRuleCalculations() {
         // 20 pts per objective, 4 total objectives, 30 pts all-completed bonus
-        ObjectiveBonusRule rule = new ObjectiveBonusRule("Hitos de Navegación", new ObjectiveRuleConfig(20.0, 4, 30.0));
+        ObjectivesRule rule = new ObjectivesRule("Hitos de Navegación", new ObjectiveRuleConfig(20.0, 4, 30.0));
 
         // Scenario 1: 3 out of 4 completed
         RawMetrics metricsPartial = RawMetrics.of(50.0, 3, 0);
@@ -121,7 +121,7 @@ class ScoringEngineTest {
     @DisplayName("A rulebook consolidates rules from both sources into an explainable ScoreBreakdown")
     void rulebookConsolidatesExplainableBreakdown() {
         ScoreRule timeRule = new TimeBasedRule("Tiempo", TimeRuleConfig.of(100.0, 60.0, 1.0, 2.0, 0.0));
-        ScoreRule objRule = new ObjectiveBonusRule("Objetivos", new ObjectiveRuleConfig(25.0, 4, 20.0));
+        ScoreRule objRule = new ObjectivesRule("Objetivos", new ObjectiveRuleConfig(25.0, 4, 20.0));
         ScoreRule penaltyRule = new PenaltyRule("Penalizaciones", 10.0);
         ScoreRule judgeRule = new JudgeSubjectiveRule("Jueces", 2.0);
 

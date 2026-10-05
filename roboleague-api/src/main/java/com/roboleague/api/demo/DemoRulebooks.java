@@ -15,7 +15,7 @@ import com.roboleague.evaluation.rules.FaultTariff;
 import com.roboleague.evaluation.rules.JudgeSubjectiveRule;
 import com.roboleague.evaluation.rules.Milestone;
 import com.roboleague.evaluation.rules.MilestoneBonusRule;
-import com.roboleague.evaluation.rules.ObjectiveBonusRule;
+import com.roboleague.evaluation.rules.ObjectivesRule;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.PrecisionRule;
 import com.roboleague.evaluation.rules.ResourceConsumptionRule;
@@ -59,7 +59,7 @@ final class DemoRulebooks {
                 count(COLLISIONS, ValueRange.atLeast(0.0)), count(CHECKPOINT, ValueRange.between(0.0, 1.0)),
                 count(LAPS, ValueRange.atLeast(0.0)))), new ScoreRules(
                 List.of(new CompositeScoreRule("Desempeño en pista", List.of(
-                                TimeBasedRule.standard(100.0, 60.0), ObjectiveBonusRule.standard(20.0, 5))),
+                                TimeBasedRule.standard(100.0, 60.0), ObjectivesRule.standard(20.0, 5))),
                         new PenaltyRule("Faltas de pista", 15.0),
                         new CountedFaultRule("Colisiones", COLLISIONS, new FaultTariff(1, 5.0)),
                         new ResourceConsumptionRule("Consumo de batería", 80.0, 0.5)),
@@ -88,7 +88,7 @@ final class DemoRulebooks {
     static RulebookDefinition rescue() {
         ScoringScheme scoring = new ScoringScheme(new MetricSheet(List.of(
                 count(RESCUED, ValueRange.between(0.0, 4.0)), count(FULL_RESCUE, ValueRange.between(0.0, 1.0)))), new ScoreRules(
-                List.of(ObjectiveBonusRule.of("Zonas despejadas", 15.0, 4, 20.0),
+                List.of(ObjectivesRule.of("Zonas despejadas", 15.0, 4, 20.0),
                         new VictimsRule("Víctimas", RESCUED, new VictimTariff(4, 25.0, 10.0)),
                         new JudgeSubjectiveRule("Panel técnico", 5.0)),
                 List.of(new MilestoneBonusRule("Rescate completo", new Milestone(FULL_RESCUE, 1.0), 40.0))),

@@ -15,25 +15,25 @@ import java.util.Set;
 /**
  * Scoring rule granting bonuses for completing predefined objectives and milestones.
  */
-public class ObjectiveBonusRule implements ScoreRule {
+public class ObjectivesRule implements ScoreRule {
     private final String ruleName;
     private final ObjectiveRuleConfig config;
 
-    public ObjectiveBonusRule(String ruleName, ObjectiveRuleConfig config) {
+    public ObjectivesRule(String ruleName, ObjectiveRuleConfig config) {
         this.ruleName = Objects.requireNonNull(ruleName, "ruleName cannot be null");
         this.config = Objects.requireNonNull(config, "config cannot be null");
     }
 
-    public static ObjectiveBonusRule of(String ruleName, ObjectiveRuleConfig config) {
-        return new ObjectiveBonusRule(ruleName, config);
+    public static ObjectivesRule of(String ruleName, ObjectiveRuleConfig config) {
+        return new ObjectivesRule(ruleName, config);
     }
 
-    public static ObjectiveBonusRule of(String ruleName, double pointsPerObjective, int totalObjectives, double allCompletedBonus) {
-        return new ObjectiveBonusRule(ruleName, new ObjectiveRuleConfig(pointsPerObjective, totalObjectives, allCompletedBonus));
+    public static ObjectivesRule of(String ruleName, double pointsPerObjective, int totalObjectives, double allCompletedBonus) {
+        return new ObjectivesRule(ruleName, new ObjectiveRuleConfig(pointsPerObjective, totalObjectives, allCompletedBonus));
     }
 
-    public static ObjectiveBonusRule standard(double pointsPerObjective, int totalObjectives) {
-        return new ObjectiveBonusRule(
+    public static ObjectivesRule standard(double pointsPerObjective, int totalObjectives) {
+        return new ObjectivesRule(
                 "Bonificación por Objetivos",
                 new ObjectiveRuleConfig(pointsPerObjective, totalObjectives, 25.0)
         );
@@ -44,9 +44,9 @@ public class ObjectiveBonusRule implements ScoreRule {
     private static final String TOTAL_OBJECTIVES = "totalObjectives";
     private static final String ALL_COMPLETED_BONUS = "allCompletedBonus";
 
-    public static ObjectiveBonusRule from(RuleDefinition definition) {
+    public static ObjectivesRule from(RuleDefinition definition) {
         Parameters numbers = definition.arguments().numbers();
-        return new ObjectiveBonusRule(definition.name(), new ObjectiveRuleConfig(
+        return new ObjectivesRule(definition.name(), new ObjectiveRuleConfig(
                 numbers.number(POINTS_PER_OBJECTIVE), numbers.whole(TOTAL_OBJECTIVES),
                 numbers.number(ALL_COMPLETED_BONUS)));
     }

@@ -8,7 +8,7 @@ import com.roboleague.evaluation.rules.CompositeScoreRule;
 import com.roboleague.evaluation.rules.CountedFaultRule;
 import com.roboleague.evaluation.rules.JudgeSubjectiveRule;
 import com.roboleague.evaluation.rules.MilestoneBonusRule;
-import com.roboleague.evaluation.rules.ObjectiveBonusRule;
+import com.roboleague.evaluation.rules.ObjectivesRule;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.PrecisionRule;
 import com.roboleague.evaluation.rules.ResourceConsumptionRule;
@@ -49,7 +49,7 @@ public final class RuleCatalog {
     public static RuleCatalog standard() {
         RuleCatalog catalog = new RuleCatalog();
         catalog.rules.put(TimeBasedRule.TYPE, TimeBasedRule::from);
-        catalog.rules.put(ObjectiveBonusRule.TYPE, ObjectiveBonusRule::from);
+        catalog.rules.put(ObjectivesRule.TYPE, ObjectivesRule::from);
         catalog.rules.put(PenaltyRule.TYPE, PenaltyRule::from);
         catalog.rules.put(JudgeSubjectiveRule.TYPE, JudgeSubjectiveRule::from);
         catalog.rules.put(ResourceConsumptionRule.TYPE, ResourceConsumptionRule::from);

@@ -6,7 +6,7 @@ import com.roboleague.evaluation.rules.FaultTariff;
 import com.roboleague.evaluation.rules.JudgeSubjectiveRule;
 import com.roboleague.evaluation.rules.Milestone;
 import com.roboleague.evaluation.rules.MilestoneBonusRule;
-import com.roboleague.evaluation.rules.ObjectiveBonusRule;
+import com.roboleague.evaluation.rules.ObjectivesRule;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.PrecisionRule;
 import com.roboleague.evaluation.rules.ResourceConsumptionRule;
@@ -36,7 +36,7 @@ class RulebookSourcesTest {
 
     private static final RankingScheme ANY_SCHEME = new RankingScheme(new AllRounds(), List.of(new HigherTotal()));
     private static final ScoreRule TIME = TimeBasedRule.standard(100.0, 60.0);
-    private static final ScoreRule OBJECTIVES = ObjectiveBonusRule.standard(20.0, 5);
+    private static final ScoreRule OBJECTIVES = ObjectivesRule.standard(20.0, 5);
     private static final ScoreRule JUDGES = JudgeSubjectiveRule.standard(2.0);
     private static final Metric RESCUED = Metric.judged("victimas_rescatadas");
     private static final ScoreRule VICTIMS = new VictimsRule("Víctimas", RESCUED, new VictimTariff(4, 25.0, 10.0));
