@@ -141,6 +141,8 @@ roboleague-domain/
 - **Contras**:
   - **Dependencia de la Información de Entrada**: Toda variable utilizada para desempatar debe estar consolidada previamente en `TeamScore` / `PerformanceSummary`.
 
+- **Entrega 2**: la cadena pasa a declararse en el reglamento de cada desafío (`RankingScheme`, ver 2.10). `TieBreakerChain` sigue siendo la que usa `RankingCalculatorService` hasta que la tabla por desafío consuma `rulebook.rankingScheme()`.
+
 ---
 
 ### 2.5 Máquina de Estados Polimórfica para Apelaciones (State Pattern)
@@ -230,8 +232,8 @@ roboleague-domain/
 - **Solución Implementada**:
   - **`Challenge`** es un agregado propio que referencia su edición por id (`Edition` no crece y no conoce a sus desafíos). Rondas y tablas de posiciones van a ser por desafío y lo van a referenciar directo; hoy todavía se agrupan por edición y categoría.
   - **`Rulebook`** reemplaza a `ScoringPolicy`: una versión (`RulebookVersion`) y al menos una regla, sin exponer el composite. Es una clase y no un record para no publicar la regla compuesta como componente.
-  - **Un desafío nunca está sin reglamento**: se crea con `Challenge.draft(id, edición, nombre).publish(reglas)`, que publica la v1. El borrador (`Draft`) no puede puntuar; solo sabe publicar. Así se evita un `Optional` en `currentRulebook()` y la falla de "desafío sin reglamento". El borrador es solo el paso de creación: el desafío copia sus datos y no lo guarda.
-  - **El desafío numera las versiones**: `publish(reglas)` crea la siguiente (`v1`, `v2`…) y nunca edita la anterior. `currentRulebook()` da la vigente para capturar; `rulebook(versión)` da una exacta para recalcular con la versión con que se puntuó (lo que necesita el hallazgo 2).
+  - **Un desafío nunca está sin reglamento**: se crea con `Challenge.draft(id, edición, nombre).publish(reglas, esquema)`, que publica la v1. El borrador (`Draft`) no puede puntuar; solo sabe publicar. Así se evita un `Optional` en `currentRulebook()` y la falla de "desafío sin reglamento". El borrador es solo el paso de creación: el desafío copia sus datos y no lo guarda.
+  - **El desafío numera las versiones**: `publish(reglas, esquema)` crea la siguiente (`v1`, `v2`…) y nunca edita la anterior. `currentRulebook()` da la vigente para capturar; `rulebook(versión)` da una exacta para recalcular con la versión con que se puntuó (lo que necesita el hallazgo 2).
   - **Category** sigue siendo elegibilidad (edad, composición, robot), no un desafío.
   - **Ids**: `ChallengeId` nace tipado porque es nuevo; el id de edición sigue siendo `String` hasta que se tipen los ids existentes (frente de inscripción).
   - **`Rulebook` es una entidad hija de `Challenge`**, identificada por su versión dentro del desafío; no es un value object comparable por valor.
@@ -267,6 +269,33 @@ roboleague-domain/
 
 ---
 
+### 2.10 Esquema de clasificación en el reglamento (F1 + hallazgo 8)
+
+- **Problema**:  
+  F1 pide que el reglamento defina, por desafío, cuántas rondas cuentan (mejores N de M) y que la explicación diga cuáles se consideraron y cuáles se descartaron, sin tocar las reglas de puntaje. El hallazgo 8 marcó que la cadena de desempate se armaba en `Main`, fuera de la edición, y que la explicación del empate era siempre el mismo texto.
+
+- **Solución Implementada** (paquete `evaluation.scheme`):
+  - **`RankingScheme`** es la tercera parte del `Rulebook`, junto a la versión y las reglas: `rulebook.rankingScheme()`. Agrupa la selección de rondas y la cadena de desempate porque las dos responden a "cómo se clasifica en este desafío", y tiene comportamiento propio (`decide`, `compare`).
+  - **Strategy `RoundSelection`**: `BestNOfM(n, m)` y `AllRounds`. Trabaja sobre puntajes ya calculados (`RoundScore`: ronda + snapshot vigente del intento), así que no toca ninguna `ScoreRule`, que es el criterio de aceptación de F1.
+  - **`ChallengeScore`** es la explicación de F1: rondas consideradas, descartadas y la regla aplicada ("mejores 2 de 3 rondas"), con total, mejor tiempo, faltas y nota de jueces de las consideradas.
+  - **`TieBreakCriterion`** con nombre de dominio (`HigherTotal`, `LowerTime`, `FewerPenalties`, `HigherJudgeScore`). `RankingScheme.decide` recorre la cadena en el orden declarado y devuelve un resultado `sealed`: `DecidedBy(criterio, orden)` o `Tied`. Que el desenlace sea un tipo propio y no un `if` sobre el tipo de criterio es lo que permite la regla #8.
+  - **Ausencia sin relleno**: un equipo sin rondas no tiene tiempo, y una ronda sin panel de jueces no tiene nota (`OptionalDouble` vacío); quedan últimos en esos criterios en vez de usar `Double.MAX_VALUE` o 0 (regla #24).
+  - **Por qué en `evaluation` y no en `ranking`**: el esquema es parte del reglamento, que vive en `evaluation`; `ranking` ya depende de `evaluation`, y al revés habría un ciclo de paquetes.
+
+- **F1: clases agregadas**: `RankingScheme`, `RoundSelection`, `BestNOfM`, `AllRounds`, `RoundScore`, `ChallengeScore`, `TieBreakCriterion` y sus cuatro implementaciones, `TieBreakDecision`.
+- **F1: clases modificadas**: `Rulebook` (tercer componente `rankingScheme`), `Challenge` (`Draft.publish` y `publish` reciben reglas y esquema), `DemoFixture` (Sumo declara mejores 2 de 3 y cuatro criterios encadenados).
+- **F1: refactors**: ninguno sobre las reglas de puntaje; es una pieza nueva que se enchufa en el reglamento.
+- **F1: deuda que decidimos no resolver en este paso**:
+  - **La tabla de posiciones todavía no usa el esquema**: `RankingCalculatorService` sigue con `TieBreakerChain`, toma el mejor intento por equipo y agrupa por edición, categoría y ronda, así que en la demo todavía no se ven rondas descartadas. Conectarlo es parte de la tabla por desafío (`Standings`): armar por equipo un `RoundScore` por ronda, ordenar con `rulebook.rankingScheme()` y explicar cada posición con `decide`. En ese mismo cambio se borran `TieBreakerChain` y `TeamScore.isTiedWith`, que hoy duplican los criterios (regla #27).
+  - M no se valida contra las rondas programadas: `BestNOfM` rechaza más de M rondas al seleccionar, pero programar más de M es responsabilidad de la ronda por desafío.
+  - Elegir el intento que representa a un equipo en una ronda (por ejemplo, el mejor no descalificado) queda en quien arma los `RoundScore`.
+- **Patrones no aplicados**: Factory de criterios por nombre (recién hace falta cuando el reglamento se configure desde la API; hoy sería una abstracción por las dudas, regla #18); Decorator sobre `RoundSelection` (no hay variación que lo pida).
+
+- **Pros**: agregar una forma de seleccionar rondas o un criterio de desempate es una clase nueva, sin tocar las existentes (OCP); el orden del desempate es dato del reglamento y viaja con su versión; cada posición podrá explicar qué criterio la decidió cuando la tabla use el esquema.
+- **Contras**: un criterio de desempate nuevo que mire otra métrica exige exponerla en `ChallengeScore`.
+
+---
+
 ## 3. Matriz Comparativa Exhaustiva de Trade-offs
 
 | Decisión Arquitectónica | Pros Clave | Contras y Costos Asociados | Alternativa Considerada y Rechazada |
@@ -282,6 +311,7 @@ roboleague-domain/
 | **Composition Root Único (`Main`)** | Dominio puro sin frameworks externos; inversión de dependencias estricta; máxima testeabilidad. | Requiere cableado manual explícito al no utilizar un framework de DI automático en el dominio. | Hacer `new` de implementaciones concretas adentro de servicios. Rechazada por acoplamiento indebido. |
 | **`Challenge` como agregado con su `Rulebook`** | Varios desafíos por evento, cada uno con su reglamento versionado; F1, F2 y F3 viven en el reglamento del desafío. | Captura y apelación tienen que saber de qué desafío es el intento. | Una edición = una prueba (Entrega 1). Rechazada en la Entrega 2: la demo pide tres desafíos en un evento y reglas por desafío. |
 | **Recálculo = reordenar snapshots vigentes** | Cumple “reprocesar posiciones después de una corrección”; no reinterpreta la pista; barato y determinista. | No re-aplica las `ScoreRule` si el desafío publica una versión nueva después de evaluar; que el intento recuerde su versión queda pendiente (hallazgo 2). | Re-evaluar todos los `RawMetrics` en cada recálculo de tabla. Rechazada: con reglamentos inmutables el resultado no cambia; el gancho `recalculateWith` queda por si el negocio lo pide. |
+| **Esquema de clasificación en el reglamento (`RankingScheme`)** | Mejores N de M y desempate son datos del reglamento y viajan con su versión; cada criterio dice cuándo decidió. | La tabla todavía no lo consume (pendiente de la tabla por desafío). | Cadena de desempate armada en `Main`/config. Rechazada: dos desafíos no podrían desempatar distinto ni reproducir el criterio de una versión anterior. |
 
 ---
 
@@ -306,6 +336,10 @@ roboleague-domain/
    - *Qué se consideró*: que “recalcular con la versión de reglas correspondiente” significara volver a correr el motor sobre cada `RawMetrics` al reconstruir la tabla (`Attempt.recalculateWith` en el use case).
    - *Qué se eligió*: la versión del reglamento se aplica al **nacer** el puntaje (captura o apelación aceptada). `RecalculateRankingUseCase` reprocesa **posiciones** a partir del último snapshot. Es la lectura de la tabla de la consigna.
    - *Justificación del descarte*: con reglamentos publicados inmutables, re-evaluar no cambia el desglose y encarece el recálculo. El gancho en `Attempt` queda por si más adelante el negocio pide re-aplicar un reglamento sin cambiar métricas.
+8. **Mejores N de M como una `ScoreRule` más**:
+   - *Justificación del descarte*: una regla evalúa las métricas de un intento; N de M elige entre puntajes ya calculados de varias rondas. Meterlo en el motor de reglas obligaría a que una regla conozca otros intentos.
+9. **Enum de criterios de desempate con comparadores (como `TieBreakerChain.StandardCriterion`)**:
+   - *Justificación del descarte*: no dice qué criterio decidió y agregar uno obliga a abrir el enum (OCP). Cada criterio es una clase con nombre.
 
 ### Decisiones Técnicas Pospuestas (Justificación Arquitectónica):
 1. **Framework de Persistencia Real (JPA / Hibernate / Spring Data)**:
@@ -326,6 +360,7 @@ El diseño implementado se valida con pruebas automatizadas en `src/test/java` d
 - **Pruebas Unitarias de Scoring y Auditoría**:
   - `ScoringEngineTest`: Evalúa el comportamiento de cada regla elemental (`TimeBasedRule`, `ObjectiveBonusRule`, `PenaltyRule`, `JudgeSubjectiveRule`) y su agregación en `CompositeScoreRule`, verificando los desgloses paso a paso.
   - `RulebookReviewFindingsTest`: Los tests del informe de la Entrega 1 sobre el reglamento (hallazgo 1 y la pregunta del desglose), invertidos para describir el comportamiento correcto. Incluye un test parametrizado con cada regla que rechaza parámetros negativos.
+  - `BestNOfMTest` y `RankingSchemeTest`: Verifican, con casos parametrizados, qué rondas cuentan con mejores N de M y cuáles se descartan, que el primer criterio que separa a dos equipos dé su nombre, el empate en todos los criterios y que el orden declarado cambie al ganador.
   - `ChallengeTest`: Verifica que cada publicación del reglamento crea la versión siguiente, que una versión nueva no cambia cómo puntúa la anterior y que se puede pedir una versión exacta.
   - `AttemptAuditTrailTest`: Valida que cada modificación sobre un intento genere snapshots inmutables con numeración correlativa, preservando la revisión original intacta y registrando eventos de dominio. Cubre además la descalificación auditada (`AttemptDisqualifiedEvent`) y la restauración del estado del intento tras una apelación rechazada.
 - **Pruebas Unitarias de Dominio y Flujos de Estado**:

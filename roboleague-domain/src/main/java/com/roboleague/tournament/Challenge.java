@@ -3,6 +3,7 @@ package com.roboleague.tournament;
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.rules.ScoreRule;
+import com.roboleague.evaluation.scheme.RankingScheme;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,8 +42,8 @@ public class Challenge {
             Objects.requireNonNull(name, "name cannot be null");
         }
 
-        public Challenge publish(List<ScoreRule> rules) {
-            return new Challenge(this, new Rulebook(RulebookVersion.first(), rules));
+        public Challenge publish(List<ScoreRule> rules, RankingScheme rankingScheme) {
+            return new Challenge(this, new Rulebook(RulebookVersion.first(), rules, rankingScheme));
         }
     }
 
@@ -58,8 +59,8 @@ public class Challenge {
         return name;
     }
 
-    public Rulebook publish(List<ScoreRule> rules) {
-        Rulebook rulebook = new Rulebook(currentRulebook().version().next(), rules);
+    public Rulebook publish(List<ScoreRule> rules, RankingScheme rankingScheme) {
+        Rulebook rulebook = new Rulebook(currentRulebook().version().next(), rules, rankingScheme);
         rulebooks.add(rulebook);
         return rulebook;
     }

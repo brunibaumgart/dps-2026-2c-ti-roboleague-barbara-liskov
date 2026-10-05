@@ -4,6 +4,9 @@ import com.roboleague.evaluation.*;
 import com.roboleague.evaluation.rules.ObjectiveBonusRule;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.TimeBasedRule;
+import com.roboleague.evaluation.scheme.AllRounds;
+import com.roboleague.evaluation.scheme.HigherTotal;
+import com.roboleague.evaluation.scheme.RankingScheme;
 import com.roboleague.ranking.Ranking;
 import com.roboleague.ranking.RankingCalculatorService;
 import com.roboleague.ranking.appeal.Appeal;
@@ -102,7 +105,7 @@ class AppealAndRecalculateIntegrationTest {
                 TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0),
                 ObjectiveBonusRule.of("Objetivos", 20.0, 5, 25.0),
                 new PenaltyRule("Penalizaciones", 15.0)
-        ));
+        ), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
         challengeRepository.save(maze);
     }
 

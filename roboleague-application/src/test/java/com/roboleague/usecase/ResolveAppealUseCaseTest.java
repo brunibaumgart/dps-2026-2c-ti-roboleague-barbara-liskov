@@ -6,6 +6,9 @@ import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.TimeBasedRule;
+import com.roboleague.evaluation.scheme.AllRounds;
+import com.roboleague.evaluation.scheme.HigherTotal;
+import com.roboleague.evaluation.scheme.RankingScheme;
 import com.roboleague.ranking.RankingCalculatorService;
 import com.roboleague.ranking.appeal.Appeal;
 import com.roboleague.repository.memory.InMemoryAppealRepository;
@@ -36,7 +39,7 @@ class ResolveAppealUseCaseTest {
         Rulebook rulebook = new Rulebook(RulebookVersion.first(), List.of(
                 TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0),
                 new PenaltyRule("Faltas", 10.0)
-        ));
+        ), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
         Attempt attempt = Attempt.of("att-1", "t-1", "slot-1", "r-1", 1);
         RawMetrics metrics = RawMetrics.of(40.0, 2, 3);
         attempt.registerInitialResult(metrics, rulebook.evaluate(metrics), "judge-1");
