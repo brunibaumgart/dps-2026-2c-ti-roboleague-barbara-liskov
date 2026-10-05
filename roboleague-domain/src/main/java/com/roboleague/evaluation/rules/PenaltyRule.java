@@ -4,6 +4,7 @@ import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ScoreItem;
 
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * Scoring rule applying deductions for fouls or track infractions.
@@ -13,7 +14,10 @@ public class PenaltyRule implements ScoreRule {
     private final double deductionPerPenalty;
 
     public PenaltyRule(String ruleName, double deductionPerPenalty) {
-        this.ruleName = ruleName;
+        if (deductionPerPenalty < 0) {
+            throw new IllegalArgumentException("deductionPerPenalty cannot be negative: a penalty never adds points");
+        }
+        this.ruleName = Objects.requireNonNull(ruleName, "ruleName cannot be null");
         this.deductionPerPenalty = deductionPerPenalty;
     }
 
