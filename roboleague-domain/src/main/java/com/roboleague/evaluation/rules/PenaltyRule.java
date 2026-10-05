@@ -1,5 +1,8 @@
 package com.roboleague.evaluation.rules;
 
+import com.roboleague.evaluation.definition.Parameters;
+import com.roboleague.evaluation.definition.RuleArguments;
+import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
@@ -26,6 +29,18 @@ public class PenaltyRule implements ScoreRule {
         return new PenaltyRule("Penalizaciones por Faltas", deductionPerPenalty);
     }
 
+    public static final String TYPE = "penalty";
+    private static final String DEDUCTION_PER_PENALTY = "deductionPerPenalty";
+
+    public static PenaltyRule from(RuleDefinition definition) {
+        return new PenaltyRule(definition.name(), definition.arguments().numbers().number(DEDUCTION_PER_PENALTY));
+    }
+
+    @Override
+    public RuleDefinition definition() {
+        return new RuleDefinition(TYPE, ruleName,
+                RuleArguments.of(Parameters.none().with(DEDUCTION_PER_PENALTY, deductionPerPenalty)));
+    }
     @Override
     public ResultSource source() {
         return ResultSource.AUTOMATIC_MEASUREMENTS;

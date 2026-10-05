@@ -1,5 +1,8 @@
 package com.roboleague.evaluation.scheme;
 
+import com.roboleague.evaluation.definition.Parameters;
+import com.roboleague.evaluation.definition.StrategyDefinition;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -16,6 +19,17 @@ public record BestNOfM(int considered, int outOf) implements RoundSelection {
         if (considered < 1 || considered > outOf) {
             throw new IllegalArgumentException("considered must be between 1 and outOf: " + considered + " of " + outOf);
         }
+    }
+
+    public static final String TYPE = "best-n-of-m";
+
+    public static BestNOfM from(StrategyDefinition definition) {
+        return new BestNOfM(definition.numbers().whole("considered"), definition.numbers().whole("outOf"));
+    }
+
+    @Override
+    public StrategyDefinition definition() {
+        return new StrategyDefinition(TYPE, Parameters.none().with("considered", considered).with("outOf", outOf));
     }
 
     @Override

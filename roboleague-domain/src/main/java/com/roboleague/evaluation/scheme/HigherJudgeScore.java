@@ -3,6 +3,11 @@ package com.roboleague.evaluation.scheme;
 public final class HigherJudgeScore implements TieBreakCriterion {
 
     @Override
+    public String code() {
+        return "higher-judge-score";
+    }
+
+    @Override
     public String name() {
         return "Mayor nota de jueces";
     }

@@ -3,6 +3,11 @@ package com.roboleague.evaluation.scheme;
 public final class FewerPenalties implements TieBreakCriterion {
 
     @Override
+    public String code() {
+        return "fewer-penalties";
+    }
+
+    @Override
     public String name() {
         return "Menos faltas";
     }

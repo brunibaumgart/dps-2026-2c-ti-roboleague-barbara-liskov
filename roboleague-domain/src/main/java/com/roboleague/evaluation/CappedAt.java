@@ -1,5 +1,7 @@
 package com.roboleague.evaluation;
 
+import com.roboleague.evaluation.definition.Parameters;
+import com.roboleague.evaluation.definition.StrategyDefinition;
 import com.roboleague.evaluation.rules.ScoreRule.RuleEvaluation;
 
 import java.util.Locale;
@@ -8,12 +10,22 @@ import java.util.Locale;
  * Global cap on the sum of all bonuses. The breakdown always shows what was obtained, the cap and the cut.
  */
 public record CappedAt(double maximum) implements BonusLimit {
+    public static final String TYPE = "capped";
     private static final String CONCEPT = "Tope de bonificaciones";
 
     public CappedAt {
         if (!Double.isFinite(maximum) || maximum < 0) {
             throw new IllegalArgumentException("maximum must be a finite, non-negative number: " + maximum);
         }
+    }
+
+    public static CappedAt from(StrategyDefinition definition) {
+        return new CappedAt(definition.numbers().number("maximum"));
+    }
+
+    @Override
+    public StrategyDefinition definition() {
+        return new StrategyDefinition(TYPE, Parameters.none().with("maximum", maximum));
     }
 
     @Override

@@ -1,5 +1,7 @@
 package com.roboleague.evaluation;
 
+import com.roboleague.evaluation.definition.RuleDefinition;
+import com.roboleague.evaluation.definition.RulebookDefinition;
 import com.roboleague.evaluation.rules.ScoreRule;
 import com.roboleague.evaluation.rules.ScoreRule.RuleEvaluation;
 
@@ -25,6 +27,18 @@ public record ScoringScheme(List<ScoreRule> rules, List<ScoreRule> bonuses, Bonu
 
     public static ScoringScheme withoutBonuses(List<ScoreRule> rules) {
         return new ScoringScheme(rules, List.of(), new Unlimited());
+    }
+
+    public RulebookDefinition.Scoring definition() {
+        return new RulebookDefinition.Scoring(definitionsOf(rules), definitionsOf(bonuses), bonusLimit.definition());
+    }
+
+    private static List<RuleDefinition> definitionsOf(List<ScoreRule> rules) {
+        List<RuleDefinition> definitions = new ArrayList<>();
+        for (ScoreRule rule : rules) {
+            definitions.add(rule.definition());
+        }
+        return definitions;
     }
 
     public RuleEvaluation evaluate(RawMetrics metrics) {

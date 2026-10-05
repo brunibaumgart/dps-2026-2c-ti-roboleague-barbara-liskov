@@ -1,5 +1,6 @@
 package com.roboleague.evaluation;
 
+import com.roboleague.evaluation.definition.StrategyDefinition;
 import com.roboleague.evaluation.rules.ScoreRule.RuleEvaluation;
 
 /**
@@ -8,4 +9,6 @@ import com.roboleague.evaluation.rules.ScoreRule.RuleEvaluation;
 public interface BonusLimit {
 
     RuleEvaluation limit(double obtainedBonuses);
+
+    StrategyDefinition definition();
 }

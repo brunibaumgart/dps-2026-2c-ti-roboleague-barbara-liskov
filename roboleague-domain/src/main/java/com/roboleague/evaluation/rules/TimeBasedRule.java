@@ -1,5 +1,8 @@
 package com.roboleague.evaluation.rules;
 
+import com.roboleague.evaluation.definition.Parameters;
+import com.roboleague.evaluation.definition.RuleArguments;
+import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
@@ -38,6 +41,30 @@ public class TimeBasedRule implements ScoreRule {
         );
     }
 
+    public static final String TYPE = "time";
+    private static final String BASE_POINTS = "basePoints";
+    private static final String TARGET_TIME_SECONDS = "targetTimeSeconds";
+    private static final String POINTS_PER_SECOND_UNDER = "pointsPerSecondUnder";
+    private static final String DEDUCTION_PER_SECOND_OVER = "deductionPerSecondOver";
+    private static final String MIN_POINTS = "minPoints";
+
+    public static TimeBasedRule from(RuleDefinition definition) {
+        Parameters numbers = definition.arguments().numbers();
+        return new TimeBasedRule(definition.name(), TimeRuleConfig.of(
+                numbers.number(BASE_POINTS), numbers.number(TARGET_TIME_SECONDS),
+                numbers.number(POINTS_PER_SECOND_UNDER), numbers.number(DEDUCTION_PER_SECOND_OVER),
+                numbers.number(MIN_POINTS)));
+    }
+
+    @Override
+    public RuleDefinition definition() {
+        return new RuleDefinition(TYPE, ruleName, RuleArguments.of(Parameters.none()
+                .with(BASE_POINTS, config.targets().basePoints())
+                .with(TARGET_TIME_SECONDS, config.targets().targetTimeSeconds())
+                .with(POINTS_PER_SECOND_UNDER, config.adjustments().pointsPerSecondUnder())
+                .with(DEDUCTION_PER_SECOND_OVER, config.adjustments().deductionPerSecondOver())
+                .with(MIN_POINTS, config.adjustments().minPoints())));
+    }
     @Override
     public ResultSource source() {
         return ResultSource.AUTOMATIC_MEASUREMENTS;

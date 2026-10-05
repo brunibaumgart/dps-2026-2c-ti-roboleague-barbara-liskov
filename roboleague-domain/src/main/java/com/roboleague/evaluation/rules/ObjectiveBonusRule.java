@@ -1,5 +1,8 @@
 package com.roboleague.evaluation.rules;
 
+import com.roboleague.evaluation.definition.Parameters;
+import com.roboleague.evaluation.definition.RuleArguments;
+import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
@@ -33,6 +36,25 @@ public class ObjectiveBonusRule implements ScoreRule {
         );
     }
 
+    public static final String TYPE = "objectives";
+    private static final String POINTS_PER_OBJECTIVE = "pointsPerObjective";
+    private static final String TOTAL_OBJECTIVES = "totalObjectives";
+    private static final String ALL_COMPLETED_BONUS = "allCompletedBonus";
+
+    public static ObjectiveBonusRule from(RuleDefinition definition) {
+        Parameters numbers = definition.arguments().numbers();
+        return new ObjectiveBonusRule(definition.name(), new ObjectiveRuleConfig(
+                numbers.number(POINTS_PER_OBJECTIVE), numbers.whole(TOTAL_OBJECTIVES),
+                numbers.number(ALL_COMPLETED_BONUS)));
+    }
+
+    @Override
+    public RuleDefinition definition() {
+        return new RuleDefinition(TYPE, ruleName, RuleArguments.of(Parameters.none()
+                .with(POINTS_PER_OBJECTIVE, config.pointsPerObjective())
+                .with(TOTAL_OBJECTIVES, config.totalPossibleObjectives())
+                .with(ALL_COMPLETED_BONUS, config.allCompletedBonus())));
+    }
     @Override
     public ResultSource source() {
         return ResultSource.AUTOMATIC_MEASUREMENTS;

@@ -1,5 +1,8 @@
 package com.roboleague.evaluation.rules;
 
+import com.roboleague.evaluation.definition.Parameters;
+import com.roboleague.evaluation.definition.RuleArguments;
+import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
@@ -24,6 +27,25 @@ public final class MilestoneBonusRule implements ScoreRule {
         this.bonus = bonus;
     }
 
+    public static final String TYPE = "milestone";
+    private static final String THRESHOLD = "threshold";
+    private static final String BONUS = "bonus";
+    private static final String METRIC = "metric";
+
+    public static MilestoneBonusRule from(RuleDefinition definition) {
+        RuleArguments arguments = definition.arguments();
+        return new MilestoneBonusRule(definition.name(),
+                new Milestone(arguments.metric(METRIC), arguments.numbers().number(THRESHOLD)),
+                arguments.numbers().number(BONUS));
+    }
+
+    @Override
+    public RuleDefinition definition() {
+        return new RuleDefinition(TYPE, ruleName, RuleArguments.of(Parameters.none()
+                        .with(THRESHOLD, milestone.threshold())
+                        .with(BONUS, bonus))
+                .withMetric(METRIC, milestone.metric()));
+    }
     @Override
     public ResultSource source() {
         return milestone.metric().source();
