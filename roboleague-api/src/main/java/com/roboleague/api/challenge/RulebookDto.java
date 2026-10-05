@@ -6,9 +6,11 @@ import com.roboleague.evaluation.Rulebook;
 import java.util.List;
 
 /**
- * JSON view of a published rulebook version: its number, the sources it needs and its rules as they were sent.
+ * JSON view of a published rulebook version: its number, the sources it needs, and its metrics and rules as they
+ * were sent.
  */
-record RulebookDto(int version, List<String> requiredSources, ScoringView scoring, RankingView ranking) {
+record RulebookDto(int version, List<String> requiredSources, List<RulebookBody.MetricDeclarationBody> metrics,
+                   ScoringView scoring, RankingView ranking) {
 
     record ScoringView(List<RulebookBody.RuleBody> rules, List<RulebookBody.RuleBody> bonuses,
                        RulebookBody.StrategyBody bonusLimit) {
@@ -21,6 +23,7 @@ record RulebookDto(int version, List<String> requiredSources, ScoringView scorin
         RulebookBody body = RulebookBody.from(rulebook.definition());
         return new RulebookDto(rulebook.version().number(),
                 rulebook.requiredSources().stream().map(ResultSource::name).sorted().toList(),
+                body.metrics(),
                 new ScoringView(body.scoring().rules(), body.scoring().bonuses(), body.scoring().bonusLimit()),
                 new RankingView(body.ranking().roundSelection(), body.ranking().criteria()));
     }

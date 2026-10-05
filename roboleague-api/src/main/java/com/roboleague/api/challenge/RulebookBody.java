@@ -1,7 +1,9 @@
 package com.roboleague.api.challenge;
 
+import com.roboleague.evaluation.MeasurementUnit;
 import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.ResultSource;
+import com.roboleague.evaluation.definition.MetricDeclaration;
 import com.roboleague.evaluation.definition.Parameters;
 import com.roboleague.evaluation.definition.RuleArguments;
 import com.roboleague.evaluation.definition.RuleDefinition;
@@ -17,7 +19,10 @@ import java.util.Map;
  * JSON shape of a rulebook, the same when it is sent and when it is read back. It only translates to and from
  * {@link RulebookDefinition}; which class each "type" becomes is decided by the domain's rule catalog.
  */
-record RulebookBody(ScoringBody scoring, RankingBody ranking) {
+record RulebookBody(List<MetricDeclarationBody> metrics, ScoringBody scoring, RankingBody ranking) {
+
+    record MetricDeclarationBody(String name, String source, String unit, Map<String, Double> range) {
+    }
 
     record ScoringBody(List<RuleBody> rules, List<RuleBody> bonuses, StrategyBody bonusLimit) {
     }
@@ -39,17 +44,41 @@ record RulebookBody(ScoringBody scoring, RankingBody ranking) {
         if (scoring == null || ranking == null || scoring.bonusLimit() == null || ranking.roundSelection() == null) {
             throw new IllegalArgumentException("a rulebook needs scoring (with bonusLimit) and ranking (with roundSelection)");
         }
-        return new RulebookDefinition(List.of(),
+        return new RulebookDefinition(toDeclarations(metrics),
                 new RulebookDefinition.Scoring(toRules(scoring.rules()), toRules(scoring.bonuses()),
                         toStrategy(scoring.bonusLimit())),
                 new RulebookDefinition.Ranking(toStrategy(ranking.roundSelection()), orEmpty(ranking.criteria())));
     }
 
     static RulebookBody from(RulebookDefinition definition) {
-        return new RulebookBody(
+        return new RulebookBody(fromDeclarations(definition.metrics()),
                 new ScoringBody(fromRules(definition.scoring().rules()), fromRules(definition.scoring().bonuses()),
                         fromStrategy(definition.scoring().bonusLimit())),
                 new RankingBody(fromStrategy(definition.ranking().roundSelection()), definition.ranking().criteria()));
+    }
+
+    private static List<MetricDeclaration> toDeclarations(List<MetricDeclarationBody> bodies) {
+        List<MetricDeclaration> declarations = new ArrayList<>();
+        for (MetricDeclarationBody body : orEmpty(bodies)) {
+            if (body == null || body.name() == null) {
+                throw new IllegalArgumentException("a declared metric needs a name");
+            }
+            declarations.add(new MetricDeclaration(toMetric(body.name(), new MetricBody(body.name(), body.source())),
+                    toUnit(body.name(), body.unit()), Parameters.of(orEmpty(body.range()))));
+        }
+        return declarations;
+    }
+
+    private static MeasurementUnit toUnit(String metric, String unit) {
+        if (unit == null) {
+            throw new IllegalArgumentException("metric '" + metric + "' needs a unit");
+        }
+        try {
+            return MeasurementUnit.valueOf(unit);
+        } catch (IllegalArgumentException unknown) {
+            throw new IllegalArgumentException("metric '" + metric + "': unknown unit '" + unit
+                    + "', expected one of " + List.of(MeasurementUnit.values()));
+        }
     }
 
     private static List<RuleDefinition> toRules(List<RuleBody> bodies) {
@@ -80,6 +109,15 @@ record RulebookBody(ScoringBody scoring, RankingBody ranking) {
 
     private static StrategyDefinition toStrategy(StrategyBody body) {
         return new StrategyDefinition(body.type(), Parameters.of(orEmpty(body.numbers())));
+    }
+
+    private static List<MetricDeclarationBody> fromDeclarations(List<MetricDeclaration> declarations) {
+        List<MetricDeclarationBody> bodies = new ArrayList<>();
+        for (MetricDeclaration declaration : declarations) {
+            bodies.add(new MetricDeclarationBody(declaration.metric().name(), declaration.metric().source().name(),
+                    declaration.unit().name(), declaration.range().values()));
+        }
+        return bodies;
     }
 
     private static List<RuleBody> fromRules(List<RuleDefinition> rules) {

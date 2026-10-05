@@ -33,7 +33,10 @@ class ChallengeJpaEntity {
     record RulebooksJson(List<RulebookJson> versions) {
     }
 
-    record RulebookJson(int version, ScoringJson scoring, RankingJson ranking) {
+    record RulebookJson(int version, List<MetricDeclarationJson> metrics, ScoringJson scoring, RankingJson ranking) {
+    }
+
+    record MetricDeclarationJson(String name, String source, String unit, Map<String, Double> range) {
     }
 
     record ScoringJson(List<RuleJson> rules, List<RuleJson> bonuses, StrategyJson bonusLimit) {
