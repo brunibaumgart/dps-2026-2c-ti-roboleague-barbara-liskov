@@ -46,6 +46,11 @@ class RuleCatalogTest {
     private static final Metric PRECISION = Metric.sensor("precision");
     private static final Metric RESCUED = Metric.judged("rescatadas");
     private static final Metric CHECKPOINT = Metric.sensor("checkpoint");
+    private static final MetricSheet DECLARED = new MetricSheet(List.of(
+            new MetricDefinition(COLLISIONS, MeasurementUnit.COUNT, ValueRange.atLeast(0.0)),
+            new MetricDefinition(PRECISION, MeasurementUnit.RATIO, ValueRange.between(0.0, 1.0)),
+            new MetricDefinition(RESCUED, MeasurementUnit.COUNT, ValueRange.between(0.0, 4.0)),
+            new MetricDefinition(CHECKPOINT, MeasurementUnit.COUNT, ValueRange.between(0.0, 1.0))));
     private static final StrategyDefinition UNLIMITED = new StrategyDefinition(Unlimited.TYPE, Parameters.none());
     private static final StrategyDefinition ALL_ROUNDS = new StrategyDefinition(AllRounds.TYPE, Parameters.none());
 
@@ -55,7 +60,8 @@ class RuleCatalogTest {
                     RESCUED.name(), 3.0, CHECKPOINT.name(), 1.0)));
 
     private static RulebookDefinition withRule(RuleDefinition rule) {
-        return new RulebookDefinition(List.of(), new RulebookDefinition.Scoring(List.of(rule), List.of(), UNLIMITED),
+        return new RulebookDefinition(DECLARED.declarations(),
+                new RulebookDefinition.Scoring(List.of(rule), List.of(), UNLIMITED),
                 new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("higher-total")));
     }
 
@@ -105,7 +111,7 @@ class RuleCatalogTest {
     @Test
     @DisplayName("El tope, la selección de rondas y los criterios también se describen y se reconstruyen")
     void givenSchemesThenTheirDefinitionsRebuildEqualSchemes() {
-        ScoringScheme scoring = new ScoringScheme(MetricSheet.none(), new ScoreRules(List.of(new PenaltyRule("Faltas", 10.0)),
+        ScoringScheme scoring = new ScoringScheme(DECLARED, new ScoreRules(List.of(new PenaltyRule("Faltas", 10.0)),
                 List.of(new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), 30.0))), new CappedAt(40.0));
         RankingScheme ranking = new RankingScheme(new BestNOfM(3, 5),
                 List.of(new HigherTotal(), new LowerTime(), new FewerPenalties(), new HigherJudgeScore()));
@@ -189,7 +195,15 @@ class RuleCatalogTest {
                 Arguments.of(Named.of("métrica declarada dos veces", declaring(List.of(
                                 collisionsWithin(Parameters.none().with("min", 0.0)),
                                 collisionsWithin(Parameters.none().with("min", 1.0))))),
-                        "metrics: metric 'colisiones' is declared twice")
+                        "metrics: metric 'colisiones' is declared twice"),
+                Arguments.of(Named.of("métrica no declarada", withRule(new CountedFaultRule("Colisiones",
+                                Metric.sensor("colision"), new FaultTariff(1, 5.0)).definition())),
+                        "scoring: rule 'Colisiones' reads metric 'colision' (AUTOMATIC_MEASUREMENTS), "
+                                + "which the rulebook does not declare"),
+                Arguments.of(Named.of("métrica de otra fuente", withRule(new CountedFaultRule("Colisiones",
+                                Metric.judged("colisiones"), new FaultTariff(1, 5.0)).definition())),
+                        "scoring: rule 'Colisiones' reads metric 'colisiones' (JUDGE_PANEL), "
+                                + "which the rulebook does not declare")
         );
     }
 

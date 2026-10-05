@@ -28,6 +28,10 @@ public record MetricSheet(List<MetricDefinition> metrics) {
         return new MetricSheet(List.of());
     }
 
+    public boolean declares(Metric metric) {
+        return metrics.stream().anyMatch(declared -> declared.metric().equals(metric));
+    }
+
     /**
      * Checks what one source sent against the metrics declared for it: none missing, none undeclared and each one
      * in its unit and range. A mixed challenge checks each source when it arrives (F3).

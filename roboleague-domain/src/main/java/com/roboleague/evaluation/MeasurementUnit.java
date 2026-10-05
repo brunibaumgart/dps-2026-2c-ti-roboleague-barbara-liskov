@@ -11,6 +11,7 @@ public enum MeasurementUnit {
         }
     },
     SECONDS,
+    METERS,
     RATIO,
     POINTS;
 

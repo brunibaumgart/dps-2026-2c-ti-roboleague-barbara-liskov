@@ -14,14 +14,30 @@ import java.util.Set;
 /**
  * How a rulebook scores an attempt: the metrics it declares, its score and bonus rules, and the limit on the sum
  * of bonuses (F2). The bonus rules are ordinary score rules; the limit wraps their sum without changing any of them.
+ * Every metric a rule reads has to be declared, so a misspelled name is rejected when publishing, not when scoring.
  */
 public record ScoringScheme(MetricSheet metrics, ScoreRules scoreRules, BonusLimit bonusLimit) {
     public ScoringScheme {
         Objects.requireNonNull(metrics, "metrics cannot be null");
         Objects.requireNonNull(scoreRules, "scoreRules cannot be null");
         Objects.requireNonNull(bonusLimit, "bonusLimit cannot be null");
+        List<String> undeclared = new ArrayList<>();
+        for (ScoreRule rule : scoreRules.all()) {
+            for (Metric metric : rule.metrics()) {
+                if (!metrics.declares(metric)) {
+                    undeclared.add("rule '" + rule.getRuleName() + "' reads metric '" + metric.name() + "' ("
+                            + metric.source() + "), which the rulebook does not declare");
+                }
+            }
+        }
+        if (!undeclared.isEmpty()) {
+            throw new IllegalArgumentException(String.join("; ", undeclared));
+        }
     }
 
+    /**
+     * A scheme with no bonuses for rules that read no named metric, so there is nothing to declare.
+     */
     public static ScoringScheme withoutBonuses(List<ScoreRule> rules) {
         return new ScoringScheme(MetricSheet.none(), new ScoreRules(rules, List.of()), new Unlimited());
     }
