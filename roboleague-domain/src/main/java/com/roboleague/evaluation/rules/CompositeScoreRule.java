@@ -1,23 +1,30 @@
 package com.roboleague.evaluation.rules;
 
 import com.roboleague.evaluation.RawMetrics;
-import com.roboleague.evaluation.ScoreBreakdown;
-import com.roboleague.evaluation.ScoreItem;
+import com.roboleague.evaluation.ResultSource;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
 /**
- * Composite score rule aggregating multiple child scoring rules.
+ * Composite score rule aggregating child rules that read from the same source (e.g. "Desempeño en pista").
  */
 public class CompositeScoreRule implements ScoreRule {
     private final String name;
     private final List<ScoreRule> rules;
+    private final ResultSource source;
 
     public CompositeScoreRule(String name, List<ScoreRule> rules) {
         this.name = Objects.requireNonNull(name, "name cannot be null");
         this.rules = List.copyOf(Objects.requireNonNull(rules, "rules cannot be null"));
+        if (this.rules.isEmpty()) {
+            throw new IllegalArgumentException("a composite rule needs at least one rule");
+        }
+        List<ResultSource> sources = this.rules.stream().map(ScoreRule::source).distinct().toList();
+        if (sources.size() != 1) {
+            throw new IllegalArgumentException("a composite rule needs rules from exactly one source: " + sources);
+        }
+        this.source = sources.getFirst();
     }
 
     public List<ScoreRule> getRules() {
@@ -30,21 +37,12 @@ public class CompositeScoreRule implements ScoreRule {
     }
 
     @Override
-    public RuleEvaluation evaluate(RawMetrics metrics) {
-        List<ScoreItem> allItems = new ArrayList<>();
-        List<String> allNotes = new ArrayList<>();
-
-        for (ScoreRule rule : rules) {
-            RuleEvaluation eval = rule.evaluate(metrics);
-            allItems.addAll(eval.items());
-            allNotes.addAll(eval.notes());
-        }
-
-        return new RuleEvaluation(allItems, allNotes);
+    public ResultSource source() {
+        return source;
     }
 
-    public ScoreBreakdown evaluateBreakdown(RawMetrics metrics) {
-        RuleEvaluation eval = evaluate(metrics);
-        return ScoreBreakdown.of(eval.items(), eval.notes());
+    @Override
+    public RuleEvaluation evaluate(RawMetrics metrics) {
+        return RuleEvaluation.combining(rules, metrics);
     }
 }

@@ -1,6 +1,7 @@
 package com.roboleague.evaluation.rules;
 
 import com.roboleague.evaluation.RawMetrics;
+import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
 
 import java.util.Locale;
@@ -35,6 +36,11 @@ public class TimeBasedRule implements ScoreRule {
                 "Regla de Tiempo",
                 TimeRuleConfig.of(basePoints, targetTimeSeconds, 1.5, 2.0, 0.0)
         );
+    }
+
+    @Override
+    public ResultSource source() {
+        return ResultSource.AUTOMATIC_MEASUREMENTS;
     }
 
     @Override

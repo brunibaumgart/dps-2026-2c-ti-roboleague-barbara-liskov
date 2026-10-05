@@ -1,6 +1,7 @@
 package com.roboleague.evaluation.rules;
 
 import com.roboleague.evaluation.RawMetrics;
+import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
 
 import java.util.Locale;
@@ -23,6 +24,11 @@ public class PenaltyRule implements ScoreRule {
 
     public static PenaltyRule standard(double deductionPerPenalty) {
         return new PenaltyRule("Penalizaciones por Faltas", deductionPerPenalty);
+    }
+
+    @Override
+    public ResultSource source() {
+        return ResultSource.AUTOMATIC_MEASUREMENTS;
     }
 
     @Override

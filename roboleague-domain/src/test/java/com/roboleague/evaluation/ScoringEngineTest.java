@@ -1,6 +1,9 @@
 package com.roboleague.evaluation;
 
 import com.roboleague.evaluation.rules.*;
+import com.roboleague.evaluation.scheme.AllRounds;
+import com.roboleague.evaluation.scheme.HigherTotal;
+import com.roboleague.evaluation.scheme.RankingScheme;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -99,14 +102,15 @@ class ScoringEngineTest {
     }
 
     @Test
-    @DisplayName("CompositeScoreRule consolidates multiple rules into explainable ScoreBreakdown")
-    void compositeRuleConsolidatesExplainableBreakdown() {
+    @DisplayName("A rulebook consolidates rules from both sources into an explainable ScoreBreakdown")
+    void rulebookConsolidatesExplainableBreakdown() {
         ScoreRule timeRule = new TimeBasedRule("Tiempo", TimeRuleConfig.of(100.0, 60.0, 1.0, 2.0, 0.0));
         ScoreRule objRule = new ObjectiveBonusRule("Objetivos", new ObjectiveRuleConfig(25.0, 4, 20.0));
         ScoreRule penaltyRule = new PenaltyRule("Penalizaciones", 10.0);
         ScoreRule judgeRule = new JudgeSubjectiveRule("Jueces", 2.0);
 
-        CompositeScoreRule composite = new CompositeScoreRule("Desafío Completo", List.of(timeRule, objRule, penaltyRule, judgeRule));
+        Rulebook rulebook = new Rulebook(RulebookVersion.first(), List.of(timeRule, objRule, penaltyRule, judgeRule),
+                new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
 
         // Time: 50s (+10 bonus => 110)
         // Objectives: 4 (+100 + 20 => 120)
@@ -118,7 +122,7 @@ class ScoringEngineTest {
                 new EvaluationFeedback(0.0, Map.of("j1", 8.0, "j2", 8.0), Map.of())
         );
 
-        ScoreBreakdown breakdown = composite.evaluateBreakdown(metrics);
+        ScoreBreakdown breakdown = rulebook.evaluate(metrics);
 
         assertThat(breakdown.items()).hasSize(4);
         assertThat(breakdown.totalScore()).isEqualTo(226.0);
