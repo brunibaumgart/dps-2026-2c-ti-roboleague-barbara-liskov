@@ -1,6 +1,7 @@
 package com.roboleague.evaluation.rules;
 
 import com.roboleague.evaluation.RawMetrics;
+import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
 
 import java.util.Locale;
@@ -24,6 +25,11 @@ public class ResourceConsumptionRule implements ScoreRule {
         this.ruleName = Objects.requireNonNull(ruleName, "ruleName cannot be null");
         this.maxAllowedConsumption = maxAllowedConsumption;
         this.penaltyPerExcessUnit = penaltyPerExcessUnit;
+    }
+
+    @Override
+    public ResultSource source() {
+        return ResultSource.AUTOMATIC_MEASUREMENTS;
     }
 
     @Override

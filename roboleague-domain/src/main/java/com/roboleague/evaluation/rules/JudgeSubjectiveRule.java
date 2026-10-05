@@ -1,6 +1,7 @@
 package com.roboleague.evaluation.rules;
 
 import com.roboleague.evaluation.RawMetrics;
+import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
 
 import java.util.Locale;
@@ -23,6 +24,11 @@ public class JudgeSubjectiveRule implements ScoreRule {
 
     public static JudgeSubjectiveRule standard(double weightMultiplier) {
         return new JudgeSubjectiveRule("Evaluación de Jueces", weightMultiplier);
+    }
+
+    @Override
+    public ResultSource source() {
+        return ResultSource.JUDGE_PANEL;
     }
 
     @Override

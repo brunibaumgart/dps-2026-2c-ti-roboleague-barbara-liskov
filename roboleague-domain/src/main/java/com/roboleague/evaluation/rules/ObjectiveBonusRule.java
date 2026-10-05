@@ -1,6 +1,7 @@
 package com.roboleague.evaluation.rules;
 
 import com.roboleague.evaluation.RawMetrics;
+import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
 
 import java.util.Objects;
@@ -30,6 +31,11 @@ public class ObjectiveBonusRule implements ScoreRule {
                 "Bonificación por Objetivos",
                 new ObjectiveRuleConfig(pointsPerObjective, totalObjectives, 25.0)
         );
+    }
+
+    @Override
+    public ResultSource source() {
+        return ResultSource.AUTOMATIC_MEASUREMENTS;
     }
 
     @Override
