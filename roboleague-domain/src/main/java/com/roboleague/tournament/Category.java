@@ -14,6 +14,12 @@ public record Category(
         Objects.requireNonNull(id, "id cannot be null");
         Objects.requireNonNull(name, "name cannot be null");
         Objects.requireNonNull(restrictions, "restrictions cannot be null");
+        if (id.isBlank()) {
+            throw new IllegalArgumentException("category id cannot be blank");
+        }
+        if (name.isBlank()) {
+            throw new IllegalArgumentException("category name cannot be blank");
+        }
     }
 
     public int minTeamMembers() {
