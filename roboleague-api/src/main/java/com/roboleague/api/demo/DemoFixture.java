@@ -5,6 +5,12 @@ import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.rules.ObjectiveBonusRule;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.TimeBasedRule;
+import com.roboleague.evaluation.scheme.BestNOfM;
+import com.roboleague.evaluation.scheme.FewerPenalties;
+import com.roboleague.evaluation.scheme.HigherJudgeScore;
+import com.roboleague.evaluation.scheme.HigherTotal;
+import com.roboleague.evaluation.scheme.LowerTime;
+import com.roboleague.evaluation.scheme.RankingScheme;
 import com.roboleague.ranking.Ranking;
 import com.roboleague.ranking.appeal.Appeal;
 import com.roboleague.repository.ChallengeRepository;
@@ -129,7 +135,9 @@ class DemoFixture implements ApplicationRunner {
         Challenge challenge = Challenge.draft(ChallengeId.of("ch-sumo"), edition.getId(), "Sumo").publish(List.of(
                 TimeBasedRule.standard(100.0, 60.0),
                 ObjectiveBonusRule.standard(20.0, 5),
-                new PenaltyRule("Faltas de pista", 10.0)));
+                new PenaltyRule("Faltas de pista", 10.0)),
+                new RankingScheme(new BestNOfM(2, 3),
+                        List.of(new HigherTotal(), new LowerTime(), new FewerPenalties(), new HigherJudgeScore())));
         repositories.challenges().save(challenge);
         return challenge;
     }
