@@ -3,12 +3,14 @@ package com.roboleague.evaluation.rules;
 import com.roboleague.evaluation.definition.Parameters;
 import com.roboleague.evaluation.definition.RuleArguments;
 import com.roboleague.evaluation.definition.RuleDefinition;
+import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
 
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Grants a fixed bonus when a milestone is reached, and nothing otherwise.
@@ -49,6 +51,11 @@ public final class MilestoneBonusRule implements ScoreRule {
     @Override
     public ResultSource source() {
         return milestone.metric().source();
+    }
+
+    @Override
+    public Set<Metric> metrics() {
+        return Set.of(milestone.metric());
     }
 
     @Override

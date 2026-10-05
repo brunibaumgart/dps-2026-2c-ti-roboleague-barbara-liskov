@@ -3,12 +3,14 @@ package com.roboleague.evaluation.rules;
 import com.roboleague.evaluation.definition.Parameters;
 import com.roboleague.evaluation.definition.RuleArguments;
 import com.roboleague.evaluation.definition.RuleDefinition;
+import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
 
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Scoring rule applying deductions for fouls or track infractions.
@@ -44,6 +46,11 @@ public class PenaltyRule implements ScoreRule {
     @Override
     public ResultSource source() {
         return ResultSource.AUTOMATIC_MEASUREMENTS;
+    }
+
+    @Override
+    public Set<Metric> metrics() {
+        return Set.of();
     }
 
     @Override

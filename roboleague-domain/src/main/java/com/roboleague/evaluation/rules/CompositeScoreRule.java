@@ -1,13 +1,16 @@
 package com.roboleague.evaluation.rules;
 
+import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.definition.RuleArguments;
 import com.roboleague.evaluation.definition.RuleDefinition;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -62,6 +65,15 @@ public class CompositeScoreRule implements ScoreRule {
     @Override
     public ResultSource source() {
         return source;
+    }
+
+    @Override
+    public Set<Metric> metrics() {
+        Set<Metric> read = new HashSet<>();
+        for (ScoreRule rule : rules) {
+            read.addAll(rule.metrics());
+        }
+        return Set.copyOf(read);
     }
 
     @Override

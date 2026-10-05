@@ -1,5 +1,6 @@
 package com.roboleague.evaluation.rules;
 
+import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
@@ -7,6 +8,7 @@ import com.roboleague.evaluation.definition.RuleDefinition;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Strategy interface for scoring rules.
@@ -61,6 +63,12 @@ public interface ScoreRule {
     String getRuleName();
 
     ResultSource source();
+
+    /**
+     * Named measurements this rule reads, which its rulebook has to declare. Time, objectives, penalties,
+     * consumption and judge scores are fixed fields of the captured metrics, not named metrics.
+     */
+    Set<Metric> metrics();
 
     /**
      * How this rule is described to be stored or sent through the API; {@code RuleCatalog} rebuilds it.

@@ -10,6 +10,7 @@ import com.roboleague.evaluation.ScoreItem;
 
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Awards a share of the maximum points proportional to a measured precision between 0 and 1.
@@ -45,6 +46,11 @@ public final class PrecisionRule implements ScoreRule {
     @Override
     public ResultSource source() {
         return accuracy.source();
+    }
+
+    @Override
+    public Set<Metric> metrics() {
+        return Set.of(accuracy);
     }
 
     @Override

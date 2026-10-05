@@ -11,6 +11,7 @@ import com.roboleague.evaluation.ScoreItem;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Adds points for each rescued victim and deducts for each one abandoned, as two separate items
@@ -51,6 +52,11 @@ public final class VictimsRule implements ScoreRule {
     @Override
     public ResultSource source() {
         return rescued.source();
+    }
+
+    @Override
+    public Set<Metric> metrics() {
+        return Set.of(rescued);
     }
 
     @Override
