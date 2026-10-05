@@ -1,5 +1,6 @@
 package com.roboleague.api.config;
 
+import com.roboleague.evaluation.RuleCatalog;
 import com.roboleague.ranking.RankingCalculatorService;
 import com.roboleague.ranking.tiebreakers.TieBreakerChain;
 import com.roboleague.repository.AppealRepository;
@@ -15,9 +16,13 @@ import com.roboleague.tournament.eligibility.DocumentationVerifiedSpecification;
 import com.roboleague.tournament.eligibility.EligibilitySpecification;
 import com.roboleague.tournament.eligibility.RobotSpecificationLimit;
 import com.roboleague.tournament.eligibility.TeamSizeSpecification;
+import com.roboleague.usecase.AddChallengeUseCase;
 import com.roboleague.usecase.CaptureAttemptResultUseCase;
+import com.roboleague.usecase.CreateEditionUseCase;
 import com.roboleague.usecase.FileAppealUseCase;
+import com.roboleague.usecase.GetChallengeUseCase;
 import com.roboleague.usecase.PublishOfficialRankingUseCase;
+import com.roboleague.usecase.PublishRulebookUseCase;
 import com.roboleague.usecase.RecalculateRankingUseCase;
 import com.roboleague.usecase.RegisterTeamUseCase;
 import com.roboleague.usecase.ResolveAppealUseCase;
@@ -41,6 +46,32 @@ class UseCaseConfig {
                 .and(new TeamSizeSpecification())
                 .and(new RobotSpecificationLimit())
                 .and(new DocumentationVerifiedSpecification());
+    }
+
+    @Bean
+    RuleCatalog ruleCatalog() {
+        return RuleCatalog.standard();
+    }
+
+    @Bean
+    CreateEditionUseCase createEditionUseCase(EditionRepository editions) {
+        return new CreateEditionUseCase(editions);
+    }
+
+    @Bean
+    AddChallengeUseCase addChallengeUseCase(EditionRepository editions, ChallengeRepository challenges,
+                                            RuleCatalog catalog) {
+        return new AddChallengeUseCase(editions, challenges, catalog);
+    }
+
+    @Bean
+    PublishRulebookUseCase publishRulebookUseCase(ChallengeRepository challenges, RuleCatalog catalog) {
+        return new PublishRulebookUseCase(challenges, catalog);
+    }
+
+    @Bean
+    GetChallengeUseCase getChallengeUseCase(ChallengeRepository challenges) {
+        return new GetChallengeUseCase(challenges);
     }
 
     @Bean

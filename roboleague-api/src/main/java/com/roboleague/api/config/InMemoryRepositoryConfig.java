@@ -1,12 +1,10 @@
 package com.roboleague.api.config;
 
 import com.roboleague.repository.AttemptRepository;
-import com.roboleague.repository.ChallengeRepository;
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.RankingRepository;
 import com.roboleague.repository.TeamRepository;
 import com.roboleague.repository.memory.InMemoryAttemptRepository;
-import com.roboleague.repository.memory.InMemoryChallengeRepository;
 import com.roboleague.repository.memory.InMemoryEditionRepository;
 import com.roboleague.repository.memory.InMemoryRankingRepository;
 import com.roboleague.repository.memory.InMemoryTeamRepository;
@@ -28,11 +26,6 @@ class InMemoryRepositoryConfig {
     @Bean
     EditionRepository editionRepository() {
         return new InMemoryEditionRepository();
-    }
-
-    @Bean
-    ChallengeRepository challengeRepository() {
-        return new InMemoryChallengeRepository();
     }
 
     @Bean
