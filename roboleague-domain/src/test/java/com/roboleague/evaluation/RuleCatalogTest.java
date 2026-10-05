@@ -199,6 +199,35 @@ class RuleCatalogTest {
                                 collisionsWithin(Parameters.none().with("min", 0.0)),
                                 collisionsWithin(Parameters.none().with("min", 1.0))))),
                         "metrics: metric 'colisiones' is declared twice"),
+                Arguments.of(Named.of("parámetro mal escrito", withRule(new RuleDefinition("penalty", "Faltas",
+                                RuleArguments.of(Parameters.none().with("deductionPerPenalty", 15.0)
+                                        .with("deductionPerPenaltyy", 7.0))))),
+                        "rule 'Faltas': unknown parameter 'deductionPerPenaltyy'"),
+                Arguments.of(Named.of("rol de métrica desconocido", withRule(new RuleDefinition("counted-fault",
+                                "Colisiones", new CountedFaultRule("Colisiones", COLLISIONS, new FaultTariff(1, 5.0))
+                                        .definition().arguments().withMetric("collisions", COLLISIONS)))),
+                        "rule 'Colisiones': unknown metric 'collisions'"),
+                Arguments.of(Named.of("reglas dentro de una regla que no las lleva", withRule(new RuleDefinition("time",
+                                "Tiempo", new RuleArguments(timeNumbers, Map.of(), List.of(time))))),
+                        "rule 'Tiempo': rules nested in a rule that takes none"),
+                Arguments.of(Named.of("hija de compuesta con un parámetro de más", withRule(new RuleDefinition(
+                                "composite", "Desempeño", RuleArguments.ofRules(List.of(new RuleDefinition("time", "Tiempo",
+                                        RuleArguments.of(timeNumbers.with("bonus", 5.0)))))))),
+                        "rule 'Desempeño': rule 'Tiempo': unknown parameter 'bonus'"),
+                Arguments.of(Named.of("tope con un número de más", new RulebookDefinition(DECLARED.declarations(),
+                                new RulebookDefinition.Scoring(List.of(time), List.of(), new StrategyDefinition(
+                                        CappedAt.TYPE, Parameters.none().with("maximum", 40.0).with("max", 30.0))),
+                                new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("higher-total")))),
+                        "bonus limit: unknown parameter 'max'"),
+                Arguments.of(Named.of("N de M con un número de más", new RulebookDefinition(DECLARED.declarations(),
+                                new RulebookDefinition.Scoring(List.of(time), List.of(), UNLIMITED),
+                                new RulebookDefinition.Ranking(new StrategyDefinition(BestNOfM.TYPE, Parameters.none()
+                                        .with("considered", 2.0).with("outOf", 3.0).with("total", 3.0)),
+                                        List.of("higher-total")))),
+                        "round selection: unknown parameter 'total'"),
+                Arguments.of(Named.of("rango con un número desconocido", declaring(List.of(
+                                collisionsWithin(Parameters.none().with("min", 0.0).with("maximum", 4.0))))),
+                        "metric 'colisiones': unknown parameter 'maximum'"),
                 Arguments.of(Named.of("métrica no declarada", withRule(new CountedFaultRule("Colisiones",
                                 Metric.sensor("colision"), new FaultTariff(1, 5.0)).definition())),
                         "scoring: rule 'Colisiones' reads metric 'colision' (AUTOMATIC_MEASUREMENTS), "

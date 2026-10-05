@@ -123,6 +123,17 @@ class ChallengeControllerTest extends ApiTest {
     }
 
     @Test
+    @DisplayName("Un parámetro mal escrito es 422: no se ignora en silencio")
+    void aMisspelledParameterIsUnprocessable() throws Exception {
+        String misspelled = rulebook("penalty", 40)
+                .replace("\"deductionPerPenalty\": 15", "\"deductionPerPenalty\": 15, \"deductionPerPenaltyy\": 7");
+
+        mvc.perform(addChallenge("api-ed-ch", "api-ch-typo", misspelled))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.details[0]").value("rule 'Faltas': unknown parameter 'deductionPerPenaltyy'"));
+    }
+
+    @Test
     @DisplayName("Una versión nueva inválida es 422 y no cambia la vigente")
     void anInvalidNewVersionIsUnprocessable() throws Exception {
         mvc.perform(addChallenge("api-ed-ch", "api-ch-3", rulebook("penalty", 40))).andExpect(status().isCreated());

@@ -77,16 +77,16 @@ public final class RuleCatalog {
         List<String> problems = new ArrayList<>();
         List<MetricDefinition> declared = new ArrayList<>();
         for (MetricDeclaration declaration : definition.metrics()) {
-            build("metric '" + declaration.metric().name() + "'", () -> MetricDefinition.from(declaration), problems)
+            build("metric '" + declaration.metric().name() + "'", () -> metric(declaration), problems)
                     .ifPresent(declared::add);
         }
         Optional<MetricSheet> metrics = build("metrics", () -> new MetricSheet(declared), problems);
         List<ScoreRule> scoreRules = rulesOf(definition.scoring().rules(), problems);
         List<ScoreRule> bonuses = rulesOf(definition.scoring().bonuses(), problems);
         Optional<BonusLimit> limit = build("bonus limit",
-                () -> resolve(limits, definition.scoring().bonusLimit()), problems);
+                () -> resolve(limits, definition.scoring().bonusLimit(), BonusLimit::definition), problems);
         Optional<RoundSelection> selection = build("round selection",
-                () -> resolve(selections, definition.ranking().roundSelection()), problems);
+                () -> resolve(selections, definition.ranking().roundSelection(), RoundSelection::definition), problems);
         List<TieBreakCriterion> chain = new ArrayList<>();
         for (String code : definition.ranking().criteria()) {
             TieBreakCriterion criterion = criteria.get(code);
@@ -114,7 +114,15 @@ public final class RuleCatalog {
         if (builder == null) {
             throw new IllegalArgumentException("unknown rule type '" + definition.type() + "'");
         }
-        return builder.apply(definition);
+        ScoreRule rule = builder.apply(definition);
+        rejectUnknown(definition.arguments().unknownTo(rule.definition().arguments()));
+        return rule;
+    }
+
+    private static MetricDefinition metric(MetricDeclaration declaration) {
+        MetricDefinition metric = MetricDefinition.from(declaration);
+        rejectUnknown(unknownParameters(declaration.range().unknownTo(metric.declaration().range())));
+        return metric;
     }
 
     private ScoreRule child(RuleDefinition definition) {
@@ -133,12 +141,29 @@ public final class RuleCatalog {
         return built;
     }
 
-    private static <T> T resolve(Map<String, Function<StrategyDefinition, T>> registry, StrategyDefinition definition) {
+    private static <T> T resolve(Map<String, Function<StrategyDefinition, T>> registry, StrategyDefinition definition,
+                                 Function<T, StrategyDefinition> describe) {
         Function<StrategyDefinition, T> builder = registry.get(definition.type());
         if (builder == null) {
             throw new IllegalArgumentException("unknown type '" + definition.type() + "'");
         }
-        return builder.apply(definition);
+        T built = builder.apply(definition);
+        rejectUnknown(unknownParameters(definition.numbers().unknownTo(describe.apply(built).numbers())));
+        return built;
+    }
+
+    private static List<String> unknownParameters(List<String> names) {
+        return names.stream().map(name -> "unknown parameter '" + name + "'").toList();
+    }
+
+    /**
+     * A definition that carries something its piece does not take is rejected: a misspelled parameter would
+     * otherwise be ignored and the piece would score with what it did understand.
+     */
+    private static void rejectUnknown(List<String> unknown) {
+        if (!unknown.isEmpty()) {
+            throw new IllegalArgumentException(String.join(", ", unknown));
+        }
     }
 
     /**

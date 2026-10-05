@@ -1,6 +1,7 @@
 package com.roboleague.evaluation.definition;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -41,6 +42,13 @@ public record Parameters(Map<String, Double> values) {
             throw new IllegalArgumentException("parameter '" + name + "' must be a finite number: " + value);
         }
         return value;
+    }
+
+    /**
+     * Names in these parameters that the accepted ones do not have, sorted.
+     */
+    public List<String> unknownTo(Parameters accepted) {
+        return values.keySet().stream().filter(name -> !accepted.values().containsKey(name)).sorted().toList();
     }
 
     public int whole(String name) {
