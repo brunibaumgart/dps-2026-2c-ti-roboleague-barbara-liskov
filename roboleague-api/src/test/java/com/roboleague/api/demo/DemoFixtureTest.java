@@ -1,6 +1,7 @@
 package com.roboleague.api.demo;
 
 import com.roboleague.PostgresContainer;
+import com.roboleague.evaluation.MeasurementCheck;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.ranking.Ranking;
@@ -14,6 +15,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
+
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -54,6 +57,13 @@ class DemoFixtureTest {
                 .isEqualTo(new RulebookVersion(2));
         assertThat(challenges.findById(ChallengeId.of("ch-rescue")).orElseThrow().currentRulebook().requiredSources())
                 .containsExactlyInAnyOrder(ResultSource.AUTOMATIC_MEASUREMENTS, ResultSource.JUDGE_PANEL);
+    }
+
+    @Test
+    void theMixedChallengeDeclaresWhatTheJudgePanelMeasures() {
+        assertThat(challenges.findById(ChallengeId.of("ch-rescue")).orElseThrow().currentRulebook()
+                .check(ResultSource.JUDGE_PANEL, Map.of("victimas_rescatadas", 3.0, "rescate_completo", 0.0)))
+                .isEqualTo(new MeasurementCheck.Accepted());
     }
 
     @Test

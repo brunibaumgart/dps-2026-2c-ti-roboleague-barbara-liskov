@@ -1,10 +1,13 @@
 package com.roboleague.api.demo;
 
 import com.roboleague.evaluation.CappedAt;
+import com.roboleague.evaluation.MeasurementUnit;
 import com.roboleague.evaluation.Metric;
+import com.roboleague.evaluation.MetricDefinition;
 import com.roboleague.evaluation.MetricSheet;
 import com.roboleague.evaluation.ScoreRules;
 import com.roboleague.evaluation.ScoringScheme;
+import com.roboleague.evaluation.ValueRange;
 import com.roboleague.evaluation.definition.RulebookDefinition;
 import com.roboleague.evaluation.rules.CompositeScoreRule;
 import com.roboleague.evaluation.rules.CountedFaultRule;
@@ -30,7 +33,8 @@ import java.util.List;
 
 /**
  * The three rulebooks of the demo. Between them they use the ten rule types, a composite rule, a penalty,
- * bonuses with a global cap, best N of M rounds and chained tie-break criteria.
+ * bonuses with a global cap, best N of M rounds and chained tie-break criteria. Each one declares the metrics
+ * its rules read.
  */
 final class DemoRulebooks {
 
@@ -46,8 +50,14 @@ final class DemoRulebooks {
     private DemoRulebooks() {
     }
 
+    private static MetricDefinition count(Metric metric, ValueRange range) {
+        return new MetricDefinition(metric, MeasurementUnit.COUNT, range);
+    }
+
     static RulebookDefinition maze() {
-        ScoringScheme scoring = new ScoringScheme(MetricSheet.none(), new ScoreRules(
+        ScoringScheme scoring = new ScoringScheme(new MetricSheet(List.of(
+                count(COLLISIONS, ValueRange.atLeast(0.0)), count(CHECKPOINT, ValueRange.between(0.0, 1.0)),
+                count(LAPS, ValueRange.atLeast(0.0)))), new ScoreRules(
                 List.of(new CompositeScoreRule("Desempeño en pista", List.of(
                                 TimeBasedRule.standard(100.0, 60.0), ObjectiveBonusRule.standard(20.0, 5))),
                         new PenaltyRule("Faltas de pista", 15.0),
@@ -62,7 +72,9 @@ final class DemoRulebooks {
     }
 
     static RulebookDefinition lineFollower(double bonusCap) {
-        ScoringScheme scoring = new ScoringScheme(MetricSheet.none(), new ScoreRules(
+        ScoringScheme scoring = new ScoringScheme(new MetricSheet(List.of(
+                new MetricDefinition(PRECISION, MeasurementUnit.RATIO, ValueRange.between(0.0, 1.0)),
+                count(LINE_EXITS, ValueRange.atLeast(0.0)), count(FAST_LAP, ValueRange.between(0.0, 1.0)))), new ScoreRules(
                 List.of(TimeBasedRule.of("Tiempo de vuelta", 100.0, 90.0, 1.0, 1.0, 0.0),
                         new PrecisionRule("Precisión de trazado", PRECISION, 50.0),
                         new CountedFaultRule("Salidas de línea", LINE_EXITS, new FaultTariff(2, 10.0))),
@@ -74,7 +86,8 @@ final class DemoRulebooks {
     }
 
     static RulebookDefinition rescue() {
-        ScoringScheme scoring = new ScoringScheme(MetricSheet.none(), new ScoreRules(
+        ScoringScheme scoring = new ScoringScheme(new MetricSheet(List.of(
+                count(RESCUED, ValueRange.between(0.0, 4.0)), count(FULL_RESCUE, ValueRange.between(0.0, 1.0)))), new ScoreRules(
                 List.of(ObjectiveBonusRule.of("Zonas despejadas", 15.0, 4, 20.0),
                         new VictimsRule("Víctimas", RESCUED, new VictimTariff(4, 25.0, 10.0)),
                         new JudgeSubjectiveRule("Panel técnico", 5.0)),
