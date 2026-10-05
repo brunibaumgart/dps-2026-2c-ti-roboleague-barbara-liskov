@@ -112,7 +112,9 @@ Los paquetes no cambiaron al separar módulos (`com.roboleague.usecase`, `com.ro
 Un reglamento en JSON (lo que se manda es lo que `GET /challenges/{id}` devuelve en `currentRulebook`):
 
 ```json
-{"scoring": {
+{"metrics": [{"name": "checkpoint", "source": "AUTOMATIC_MEASUREMENTS", "unit": "COUNT",
+              "range": {"min": 0, "max": 1}}],
+ "scoring": {
    "rules": [
      {"type": "composite", "name": "Desempeño en pista", "rules": [
        {"type": "time", "name": "Tiempo", "numbers": {"basePoints": 100, "targetTimeSeconds": 60,
@@ -141,13 +143,15 @@ Un reglamento en JSON (lo que se manda es lo que `GET /challenges/{id}` devuelve
 | `milestone` | `threshold`, `bonus` | `metric` |
 | `composite` | — | — (lleva `rules`) |
 
-Una métrica es `{"name", "source"}` con `source` = `AUTOMATIC_MEASUREMENTS` o `JUDGE_PANEL`. Límite de bonificaciones: `capped` (`maximum`) o `unlimited`. Selección de rondas: `best-n-of-m` (`considered`, `outOf`) o `all-rounds`. Criterios: `higher-total`, `lower-time`, `fewer-penalties`, `higher-judge-score`. El primero es siempre `higher-total` (se ordena por puntaje) y ninguno se repite; los demás desempatan en el orden declarado.
+Una métrica es `{"name", "source"}` con `source` = `AUTOMATIC_MEASUREMENTS` o `JUDGE_PANEL`. Toda métrica que lee una regla tiene que estar declarada en `metrics` con la misma fuente, una unidad (`COUNT`, `SECONDS`, `METERS`, `RATIO` o `POINTS`; `COUNT` solo acepta enteros) y un rango (`min` y, si tiene tope, `max`). Una métrica no declarada o de otra fuente, un rango invertido o una métrica declarada dos veces: 422. Una unidad desconocida: 400. Tiempo, objetivos, faltas, consumo y notas de jueces son campos fijos y no se declaran. Límite de bonificaciones: `capped` (`maximum`) o `unlimited`. Selección de rondas: `best-n-of-m` (`considered`, `outOf`) o `all-rounds`. Criterios: `higher-total`, `lower-time`, `fewer-penalties`, `higher-judge-score`. El primero es siempre `higher-total` (se ordena por puntaje) y ninguno se repite; los demás desempatan en el orden declarado.
 
 ## Cómo sumar lo tuyo
 
 **Un endpoint.** Controller en `roboleague-api/src/main/java/com/roboleague/api/<contexto>/`, con su DTO. Si el caso de uso es nuevo, su `@Bean` va en `UseCaseConfig`. El test extiende `ApiTest` y usa ids propios (el contexto y la base se comparten entre clases de test).
 
-**Un tipo de regla nuevo.** Clase en `roboleague-domain/.../evaluation/rules/` que implementa `ScoreRule`, con `TYPE`, constantes para los nombres de sus parámetros, `static from(RuleDefinition)` y `definition()` (los dos usan las mismas constantes). Una entrada en `RuleCatalog.standard()`, un caso en `RuleCatalogTest.everyRuleType()` y una fila en la tabla de "Configurar el evento y los desafíos". Las reglas existentes no se tocan.
+**Un tipo de regla nuevo.** Clase en `roboleague-domain/.../evaluation/rules/` que implementa `ScoreRule`, con `TYPE`, constantes para los nombres de sus parámetros, `static from(RuleDefinition)` y `definition()` (los dos usan las mismas constantes), y `metrics()` con las métricas con nombre que lee. Una entrada en `RuleCatalog.standard()`, un caso en `RuleCatalogTest.everyRuleType()` y una fila en la tabla de "Configurar el evento y los desafíos". Las reglas existentes no se tocan.
+
+**Validar una captura contra el reglamento.** `rulebook.check(fuente, mediciones)` revisa lo que mandó una fuente: que estén todas las métricas declaradas para ella, ninguna de más, cada una en su unidad y rango. Devuelve `MeasurementCheck.Accepted` o `Rejected(problemas)`; el caso de uso lo traduce a 422. En el desafío mixto se llama una vez por fuente (F3).
 
 **Persistencia de un agregado.** Seguir el caso de `Appeal` en `roboleague-infrastructure/.../repository/jpa/`:
 
