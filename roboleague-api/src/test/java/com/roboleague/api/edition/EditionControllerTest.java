@@ -2,6 +2,7 @@ package com.roboleague.api.edition;
 
 import com.roboleague.api.ApiTest;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -60,5 +61,17 @@ class EditionControllerTest extends ApiTest {
                                 {"name": "Junior", "minMembers": 2, "maxMembers": 4,
                                  "minAge": 12, "maxAge": 17, "maxWeightGrams": 2500}"""),
                         "a category needs id and name"));
+    }
+
+    @Test
+    @DisplayName("Dos categorías con el mismo id son un pedido inválido")
+    void twoCategoriesWithTheSameIdAreABadRequest() throws Exception {
+        String sameIdOtherLimits = """
+                {"id": "cat-junior", "name": "Junior libre", "minMembers": 1, "maxMembers": 9,
+                 "minAge": 5, "maxAge": 90, "maxWeightGrams": 9000}""";
+
+        mvc.perform(create(edition("api-ed-repeated-category", TOURNAMENT, CATEGORY + ", " + sameIdOtherLimits)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Category already offered in this edition: cat-junior"));
     }
 }
