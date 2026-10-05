@@ -78,7 +78,7 @@ roboleague-domain/
   - **Reglamento inmutable y versionado por desafío (`Rulebook`)**: Cada `Challenge` guarda el historial de sus reglamentos; publicar crea la versión siguiente (`v1`, `v2`…) y nunca modifica la anterior (ver 2.8). Esa versión se aplica cuando nace el puntaje (captura del intento o apelación aceptada). El recálculo de la tabla no vuelve a interpretar las métricas: reordena posiciones a partir del último snapshot, que ya fue evaluado con ese reglamento (ver 2.9).
   - **Inmutabilidad real, no de superficie (Entrega 2, hallazgo 1)**: `CompositeScoreRule` guarda `List.copyOf` de sus reglas y no tiene `addRule`. Antes el record `ScoringPolicy` era inmutable solo en la referencia: el composite que contenía se podía editar y el puntaje cambiaba sin cambiar la versión. Un conjunto de reglas distinto es otro reglamento.
   - **El desglose explica el total**: `ScoreBreakdown` rechaza un total que no sea la suma de sus ítems (tolerancia de medio centavo, para totales que vuelven redondeados de la base o la API). El piso en cero ya no se aplica en silencio: aparece como ítem `Piso en cero` con fórmula `max(0, suma)`. Se descartó un constructor privado porque un record no admite constructor canónico privado; validar en el constructor compacto da la misma garantía.
-  - **Las reglas validan sus parámetros**: `PenaltyRule`, `ResourceConsumptionRule`, `JudgeSubjectiveRule`, `TimeAdjustments`, `FaultTariff`, `VictimTariff`, `PrecisionRule`, `MilestoneBonusRule` y `CappedAt` rechazan valores negativos (una penalización con deducción negativa sumaba puntos). Se lanza `IllegalArgumentException` y no un resultado porque hoy el reglamento lo arma el código: un parámetro negativo es una invariante rota, no una falla esperable (regla #28). Cuando el reglamento se configure desde la API, esa validación pasará a devolver un resultado.
+  - **Las reglas validan sus parámetros**: `PenaltyRule`, `ResourceConsumptionRule`, `JudgeSubjectiveRule`, `TimeAdjustments`, `FaultTariff`, `VictimTariff`, `PrecisionRule`, `MilestoneBonusRule` y `CappedAt` rechazan valores negativos (una penalización con deducción negativa sumaba puntos). Para el código que arma reglas, un parámetro negativo es una invariante rota y la regla lanza `IllegalArgumentException` (regla #28). Para un reglamento que llega por la API es una falla esperable: `RuleCatalog` convierte esa excepción en un resultado `Rejected` con el problema (ver 2.13).
 
 - **Pros**:
   - **Transparencia Forense Inmediata**: Cualquier participante o árbitro puede auditar paso a paso cómo se compuso cada punto del intento.
@@ -283,13 +283,13 @@ roboleague-domain/
   - **Por qué en `evaluation` y no en `ranking`**: el esquema es parte del reglamento, que vive en `evaluation`; `ranking` ya depende de `evaluation`, y al revés habría un ciclo de paquetes.
 
 - **F1: clases agregadas**: `RankingScheme`, `RoundSelection`, `BestNOfM`, `AllRounds`, `RoundScore`, `ChallengeScore`, `TieBreakCriterion` y sus cuatro implementaciones, `TieBreakDecision`.
-- **F1: clases modificadas**: `Rulebook` (tercer componente `rankingScheme`), `Challenge` (`Draft.publish` y `publish` reciben reglas y esquema), `DemoFixture` (Sumo declara mejores 2 de 3 y cuatro criterios encadenados).
+- **F1: clases modificadas**: `Rulebook` (tercer componente `rankingScheme`), `Challenge` (`Draft.publish` y `publish` reciben reglas y esquema), `DemoFixture` (Sumo declara mejores 2 de 3 y cuatro criterios encadenados); la demo actual es la de 2.15.
 - **F1: refactors**: ninguno sobre las reglas de puntaje; es una pieza nueva que se enchufa en el reglamento.
 - **F1: deuda que decidimos no resolver en este paso**:
   - **La tabla de posiciones todavía no usa el esquema**: `RankingCalculatorService` sigue con `TieBreakerChain`, toma el mejor intento por equipo y agrupa por edición, categoría y ronda, así que en la demo todavía no se ven rondas descartadas. Conectarlo es parte de la tabla por desafío (`Standings`): armar por equipo un `RoundScore` por ronda, ordenar con `rulebook.rankingScheme()` y explicar cada posición con `decide`. En ese mismo cambio se borran `TieBreakerChain` y `TeamScore.isTiedWith`, que hoy duplican los criterios (regla #27).
   - M no se valida contra las rondas programadas: `BestNOfM` rechaza más de M rondas al seleccionar, pero programar más de M es responsabilidad de la ronda por desafío.
   - Elegir el intento que representa a un equipo en una ronda (por ejemplo, el mejor no descalificado) queda en quien arma los `RoundScore`.
-- **Patrones no aplicados**: Factory de criterios por nombre (recién hace falta cuando el reglamento se configure desde la API; hoy sería una abstracción por las dudas, regla #18); Decorator sobre `RoundSelection` (no hay variación que lo pida).
+- **Patrones no aplicados**: Decorator sobre `RoundSelection` (no hay variación que lo pida). Los criterios por nombre llegaron después, con la configuración por API (`RuleCatalog`, 2.13).
 
 - **Pros**: agregar una forma de seleccionar rondas o un criterio de desempate es una clase nueva, sin tocar las existentes (OCP); el orden del desempate es dato del reglamento y viaja con su versión; cada posición podrá explicar qué criterio la decidió cuando la tabla use el esquema.
 - **Contras**: un criterio de desempate nuevo que mire otra métrica exige exponerla en `ChallengeScore`.
@@ -309,7 +309,7 @@ roboleague-domain/
   - **`Rulebook.requiredSources()`** y **`Rulebook.contributions(métricas)`**: las fuentes que exige el reglamento y el desglose separado por fuente (`SourceContribution`). El piso en cero y el tope de F2 quedan en el desglose total, no en una fuente. Como un reglamento mixto mezcla fuentes, las reglas se guardan en listas (hoy dentro del `ScoringScheme`, 2.12) en vez de envolverse en un `CompositeScoreRule`; combinar evaluaciones vive en un solo lugar (`RuleEvaluation.combining` y `RuleEvaluation.concat`).
 
 - **F3 (lado del reglamento): clases agregadas**: `ResultSource`, `Metric`, `SourceContribution`, `CountedFaultRule`, `FaultTariff`, `PrecisionRule`, `VictimsRule`, `VictimTariff`, `MilestoneBonusRule`, `Milestone`.
-- **Clases modificadas**: `ScoreRule` (`source()` y `RuleEvaluation.combining`), las cinco reglas existentes (`source()`), `CompositeScoreRule` (fuente única), `Rulebook` (lista de reglas, `requiredSources`, `contributions`), `RawMetrics` (`measurement`), `EvaluationFeedback` (`withMeasurements`), `DemoFixture` (Sumo puntúa con "Desempeño en pista").
+- **Clases modificadas**: `ScoreRule` (`source()` y `RuleEvaluation.combining`), las cinco reglas existentes (`source()`), `CompositeScoreRule` (fuente única), `Rulebook` (lista de reglas, `requiredSources`, `contributions`), `RawMetrics` (`measurement`), `EvaluationFeedback` (`withMeasurements`), `DemoFixture` (Sumo puntúa con "Desempeño en pista"); la demo actual es la de 2.15.
 - **Refactors**: `Rulebook` deja de usar un composite interno; `CompositeScoreRule.evaluateBreakdown` desaparece.
 - **Deuda que decidimos no resolver en este paso**:
   - Las mediciones se leen por nombre (`String` dentro de `Metric`): un nombre mal escrito compila y recién falla al evaluar. Se cierra cuando el reglamento declare sus métricas (`MetricDefinition`) y la captura se valide contra ellas.
@@ -337,9 +337,48 @@ roboleague-domain/
 - **F2: clases modificadas**: `Rulebook` (recibe un `ScoringScheme` en lugar de una lista de reglas y le delega fuentes y contribuciones), `ScoreRule.RuleEvaluation` (`concat`), `Challenge` (`Draft.publish` y `publish` reciben el `ScoringScheme`), `DemoFixture` y los tests que arman reglamentos (`ScoringScheme.withoutBonuses(reglas)`).
 - **F2: refactors**: ninguno sobre las reglas de bonificación.
 - **F2: deuda que decidimos no resolver**:
-  - Nada impide poner una regla que resta (por ejemplo una penalización) en la lista de bonificaciones: lo obtenido puede ser negativo y el tope no recorta (lo documenta `BonusCapTest`). Clasificar cada regla como base, bonificación o penalización por tipo se pospone hasta que el reglamento se configure desde la API.
-  - La demo todavía no muestra el tope: el Sumo no declara bonificaciones. Se suma con la demo de tres desafíos.
+  - Nada impide poner una regla que resta (por ejemplo una penalización) en la lista de bonificaciones: lo obtenido puede ser negativo y el tope no recorta (lo documenta `BonusCapTest`). Clasificar cada regla como base, bonificación o penalización por tipo queda pendiente: quien configura el reglamento decide en qué lista va cada regla.
+  - La demo muestra el tope desde 2.15: los intentos de Laberinto recortan 10 puntos de bonificaciones.
 - **Patrones no aplicados**: Decorator sobre `ScoreRule` (ver arriba); tope por regla (la consigna pide sobre el conjunto).
+
+---
+
+### 2.13 Reglamento configurable: definiciones y catálogo de reglas
+
+- **Problema**:  
+  La consigna pide configurar desafíos (métricas, reglas, penalizaciones, bonificaciones) desde la aplicación, y el desafío tiene que guardarse en Postgres. En los dos bordes llega un texto (`"type": "time"`) que tiene que convertirse en una clase, sin un `switch` por tipo en el dominio (regla #8) y con esa decisión inevitable en un solo lugar (regla #9).
+
+- **Solución Implementada**:
+  - **Definiciones** (paquete `evaluation.definition`): `RuleDefinition(tipo, nombre, argumentos)`, `StrategyDefinition`, `RulebookDefinition` y `Parameters` describen un reglamento con datos simples. Un parámetro faltante falla nombrándolo, nunca vale 0 (regla #24).
+  - **Cada pieza se describe y se reconstruye en su propia clase** (regla #3): las reglas, `BestNOfM`, `AllRounds`, `CappedAt` y `Unlimited` tienen `TYPE`, `definition()` y `from(definición)`; los criterios tienen un `code()` estable (`higher-total`…), distinto del nombre que se muestra.
+  - **`RuleCatalog`** es el único lugar donde un tipo se convierte en clase: un mapa de tipo → constructor, no un `switch`. Agregar un tipo de regla es la clase nueva (con `TYPE`, `from` y `definition()`) y una entrada en `RuleCatalog.standard()`, sin tocar las existentes (receta en el README). Lo usan la API y la persistencia, por eso vive en el dominio y no duplicado en cada borde (regla #27). La regla compuesta reconstruye a sus hijas con el mismo catálogo.
+  - **Falla esperable como resultado** (regla #28): `RuleCatalog.assemble` devuelve `Assembled(scoring, ranking)` o `Rejected(problemas)`, con todos los problemas juntos y nombrando la regla. Es el punto donde la excepción de una invariante (parámetro inválido en un constructor) se vuelve un resultado para lo que llegó de afuera. Los casos de uso devuelven `Publication.Published` o `Publication.Rejected`; el controller lo traduce a 201 o 422.
+
+- **Alternativas descartadas**: anotaciones de Jackson (`@JsonTypeInfo`) sobre las reglas (meten un tercero en el dominio, regla #11); una factory en la API y otra en la persistencia (la misma decisión dos veces); guardar las reglas serializando las clases (el esquema de la tabla quedaría atado a los campos privados).
+- **Patrones no aplicados**: Visitor para describir reglas (cada regla ya sabe describirse); Builder para armar reglamentos (los records alcanzan).
+- **Deuda**:
+  - Los nombres de métrica siguen siendo texto libre hasta que el reglamento declare sus métricas (`MetricDefinition`, 2.11), y una regla que resta puede declararse como bonificación (2.12). Las dos cosas las pide la consigna en "Configuración de desafíos" y quedan para después de esta entrega.
+  - `RuleCatalog.standard()` conoce las diez implementaciones desde el dominio. Son conceptos del dominio, no detalles técnicos, pero la lista podría armarse en el composition root (`UseCaseConfig`) para dejar la decisión más cerca del borde (regla #9).
+  - Ciclo de paquetes `evaluation` ↔ `evaluation.definition` (por `Metric`), que se suma al de `evaluation` ↔ `evaluation.rules`. Se corta moviendo `Metric` y `ResultSource` a un paquete hoja.
+  - La traducción JSON ↔ definición está escrita dos veces, en `RulebookBody` (API) y en `ChallengeMapper` (persistencia), porque cada borde fija su propia forma de datos; si las formas coinciden siempre, se puede compartir.
+  - El catálogo convierte cualquier `IllegalArgumentException` de un constructor en un problema 422: también lo haría un bug. Validar antes de construir las claves que cada tipo exige dejaría el `catch` solo para invariantes de rango.
+
+### 2.14 Persistencia del desafío
+
+- **Solución Implementada**: tabla `challenges` (migración `V2`) con id, edición, nombre y una columna JSONB con todas las versiones del reglamento como definiciones. `ChallengeMapper` (capa anticorrupción, como `AppealMapper`) guarda `rulebook.definition()` y, al leer, reconstruye cada versión con `RuleCatalog` y el agregado con `Challenge.restore`, que exige versiones consecutivas desde 1. Si una versión guardada no se puede reconstruir es un dato corrupto: `IllegalStateException`.
+- **Por qué una columna JSON y no tablas por regla**: un reglamento es un árbol (reglas compuestas, bonificaciones, estrategias) que se lee y se escribe entero y nunca se consulta por partes. Las versiones viejas no cambian. La forma del JSON la fijan records propios de infraestructura, no las clases del dominio.
+- **Sin clave foránea a `editions`**: son agregados distintos y se referencian por id; la edición todavía no está en Postgres.
+- **Deuda**: `Edition` sigue en memoria porque persistirla arrastra a los equipos inscriptos, que se van a modelar como inscripción (`Registration`). El perfil `demo` recarga todo en cada arranque, así que la demo no lo nota, pero sin ese perfil un desafío guardado puede quedar apuntando a una edición que ya no está en memoria.
+- **Deuda: concurrencia.** Alta y publicación leen y después guardan sin bloqueo optimista: dos altas simultáneas con el mismo id, o dos publicaciones simultáneas, pueden pisarse en vez de dar 409. Se resuelve con `@Version` en la entidad cuando haga falta.
+- **Deuda: dato corrupto.** Un reglamento guardado que no se puede reconstruir lanza `IllegalStateException`, que la convención de la API traduce a 409; un error propio de dato corrupto (500) queda pendiente.
+
+### 2.15 Casos de uso y API de configuración; demo con tres desafíos
+
+- **Casos de uso**: `CreateEditionUseCase`, `AddChallengeUseCase`, `PublishRulebookUseCase`, `GetChallengeUseCase`. Id repetido → `IllegalStateException` (409); edición o desafío inexistente → `IllegalArgumentException` (400, convención del equipo aunque REST usaría 404); reglamento rechazado → 422 con los problemas.
+- **API**: `POST /editions`, `POST /editions/{id}/challenges`, `POST /challenges/{id}/rulebook/versions`, `GET /challenges/{id}`. El JSON de un reglamento es el mismo al mandarlo y al leerlo (`RulebookBody`). Los DTOs son vistas planas del JSON, como `AppealDto`; la regla de tres parámetros se aplica al modelo.
+- **Demo**: `DemoFixture` crea la edición y los tres desafíos con los casos de uso (`DemoRulebooks`), publica la v2 del Seguidor y corre el flujo de apelación sobre Laberinto. Rondas por desafío, captura del desafío mixto y tabla con N de M quedan para los frentes que los tienen.
+- **Clases agregadas**: definiciones, `RuleCatalog`, `RulebookAssembly`, `Publication`, los cuatro casos de uso con sus comandos, `JpaChallengeRepository`, `ChallengeJpaEntity`, `ChallengeMapper`, `ChallengeController`, `EditionController`, `DemoRulebooks`.
+- **Clases modificadas**: todas las reglas, estrategias y criterios (`definition()`/`from`/`code()`), `ScoringScheme`, `RankingScheme`, `Rulebook` (`definition()`), `Challenge` (`restore`), `UseCaseConfig`, `InMemoryRepositoryConfig` (sin bean en memoria de desafíos), `DemoConfig`, `DemoFixture`.
 
 ---
 
@@ -409,6 +448,10 @@ El diseño implementado se valida con pruebas automatizadas en `src/test/java` d
 - **Pruebas Unitarias de Scoring y Auditoría**:
   - `ScoringEngineTest`: Evalúa el comportamiento de cada regla elemental (`TimeBasedRule`, `ObjectiveBonusRule`, `PenaltyRule`, `JudgeSubjectiveRule`) y su agregación en un `Rulebook`, verificando los desgloses paso a paso.
   - `RulebookReviewFindingsTest`: Los tests del informe de la Entrega 1 sobre el reglamento (hallazgo 1 y la pregunta del desglose), invertidos para describir el comportamiento correcto. Incluye un test parametrizado con cada regla que rechaza parámetros negativos.
+  - `RuleCatalogTest`: Verifica, con casos parametrizados, que cada tipo de regla, estrategia y criterio se describe y se reconstruye igual y puntúa lo mismo, y que una definición inválida (tipo desconocido, parámetro o métrica faltante, parámetro inválido) se rechaza nombrando el problema.
+  - `ConfigureChallengesUseCaseTest`: crear edición, agregar desafío, publicar versión, y sus rechazos.
+  - `JpaChallengeRepositoryTest` (Postgres): un desafío vuelve con todas sus versiones, cada versión puntúa igual que antes (tope incluido) y el restaurado publica la siguiente.
+  - `ChallengeControllerTest` (API): 201, 400, 409 y 422 de cada endpoint de configuración. `DemoFixtureTest` verifica los tres desafíos, la v2 del Seguidor, las fuentes de Rescate y el tope en el desglose.
   - `BonusCapTest`: Verifica, con casos parametrizados, que el tope recorta solo lo que la suma de bonificaciones supera, que se aplica sobre el conjunto y no sobre cada una, que la explicación muestra lo obtenido, el tope y el recorte, y que agregar el tope no cambia lo que da cada regla de bonificación.
   - `MeasuredRulesTest` y `RulebookSourcesTest`: Verifican, con casos parametrizados, las reglas nuevas (faltas con franquicia, precisión, víctimas, hito), que una medición faltante no se convierte en cero, la fuente que declara cada regla, que una regla compuesta no mezcle fuentes, las fuentes que exige un reglamento y que, sin tope, las contribuciones por fuente sumen el total.
   - `BestNOfMTest` y `RankingSchemeTest`: Verifican, con casos parametrizados, qué rondas cuentan con mejores N de M y cuáles se descartan, que el primer criterio que separa a dos equipos dé su nombre, el empate en todos los criterios y que el orden declarado cambie al ganador.
