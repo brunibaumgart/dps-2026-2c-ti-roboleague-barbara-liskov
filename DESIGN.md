@@ -68,7 +68,7 @@ roboleague-domain/
 
 - **Solución Implementada**:  
   - **Patrón Strategy**: Interfaz `ScoreRule` que desacopla el cálculo de la puntuación en estrategias independientes.
-  - **Patrón Composite**: `CompositeScoreRule` permite agrupar múltiples reglas elementales (`TimeBasedRule`, `ObjectiveBonusRule`, `PenaltyRule`, `JudgeSubjectiveRule`, `ResourceConsumptionRule`) y evaluarlas como una única unidad compuesta.
+  - **Patrón Composite**: `CompositeScoreRule` permite agrupar reglas elementales que leen de la misma fuente (por ejemplo "Desempeño en pista" = Tiempo + Objetivos) y evaluarlas como una única unidad compuesta. El reglamento no es un composite: guarda su lista de reglas, que puede mezclar fuentes (ver 2.11).
   - **Explicabilidad mediante Value Objects (`ScoreBreakdown` y `ScoreItem`)**: Al evaluar un intento en pista (`Attempt`), la regla no retorna un número escalar (`double`), sino un desglose inmutable que detalla:
     - Concepto evaluado (`concept`).
     - Métrica observada (`rawMetric`).
@@ -78,7 +78,7 @@ roboleague-domain/
   - **Reglamento inmutable y versionado por desafío (`Rulebook`)**: Cada `Challenge` guarda el historial de sus reglamentos; publicar crea la versión siguiente (`v1`, `v2`…) y nunca modifica la anterior (ver 2.8). Esa versión se aplica cuando nace el puntaje (captura del intento o apelación aceptada). El recálculo de la tabla no vuelve a interpretar las métricas: reordena posiciones a partir del último snapshot, que ya fue evaluado con ese reglamento (ver 2.9).
   - **Inmutabilidad real, no de superficie (Entrega 2, hallazgo 1)**: `CompositeScoreRule` guarda `List.copyOf` de sus reglas y no tiene `addRule`. Antes el record `ScoringPolicy` era inmutable solo en la referencia: el composite que contenía se podía editar y el puntaje cambiaba sin cambiar la versión. Un conjunto de reglas distinto es otro reglamento.
   - **El desglose explica el total**: `ScoreBreakdown` rechaza un total que no sea la suma de sus ítems (tolerancia de medio centavo, para totales que vuelven redondeados de la base o la API). El piso en cero ya no se aplica en silencio: aparece como ítem `Piso en cero` con fórmula `max(0, suma)`. Se descartó un constructor privado porque un record no admite constructor canónico privado; validar en el constructor compacto da la misma garantía.
-  - **Las reglas validan sus parámetros**: `PenaltyRule`, `ResourceConsumptionRule`, `JudgeSubjectiveRule` y `TimeAdjustments` rechazan valores negativos (una penalización con deducción negativa sumaba puntos). Se lanza `IllegalArgumentException` y no un resultado porque hoy el reglamento lo arma el código: un parámetro negativo es una invariante rota, no una falla esperable (regla #28). Cuando el reglamento se configure desde la API, esa validación pasará a devolver un resultado.
+  - **Las reglas validan sus parámetros**: `PenaltyRule`, `ResourceConsumptionRule`, `JudgeSubjectiveRule`, `TimeAdjustments`, `FaultTariff`, `VictimTariff`, `PrecisionRule` y `MilestoneBonusRule` rechazan valores negativos (una penalización con deducción negativa sumaba puntos). Se lanza `IllegalArgumentException` y no un resultado porque hoy el reglamento lo arma el código: un parámetro negativo es una invariante rota, no una falla esperable (regla #28). Cuando el reglamento se configure desde la API, esa validación pasará a devolver un resultado.
 
 - **Pros**:
   - **Transparencia Forense Inmediata**: Cualquier participante o árbitro puede auditar paso a paso cómo se compuso cada punto del intento.
@@ -296,6 +296,32 @@ roboleague-domain/
 
 ---
 
+### 2.11 Reglas medidas y fuentes de resultado (demo + F3, lado del reglamento)
+
+- **Problema**:  
+  La demo pide diez tipos de reglas, una regla compuesta y un desafío mixto. F3 pide que un mismo turno reciba resultados de dos fuentes (mediciones automáticas y panel de jueces), que el puntaje quede pendiente hasta tener las dos y que la explicación detalle cada contribución por separado. El reglamento es quien sabe qué fuentes necesita un desafío y qué regla lee de cuál.
+
+- **Solución Implementada**:
+  - **`ResultSource`** (mediciones automáticas, panel de jueces) y **`ScoreRule.source()`**: cada regla declara de qué fuente lee. Las cinco reglas existentes devuelven una fuente fija; las nuevas la toman de la métrica que leen.
+  - **`Metric(nombre, fuente)`**: una medición con nombre (precisión, víctimas rescatadas, salidas de línea…) que se lee de `RawMetrics.measurement(métrica)`. Si no fue capturada, falla nombrando la métrica en vez de devolver 0 (regla #24); es excepción y no resultado porque evaluar sin todas las fuentes no debería pasar: esperar las fuentes es el estado "esperando fuentes" del intento.
+  - **Cuatro reglas nuevas**: `PrecisionRule`, `VictimsRule` (suma por rescatada y resta por abandonada), `MilestoneBonusRule` y `CountedFaultRule` (faltas contadas con franquicia). "Salidas de línea" y "Colisiones" son dos instancias de `CountedFaultRule` con otra métrica, no dos clases (reglas #6 y #7). Con las cinco existentes son nueve; el décimo tipo es el tope de bonificaciones (F2).
+  - **Regla compuesta "Desempeño en pista"** = Tiempo + Objetivos, con `CompositeScoreRule`. Una regla compuesta exige que sus hijas lean de la misma fuente, para que su fuente esté definida.
+  - **`Rulebook.requiredSources()`** y **`Rulebook.contributions(métricas)`**: las fuentes que exige el reglamento y el desglose separado por fuente (`SourceContribution`). El piso en cero queda en el desglose total, no en una fuente. Como un reglamento mixto mezcla fuentes, `Rulebook` guarda su lista de reglas en vez de envolverlas en un `CompositeScoreRule`; combinar evaluaciones vive en un solo lugar (`RuleEvaluation.combining`).
+
+- **F3 (lado del reglamento): clases agregadas**: `ResultSource`, `Metric`, `SourceContribution`, `CountedFaultRule`, `FaultTariff`, `PrecisionRule`, `VictimsRule`, `VictimTariff`, `MilestoneBonusRule`, `Milestone`.
+- **Clases modificadas**: `ScoreRule` (`source()` y `RuleEvaluation.combining`), las cinco reglas existentes (`source()`), `CompositeScoreRule` (fuente única), `Rulebook` (lista de reglas, `requiredSources`, `contributions`), `RawMetrics` (`measurement`), `EvaluationFeedback` (`withMeasurements`), `DemoFixture` (Sumo puntúa con "Desempeño en pista").
+- **Refactors**: `Rulebook` deja de usar un composite interno; `CompositeScoreRule.evaluateBreakdown` desaparece.
+- **Deuda que decidimos no resolver en este paso**:
+  - Las mediciones se leen por nombre (`String` dentro de `Metric`): un nombre mal escrito compila y recién falla al evaluar. Se cierra cuando el reglamento declare sus métricas (`MetricDefinition`) y la captura se valide contra ellas.
+  - El intento todavía no espera sus fuentes ni guarda contribuciones: el estado "esperando fuentes", recibir cada fuente y armar las `RawMetrics` del turno son parte del intento y la captura. Un ajuste de faltas pierde las mediciones del intento (issue #5).
+  - `averageJudgeScore()` sigue devolviendo 0 sin jueces en `RawMetrics`; con fuentes, un desafío que exige panel no debería evaluarse sin él.
+  - Una medición fuera de rango (precisión fuera de 0 a 1, conteo no entero o negativo, más víctimas rescatadas que las del desafío) se rechaza con `IllegalArgumentException` al evaluar. Es un dato que entra por la captura, así que es una falla esperable: cuando la captura se valide contra las métricas del reglamento, ese rechazo pasa a ser un resultado de la captura (regla #28).
+  - `PenaltyRule` (lee `penaltiesCount`) y `CountedFaultRule` sin franquicia calculan lo mismo con el conteo de otra parte. Se unifican cuando las faltas sean una métrica declarada más.
+  - `ScoreRule.source()` devuelve una sola fuente. El tope de bonificaciones (F2) agrupa bonificaciones de fuentes distintas, así que se aplica en el reglamento sobre el conjunto de bonificaciones y no como una regla más con fuente propia.
+- **Patrones no aplicados**: mapa fuente → reglas en el constructor del reglamento (duplica lo que cada regla ya sabe); fuente en cada `ScoreItem` (el piso y el tope de F2 no tienen fuente).
+
+---
+
 ## 3. Matriz Comparativa Exhaustiva de Trade-offs
 
 | Decisión Arquitectónica | Pros Clave | Contras y Costos Asociados | Alternativa Considerada y Rechazada |
@@ -311,6 +337,7 @@ roboleague-domain/
 | **Composition Root Único (`Main`)** | Dominio puro sin frameworks externos; inversión de dependencias estricta; máxima testeabilidad. | Requiere cableado manual explícito al no utilizar un framework de DI automático en el dominio. | Hacer `new` de implementaciones concretas adentro de servicios. Rechazada por acoplamiento indebido. |
 | **`Challenge` como agregado con su `Rulebook`** | Varios desafíos por evento, cada uno con su reglamento versionado; F1, F2 y F3 viven en el reglamento del desafío. | Captura y apelación tienen que saber de qué desafío es el intento. | Una edición = una prueba (Entrega 1). Rechazada en la Entrega 2: la demo pide tres desafíos en un evento y reglas por desafío. |
 | **Recálculo = reordenar snapshots vigentes** | Cumple “reprocesar posiciones después de una corrección”; no reinterpreta la pista; barato y determinista. | No re-aplica las `ScoreRule` si el desafío publica una versión nueva después de evaluar; que el intento recuerde su versión queda pendiente (hallazgo 2). | Re-evaluar todos los `RawMetrics` en cada recálculo de tabla. Rechazada: con reglamentos inmutables el resultado no cambia; el gancho `recalculateWith` queda por si el negocio lo pide. |
+| **Fuente declarada por cada regla (`ScoreRule.source()`)** | El reglamento sabe qué fuentes exige y separa el desglose por fuente sin `if` por tipo de regla. | Cada regla nueva tiene que declarar su fuente; una regla compuesta no puede mezclarlas. | Mapa fuente → reglas en el reglamento. Rechazada: duplica lo que la regla ya sabe. |
 | **Esquema de clasificación en el reglamento (`RankingScheme`)** | Mejores N de M y desempate son datos del reglamento y viajan con su versión; cada criterio dice cuándo decidió. | La tabla todavía no lo consume (pendiente de la tabla por desafío). | Cadena de desempate armada en `Main`/config. Rechazada: dos desafíos no podrían desempatar distinto ni reproducir el criterio de una versión anterior. |
 
 ---
@@ -358,8 +385,9 @@ roboleague-domain/
 
 El diseño implementado se valida con pruebas automatizadas en `src/test/java` de cada módulo, divididas en:
 - **Pruebas Unitarias de Scoring y Auditoría**:
-  - `ScoringEngineTest`: Evalúa el comportamiento de cada regla elemental (`TimeBasedRule`, `ObjectiveBonusRule`, `PenaltyRule`, `JudgeSubjectiveRule`) y su agregación en `CompositeScoreRule`, verificando los desgloses paso a paso.
+  - `ScoringEngineTest`: Evalúa el comportamiento de cada regla elemental (`TimeBasedRule`, `ObjectiveBonusRule`, `PenaltyRule`, `JudgeSubjectiveRule`) y su agregación en un `Rulebook`, verificando los desgloses paso a paso.
   - `RulebookReviewFindingsTest`: Los tests del informe de la Entrega 1 sobre el reglamento (hallazgo 1 y la pregunta del desglose), invertidos para describir el comportamiento correcto. Incluye un test parametrizado con cada regla que rechaza parámetros negativos.
+  - `MeasuredRulesTest` y `RulebookSourcesTest`: Verifican, con casos parametrizados, las reglas nuevas (faltas con franquicia, precisión, víctimas, hito), que una medición faltante no se convierte en cero, la fuente que declara cada regla, que una regla compuesta no mezcle fuentes, las fuentes que exige un reglamento y que las contribuciones por fuente sumen el total.
   - `BestNOfMTest` y `RankingSchemeTest`: Verifican, con casos parametrizados, qué rondas cuentan con mejores N de M y cuáles se descartan, que el primer criterio que separa a dos equipos dé su nombre, el empate en todos los criterios y que el orden declarado cambie al ganador.
   - `ChallengeTest`: Verifica que cada publicación del reglamento crea la versión siguiente, que una versión nueva no cambia cómo puntúa la anterior y que se puede pedir una versión exacta.
   - `AttemptAuditTrailTest`: Valida que cada modificación sobre un intento genere snapshots inmutables con numeración correlativa, preservando la revisión original intacta y registrando eventos de dominio. Cubre además la descalificación auditada (`AttemptDisqualifiedEvent`) y la restauración del estado del intento tras una apelación rechazada.

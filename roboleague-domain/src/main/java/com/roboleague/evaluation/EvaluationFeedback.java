@@ -36,6 +36,10 @@ public record EvaluationFeedback(
         return new EvaluationFeedback(resourceConsumption, judgeScores, customMetrics);
     }
 
+    public static EvaluationFeedback withMeasurements(Map<String, Double> measurements) {
+        return new EvaluationFeedback(0.0, Collections.emptyMap(), measurements);
+    }
+
     public static EvaluationFeedback withJudgeScores(Map<String, Double> judgeScores) {
         return new EvaluationFeedback(0.0, judgeScores, Collections.emptyMap());
     }

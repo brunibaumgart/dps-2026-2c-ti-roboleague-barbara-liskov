@@ -1,10 +1,15 @@
 package com.roboleague.evaluation;
 
 import com.roboleague.evaluation.rules.CompositeScoreRule;
+import com.roboleague.evaluation.rules.FaultTariff;
 import com.roboleague.evaluation.rules.JudgeSubjectiveRule;
+import com.roboleague.evaluation.rules.Milestone;
+import com.roboleague.evaluation.rules.MilestoneBonusRule;
 import com.roboleague.evaluation.rules.PenaltyRule;
+import com.roboleague.evaluation.rules.PrecisionRule;
 import com.roboleague.evaluation.rules.ResourceConsumptionRule;
 import com.roboleague.evaluation.rules.TimeAdjustments;
+import com.roboleague.evaluation.rules.VictimTariff;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Named;
@@ -87,7 +92,13 @@ class RulebookReviewFindingsTest {
                 Named.of("jueces con peso negativo", () -> new JudgeSubjectiveRule("Jueces", -1.0)),
                 Named.of("tiempo con bonificación negativa", () -> TimeAdjustments.of(-1.5, 2.0, 0.0)),
                 Named.of("tiempo con deducción negativa", () -> TimeAdjustments.of(1.5, -2.0, 0.0)),
-                Named.of("tiempo con mínimo negativo", () -> TimeAdjustments.of(1.5, 2.0, -5.0))
+                Named.of("tiempo con mínimo negativo", () -> TimeAdjustments.of(1.5, 2.0, -5.0)),
+                Named.of("faltas contadas con deducción negativa", () -> new FaultTariff(1, -5.0)),
+                Named.of("faltas contadas con franquicia negativa", () -> new FaultTariff(-1, 5.0)),
+                Named.of("precisión con máximo negativo", () -> new PrecisionRule("Precisión", Metric.sensor("precision"), -80.0)),
+                Named.of("víctimas con deducción negativa", () -> new VictimTariff(4, 25.0, -10.0)),
+                Named.of("hito con bonus negativo", () -> new MilestoneBonusRule("Hito",
+                        new Milestone(Metric.sensor("distancia_metros"), 10.0), -30.0))
         );
     }
 }
