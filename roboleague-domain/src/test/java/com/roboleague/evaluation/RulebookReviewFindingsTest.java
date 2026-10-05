@@ -98,7 +98,9 @@ class RulebookReviewFindingsTest {
                 Named.of("precisión con máximo negativo", () -> new PrecisionRule("Precisión", Metric.sensor("precision"), -80.0)),
                 Named.of("víctimas con deducción negativa", () -> new VictimTariff(4, 25.0, -10.0)),
                 Named.of("hito con bonus negativo", () -> new MilestoneBonusRule("Hito",
-                        new Milestone(Metric.sensor("distancia_metros"), 10.0), -30.0))
+                        new Milestone(Metric.sensor("distancia_metros"), 10.0), -30.0)),
+                Named.of("tope de bonificaciones negativo", () -> new CappedAt(-10.0)),
+                Named.of("tope de bonificaciones que no es un número", () -> new CappedAt(Double.NaN))
         );
     }
 }

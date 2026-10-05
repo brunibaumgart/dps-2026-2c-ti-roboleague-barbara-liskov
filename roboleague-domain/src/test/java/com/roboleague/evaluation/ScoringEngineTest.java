@@ -109,7 +109,7 @@ class ScoringEngineTest {
         ScoreRule penaltyRule = new PenaltyRule("Penalizaciones", 10.0);
         ScoreRule judgeRule = new JudgeSubjectiveRule("Jueces", 2.0);
 
-        Rulebook rulebook = new Rulebook(RulebookVersion.first(), List.of(timeRule, objRule, penaltyRule, judgeRule),
+        Rulebook rulebook = new Rulebook(RulebookVersion.first(), ScoringScheme.withoutBonuses(List.of(timeRule, objRule, penaltyRule, judgeRule)),
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
 
         // Time: 50s (+10 bonus => 110)

@@ -1,11 +1,8 @@
 package com.roboleague.evaluation;
 
-import com.roboleague.evaluation.rules.ScoreRule;
 import com.roboleague.evaluation.rules.ScoreRule.RuleEvaluation;
 import com.roboleague.evaluation.scheme.RankingScheme;
 
-import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -16,20 +13,21 @@ import java.util.Set;
  */
 public final class Rulebook {
     private final RulebookVersion version;
-    private final List<ScoreRule> rules;
+    private final ScoringScheme scoring;
     private final RankingScheme rankingScheme;
 
-    public Rulebook(RulebookVersion version, List<ScoreRule> rules, RankingScheme rankingScheme) {
+    public Rulebook(RulebookVersion version, ScoringScheme scoring, RankingScheme rankingScheme) {
         this.version = Objects.requireNonNull(version, "version cannot be null");
-        this.rules = List.copyOf(Objects.requireNonNull(rules, "rules cannot be null"));
-        if (this.rules.isEmpty()) {
-            throw new IllegalArgumentException("a rulebook needs at least one rule");
-        }
+        this.scoring = Objects.requireNonNull(scoring, "scoring cannot be null");
         this.rankingScheme = Objects.requireNonNull(rankingScheme, "rankingScheme cannot be null");
     }
 
     public RulebookVersion version() {
         return version;
+    }
+
+    public ScoringScheme scoring() {
+        return scoring;
     }
 
     public RankingScheme rankingScheme() {
@@ -40,31 +38,21 @@ public final class Rulebook {
      * Sources an attempt needs before it can be scored with this rulebook (F3).
      */
     public Set<ResultSource> requiredSources() {
-        Set<ResultSource> sources = EnumSet.noneOf(ResultSource.class);
-        for (ScoreRule rule : rules) {
-            sources.add(rule.source());
-        }
-        return Set.copyOf(sources);
+        return scoring.requiredSources();
     }
 
     public ScoreBreakdown evaluate(RawMetrics metrics) {
         Objects.requireNonNull(metrics, "metrics cannot be null");
-        RuleEvaluation evaluation = RuleEvaluation.combining(rules, metrics);
+        RuleEvaluation evaluation = scoring.evaluate(metrics);
         return ScoreBreakdown.of(evaluation.items(), evaluation.notes());
     }
 
     /**
-     * The breakdown split by source, so a mixed challenge explains each contribution separately (F3).
+     * The score split by source, so a mixed challenge explains each contribution separately (F3).
+     * The bonus cap and the zero floor apply to the whole score, so they belong to no source.
      */
     public List<SourceContribution> contributions(RawMetrics metrics) {
         Objects.requireNonNull(metrics, "metrics cannot be null");
-        List<SourceContribution> contributions = new ArrayList<>();
-        for (ResultSource source : ResultSource.values()) {
-            List<ScoreRule> fromSource = rules.stream().filter(rule -> rule.source() == source).toList();
-            if (!fromSource.isEmpty()) {
-                contributions.add(new SourceContribution(source, RuleEvaluation.combining(fromSource, metrics)));
-            }
-        }
-        return List.copyOf(contributions);
+        return scoring.contributions(metrics);
     }
 }

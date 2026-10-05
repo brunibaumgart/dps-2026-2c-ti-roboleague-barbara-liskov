@@ -2,6 +2,7 @@ package com.roboleague.api.demo;
 
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.RawMetrics;
+import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.rules.CompositeScoreRule;
 import com.roboleague.evaluation.rules.ObjectiveBonusRule;
 import com.roboleague.evaluation.rules.PenaltyRule;
@@ -136,9 +137,9 @@ class DemoFixture implements ApplicationRunner {
         CompositeScoreRule trackPerformance = new CompositeScoreRule("Desempeño en pista", List.of(
                 TimeBasedRule.standard(100.0, 60.0),
                 ObjectiveBonusRule.standard(20.0, 5)));
-        Challenge challenge = Challenge.draft(ChallengeId.of("ch-sumo"), edition.getId(), "Sumo").publish(List.of(
+        Challenge challenge = Challenge.draft(ChallengeId.of("ch-sumo"), edition.getId(), "Sumo").publish(ScoringScheme.withoutBonuses(List.of(
                 trackPerformance,
-                new PenaltyRule("Faltas de pista", 10.0)),
+                new PenaltyRule("Faltas de pista", 10.0))),
                 new RankingScheme(new BestNOfM(2, 3),
                         List.of(new HigherTotal(), new LowerTime(), new FewerPenalties(), new HigherJudgeScore())));
         repositories.challenges().save(challenge);

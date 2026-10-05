@@ -3,6 +3,7 @@ package com.roboleague.tournament;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookVersion;
+import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.rules.TimeBasedRule;
 import com.roboleague.evaluation.rules.TimeRuleConfig;
 import com.roboleague.evaluation.scheme.AllRounds;
@@ -24,7 +25,7 @@ class ChallengeTest {
 
     private Challenge mazeWithBase(double basePoints) {
         return Challenge.draft(ChallengeId.of("ch-maze"), "ed-2026", "Laberinto")
-                .publish(List.of(timeRuleWithBase(basePoints)), allRounds);
+                .publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(basePoints))), allRounds);
     }
 
     private static TimeBasedRule timeRuleWithBase(double basePoints) {
@@ -44,7 +45,7 @@ class ChallengeTest {
     void givenASecondPublicationThenTheCurrentVersionIsTwo() {
         Challenge maze = mazeWithBase(100.0);
 
-        Rulebook second = maze.publish(List.of(timeRuleWithBase(150.0)), allRounds);
+        Rulebook second = maze.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(150.0))), allRounds);
 
         assertThat(second.version()).isEqualTo(new RulebookVersion(2));
         assertThat(maze.currentRulebook()).isSameAs(second);
@@ -56,7 +57,7 @@ class ChallengeTest {
         Challenge maze = mazeWithBase(100.0);
         double v1ScoreBefore = maze.currentRulebook().evaluate(tenSecondsUnderTarget).totalScore();
 
-        maze.publish(List.of(timeRuleWithBase(150.0)), allRounds);
+        maze.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(150.0))), allRounds);
 
         Rulebook v1 = maze.rulebook(new RulebookVersion(1)).orElseThrow();
         Rulebook v2 = maze.rulebook(new RulebookVersion(2)).orElseThrow();
@@ -77,7 +78,7 @@ class ChallengeTest {
     void givenNoRulesThenTheRulebookIsRejected() {
         Challenge.Draft draft = Challenge.draft(ChallengeId.of("ch-maze"), "ed-2026", "Laberinto");
 
-        assertThatThrownBy(() -> draft.publish(List.of(), allRounds))
+        assertThatThrownBy(() -> draft.publish(ScoringScheme.withoutBonuses(List.of()), allRounds))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -87,7 +88,7 @@ class ChallengeTest {
         RankingScheme bestTwoOfThree = new RankingScheme(new BestNOfM(2, 3), List.of(new HigherTotal()));
 
         Challenge maze = Challenge.draft(ChallengeId.of("ch-maze"), "ed-2026", "Laberinto")
-                .publish(List.of(timeRuleWithBase(100.0)), bestTwoOfThree);
+                .publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(100.0))), bestTwoOfThree);
 
         assertThat(maze.currentRulebook().rankingScheme()).isSameAs(bestTwoOfThree);
     }
@@ -98,7 +99,7 @@ class ChallengeTest {
         Challenge maze = mazeWithBase(100.0);
         RankingScheme bestOneOfTwo = new RankingScheme(new BestNOfM(1, 2), List.of(new HigherTotal()));
 
-        Rulebook v2 = maze.publish(List.of(timeRuleWithBase(100.0)), bestOneOfTwo);
+        Rulebook v2 = maze.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(100.0))), bestOneOfTwo);
 
         Rulebook v1 = maze.rulebook(RulebookVersion.first()).orElseThrow();
         assertThat(v2.evaluate(tenSecondsUnderTarget)).isEqualTo(v1.evaluate(tenSecondsUnderTarget));
