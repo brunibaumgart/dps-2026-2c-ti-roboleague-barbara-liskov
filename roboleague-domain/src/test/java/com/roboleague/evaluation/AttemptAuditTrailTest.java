@@ -15,13 +15,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AttemptAuditTrailTest {
 
-    private ScoringPolicy standardPolicy;
+    private Rulebook standardPolicy;
 
     @BeforeEach
     void setUp() {
         TimeBasedRule timeRule = new TimeBasedRule("Tiempo", TimeRuleConfig.of(100.0, 60.0, 1.0, 2.0, 0.0));
         PenaltyRule penaltyRule = new PenaltyRule("Penalizaciones", 10.0);
-        standardPolicy = ScoringPolicy.of("pol-std", "v1.0", "Reglamento Estandar", List.of(timeRule, penaltyRule));
+        standardPolicy = new Rulebook(RulebookVersion.first(), List.of(timeRule, penaltyRule));
     }
 
     @Test

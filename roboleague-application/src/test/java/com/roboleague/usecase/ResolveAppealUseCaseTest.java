@@ -2,13 +2,15 @@ package com.roboleague.usecase;
 
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.RawMetrics;
-import com.roboleague.evaluation.ScoringPolicy;
+import com.roboleague.evaluation.Rulebook;
+import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.TimeBasedRule;
 import com.roboleague.ranking.RankingCalculatorService;
 import com.roboleague.ranking.appeal.Appeal;
 import com.roboleague.repository.memory.InMemoryAppealRepository;
 import com.roboleague.repository.memory.InMemoryAttemptRepository;
+import com.roboleague.repository.memory.InMemoryChallengeRepository;
 import com.roboleague.repository.memory.InMemoryEditionRepository;
 import com.roboleague.repository.memory.InMemoryRankingRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -29,15 +31,15 @@ class ResolveAppealUseCaseTest {
         RecalculateRankingUseCase recalculate = new RecalculateRankingUseCase(
                 editionRepository, attemptRepository, new InMemoryRankingRepository(), new RankingCalculatorService()
         );
-        ResolveAppealUseCase useCase = new ResolveAppealUseCase(appealRepository, attemptRepository, editionRepository, recalculate);
+        ResolveAppealUseCase useCase = new ResolveAppealUseCase(appealRepository, attemptRepository, new InMemoryChallengeRepository(), recalculate);
 
-        ScoringPolicy policy = ScoringPolicy.of("pol", "v1", "Reglamento", List.of(
+        Rulebook rulebook = new Rulebook(RulebookVersion.first(), List.of(
                 TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0),
                 new PenaltyRule("Faltas", 10.0)
         ));
         Attempt attempt = Attempt.of("att-1", "t-1", "slot-1", "r-1", 1);
         RawMetrics metrics = RawMetrics.of(40.0, 2, 3);
-        attempt.registerInitialResult(metrics, policy.evaluate(metrics), "judge-1");
+        attempt.registerInitialResult(metrics, rulebook.evaluate(metrics), "judge-1");
         attemptRepository.save(attempt);
 
         Appeal appeal = new FileAppealUseCase(attemptRepository, appealRepository)

@@ -1,5 +1,6 @@
 package com.roboleague.api.demo;
 
+import com.roboleague.repository.ChallengeRepository;
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.RankingRepository;
 import com.roboleague.usecase.CaptureAttemptResultUseCase;
@@ -31,12 +32,12 @@ class DemoConfig {
     }
 
     @Bean
-    DemoFixture demoFixture(EditionRepository editions, RankingRepository rankings,
+    DemoFixture demoFixture(EditionRepository editions, ChallengeRepository challenges, RankingRepository rankings,
                             RegisterTeamUseCase registerTeam, ScheduleRoundUseCase scheduleRound,
                             CaptureAttemptResultUseCase captureResult, RecalculateRankingUseCase recalculateRanking,
                             FileAppealUseCase fileAppeal, ReviewAppealUseCase reviewAppeal,
                             ResolveAppealUseCase resolveAppeal, PublishOfficialRankingUseCase publishRanking) {
-        return new DemoFixture(editions, rankings, new DemoFixture.DemoUseCases(
+        return new DemoFixture(new DemoFixture.DemoRepositories(editions, challenges, rankings), new DemoFixture.DemoUseCases(
                 registerTeam, scheduleRound, captureResult, recalculateRanking,
                 fileAppeal, reviewAppeal, resolveAppeal, publishRanking));
     }

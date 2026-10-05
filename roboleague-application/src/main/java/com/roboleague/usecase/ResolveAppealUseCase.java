@@ -3,13 +3,13 @@ package com.roboleague.usecase;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ScoreBreakdown;
-import com.roboleague.evaluation.ScoringPolicy;
 import com.roboleague.ranking.Ranking;
 import com.roboleague.ranking.appeal.Appeal;
 import com.roboleague.repository.AppealRepository;
 import com.roboleague.repository.AttemptRepository;
-import com.roboleague.repository.EditionRepository;
-import com.roboleague.tournament.Edition;
+import com.roboleague.repository.ChallengeRepository;
+import com.roboleague.tournament.Challenge;
+import com.roboleague.tournament.ChallengeId;
 
 import java.util.Objects;
 
@@ -21,20 +21,20 @@ import java.util.Objects;
 public class ResolveAppealUseCase {
     private final AppealRepository appealRepository;
     private final AttemptRepository attemptRepository;
-    private final EditionRepository editionRepository;
+    private final ChallengeRepository challengeRepository;
     private final RecalculateRankingUseCase recalculateRankingUseCase;
 
     public ResolveAppealUseCase(AppealRepository appealRepository,
                                 AttemptRepository attemptRepository,
-                                EditionRepository editionRepository,
+                                ChallengeRepository challengeRepository,
                                 RecalculateRankingUseCase recalculateRankingUseCase) {
         this.appealRepository = Objects.requireNonNull(appealRepository, "appealRepository cannot be null");
         this.attemptRepository = Objects.requireNonNull(attemptRepository, "attemptRepository cannot be null");
-        this.editionRepository = Objects.requireNonNull(editionRepository, "editionRepository cannot be null");
+        this.challengeRepository = Objects.requireNonNull(challengeRepository, "challengeRepository cannot be null");
         this.recalculateRankingUseCase = Objects.requireNonNull(recalculateRankingUseCase, "recalculateRankingUseCase cannot be null");
     }
 
-    public Appeal acceptAppeal(String appealId, String editionId, String categoryId, String roundId,
+    public Appeal acceptAppeal(String appealId, ChallengeId challengeId, String categoryId, String roundId,
                                String resolutionNotes, RawMetrics revisedMetrics, String reviewerId) {
         Appeal appeal = appealRepository.findById(appealId)
                 .orElseThrow(() -> new IllegalArgumentException("Appeal not found: " + appealId));
@@ -42,11 +42,9 @@ public class ResolveAppealUseCase {
         Attempt attempt = attemptRepository.findById(appeal.getAttemptId())
                 .orElseThrow(() -> new IllegalArgumentException("Attempt not found: " + appeal.getAttemptId()));
 
-        Edition edition = editionRepository.findById(editionId)
-                .orElseThrow(() -> new IllegalArgumentException("Edition not found: " + editionId));
-
-        ScoringPolicy policy = edition.getScoringPolicy();
-        ScoreBreakdown revisedBreakdown = policy.evaluate(revisedMetrics);
+        Challenge challenge = challengeRepository.findById(challengeId)
+                .orElseThrow(() -> new IllegalArgumentException("Challenge not found: " + challengeId));
+        ScoreBreakdown revisedBreakdown = challenge.currentRulebook().evaluate(revisedMetrics);
 
         // Transition appeal state to ACCEPTED
         appeal.accept(resolutionNotes, revisedMetrics, reviewerId);
@@ -58,7 +56,7 @@ public class ResolveAppealUseCase {
         appealRepository.save(appeal);
 
         // Automatically trigger ranking recalculation
-        recalculateRankingUseCase.execute(editionId, categoryId, roundId);
+        recalculateRankingUseCase.execute(challenge.getEditionId(), categoryId, roundId);
 
         return appeal;
     }

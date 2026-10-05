@@ -20,10 +20,10 @@ roboleague-domain/
 ### Responsabilidades por Contexto:
 1. **`tournament`**: Modela el ciclo organizativo: definición de temporadas, torneos y ediciones cronológicas; categorización técnica con restricciones físicas y etarias; registro de equipos, participantes y especificaciones de robots; y evaluación compuesta de elegibilidad.
 2. **`scheduling`**: Modela la logística operativa de campo: gestión de pistas o arenas de prueba, designación y perfiles de jueces evaluadores, planificación de rondas y asignación determinista de turnos (slots) con ventanas temporales y pausas intermedias.
-3. **`evaluation`**: Corazón computacional del sistema. Modela los intentos en pista (`Attempt`), la captura estructurada de métricas observadas (`RawMetrics`), el motor de puntuación explicable y versionado (`ScoringPolicy`, `ScoreRule`, `ScoreBreakdown`), y el rastro de auditoría append-only con snapshots inmutables y eventos de dominio.
+3. **`evaluation`**: Corazón computacional del sistema. Modela los intentos en pista (`Attempt`), la captura estructurada de métricas observadas (`RawMetrics`), el motor de puntuación explicable y versionado (`Rulebook`, `ScoreRule`, `ScoreBreakdown`), y el rastro de auditoría append-only con snapshots inmutables y eventos de dominio.
 4. **`ranking`**: Consolida los puntajes agregados por equipo (`TeamScore`), resuelve empates jerárquicamente mediante cadenas desacopladas (`TieBreakerChain`), administra la publicación oficial o provisional de tablas (`Ranking`), y gobierna el ciclo de apelaciones (`Appeal`) mediante una máquina de estados polimórfica.
 
-**Cardinalidad del evento:** una `Edition` publica **un** reglamento y es **una** prueba. “Configuración de desafíos” es armar el `ScoringPolicy` de esa edición, no un agregado `Desafío`. Varios robots se anotan a distintas competencias. `Category` es elegibilidad sobre esa misma prueba.
+**Cardinalidad del evento:** una `Edition` es el evento y tiene varios `Challenge` (Laberinto, Seguidor de línea, Rescate). Cada desafío publica su propio reglamento versionado (`Rulebook`). `Category` es elegibilidad, no un desafío. Ver 2.8.
 
 ---
 
@@ -75,7 +75,7 @@ roboleague-domain/
     - Fórmula matemática aplicada con sus coeficientes (`appliedFormula`).
     - Subtotal parcial calculado (`subtotal`).
     - Notas y justificaciones reglamentarias.
-  - **Inmutabilidad del Reglamento (`ScoringPolicy`) por Edición**: Cada `Edition` se enlaza con una instancia inmutable y versionada del reglamento (ej. `"v1.0.2026"`). Esa versión se aplica cuando nace el puntaje (captura del intento o apelación aceptada). El recálculo de la tabla no vuelve a interpretar las métricas: reordena posiciones a partir del último snapshot, que ya fue evaluado con ese reglamento (ver 2.9).
+  - **Reglamento inmutable y versionado por desafío (`Rulebook`)**: Cada `Challenge` guarda el historial de sus reglamentos; publicar crea la versión siguiente (`v1`, `v2`…) y nunca modifica la anterior (ver 2.8). Esa versión se aplica cuando nace el puntaje (captura del intento o apelación aceptada). El recálculo de la tabla no vuelve a interpretar las métricas: reordena posiciones a partir del último snapshot, que ya fue evaluado con ese reglamento (ver 2.9).
   - **Inmutabilidad real, no de superficie (Entrega 2, hallazgo 1)**: `CompositeScoreRule` guarda `List.copyOf` de sus reglas y no tiene `addRule`. Antes el record `ScoringPolicy` era inmutable solo en la referencia: el composite que contenía se podía editar y el puntaje cambiaba sin cambiar la versión. Un conjunto de reglas distinto es otro reglamento.
   - **El desglose explica el total**: `ScoreBreakdown` rechaza un total que no sea la suma de sus ítems (tolerancia de medio centavo, para totales que vuelven redondeados de la base o la API). El piso en cero ya no se aplica en silencio: aparece como ítem `Piso en cero` con fórmula `max(0, suma)`. Se descartó un constructor privado porque un record no admite constructor canónico privado; validar en el constructor compacto da la misma garantía.
   - **Las reglas validan sus parámetros**: `PenaltyRule`, `ResourceConsumptionRule`, `JudgeSubjectiveRule` y `TimeAdjustments` rechazan valores negativos (una penalización con deducción negativa sumaba puntos). Se lanza `IllegalArgumentException` y no un resultado porque hoy el reglamento lo arma el código: un parámetro negativo es una invariante rota, no una falla esperable (regla #28). Cuando el reglamento se configure desde la API, esa validación pasará a devolver un resultado.
@@ -222,26 +222,28 @@ roboleague-domain/
 
 ---
 
-### 2.8 Una competencia, una prueba (`ScoringPolicy` en `Edition`)
+### 2.8 Desafíos con reglamento versionado (`Challenge` + `Rulebook`)
 
 - **Problema**:  
-  El enunciado habla de *categorías, desafíos, rondas y sistemas de puntuación diferentes*, y separa “configuración del evento” de “configuración de desafíos”. Eso admite dos lecturas: (a) una edición agrupa varias pruebas, cada una con su fórmula; (b) una edición *es* una prueba, y “desafío” nombra cómo se puntúa. Sin fijar la cardinalidad, el modelo o bien inventa un agregado `Desafío` por el sustantivo, o bien deja ambigua de quién es el reglamento.
+  En la Entrega 1 leímos “desafío” como la forma de puntuar de una edición: una `Edition` era una sola prueba con un `ScoringPolicy`. La Entrega 2 rompe esa lectura: la demo pide tres desafíos en el mismo evento (uno mixto), y el reglamento define por desafío las mejores N de M rondas (F1) y el tope de bonificaciones (F2), y el desafío mixto (F3) declara qué fuentes exige. Con un reglamento por edición no hay dónde poner eso.
 
-- **Solución Implementada**:  
-  Se eligió la lectura simple y se alineó con el código existente:
-  - **Una `Edition` = una prueba = un `ScoringPolicy` inmutable.** Sumo 2026 y Laberinto 2026 son dos competencias (dos ediciones), no dos hijos de un mismo evento.
-  - **“Configuración de desafíos”** (métricas, reglas, penalizaciones, bonificaciones) se realiza componiendo `ScoreRule` dentro de esa policy. El concepto está reificado; el nombre en código es el del reglamento publicado, que la consigna también exige versionar por edición.
-  - **Varios robots** se modelan como inscripciones distintas: cada `Team` lleva un `Robot` y se anota a una competencia. No hay un equipo-multientrada a N pruebas de la misma edición.
-  - **`Category`** no es un desafío. Es el recorte de elegibilidad (edad, composición, límites del robot) sobre la misma fórmula.
+- **Solución Implementada**:
+  - **`Challenge`** es un agregado propio que referencia su edición por id (`Edition` no crece y no conoce a sus desafíos). Rondas y tablas de posiciones van a ser por desafío y lo van a referenciar directo; hoy todavía se agrupan por edición y categoría.
+  - **`Rulebook`** reemplaza a `ScoringPolicy`: una versión (`RulebookVersion`) y al menos una regla, sin exponer el composite. Es una clase y no un record para no publicar la regla compuesta como componente.
+  - **Un desafío nunca está sin reglamento**: se crea con `Challenge.draft(id, edición, nombre).publish(reglas)`, que publica la v1. El borrador (`Draft`) no puede puntuar; solo sabe publicar. Así se evita un `Optional` en `currentRulebook()` y la falla de "desafío sin reglamento". El borrador es solo el paso de creación: el desafío copia sus datos y no lo guarda.
+  - **El desafío numera las versiones**: `publish(reglas)` crea la siguiente (`v1`, `v2`…) y nunca edita la anterior. `currentRulebook()` da la vigente para capturar; `rulebook(versión)` da una exacta para recalcular con la versión con que se puntuó (lo que necesita el hallazgo 2).
+  - **Category** sigue siendo elegibilidad (edad, composición, robot), no un desafío.
+  - **Ids**: `ChallengeId` nace tipado porque es nuevo; el id de edición sigue siendo `String` hasta que se tipen los ids existentes (frente de inscripción).
+  - **`Rulebook` es una entidad hija de `Challenge`**, identificada por su versión dentro del desafío; no es un value object comparable por valor.
 
 - **Pros**:
-  - **Un solo lugar para el reglamento**: captura, apelación aceptada y recálculo preguntan `edition.getScoringPolicy()`. No hay que elegir “¿la policy de qué desafío?”.
-  - **Extensibilidad por competencia nueva, no por lista interna**: una prueba nueva es otra `Edition` (o otro `Tournament`) con su propia policy, sin abrir el agregado.
-  - **Evita la clase-por-sustantivo**: no se crea `Desafío` solo porque la palabra aparece en el párrafo. Las primitivas de esa fila ya viajan juntas en `ScoringPolicy`.
+  - Agregar un desafío es crear un `Challenge`, sin tocar `Edition` ni las reglas existentes.
+  - Dentro de un desafío no puede haber dos “v1” distintas: la versión la asigna `Challenge` al publicar, no quien carga el reglamento.
+  - F1, F2 y F3 tienen dónde vivir: el reglamento de cada desafío.
 
 - **Contras**:
-  - **No cubre el torneo “jornada con varias pistas distintas”** (mismo fin de semana, sumo y laberinto, un solo evento padre). Si el negocio cambiara a eso, habría que introducir un objeto de prueba o colgar la policy de otro agregado.
-  - **Junior y Senior** de la misma prueba comparten fórmula; si alguna vez puntúan distinto, dejan de ser solo categorías de elegibilidad.
+  - Los casos de uso de captura y apelación reciben el id del desafío. `ResolveAppealUseCase.acceptAppeal` sigue recibiendo ids sueltos del llamador; que el intento recuerde con qué versión se evaluó queda para el frente de intentos.
+  - Crear un desafío exige sus reglas iniciales: no se puede dar de alta "vacío" y cargar el reglamento después.
 
 ---
 
@@ -251,17 +253,17 @@ roboleague-domain/
   La consigna pide dos cosas que se parecen y no son iguales: *“los resultados deben poder recalcularse utilizando exactamente la versión de reglas correspondiente”* y, en la tabla, *“Recálculo: reprocesar posiciones después de una corrección”*. Si se las fusiona, el caso de uso de ranking parecería tener que volver a correr todas las `ScoreRule` sobre cada `RawMetrics` cada vez que cambia una apelación.
 
 - **Qué se eligió**:  
-  - **Evaluar con el reglamento de la edición** en el momento en que el puntaje nace: `CaptureAttemptResultUseCase` y `ResolveAppealUseCase.acceptAppeal` llaman `edition.getScoringPolicy().evaluate(...)`. El snapshot guarda métricas y desglose; la policy de esa `Edition` es inmutable.  
+  - **Evaluar con el reglamento vigente del desafío** en el momento en que el puntaje nace: `CaptureAttemptResultUseCase` y `ResolveAppealUseCase.acceptAppeal` usan `challenge.currentRulebook()`. El snapshot guarda métricas y desglose; un reglamento publicado no cambia.  
   - **Recalcular el ranking** (`RecalculateRankingUseCase`) lee el último snapshot de cada intento, arma `TeamScore` y vuelve a ordenar con `TieBreakerChain`. Cumple la fila de la tabla: reprocesa **posiciones** después de una corrección.  
-  - Existe `Attempt.recalculateWithPolicy` como gancho para re-aplicar una policy sobre las mismas métricas. **No está cableado** al caso de uso de ranking: con un reglamento inmutable por edición, re-evaluar en cada recálculo duplicaría trabajo sin cambiar el resultado.
+  - Existe `Attempt.recalculateWith(Rulebook)` como gancho para re-aplicar un reglamento sobre las mismas métricas. **No está cableado** al caso de uso de ranking: con reglamentos publicados inmutables, re-evaluar en cada recálculo duplicaría trabajo sin cambiar el resultado.
 
 - **Pros**:  
   - El recálculo es barato y determinista: la tabla sigue a la fotografía vigente, no reinterpreta la pista.  
   - La versión del reglamento queda fijada cuando nace el snapshot. La edición 2027 no reescribe la 2026.  
-  - Encaja la corrección por apelación: primero se evalúa de nuevo (métricas revisadas + misma policy), después se reconstruye el ranking.
+  - Encaja la corrección por apelación: primero se evalúa de nuevo (métricas revisadas + reglamento vigente del desafío), después se reconstruye el ranking.
 
 - **Contras**:  
-  - Si alguna vez se reemplazara el `ScoringPolicy` de una edición ya evaluada, los snapshots viejos no se actualizarían solos. Eso se pospone: el reglamento de una edición no se muta.
+  - Si un desafío publica una versión nueva, los snapshots viejos no se re-evalúan solos. Las versiones anteriores siguen disponibles en `Challenge.rulebook(versión)` para hacerlo cuando el intento guarde su versión.
 
 ---
 
@@ -272,14 +274,14 @@ roboleague-domain/
 | **Reificación en Value Objects (`Weight`, `Dimensions`, etc.)** | Erradica la obsesión por primitivos; garantiza invariantes; concentra el comportamiento con sus datos; simplifica firmas. | Mayor cantidad de clases/records; leve sobrecarga de instanciación en memoria. | Usar tipos primitivos sueltos (`double`, `int`). Rechazada por fragilidad e incoherencia de validaciones. |
 | **Puntuación Explicable (`ScoreBreakdown` + `ScoreItem`)** | Transparencia total ante apelaciones; cada punto está respaldado por concepto y fórmula auditables. | Mayor sobrecarga de objetos por intento en comparación con un escalar numérico. | Retornar un `double` escalar directo. Rechazada porque impide la justificación reglamentaria y la auditoría. |
 | **Reglas de Scoring con `Strategy` + `Composite`** | OCP estricto; permite combinar N reglas homogéneamente; desacopla el desafío del cálculo. | Requiere que `RawMetrics` aloje los campos necesarios para todas las reglas activas. | Codificar el cálculo con `switch-case` en el servicio. Rechazada por violación directa de OCP y SRP. |
-| **Reglamento Inmutable por Edición (`ScoringPolicy`)** | Reproducibilidad histórica perfecta; cambios en ediciones futuras no alteran resultados pasados. | Requiere instanciar o clonar plantillas de reglas para cada nueva edición del torneo. | Política global compartida mutable. Rechazada porque reescribiría o invalidaría torneos históricos. |
+| **Reglamento inmutable y versionado por desafío (`Rulebook`)** | Reproducibilidad histórica; una versión nueva no altera resultados puntuados con la anterior. | Hay que publicar una versión nueva para cualquier cambio de reglas. | Política global compartida mutable. Rechazada porque reescribiría o invalidaría resultados históricos. |
 | **Append-Only Log con Snapshots y Eventos** | Trazabilidad forense no destructiva; preserva valores originales y cada ajuste con autor y motivo. | Crecimiento continuo de la colección de revisiones en memoria para procesos muy extensos. | Sobreescritura in-place (`attempt.setScore()`). Rechazada por violar la exigencia explícita de auditoría no destructiva. |
 | **Cadenas de Desempate con `Comparator Composition`** | Flexibilidad total para reordenar o añadir criterios de desempate; testeo aislado de cada regla. | Exige que todas las métricas de desempate se encuentren consolidadas en `PerformanceSummary`. | Algoritmo rígido hardcodeado con `if-else` anidados. Rechazada por fragilidad y dificultad de extensión. |
 | **Máquina de Estados Polimórfica (`AppealState`)** | Transiciones legalmente seguras; consultas polimórficas sin `if/switch`; cero strings de estado. | Proliferación de clases de estado; necesidad de mappers al momento de persistir en base de datos. | Campo `String` o `Enum` con bifurcaciones condicionales. Rechazada por riesgo de transiciones ilegales y código frágil. |
 | **Elegibilidad con `Composite Specification`** | Composabilidad declarativa (`and`, `or`, `not`); desacoplamiento de criterios; detalle de causales de fallo. | Evaluación sucesiva en memoria; requiere recorrer las listas de integrantes y características del robot. | Validaciones manuales procedurales dentro del caso de uso. Rechazada por violar SRP y no ser reutilizable. |
 | **Composition Root Único (`Main`)** | Dominio puro sin frameworks externos; inversión de dependencias estricta; máxima testeabilidad. | Requiere cableado manual explícito al no utilizar un framework de DI automático en el dominio. | Hacer `new` de implementaciones concretas adentro de servicios. Rechazada por acoplamiento indebido. |
-| **Una competencia = una prueba (`ScoringPolicy` en `Edition`)** | Un reglamento por edición; varios robots van a distintas competencias; no hay que preguntar “¿qué desafío?” al puntuar. | No modela un evento padre con N pruebas heterogéneas el mismo fin de semana. | Entidad `Desafío` (o lista de policies) dentro de la edición. Rechazada: el sustantivo no viaja aparte de la policy; sería una clase por vocablo. |
-| **Recálculo = reordenar snapshots vigentes** | Cumple “reprocesar posiciones después de una corrección”; no reinterpreta la pista; barato y determinista. | No re-aplica las `ScoreRule` si alguien mutara la policy de una edición ya evaluada (escenario que no permitimos). | Re-evaluar todos los `RawMetrics` en cada recálculo de tabla. Rechazada: con policy inmutable el resultado no cambia; el gancho `recalculateWithPolicy` queda por si el negocio lo pide. |
+| **`Challenge` como agregado con su `Rulebook`** | Varios desafíos por evento, cada uno con su reglamento versionado; F1, F2 y F3 viven en el reglamento del desafío. | Captura y apelación tienen que saber de qué desafío es el intento. | Una edición = una prueba (Entrega 1). Rechazada en la Entrega 2: la demo pide tres desafíos en un evento y reglas por desafío. |
+| **Recálculo = reordenar snapshots vigentes** | Cumple “reprocesar posiciones después de una corrección”; no reinterpreta la pista; barato y determinista. | No re-aplica las `ScoreRule` si el desafío publica una versión nueva después de evaluar; que el intento recuerde su versión queda pendiente (hallazgo 2). | Re-evaluar todos los `RawMetrics` en cada recálculo de tabla. Rechazada: con reglamentos inmutables el resultado no cambia; el gancho `recalculateWith` queda por si el negocio lo pide. |
 
 ---
 
@@ -293,15 +295,17 @@ roboleague-domain/
 3. **Manejo del ciclo de vida de apelaciones mediante flags booleanos o cadenas de texto**:
    - *Justificación del descarte*: Provoca código defensivo plagado de comprobaciones condicionales repetitivas y permite que el sistema ingrese inadvertidamente en estados ilegales (ej. pasar de resuelto a pendiente o aceptar sin haber sido revisado).
 4. **Reglas de Scoring acopladas dentro de la entidad `Attempt` o en `Edition`**:
-   - *Justificación del descarte*: Viola el principio de Responsabilidad Única (SRP) y Abierto/Cerrado (OCP). La entidad `Attempt` debe modelar la ejecución física y la auditoría de un intento, no el conocimiento de todas las fórmulas matemáticas de todas las categorías de robótica existentes. *Aclaración:* `Edition` **posee** el `ScoringPolicy` (un reglamento publicado); no **implementa** las fórmulas. Las fórmulas viven en `ScoreRule`.
-5. **Entidad `Desafío` (o varias policies) dentro de una misma `Edition`**:
-   - *Qué se consideró*: leer “categorías, desafíos, rondas…” como cuatro agregados, y colgar un objeto `Desafío` con su propia fórmula por cada prueba de la edición.
-   - *Qué se eligió*: una competencia es una sola prueba. El desafío de la consigna es configurar el `ScoringPolicy` de esa edición. Distintos robots se anotan a **distintas competencias**, no a una lista interna de desafíos.
-   - *Justificación del descarte*: el enunciado nunca fija que una edición tenga N pruebas. Crear `Desafío` porque aparece la palabra es promover un sustantivo a clase (el mismo olor que “una clase por caso nuevo”). Las métricas, reglas, penalizaciones y bonificaciones ya viajan juntas en `ScoringPolicy`. Si el negocio pasara a “jornada con varias pistas distintas”, recién ahí el objeto tendría razón de existir.
-6. **Re-evaluar todos los intentos con `ScoreRule` en cada recálculo de ranking**:
-   - *Qué se consideró*: que “recalcular con la versión de reglas correspondiente” significara volver a correr el motor sobre cada `RawMetrics` al reconstruir la tabla (`Attempt.recalculateWithPolicy` en el use case).
+   - *Justificación del descarte*: Viola el principio de Responsabilidad Única (SRP) y Abierto/Cerrado (OCP). La entidad `Attempt` debe modelar la ejecución física y la auditoría de un intento, no el conocimiento de todas las fórmulas matemáticas de todas las categorías de robótica existentes. *Aclaración:* `Challenge` **posee** sus reglamentos publicados; no **implementa** las fórmulas. Las fórmulas viven en `ScoreRule`.
+5. **Una edición = una prueba con un solo reglamento (lectura de la Entrega 1)**:
+   - *Qué se consideró*: que “desafío” nombrara la forma de puntuar de una edición, y no una prueba dentro de ella.
+   - *Qué se eligió*: `Challenge` como agregado propio con su `Rulebook` versionado (2.8).
+   - *Justificación del descarte*: la Entrega 2 pide tres desafíos en el mismo evento y reglas por desafío (N de M, tope de bonificaciones). La Entrega 1 ya anotaba como contra que esa lectura no cubría “una jornada con varias pruebas”; la consigna nueva es justamente ese caso.
+6. **Lista de desafíos dentro de `Edition`**:
+   - *Justificación del descarte*: haría crecer a `Edition` con cada desafío y sus versiones de reglamento, y obligaría a rondas y tablas a pasar por la edición para llegar a su desafío. Como agregado aparte, cada uno se guarda y se referencia por id.
+7. **Re-evaluar todos los intentos con `ScoreRule` en cada recálculo de ranking**:
+   - *Qué se consideró*: que “recalcular con la versión de reglas correspondiente” significara volver a correr el motor sobre cada `RawMetrics` al reconstruir la tabla (`Attempt.recalculateWith` en el use case).
    - *Qué se eligió*: la versión del reglamento se aplica al **nacer** el puntaje (captura o apelación aceptada). `RecalculateRankingUseCase` reprocesa **posiciones** a partir del último snapshot. Es la lectura de la tabla de la consigna.
-   - *Justificación del descarte*: con `ScoringPolicy` inmutable por edición, re-evaluar no cambia el desglose y encarece el recálculo. El gancho en `Attempt` queda por si más adelante el negocio pide re-aplicar una policy sin cambiar métricas.
+   - *Justificación del descarte*: con reglamentos publicados inmutables, re-evaluar no cambia el desglose y encarece el recálculo. El gancho en `Attempt` queda por si más adelante el negocio pide re-aplicar un reglamento sin cambiar métricas.
 
 ### Decisiones Técnicas Pospuestas (Justificación Arquitectónica):
 1. **Framework de Persistencia Real (JPA / Hibernate / Spring Data)**:
@@ -318,10 +322,11 @@ roboleague-domain/
 
 ## 5. Estrategia de Verificación y Cobertura de Pruebas
 
-El diseño implementado se valida mediante una suite completa de **31 pruebas automatizadas** en `src/test/java`, divididas en:
+El diseño implementado se valida con pruebas automatizadas en `src/test/java` de cada módulo, divididas en:
 - **Pruebas Unitarias de Scoring y Auditoría**:
   - `ScoringEngineTest`: Evalúa el comportamiento de cada regla elemental (`TimeBasedRule`, `ObjectiveBonusRule`, `PenaltyRule`, `JudgeSubjectiveRule`) y su agregación en `CompositeScoreRule`, verificando los desgloses paso a paso.
   - `RulebookReviewFindingsTest`: Los tests del informe de la Entrega 1 sobre el reglamento (hallazgo 1 y la pregunta del desglose), invertidos para describir el comportamiento correcto. Incluye un test parametrizado con cada regla que rechaza parámetros negativos.
+  - `ChallengeTest`: Verifica que cada publicación del reglamento crea la versión siguiente, que una versión nueva no cambia cómo puntúa la anterior y que se puede pedir una versión exacta.
   - `AttemptAuditTrailTest`: Valida que cada modificación sobre un intento genere snapshots inmutables con numeración correlativa, preservando la revisión original intacta y registrando eventos de dominio. Cubre además la descalificación auditada (`AttemptDisqualifiedEvent`) y la restauración del estado del intento tras una apelación rechazada.
 - **Pruebas Unitarias de Dominio y Flujos de Estado**:
   - `AppealStateFlowTest`: Verifica la imposibilidad de transiciones ilegales en la máquina de estados de apelaciones y comprueba las consultas polimórficas de habilitación de publicación oficial.

@@ -127,7 +127,7 @@ public class Attempt {
         this.status = AttemptStatus.EVALUATED;
     }
 
-    public void applyPenaltyAdjustment(int additionalPenalties, String reason, String judgeId, ScoringPolicy policy) {
+    public void applyPenaltyAdjustment(int additionalPenalties, String reason, String judgeId, Rulebook rulebook) {
         if (status == AttemptStatus.PENDING || revisionHistory.isEmpty()) {
             throw new IllegalStateException("Cannot adjust an uncompleted attempt");
         }
@@ -139,7 +139,7 @@ public class Attempt {
                 currentMetrics.judgeSubjectiveScores()
         );
 
-        ScoreBreakdown updatedBreakdown = policy.evaluate(updatedMetrics);
+        ScoreBreakdown updatedBreakdown = rulebook.evaluate(updatedMetrics);
         int nextRev = revisionHistory.size() + 1;
 
         AttemptScoreSnapshot snapshot = AttemptScoreSnapshot.of(
@@ -193,12 +193,12 @@ public class Attempt {
         this.status = AttemptStatus.ADJUSTED;
     }
 
-    public void recalculateWithPolicy(ScoringPolicy policy, String reason, String authorId) {
+    public void recalculateWith(Rulebook rulebook, String reason, String authorId) {
         if (revisionHistory.isEmpty()) {
             return;
         }
         RawMetrics currentMetrics = getLatestMetrics();
-        ScoreBreakdown recalculated = policy.evaluate(currentMetrics);
+        ScoreBreakdown recalculated = rulebook.evaluate(currentMetrics);
         int nextRev = revisionHistory.size() + 1;
 
         AttemptScoreSnapshot snapshot = AttemptScoreSnapshot.of(
@@ -207,7 +207,7 @@ public class Attempt {
                 authorId,
                 currentMetrics,
                 recalculated,
-                "Recalculation with policy " + policy.version() + ": " + reason
+                "Recalculation with rulebook " + rulebook.version() + ": " + reason
         );
 
         revisionHistory.add(snapshot);

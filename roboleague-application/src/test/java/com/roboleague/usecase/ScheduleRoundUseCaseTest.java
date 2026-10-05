@@ -1,6 +1,5 @@
 package com.roboleague.usecase;
 
-import com.roboleague.evaluation.ScoringPolicy;
 import com.roboleague.repository.memory.InMemoryEditionRepository;
 import com.roboleague.scheduling.Judge;
 import com.roboleague.scheduling.Round;
@@ -31,10 +30,8 @@ class ScheduleRoundUseCaseTest {
         Category category = Category.of("cat-sumo", "Sumo", 2, 4, 15, 20, 2500);
         Season season = new Season("s-1", 2026, "2026");
         Tournament tournament = Tournament.of("t-1", "Torneo", "Desc", season);
-        ScoringPolicy policy = ScoringPolicy.of("pol-1", "v1", "Reglamento", List.of());
-
         Edition edition = Edition.of("ed-1", tournament, 1, "Edicion 1",
-                LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 2), policy, List.of(category));
+                LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 2), List.of(category));
 
         Robot robot = new Robot("r-1", "Bot", RobotSpecification.of(2000, 100, 100, 100, 2, Set.of()));
         Team t1 = Team.of("t-1", "Alpha", "ITBA", category, robot);
@@ -67,10 +64,8 @@ class ScheduleRoundUseCaseTest {
         Category category = Category.of("cat-sumo", "Sumo", 2, 4, 15, 20, 2500);
         Season season = new Season("s-1", 2026, "2026");
         Tournament tournament = Tournament.of("t-1", "Torneo", "Desc", season);
-        ScoringPolicy policy = ScoringPolicy.of("pol-1", "v1", "Reglamento", List.of());
-
         Edition edition = Edition.of("ed-1", tournament, 1, "Edicion 1",
-                LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 2), policy, List.of(category));
+                LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 2), List.of(category));
         editionRepo.save(edition);
 
         List<Track> tracks = List.of(Track.active("trk-1", "Pista 1", "Piedra"));
