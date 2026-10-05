@@ -8,6 +8,7 @@ import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
 
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 
@@ -83,19 +84,19 @@ public class ObjectiveBonusRule implements ScoreRule {
         boolean allDone = (config.totalPossibleObjectives() > 0 && completed >= config.totalPossibleObjectives());
         double totalSubtotal = baseBonus + (allDone ? config.allCompletedBonus() : 0.0);
 
-        String formula = String.format("%d obj * %.1f pts", completed, config.pointsPerObjective());
+        String formula = String.format(Locale.US, "%d obj * %.1f pts", completed, config.pointsPerObjective());
         if (allDone) {
-            formula += String.format(" + %.1f pts (bonificación total)", config.allCompletedBonus());
+            formula += String.format(Locale.US, " + %.1f pts (bonificación total)", config.allCompletedBonus());
         }
 
         ScoreItem item = ScoreItem.of(
                 ruleName,
-                String.format("%d / %d objetivos", completed, config.totalPossibleObjectives()),
+                String.format(Locale.US, "%d / %d objetivos", completed, config.totalPossibleObjectives()),
                 formula,
                 totalSubtotal
         );
 
-        String note = String.format("Objetivos completados: %d/%d", completed, config.totalPossibleObjectives());
+        String note = String.format(Locale.US, "Objetivos completados: %d/%d", completed, config.totalPossibleObjectives());
         return RuleEvaluation.of(item, note);
     }
 }

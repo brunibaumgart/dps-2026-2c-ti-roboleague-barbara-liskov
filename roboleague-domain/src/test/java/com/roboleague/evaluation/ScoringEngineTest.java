@@ -8,6 +8,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,6 +32,21 @@ class ScoringEngineTest {
         assertThat(item.subtotal()).isEqualTo(130.0);
         assertThat(item.rawMetric()).isEqualTo("45.00 s");
         assertThat(item.appliedFormula()).contains("Base 100.0 + (15.00s por debajo del objetivo * 2.00)");
+    }
+
+    @Test
+    @DisplayName("La fórmula de objetivos se escribe igual sin importar el idioma de la máquina")
+    void objectiveFormulaDoesNotDependOnTheDefaultLocale() {
+        Locale previous = Locale.getDefault();
+        Locale.setDefault(Locale.GERMANY);
+        try {
+            ScoreItem item = ObjectiveBonusRule.of("Objetivos", 20.0, 5, 25.0).evaluate(RawMetrics.of(50.0, 5, 0))
+                    .items().getFirst();
+
+            assertThat(item.appliedFormula()).isEqualTo("5 obj * 20.0 pts + 25.0 pts (bonificación total)");
+        } finally {
+            Locale.setDefault(previous);
+        }
     }
 
     @Test
