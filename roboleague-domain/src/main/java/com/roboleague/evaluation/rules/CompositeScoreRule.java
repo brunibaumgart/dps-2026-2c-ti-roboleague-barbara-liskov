@@ -5,7 +5,6 @@ import com.roboleague.evaluation.ScoreBreakdown;
 import com.roboleague.evaluation.ScoreItem;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -18,20 +17,11 @@ public class CompositeScoreRule implements ScoreRule {
 
     public CompositeScoreRule(String name, List<ScoreRule> rules) {
         this.name = Objects.requireNonNull(name, "name cannot be null");
-        this.rules = rules != null ? new ArrayList<>(rules) : new ArrayList<>();
-    }
-
-    public CompositeScoreRule(String name) {
-        this(name, new ArrayList<>());
-    }
-
-    public void addRule(ScoreRule rule) {
-        Objects.requireNonNull(rule, "rule cannot be null");
-        this.rules.add(rule);
+        this.rules = List.copyOf(Objects.requireNonNull(rules, "rules cannot be null"));
     }
 
     public List<ScoreRule> getRules() {
-        return Collections.unmodifiableList(rules);
+        return rules;
     }
 
     @Override
