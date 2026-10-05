@@ -20,6 +20,9 @@ public record RankingScheme(RoundSelection roundSelection, List<TieBreakCriterio
         if (criteria.isEmpty()) {
             throw new IllegalArgumentException("a ranking scheme needs at least one criterion");
         }
+        if (criteria.stream().map(TieBreakCriterion::code).distinct().count() < criteria.size()) {
+            throw new IllegalArgumentException("a ranking scheme cannot repeat a criterion");
+        }
     }
 
     public RulebookDefinition.Ranking definition() {

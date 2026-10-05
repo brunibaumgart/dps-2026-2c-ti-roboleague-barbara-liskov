@@ -102,4 +102,13 @@ class RankingSchemeTest {
         assertThatThrownBy(() -> new RankingScheme(new AllRounds(), List.of()))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    @DisplayName("Un criterio no se puede repetir en la cadena")
+    void givenARepeatedCriterionThenTheSchemeIsRejected() {
+        assertThatThrownBy(() -> new RankingScheme(new AllRounds(),
+                List.of(new HigherTotal(), new LowerTime(), new HigherTotal())))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("a ranking scheme cannot repeat a criterion");
+    }
 }
