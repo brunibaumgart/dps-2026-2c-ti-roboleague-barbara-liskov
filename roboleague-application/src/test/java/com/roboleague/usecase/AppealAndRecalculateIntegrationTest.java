@@ -32,6 +32,7 @@ class AppealAndRecalculateIntegrationTest {
 
     private InMemoryTeamRepository teamRepository;
     private InMemoryEditionRepository editionRepository;
+    private InMemoryChallengeRepository challengeRepository;
     private InMemoryAttemptRepository attemptRepository;
     private InMemoryRankingRepository rankingRepository;
     private InMemoryAppealRepository appealRepository;
@@ -47,11 +48,13 @@ class AppealAndRecalculateIntegrationTest {
 
     private Category mazeCategory;
     private Edition edition2026;
+    private Challenge maze;
 
     @BeforeEach
     void setUp() {
         teamRepository = new InMemoryTeamRepository();
         editionRepository = new InMemoryEditionRepository();
+        challengeRepository = new InMemoryChallengeRepository();
         attemptRepository = new InMemoryAttemptRepository();
         rankingRepository = new InMemoryRankingRepository();
         appealRepository = new InMemoryAppealRepository();
@@ -64,7 +67,7 @@ class AppealAndRecalculateIntegrationTest {
 
         registerTeamUseCase = new RegisterTeamUseCase(teamRepository, editionRepository, eligibilitySpec);
         scheduleRoundUseCase = new ScheduleRoundUseCase(editionRepository, new RoundSchedulerService());
-        captureAttemptResultUseCase = new CaptureAttemptResultUseCase(attemptRepository, editionRepository);
+        captureAttemptResultUseCase = new CaptureAttemptResultUseCase(attemptRepository, challengeRepository);
 
         RankingCalculatorService rankingService = new RankingCalculatorService(TieBreakerChain.defaultRules());
         recalculateRankingUseCase = new RecalculateRankingUseCase(
@@ -74,7 +77,7 @@ class AppealAndRecalculateIntegrationTest {
         fileAppealUseCase = new FileAppealUseCase(attemptRepository, appealRepository);
         reviewAppealUseCase = new ReviewAppealUseCase(appealRepository);
         resolveAppealUseCase = new ResolveAppealUseCase(
-                appealRepository, attemptRepository, editionRepository, recalculateRankingUseCase
+                appealRepository, attemptRepository, challengeRepository, recalculateRankingUseCase
         );
         publishOfficialRankingUseCase = new PublishOfficialRankingUseCase(rankingRepository, appealRepository, attemptRepository);
 
@@ -87,19 +90,20 @@ class AppealAndRecalculateIntegrationTest {
                 2, 4, 15, 25, 2000.0, 300.0, 300.0, 300.0
         );
 
-        // Rulebook / ScoringPolicy: Time + Objectives + Penalties
-        ScoringPolicy rulebook = ScoringPolicy.of("pol-maze-v1", "v1.0.2026", "Reglamento Laberinto 2026", List.of(
+        edition2026 = Edition.of(
+                "ed-2026", tournament, 1, "Edición Buenos Aires 2026",
+                LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 5),
+                List.of(mazeCategory)
+        );
+        editionRepository.save(edition2026);
+
+        // Maze challenge rulebook v1: Time + Objectives + Penalties
+        maze = Challenge.draft(ChallengeId.of("ch-maze"), edition2026.getId(), "Laberinto").publish(List.of(
                 TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0),
                 ObjectiveBonusRule.of("Objetivos", 20.0, 5, 25.0),
                 new PenaltyRule("Penalizaciones", 15.0)
         ));
-
-        edition2026 = Edition.of(
-                "ed-2026", tournament, 1, "Edición Buenos Aires 2026",
-                LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 5),
-                rulebook, List.of(mazeCategory)
-        );
-        editionRepository.save(edition2026);
+        challengeRepository.save(maze);
     }
 
     private Team createTeam(String id, String name) {
@@ -138,7 +142,7 @@ class AppealAndRecalculateIntegrationTest {
         // Team Alpha: 55s (5s under target => 105), 4 objectives (80 pts), 0 penalties => Total: 185.0
         RawMetrics metricsAlpha = RawMetrics.of(55.0, 4, 0);
         Attempt attemptAlpha = captureAttemptResultUseCase.execute(CaptureAttemptResultCommand.of(
-                edition2026.getId(), "att-alpha-1", teamAlpha.getId(),
+                maze.getId(), "att-alpha-1", teamAlpha.getId(),
                 round1.getSlots().get(0).getSlotId(), round1.getId(), 1, metricsAlpha, "j-1"
         ));
 
@@ -146,7 +150,7 @@ class AppealAndRecalculateIntegrationTest {
         // BUT wrongly assigned 4 penalties (-60 pts) => Total: 110 + 125 - 60 = 175.0
         RawMetrics initialMetricsBeta = RawMetrics.of(50.0, 5, 4);
         Attempt attemptBeta = captureAttemptResultUseCase.execute(CaptureAttemptResultCommand.of(
-                edition2026.getId(), "att-beta-1", teamBeta.getId(),
+                maze.getId(), "att-beta-1", teamBeta.getId(),
                 round1.getSlots().get(1).getSlotId(), round1.getId(), 1, initialMetricsBeta, "j-2"
         ));
 
@@ -184,7 +188,7 @@ class AppealAndRecalculateIntegrationTest {
         RawMetrics revisedMetricsBeta = RawMetrics.of(50.0, 5, 0);
         resolveAppealUseCase.acceptAppeal(
                 appealBeta.getAppealId(),
-                edition2026.getId(),
+                maze.getId(),
                 mazeCategory.id(),
                 round1.getId(),
                 "Video revisado por unanimidad. Se anulan las 4 faltas inexistentes.",

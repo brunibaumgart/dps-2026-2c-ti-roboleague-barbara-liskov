@@ -1,7 +1,5 @@
 package com.roboleague.tournament;
 
-import com.roboleague.evaluation.ScoringPolicy;
-
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -10,19 +8,17 @@ import java.util.Objects;
 
 /**
  * Edition of a tournament.
- * Publishes and binds an immutable version of the ScoringPolicy (Rulebook).
+ * Its challenges, each with its own rulebook, are separate aggregates that reference it by id.
  */
 public class Edition {
     private final EditionContext context;
     private final DateRange dates;
-    private final ScoringPolicy scoringPolicy;
     private final List<Category> categories;
     private final List<Team> registeredTeams;
 
-    public Edition(EditionContext context, DateRange dates, ScoringPolicy scoringPolicy) {
+    public Edition(EditionContext context, DateRange dates) {
         this.context = Objects.requireNonNull(context, "context cannot be null");
         this.dates = Objects.requireNonNull(dates, "dates cannot be null");
-        this.scoringPolicy = Objects.requireNonNull(scoringPolicy, "scoringPolicy cannot be null");
         this.categories = new ArrayList<>();
         this.registeredTeams = new ArrayList<>();
     }
@@ -59,10 +55,6 @@ public class Edition {
         return dates.endDate();
     }
 
-    public ScoringPolicy getScoringPolicy() {
-        return scoringPolicy;
-    }
-
     public List<Category> getCategories() {
         return Collections.unmodifiableList(categories);
     }
@@ -95,16 +87,15 @@ public class Edition {
                 .toList();
     }
 
-    public static Edition of(EditionContext context, DateRange dates, ScoringPolicy scoringPolicy) {
-        return new Edition(context, dates, scoringPolicy);
+    public static Edition of(EditionContext context, DateRange dates) {
+        return new Edition(context, dates);
     }
 
     public static Edition of(String id, Tournament tournament, int editionNumber, String name,
-                              LocalDate startDate, LocalDate endDate, ScoringPolicy scoringPolicy, List<Category> categories) {
+                              LocalDate startDate, LocalDate endDate, List<Category> categories) {
         Edition edition = new Edition(
                 new EditionContext(tournament, new EditionHeader(id, name, editionNumber)),
-                new DateRange(startDate, endDate),
-                scoringPolicy
+                new DateRange(startDate, endDate)
         );
         if (categories != null) {
             categories.forEach(edition::addCategory);

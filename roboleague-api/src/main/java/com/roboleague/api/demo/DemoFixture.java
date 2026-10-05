@@ -2,18 +2,20 @@ package com.roboleague.api.demo;
 
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.RawMetrics;
-import com.roboleague.evaluation.ScoringPolicy;
 import com.roboleague.evaluation.rules.ObjectiveBonusRule;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.TimeBasedRule;
 import com.roboleague.ranking.Ranking;
 import com.roboleague.ranking.appeal.Appeal;
+import com.roboleague.repository.ChallengeRepository;
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.RankingRepository;
 import com.roboleague.scheduling.Judge;
 import com.roboleague.scheduling.Round;
 import com.roboleague.scheduling.Track;
 import com.roboleague.tournament.Category;
+import com.roboleague.tournament.Challenge;
+import com.roboleague.tournament.ChallengeId;
 import com.roboleague.tournament.Edition;
 import com.roboleague.tournament.Robot;
 import com.roboleague.tournament.RobotSpecification;
@@ -50,14 +52,15 @@ class DemoFixture implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DemoFixture.class);
 
-    private final EditionRepository editions;
-    private final RankingRepository rankings;
+    private final DemoRepositories repositories;
     private final DemoUseCases useCases;
 
-    DemoFixture(EditionRepository editions, RankingRepository rankings, DemoUseCases useCases) {
-        this.editions = editions;
-        this.rankings = rankings;
+    DemoFixture(DemoRepositories repositories, DemoUseCases useCases) {
+        this.repositories = repositories;
         this.useCases = useCases;
+    }
+
+    record DemoRepositories(EditionRepository editions, ChallengeRepository challenges, RankingRepository rankings) {
     }
 
     record DemoUseCases(RegisterTeamUseCase registerTeam,
@@ -74,6 +77,7 @@ class DemoFixture implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         Category sumo = Category.of("cat-sumo", "Sumo Autonomo", 2, 4, 15, 25, 2500.0, 300.0, 300.0, 300.0);
         Edition edition = createEdition(sumo);
+        Challenge challenge = createChallenge(edition);
 
         Team cyber = team("t-a", "CyberTeam", sumo, new Robot("r-a", "CyberBot", robotSpec()),
                 TeamMember.of("m-1", "Alice Leader", LocalDate.of(2004, 1, 1), "LEADER"),
@@ -90,10 +94,10 @@ class DemoFixture implements ApplicationRunner {
                 List.of(Judge.of("j-1", "Chief Judge", "Principal"), Judge.of("j-2", "Field Judge", "Pista")),
                 LocalDateTime.now(), Duration.ofMinutes(10), Duration.ofMinutes(2)));
 
-        useCases.captureResult().execute(CaptureAttemptResultCommand.of(edition.getId(), "att-a1", cyber.getId(),
+        useCases.captureResult().execute(CaptureAttemptResultCommand.of(challenge.getId(), "att-a1", cyber.getId(),
                 round.getSlots().get(0).getSlotId(), round.getId(), 1, RawMetrics.of(50.0, 4, 0), "j-1"));
         Attempt titanAttempt = useCases.captureResult().execute(CaptureAttemptResultCommand.of(
-                edition.getId(), "att-b1", titan.getId(),
+                challenge.getId(), "att-b1", titan.getId(),
                 round.getSlots().get(1).getSlotId(), round.getId(), 1, RawMetrics.of(45.0, 5, 2), "j-2"));
 
         useCases.recalculateRanking().execute(edition.getId(), sumo.id(), round.getId());
@@ -101,28 +105,33 @@ class DemoFixture implements ApplicationRunner {
         Appeal appeal = useCases.fileAppeal().execute(
                 titanAttempt.getAttemptId(), titan.getId(), "Penalizacion inexistente", "Video pista");
         useCases.reviewAppeal().execute(appeal.getAppealId(), "j-arb");
-        useCases.resolveAppeal().acceptAppeal(appeal.getAppealId(), edition.getId(), sumo.id(), round.getId(),
+        useCases.resolveAppeal().acceptAppeal(appeal.getAppealId(), challenge.getId(), sumo.id(), round.getId(),
                 "Penalizaciones corregidas tras revision", RawMetrics.of(45.0, 5, 0), "j-arb");
 
-        Ranking latest = rankings.findLatestByEditionAndCategory(edition.getId(), sumo.id()).orElseThrow();
+        Ranking latest = repositories.rankings().findLatestByEditionAndCategory(edition.getId(), sumo.id()).orElseThrow();
         useCases.publishRanking().execute(latest.getRankingId(), "Publicacion definitiva post-arbitraje");
 
         log.info("Demo loaded: edition {}, round {}, appeal {}, official ranking {}",
                 edition.getId(), round.getId(), appeal.getAppealId(), latest.getRankingId());
     }
 
-    // There is no use case to configure an edition yet (front 1), so the fixture stores it directly.
+    // There is no use case to configure an edition or a challenge yet (front 1), so the fixture stores them directly.
     private Edition createEdition(Category category) {
         Season season = new Season("s-2026", 2026, "Temporada 2026");
         Tournament tournament = Tournament.of("t-1", "RoboLeague Championship", "Torneo Nacional", season);
-        ScoringPolicy policy = ScoringPolicy.of("pol-1", "v1.0", "Reglamento Sumo", List.of(
+        Edition edition = Edition.of("ed-1", tournament, 1, "Edicion Inaugural",
+                LocalDate.now(), LocalDate.now().plusDays(3), List.of(category));
+        repositories.editions().save(edition);
+        return edition;
+    }
+
+    private Challenge createChallenge(Edition edition) {
+        Challenge challenge = Challenge.draft(ChallengeId.of("ch-sumo"), edition.getId(), "Sumo").publish(List.of(
                 TimeBasedRule.standard(100.0, 60.0),
                 ObjectiveBonusRule.standard(20.0, 5),
                 new PenaltyRule("Faltas de pista", 10.0)));
-        Edition edition = Edition.of("ed-1", tournament, 1, "Edicion Inaugural",
-                LocalDate.now(), LocalDate.now().plusDays(3), policy, List.of(category));
-        editions.save(edition);
-        return edition;
+        repositories.challenges().save(challenge);
+        return challenge;
     }
 
     private static Team team(String id, String name, Category category, Robot robot, TeamMember... members) {

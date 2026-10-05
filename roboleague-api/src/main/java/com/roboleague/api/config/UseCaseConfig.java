@@ -4,6 +4,7 @@ import com.roboleague.ranking.RankingCalculatorService;
 import com.roboleague.ranking.tiebreakers.TieBreakerChain;
 import com.roboleague.repository.AppealRepository;
 import com.roboleague.repository.AttemptRepository;
+import com.roboleague.repository.ChallengeRepository;
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.RankingRepository;
 import com.roboleague.repository.TeamRepository;
@@ -64,8 +65,8 @@ class UseCaseConfig {
     }
 
     @Bean
-    CaptureAttemptResultUseCase captureAttemptResultUseCase(AttemptRepository attempts, EditionRepository editions) {
-        return new CaptureAttemptResultUseCase(attempts, editions);
+    CaptureAttemptResultUseCase captureAttemptResultUseCase(AttemptRepository attempts, ChallengeRepository challenges) {
+        return new CaptureAttemptResultUseCase(attempts, challenges);
     }
 
     @Bean
@@ -86,8 +87,8 @@ class UseCaseConfig {
 
     @Bean
     ResolveAppealUseCase resolveAppealUseCase(AppealRepository appeals, AttemptRepository attempts,
-                                              EditionRepository editions, RecalculateRankingUseCase recalculate) {
-        return new ResolveAppealUseCase(appeals, attempts, editions, recalculate);
+                                              ChallengeRepository challenges, RecalculateRankingUseCase recalculate) {
+        return new ResolveAppealUseCase(appeals, attempts, challenges, recalculate);
     }
 
     @Bean

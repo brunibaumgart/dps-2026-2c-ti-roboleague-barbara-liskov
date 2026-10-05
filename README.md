@@ -18,7 +18,7 @@ mvn -B package -DskipTests
 java -jar roboleague-api/target/roboleague-api-1.0-SNAPSHOT.jar --spring.profiles.active=demo
 ```
 
-El perfil `demo` vacía la base, aplica las migraciones y carga `DemoFixture` a través de los casos de uso: dos equipos, una ronda, dos intentos, un ranking provisional, una apelación aceptada con recálculo y la publicación oficial. Cada corrida termina en el mismo estado.
+El perfil `demo` vacía la base, aplica las migraciones y carga `DemoFixture` a través de los casos de uso: un desafío Sumo con su reglamento v1, dos equipos, una ronda, dos intentos, un ranking provisional, una apelación aceptada con recálculo y la publicación oficial. Cada corrida termina en el mismo estado.
 
 Sin el perfil `demo`, la app levanta en `http://localhost:8080` sobre la base tal como esté.
 

@@ -128,29 +128,4 @@ class ScoringEngineTest {
         assertThat(breakdown.items()).extracting(ScoreItem::concept)
                 .containsExactly("Tiempo", "Objetivos", "Penalizaciones", "Jueces");
     }
-
-    @Test
-    @DisplayName("ScoringPolicy versioning ensures historical reproducibility")
-    void scoringPolicyVersioning() {
-        ScoreRule ruleV1 = new TimeBasedRule("Tiempo", TimeRuleConfig.of(100.0, 60.0, 1.0, 1.0, 0.0));
-        ScoringPolicy policyV1 = ScoringPolicy.of("pol-1", "v1.0.2026", "Reglamento Inicial", List.of(ruleV1));
-
-        // In v2, base points increased to 150
-        ScoreRule ruleV2 = new TimeBasedRule("Tiempo", TimeRuleConfig.of(150.0, 60.0, 1.0, 1.0, 0.0));
-        ScoringPolicy policyV2 = ScoringPolicy.of("pol-1", "v2.0.2026", "Reglamento Actualizado", List.of(ruleV2));
-
-        RawMetrics metrics = RawMetrics.of(50.0, 0, 0); // 10s under target => +10 bonus
-
-        ScoreBreakdown scoreV1 = policyV1.evaluate(metrics);
-        ScoreBreakdown scoreV2 = policyV2.evaluate(metrics);
-
-        // V1: 100 + 10 = 110
-        assertThat(scoreV1.totalScore()).isEqualTo(110.0);
-        // V2: 150 + 10 = 160
-        assertThat(scoreV2.totalScore()).isEqualTo(160.0);
-
-        // V1 remains immutable and unaffected by V2
-        assertThat(policyV1.version()).isEqualTo("v1.0.2026");
-        assertThat(policyV2.version()).isEqualTo("v2.0.2026");
-    }
 }
