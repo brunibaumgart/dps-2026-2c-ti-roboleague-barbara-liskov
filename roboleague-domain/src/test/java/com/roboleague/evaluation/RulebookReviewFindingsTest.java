@@ -9,6 +9,7 @@ import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.PrecisionRule;
 import com.roboleague.evaluation.rules.ResourceConsumptionRule;
 import com.roboleague.evaluation.rules.TimeAdjustments;
+import com.roboleague.evaluation.rules.TimeTargets;
 import com.roboleague.evaluation.rules.VictimTariff;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
@@ -90,6 +91,7 @@ class RulebookReviewFindingsTest {
                 Named.of("consumo con penalización negativa", () -> new ResourceConsumptionRule("Consumo", 100.0, -2.0)),
                 Named.of("consumo con máximo negativo", () -> new ResourceConsumptionRule("Consumo", -1.0, 2.0)),
                 Named.of("jueces con peso negativo", () -> new JudgeSubjectiveRule("Jueces", -1.0)),
+                Named.of("tiempo con base negativa", () -> TimeTargets.of(-100.0, 60.0)),
                 Named.of("tiempo con bonificación negativa", () -> TimeAdjustments.of(-1.5, 2.0, 0.0)),
                 Named.of("tiempo con deducción negativa", () -> TimeAdjustments.of(1.5, -2.0, 0.0)),
                 Named.of("tiempo con mínimo negativo", () -> TimeAdjustments.of(1.5, 2.0, -5.0)),
