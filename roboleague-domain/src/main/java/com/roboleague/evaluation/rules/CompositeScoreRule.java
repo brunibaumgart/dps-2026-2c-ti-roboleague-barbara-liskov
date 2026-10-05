@@ -2,9 +2,13 @@ package com.roboleague.evaluation.rules;
 
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
+import com.roboleague.evaluation.definition.RuleArguments;
+import com.roboleague.evaluation.definition.RuleDefinition;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 
 /**
  * Composite score rule aggregating child rules that read from the same source (e.g. "Desempeño en pista").
@@ -25,6 +29,25 @@ public class CompositeScoreRule implements ScoreRule {
             throw new IllegalArgumentException("a composite rule needs rules from exactly one source: " + sources);
         }
         this.source = sources.getFirst();
+    }
+
+    public static final String TYPE = "composite";
+
+    public static CompositeScoreRule from(RuleDefinition definition, Function<RuleDefinition, ScoreRule> resolveChild) {
+        List<ScoreRule> children = new ArrayList<>();
+        for (RuleDefinition child : definition.arguments().rules()) {
+            children.add(resolveChild.apply(child));
+        }
+        return new CompositeScoreRule(definition.name(), children);
+    }
+
+    @Override
+    public RuleDefinition definition() {
+        List<RuleDefinition> children = new ArrayList<>();
+        for (ScoreRule rule : rules) {
+            children.add(rule.definition());
+        }
+        return new RuleDefinition(TYPE, name, RuleArguments.ofRules(children));
     }
 
     public List<ScoreRule> getRules() {

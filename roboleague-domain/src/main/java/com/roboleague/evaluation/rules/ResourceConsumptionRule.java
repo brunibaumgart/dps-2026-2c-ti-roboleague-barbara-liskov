@@ -1,5 +1,8 @@
 package com.roboleague.evaluation.rules;
 
+import com.roboleague.evaluation.definition.Parameters;
+import com.roboleague.evaluation.definition.RuleArguments;
+import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
@@ -27,6 +30,22 @@ public class ResourceConsumptionRule implements ScoreRule {
         this.penaltyPerExcessUnit = penaltyPerExcessUnit;
     }
 
+    public static final String TYPE = "resource-consumption";
+    private static final String MAX_ALLOWED_CONSUMPTION = "maxAllowedConsumption";
+    private static final String PENALTY_PER_EXCESS_UNIT = "penaltyPerExcessUnit";
+
+    public static ResourceConsumptionRule from(RuleDefinition definition) {
+        Parameters numbers = definition.arguments().numbers();
+        return new ResourceConsumptionRule(definition.name(),
+                numbers.number(MAX_ALLOWED_CONSUMPTION), numbers.number(PENALTY_PER_EXCESS_UNIT));
+    }
+
+    @Override
+    public RuleDefinition definition() {
+        return new RuleDefinition(TYPE, ruleName, RuleArguments.of(Parameters.none()
+                .with(MAX_ALLOWED_CONSUMPTION, maxAllowedConsumption)
+                .with(PENALTY_PER_EXCESS_UNIT, penaltyPerExcessUnit)));
+    }
     @Override
     public ResultSource source() {
         return ResultSource.AUTOMATIC_MEASUREMENTS;

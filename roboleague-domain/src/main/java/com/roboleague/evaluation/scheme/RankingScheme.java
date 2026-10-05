@@ -1,5 +1,8 @@
 package com.roboleague.evaluation.scheme;
 
+import com.roboleague.evaluation.definition.RulebookDefinition;
+
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -17,6 +20,14 @@ public record RankingScheme(RoundSelection roundSelection, List<TieBreakCriterio
         if (criteria.isEmpty()) {
             throw new IllegalArgumentException("a ranking scheme needs at least one criterion");
         }
+    }
+
+    public RulebookDefinition.Ranking definition() {
+        List<String> codes = new ArrayList<>();
+        for (TieBreakCriterion criterion : criteria) {
+            codes.add(criterion.code());
+        }
+        return new RulebookDefinition.Ranking(roundSelection.definition(), codes);
     }
 
     public TieBreakDecision decide(ChallengeScore a, ChallengeScore b) {

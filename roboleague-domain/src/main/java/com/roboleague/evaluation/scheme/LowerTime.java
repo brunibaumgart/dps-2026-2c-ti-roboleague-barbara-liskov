@@ -6,6 +6,11 @@ package com.roboleague.evaluation.scheme;
 public final class LowerTime implements TieBreakCriterion {
 
     @Override
+    public String code() {
+        return "lower-time";
+    }
+
+    @Override
     public String name() {
         return "Menor tiempo";
     }

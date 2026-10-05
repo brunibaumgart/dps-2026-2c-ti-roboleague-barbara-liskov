@@ -1,5 +1,8 @@
 package com.roboleague.evaluation.rules;
 
+import com.roboleague.evaluation.definition.Parameters;
+import com.roboleague.evaluation.definition.RuleArguments;
+import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
@@ -24,6 +27,27 @@ public final class VictimsRule implements ScoreRule {
         this.tariff = Objects.requireNonNull(tariff, "tariff cannot be null");
     }
 
+    public static final String TYPE = "victims";
+    private static final String TOTAL_VICTIMS = "totalVictims";
+    private static final String POINTS_PER_RESCUED = "pointsPerRescued";
+    private static final String DEDUCTION_PER_ABANDONED = "deductionPerAbandoned";
+    private static final String RESCUED = "rescued";
+
+    public static VictimsRule from(RuleDefinition definition) {
+        RuleArguments arguments = definition.arguments();
+        Parameters numbers = arguments.numbers();
+        return new VictimsRule(definition.name(), arguments.metric(RESCUED), new VictimTariff(
+                numbers.whole(TOTAL_VICTIMS), numbers.number(POINTS_PER_RESCUED), numbers.number(DEDUCTION_PER_ABANDONED)));
+    }
+
+    @Override
+    public RuleDefinition definition() {
+        return new RuleDefinition(TYPE, ruleName, RuleArguments.of(Parameters.none()
+                        .with(TOTAL_VICTIMS, tariff.totalVictims())
+                        .with(POINTS_PER_RESCUED, tariff.pointsPerRescued())
+                        .with(DEDUCTION_PER_ABANDONED, tariff.deductionPerAbandoned()))
+                .withMetric(RESCUED, rescued));
+    }
     @Override
     public ResultSource source() {
         return rescued.source();

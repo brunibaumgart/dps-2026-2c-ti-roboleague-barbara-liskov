@@ -3,6 +3,7 @@ package com.roboleague.evaluation.rules;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
+import com.roboleague.evaluation.definition.RuleDefinition;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -60,6 +61,11 @@ public interface ScoreRule {
     String getRuleName();
 
     ResultSource source();
+
+    /**
+     * How this rule is described to be stored or sent through the API; {@code RuleCatalog} rebuilds it.
+     */
+    RuleDefinition definition();
 
     RuleEvaluation evaluate(RawMetrics metrics);
 }

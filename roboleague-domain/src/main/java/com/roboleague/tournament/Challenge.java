@@ -33,6 +33,25 @@ public class Challenge {
     }
 
     /**
+     * Rebuilds a stored challenge. Only persistence adapters use it: versions must start at 1 and be consecutive.
+     */
+    public static Challenge restore(Draft draft, List<Rulebook> rulebooks) {
+        if (rulebooks.isEmpty()) {
+            throw new IllegalStateException("a stored challenge has at least one rulebook: " + draft.id());
+        }
+        RulebookVersion expected = RulebookVersion.first();
+        for (Rulebook rulebook : rulebooks) {
+            if (!rulebook.version().equals(expected)) {
+                throw new IllegalStateException("stored rulebooks of " + draft.id() + " skip version " + expected);
+            }
+            expected = expected.next();
+        }
+        Challenge challenge = new Challenge(draft, rulebooks.getFirst());
+        challenge.rulebooks.addAll(rulebooks.subList(1, rulebooks.size()));
+        return challenge;
+    }
+
+    /**
      * A challenge that has not published its first rulebook yet, so it cannot score anything.
      */
     public record Draft(ChallengeId id, String editionId, String name) {
@@ -67,6 +86,13 @@ public class Challenge {
 
     public Rulebook currentRulebook() {
         return rulebooks.getLast();
+    }
+
+    /**
+     * Every published version, oldest first.
+     */
+    public List<Rulebook> rulebooks() {
+        return List.copyOf(rulebooks);
     }
 
     public Optional<Rulebook> rulebook(RulebookVersion version) {

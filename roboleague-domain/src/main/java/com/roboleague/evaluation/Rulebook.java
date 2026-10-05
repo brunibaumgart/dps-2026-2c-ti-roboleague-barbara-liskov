@@ -1,5 +1,6 @@
 package com.roboleague.evaluation;
 
+import com.roboleague.evaluation.definition.RulebookDefinition;
 import com.roboleague.evaluation.rules.ScoreRule.RuleEvaluation;
 import com.roboleague.evaluation.scheme.RankingScheme;
 
@@ -32,6 +33,10 @@ public final class Rulebook {
 
     public RankingScheme rankingScheme() {
         return rankingScheme;
+    }
+
+    public RulebookDefinition definition() {
+        return new RulebookDefinition(scoring.definition(), rankingScheme.definition());
     }
 
     /**

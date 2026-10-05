@@ -1,5 +1,7 @@
 package com.roboleague.evaluation.scheme;
 
+import com.roboleague.evaluation.definition.StrategyDefinition;
+
 import java.util.List;
 
 /**
@@ -10,4 +12,6 @@ public interface RoundSelection {
     ChallengeScore select(List<RoundScore> rounds);
 
     String describe();
+
+    StrategyDefinition definition();
 }

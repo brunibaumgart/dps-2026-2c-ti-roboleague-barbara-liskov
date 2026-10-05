@@ -1,5 +1,8 @@
 package com.roboleague.evaluation.rules;
 
+import com.roboleague.evaluation.definition.Parameters;
+import com.roboleague.evaluation.definition.RuleArguments;
+import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
@@ -25,6 +28,20 @@ public final class PrecisionRule implements ScoreRule {
         this.maxPoints = maxPoints;
     }
 
+    public static final String TYPE = "precision";
+    private static final String MAX_POINTS = "maxPoints";
+    private static final String ACCURACY = "accuracy";
+
+    public static PrecisionRule from(RuleDefinition definition) {
+        RuleArguments arguments = definition.arguments();
+        return new PrecisionRule(definition.name(), arguments.metric(ACCURACY), arguments.numbers().number(MAX_POINTS));
+    }
+
+    @Override
+    public RuleDefinition definition() {
+        return new RuleDefinition(TYPE, ruleName,
+                RuleArguments.of(Parameters.none().with(MAX_POINTS, maxPoints)).withMetric(ACCURACY, accuracy));
+    }
     @Override
     public ResultSource source() {
         return accuracy.source();

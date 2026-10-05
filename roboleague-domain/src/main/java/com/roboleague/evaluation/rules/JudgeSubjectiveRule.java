@@ -1,5 +1,8 @@
 package com.roboleague.evaluation.rules;
 
+import com.roboleague.evaluation.definition.Parameters;
+import com.roboleague.evaluation.definition.RuleArguments;
+import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
@@ -26,6 +29,18 @@ public class JudgeSubjectiveRule implements ScoreRule {
         return new JudgeSubjectiveRule("Evaluación de Jueces", weightMultiplier);
     }
 
+    public static final String TYPE = "judges";
+    private static final String WEIGHT_MULTIPLIER = "weightMultiplier";
+
+    public static JudgeSubjectiveRule from(RuleDefinition definition) {
+        return new JudgeSubjectiveRule(definition.name(), definition.arguments().numbers().number(WEIGHT_MULTIPLIER));
+    }
+
+    @Override
+    public RuleDefinition definition() {
+        return new RuleDefinition(TYPE, ruleName,
+                RuleArguments.of(Parameters.none().with(WEIGHT_MULTIPLIER, weightMultiplier)));
+    }
     @Override
     public ResultSource source() {
         return ResultSource.JUDGE_PANEL;

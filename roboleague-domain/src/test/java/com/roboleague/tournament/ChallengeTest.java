@@ -83,6 +83,33 @@ class ChallengeTest {
     }
 
     @Test
+    @DisplayName("Un desafío guardado se restaura con todas sus versiones y sigue publicando")
+    void givenStoredRulebooksThenTheRestoredChallengeKeepsThemAndPublishesTheNext() {
+        Challenge original = mazeWithBase(100.0);
+        original.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(150.0))), allRounds);
+
+        Challenge restored = Challenge.restore(Challenge.draft(original.getId(), original.getEditionId(),
+                original.getName()), List.of(original.rulebook(RulebookVersion.first()).orElseThrow(),
+                original.currentRulebook()));
+        Rulebook third = restored.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(200.0))), allRounds);
+
+        assertThat(restored.rulebook(RulebookVersion.first()).orElseThrow().evaluate(tenSecondsUnderTarget).totalScore())
+                .isEqualTo(110.0);
+        assertThat(third.version()).isEqualTo(new RulebookVersion(3));
+    }
+
+    @Test
+    @DisplayName("Restaurar versiones salteadas es un dato corrupto")
+    void givenStoredVersionsThatSkipOneThenRestoringFails() {
+        Challenge original = mazeWithBase(100.0);
+        Rulebook v2 = original.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(150.0))), allRounds);
+        Challenge.Draft draft = Challenge.draft(ChallengeId.of("ch-maze"), "ed-2026", "Laberinto");
+
+        assertThatThrownBy(() -> Challenge.restore(draft, List.of(v2))).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> Challenge.restore(draft, List.of())).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
     @DisplayName("El reglamento declara cómo se clasifica a los equipos")
     void givenAPublishedRulebookThenItExposesItsRankingScheme() {
         RankingScheme bestTwoOfThree = new RankingScheme(new BestNOfM(2, 3), List.of(new HigherTotal()));

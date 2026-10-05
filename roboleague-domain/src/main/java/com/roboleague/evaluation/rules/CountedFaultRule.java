@@ -1,5 +1,8 @@
 package com.roboleague.evaluation.rules;
 
+import com.roboleague.evaluation.definition.Parameters;
+import com.roboleague.evaluation.definition.RuleArguments;
+import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
@@ -23,6 +26,24 @@ public final class CountedFaultRule implements ScoreRule {
         this.tariff = Objects.requireNonNull(tariff, "tariff cannot be null");
     }
 
+    public static final String TYPE = "counted-fault";
+    private static final String FREE_ALLOWANCE = "freeAllowance";
+    private static final String DEDUCTION_PER_FAULT = "deductionPerFault";
+    private static final String FAULTS = "faults";
+
+    public static CountedFaultRule from(RuleDefinition definition) {
+        RuleArguments arguments = definition.arguments();
+        return new CountedFaultRule(definition.name(), arguments.metric(FAULTS), new FaultTariff(
+                arguments.numbers().whole(FREE_ALLOWANCE), arguments.numbers().number(DEDUCTION_PER_FAULT)));
+    }
+
+    @Override
+    public RuleDefinition definition() {
+        return new RuleDefinition(TYPE, ruleName, RuleArguments.of(Parameters.none()
+                        .with(FREE_ALLOWANCE, tariff.freeAllowance())
+                        .with(DEDUCTION_PER_FAULT, tariff.deductionPerFault()))
+                .withMetric(FAULTS, faults));
+    }
     @Override
     public ResultSource source() {
         return faults.source();
