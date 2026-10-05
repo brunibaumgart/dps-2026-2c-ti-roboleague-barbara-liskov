@@ -76,6 +76,9 @@ roboleague-domain/
     - Subtotal parcial calculado (`subtotal`).
     - Notas y justificaciones reglamentarias.
   - **Inmutabilidad del Reglamento (`ScoringPolicy`) por Edición**: Cada `Edition` se enlaza con una instancia inmutable y versionada del reglamento (ej. `"v1.0.2026"`). Esa versión se aplica cuando nace el puntaje (captura del intento o apelación aceptada). El recálculo de la tabla no vuelve a interpretar las métricas: reordena posiciones a partir del último snapshot, que ya fue evaluado con ese reglamento (ver 2.9).
+  - **Inmutabilidad real, no de superficie (Entrega 2, hallazgo 1)**: `CompositeScoreRule` guarda `List.copyOf` de sus reglas y no tiene `addRule`. Antes el record `ScoringPolicy` era inmutable solo en la referencia: el composite que contenía se podía editar y el puntaje cambiaba sin cambiar la versión. Un conjunto de reglas distinto es otro reglamento.
+  - **El desglose explica el total**: `ScoreBreakdown` rechaza un total que no sea la suma de sus ítems (tolerancia de medio centavo, para totales que vuelven redondeados de la base o la API). El piso en cero ya no se aplica en silencio: aparece como ítem `Piso en cero` con fórmula `max(0, suma)`. Se descartó un constructor privado porque un record no admite constructor canónico privado; validar en el constructor compacto da la misma garantía.
+  - **Las reglas validan sus parámetros**: `PenaltyRule`, `ResourceConsumptionRule`, `JudgeSubjectiveRule` y `TimeAdjustments` rechazan valores negativos (una penalización con deducción negativa sumaba puntos). Se lanza `IllegalArgumentException` y no un resultado porque hoy el reglamento lo arma el código: un parámetro negativo es una invariante rota, no una falla esperable (regla #28). Cuando el reglamento se configure desde la API, esa validación pasará a devolver un resultado.
 
 - **Pros**:
   - **Transparencia Forense Inmediata**: Cualquier participante o árbitro puede auditar paso a paso cómo se compuso cada punto del intento.
@@ -318,6 +321,7 @@ roboleague-domain/
 El diseño implementado se valida mediante una suite completa de **31 pruebas automatizadas** en `src/test/java`, divididas en:
 - **Pruebas Unitarias de Scoring y Auditoría**:
   - `ScoringEngineTest`: Evalúa el comportamiento de cada regla elemental (`TimeBasedRule`, `ObjectiveBonusRule`, `PenaltyRule`, `JudgeSubjectiveRule`) y su agregación en `CompositeScoreRule`, verificando los desgloses paso a paso.
+  - `RulebookReviewFindingsTest`: Los tests del informe de la Entrega 1 sobre el reglamento (hallazgo 1 y la pregunta del desglose), invertidos para describir el comportamiento correcto. Incluye un test parametrizado con cada regla que rechaza parámetros negativos.
   - `AttemptAuditTrailTest`: Valida que cada modificación sobre un intento genere snapshots inmutables con numeración correlativa, preservando la revisión original intacta y registrando eventos de dominio. Cubre además la descalificación auditada (`AttemptDisqualifiedEvent`) y la restauración del estado del intento tras una apelación rechazada.
 - **Pruebas Unitarias de Dominio y Flujos de Estado**:
   - `AppealStateFlowTest`: Verifica la imposibilidad de transiciones ilegales en la máquina de estados de apelaciones y comprueba las consultas polimórficas de habilitación de publicación oficial.
