@@ -36,7 +36,8 @@ public final class Rulebook {
     }
 
     public RulebookDefinition definition() {
-        return new RulebookDefinition(scoring.definition(), rankingScheme.definition());
+        return new RulebookDefinition(scoring.metrics().declarations(), scoring.definition(),
+                rankingScheme.definition());
     }
 
     /**

@@ -4,10 +4,12 @@ import com.roboleague.PostgresContainer;
 import com.roboleague.evaluation.CappedAt;
 import com.roboleague.evaluation.EvaluationFeedback;
 import com.roboleague.evaluation.Metric;
+import com.roboleague.evaluation.MetricSheet;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.RuleCatalog;
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookVersion;
+import com.roboleague.evaluation.ScoreRules;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.TrackPerformance;
 import com.roboleague.evaluation.rules.CompositeScoreRule;
@@ -63,12 +65,12 @@ class JpaChallengeRepositoryTest {
             EvaluationFeedback.withMeasurements(Map.of(COLLISIONS.name(), 3.0, CHECKPOINT.name(), 1.0)));
 
     private static ScoringScheme mazeScoring(double cap) {
-        return new ScoringScheme(
+        return new ScoringScheme(MetricSheet.none(), new ScoreRules(
                 List.of(new CompositeScoreRule("Desempeño en pista", List.of(
                                 TimeBasedRule.standard(100.0, 60.0), ObjectiveBonusRule.standard(20.0, 5))),
                         new PenaltyRule("Faltas", 15.0),
                         new CountedFaultRule("Colisiones", COLLISIONS, new FaultTariff(1, 5.0))),
-                List.of(new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), 30.0)),
+                List.of(new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), 30.0))),
                 new CappedAt(cap));
     }
 

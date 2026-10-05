@@ -39,7 +39,7 @@ record RulebookBody(ScoringBody scoring, RankingBody ranking) {
         if (scoring == null || ranking == null || scoring.bonusLimit() == null || ranking.roundSelection() == null) {
             throw new IllegalArgumentException("a rulebook needs scoring (with bonusLimit) and ranking (with roundSelection)");
         }
-        return new RulebookDefinition(
+        return new RulebookDefinition(List.of(),
                 new RulebookDefinition.Scoring(toRules(scoring.rules()), toRules(scoring.bonuses()),
                         toStrategy(scoring.bonusLimit())),
                 new RulebookDefinition.Ranking(toStrategy(ranking.roundSelection()), orEmpty(ranking.criteria())));

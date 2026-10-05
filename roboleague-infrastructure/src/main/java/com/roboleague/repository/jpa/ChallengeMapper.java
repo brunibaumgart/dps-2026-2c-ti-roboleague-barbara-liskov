@@ -59,7 +59,7 @@ final class ChallengeMapper {
     }
 
     private Rulebook toRulebook(String challengeId, RulebookJson json) {
-        RulebookDefinition definition = new RulebookDefinition(
+        RulebookDefinition definition = new RulebookDefinition(List.of(),
                 new RulebookDefinition.Scoring(toRules(json.scoring().rules()), toRules(json.scoring().bonuses()),
                         toStrategy(json.scoring().bonusLimit())),
                 new RulebookDefinition.Ranking(toStrategy(json.ranking().roundSelection()), json.ranking().criteria()));

@@ -37,7 +37,7 @@ class BonusCapTest {
 
     private static Rulebook rulebook(BonusLimit limit) {
         return new Rulebook(RulebookVersion.first(),
-                new ScoringScheme(List.of(TIME), List.of(ZONE_BONUS, DISTANCE_BONUS), limit), ANY_RANKING);
+                new ScoringScheme(MetricSheet.none(), new ScoreRules(List.of(TIME), List.of(ZONE_BONUS, DISTANCE_BONUS)), limit), ANY_RANKING);
     }
 
     private static ScoreItem capItem(ScoreBreakdown breakdown) {
@@ -104,8 +104,9 @@ class BonusCapTest {
     @Test
     @DisplayName("El tope se aplica antes del piso en cero: una penalización grande sigue llevando el total a cero")
     void givenACappedBonusAndALargePenaltyThenTheFloorAppliesAfterTheCap() {
-        Rulebook rulebook = new Rulebook(RulebookVersion.first(), new ScoringScheme(
-                List.of(new PenaltyRule("Faltas", 100.0)), List.of(ZONE_BONUS, DISTANCE_BONUS), new CappedAt(40.0)),
+        Rulebook rulebook = new Rulebook(RulebookVersion.first(), new ScoringScheme(MetricSheet.none(),
+                new ScoreRules(List.of(new PenaltyRule("Faltas", 100.0)), List.of(ZONE_BONUS, DISTANCE_BONUS)),
+                new CappedAt(40.0)),
                 ANY_RANKING);
         RawMetrics threeFaults = new RawMetrics(new TrackPerformance(60.0, 0, 3),
                 EvaluationFeedback.withMeasurements(Map.of(ZONE.name(), 1.0, DISTANCE.name(), 12.0)));
@@ -120,8 +121,8 @@ class BonusCapTest {
     @Test
     @DisplayName("Una regla que resta puesta entre las bonificaciones baja lo obtenido y el tope no recorta")
     void givenARuleThatSubtractsAmongTheBonusesThenTheObtainedSumCanBeNegativeAndNothingIsCut() {
-        Rulebook rulebook = new Rulebook(RulebookVersion.first(), new ScoringScheme(
-                List.of(TIME), List.of(new PenaltyRule("Faltas", 10.0)), new CappedAt(40.0)), ANY_RANKING);
+        Rulebook rulebook = new Rulebook(RulebookVersion.first(), new ScoringScheme(MetricSheet.none(),
+                new ScoreRules(List.of(TIME), List.of(new PenaltyRule("Faltas", 10.0))), new CappedAt(40.0)), ANY_RANKING);
 
         ScoreItem cap = capItem(rulebook.evaluate(new RawMetrics(new TrackPerformance(60.0, 0, 2),
                 EvaluationFeedback.empty())));

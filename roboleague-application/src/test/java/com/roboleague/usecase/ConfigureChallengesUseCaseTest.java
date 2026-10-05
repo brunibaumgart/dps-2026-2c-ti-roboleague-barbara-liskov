@@ -58,7 +58,7 @@ class ConfigureChallengesUseCaseTest {
     }
 
     private static RulebookDefinition penaltyRulebook(double deduction) {
-        return new RulebookDefinition(
+        return new RulebookDefinition(List.of(),
                 new RulebookDefinition.Scoring(List.of(new PenaltyRule("Faltas", deduction).definition()), List.of(),
                         new StrategyDefinition(Unlimited.TYPE, Parameters.none())),
                 new RulebookDefinition.Ranking(new StrategyDefinition(AllRounds.TYPE, Parameters.none()),
@@ -66,7 +66,7 @@ class ConfigureChallengesUseCaseTest {
     }
 
     private static RulebookDefinition unknownRuleRulebook() {
-        return new RulebookDefinition(
+        return new RulebookDefinition(List.of(),
                 new RulebookDefinition.Scoring(List.of(new RuleDefinition("teleport", "Teletransporte",
                         RuleArguments.of(Parameters.none()))), List.of(),
                         new StrategyDefinition(Unlimited.TYPE, Parameters.none())),

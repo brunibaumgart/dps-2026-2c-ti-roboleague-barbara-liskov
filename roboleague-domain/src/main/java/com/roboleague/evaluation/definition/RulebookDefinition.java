@@ -4,10 +4,11 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Description of a whole rulebook: how it scores and how it ranks.
+ * Description of a whole rulebook: what it measures, how it scores and how it ranks.
  */
-public record RulebookDefinition(Scoring scoring, Ranking ranking) {
+public record RulebookDefinition(List<MetricDeclaration> metrics, Scoring scoring, Ranking ranking) {
     public RulebookDefinition {
+        metrics = List.copyOf(Objects.requireNonNull(metrics, "metrics cannot be null"));
         Objects.requireNonNull(scoring, "scoring cannot be null");
         Objects.requireNonNull(ranking, "ranking cannot be null");
     }

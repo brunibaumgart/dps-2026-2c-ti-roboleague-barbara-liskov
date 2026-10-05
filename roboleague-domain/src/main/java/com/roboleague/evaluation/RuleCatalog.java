@@ -1,5 +1,6 @@
 package com.roboleague.evaluation;
 
+import com.roboleague.evaluation.definition.MetricDeclaration;
 import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.definition.RulebookDefinition;
 import com.roboleague.evaluation.definition.StrategyDefinition;
@@ -69,11 +70,17 @@ public final class RuleCatalog {
     }
 
     /**
-     * Builds both schemes of a rulebook, or collects every problem found (unknown types, missing or invalid
-     * parameters) so whoever sent the definition can fix them all at once.
+     * Builds both schemes of a rulebook, or collects every problem found (invalid metric declarations, unknown
+     * types, missing or invalid parameters) so whoever sent the definition can fix them all at once.
      */
     public RulebookAssembly assemble(RulebookDefinition definition) {
         List<String> problems = new ArrayList<>();
+        List<MetricDefinition> declared = new ArrayList<>();
+        for (MetricDeclaration declaration : definition.metrics()) {
+            build("metric '" + declaration.metric().name() + "'", () -> MetricDefinition.from(declaration), problems)
+                    .ifPresent(declared::add);
+        }
+        Optional<MetricSheet> metrics = build("metrics", () -> new MetricSheet(declared), problems);
         List<ScoreRule> scoreRules = rulesOf(definition.scoring().rules(), problems);
         List<ScoreRule> bonuses = rulesOf(definition.scoring().bonuses(), problems);
         Optional<BonusLimit> limit = build("bonus limit",
@@ -92,8 +99,8 @@ public final class RuleCatalog {
         if (!problems.isEmpty()) {
             return new RulebookAssembly.Rejected(problems);
         }
-        Optional<ScoringScheme> scoring = build("scoring",
-                () -> new ScoringScheme(scoreRules, bonuses, limit.orElseThrow()), problems);
+        Optional<ScoringScheme> scoring = build("scoring", () -> new ScoringScheme(metrics.orElseThrow(),
+                new ScoreRules(scoreRules, bonuses), limit.orElseThrow()), problems);
         Optional<RankingScheme> ranking = build("ranking",
                 () -> new RankingScheme(selection.orElseThrow(), chain), problems);
         if (!problems.isEmpty()) {

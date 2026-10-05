@@ -1,5 +1,7 @@
 package com.roboleague.evaluation;
 
+import com.roboleague.evaluation.definition.MetricDeclaration;
+
 import java.util.Objects;
 import java.util.Optional;
 
@@ -12,6 +14,14 @@ public record MetricDefinition(Metric metric, MeasurementUnit unit, ValueRange r
         Objects.requireNonNull(metric, "metric cannot be null");
         Objects.requireNonNull(unit, "unit cannot be null");
         Objects.requireNonNull(range, "range cannot be null");
+    }
+
+    public static MetricDefinition from(MetricDeclaration declaration) {
+        return new MetricDefinition(declaration.metric(), declaration.unit(), ValueRange.from(declaration.range()));
+    }
+
+    public MetricDeclaration declaration() {
+        return new MetricDeclaration(metric, unit, range.definition());
     }
 
     public String name() {

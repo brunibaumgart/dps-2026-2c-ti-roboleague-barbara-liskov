@@ -1,5 +1,6 @@
 package com.roboleague.evaluation;
 
+import com.roboleague.evaluation.definition.MetricDeclaration;
 import com.roboleague.evaluation.definition.Parameters;
 import com.roboleague.evaluation.definition.RuleArguments;
 import com.roboleague.evaluation.definition.RuleDefinition;
@@ -54,8 +55,18 @@ class RuleCatalogTest {
                     RESCUED.name(), 3.0, CHECKPOINT.name(), 1.0)));
 
     private static RulebookDefinition withRule(RuleDefinition rule) {
-        return new RulebookDefinition(new RulebookDefinition.Scoring(List.of(rule), List.of(), UNLIMITED),
+        return new RulebookDefinition(List.of(), new RulebookDefinition.Scoring(List.of(rule), List.of(), UNLIMITED),
                 new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("higher-total")));
+    }
+
+    private static RulebookDefinition declaring(List<MetricDeclaration> metrics) {
+        return new RulebookDefinition(metrics, new RulebookDefinition.Scoring(
+                List.of(new PenaltyRule("Faltas", 10.0).definition()), List.of(), UNLIMITED),
+                new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("higher-total")));
+    }
+
+    private static MetricDeclaration collisionsWithin(Parameters range) {
+        return new MetricDeclaration(COLLISIONS, MeasurementUnit.COUNT, range);
     }
 
     private static RulebookDefinition.Scoring scoringOf(RulebookAssembly assembly) {
@@ -94,17 +105,30 @@ class RuleCatalogTest {
     @Test
     @DisplayName("El tope, la selección de rondas y los criterios también se describen y se reconstruyen")
     void givenSchemesThenTheirDefinitionsRebuildEqualSchemes() {
-        ScoringScheme scoring = new ScoringScheme(List.of(new PenaltyRule("Faltas", 10.0)),
-                List.of(new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), 30.0)), new CappedAt(40.0));
+        ScoringScheme scoring = new ScoringScheme(MetricSheet.none(), new ScoreRules(List.of(new PenaltyRule("Faltas", 10.0)),
+                List.of(new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), 30.0))), new CappedAt(40.0));
         RankingScheme ranking = new RankingScheme(new BestNOfM(3, 5),
                 List.of(new HigherTotal(), new LowerTime(), new FewerPenalties(), new HigherJudgeScore()));
 
-        RulebookAssembly assembly = catalog.assemble(new RulebookDefinition(scoring.definition(), ranking.definition()));
+        RulebookAssembly assembly = catalog.assemble(new RulebookDefinition(scoring.metrics().declarations(), scoring.definition(),
+                ranking.definition()));
 
         RulebookAssembly.Assembled assembled = (RulebookAssembly.Assembled) assembly;
         assertThat(assembled.scoring().definition()).isEqualTo(scoring.definition());
         assertThat(assembled.ranking().definition()).isEqualTo(ranking.definition());
         assertThat(assembled.ranking().roundSelection()).isEqualTo(new BestNOfM(3, 5));
+    }
+
+    @Test
+    @DisplayName("Las métricas que declara un reglamento se describen y se reconstruyen iguales")
+    void givenDeclaredMetricsThenTheirDefinitionsRebuildTheSameSheet() {
+        MetricSheet sheet = new MetricSheet(List.of(
+                new MetricDefinition(COLLISIONS, MeasurementUnit.COUNT, ValueRange.atLeast(0.0)),
+                new MetricDefinition(PRECISION, MeasurementUnit.RATIO, ValueRange.between(0.0, 1.0))));
+
+        RulebookAssembly assembly = catalog.assemble(declaring(sheet.declarations()));
+
+        assertThat(((RulebookAssembly.Assembled) assembly).scoring().metrics()).isEqualTo(sheet);
     }
 
     @ParameterizedTest(name = "{0}")
@@ -136,27 +160,36 @@ class RuleCatalogTest {
                         withRule(new RuleDefinition("precision", "Precisión",
                                 RuleArguments.of(Parameters.none().with("maxPoints", 50.0))))),
                         "rule 'Precisión': missing metric 'accuracy'"),
-                Arguments.of(Named.of("N de M inválido", new RulebookDefinition(
+                Arguments.of(Named.of("N de M inválido", new RulebookDefinition(List.of(),
                                 new RulebookDefinition.Scoring(List.of(time), List.of(), UNLIMITED),
                                 new RulebookDefinition.Ranking(new StrategyDefinition(BestNOfM.TYPE,
                                         Parameters.none().with("considered", 4.0).with("outOf", 3.0)), List.of("higher-total")))),
                         "round selection: considered must be between 1 and outOf"),
-                Arguments.of(Named.of("criterio desconocido", new RulebookDefinition(
+                Arguments.of(Named.of("criterio desconocido", new RulebookDefinition(List.of(),
                                 new RulebookDefinition.Scoring(List.of(time), List.of(), UNLIMITED),
                                 new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("higher-total", "luck")))),
                         "tie-break criterion 'luck': unknown criterion"),
-                Arguments.of(Named.of("sin criterios", new RulebookDefinition(
+                Arguments.of(Named.of("sin criterios", new RulebookDefinition(List.of(),
                                 new RulebookDefinition.Scoring(List.of(time), List.of(), UNLIMITED),
                                 new RulebookDefinition.Ranking(ALL_ROUNDS, List.of()))),
                         "ranking: a ranking scheme needs at least one criterion"),
-                Arguments.of(Named.of("criterio repetido", new RulebookDefinition(
+                Arguments.of(Named.of("criterio repetido", new RulebookDefinition(List.of(),
                                 new RulebookDefinition.Scoring(List.of(time), List.of(), UNLIMITED),
                                 new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("higher-total", "higher-total")))),
                         "ranking: a ranking scheme cannot repeat a criterion"),
-                Arguments.of(Named.of("sin el total primero", new RulebookDefinition(
+                Arguments.of(Named.of("sin el total primero", new RulebookDefinition(List.of(),
                                 new RulebookDefinition.Scoring(List.of(time), List.of(), UNLIMITED),
                                 new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("lower-time")))),
-                        "ranking: a ranking scheme orders by total before breaking ties")
+                        "ranking: a ranking scheme orders by total before breaking ties"),
+                Arguments.of(Named.of("rango invertido", declaring(List.of(
+                                collisionsWithin(Parameters.none().with("min", 5.0).with("max", 1.0))))),
+                        "metric 'colisiones': max cannot be less than min"),
+                Arguments.of(Named.of("rango sin mínimo", declaring(List.of(collisionsWithin(Parameters.none())))),
+                        "metric 'colisiones': missing parameter 'min'"),
+                Arguments.of(Named.of("métrica declarada dos veces", declaring(List.of(
+                                collisionsWithin(Parameters.none().with("min", 0.0)),
+                                collisionsWithin(Parameters.none().with("min", 1.0))))),
+                        "metrics: metric 'colisiones' is declared twice")
         );
     }
 
@@ -175,7 +208,7 @@ class RuleCatalogTest {
     @Test
     @DisplayName("Todos los problemas de una definición se informan juntos")
     void givenSeveralProblemsThenAllAreReported() {
-        RulebookDefinition twoBadRules = new RulebookDefinition(new RulebookDefinition.Scoring(List.of(
+        RulebookDefinition twoBadRules = new RulebookDefinition(List.of(), new RulebookDefinition.Scoring(List.of(
                 new RuleDefinition("teleport", "A", RuleArguments.of(Parameters.none())),
                 new RuleDefinition("penalty", "B", RuleArguments.of(Parameters.none()))), List.of(), UNLIMITED),
                 new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("higher-total")));
