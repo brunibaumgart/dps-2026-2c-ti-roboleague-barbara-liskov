@@ -59,6 +59,12 @@ public class Challenge {
             Objects.requireNonNull(id, "id cannot be null");
             Objects.requireNonNull(editionId, "editionId cannot be null");
             Objects.requireNonNull(name, "name cannot be null");
+            if (editionId.isBlank()) {
+                throw new IllegalArgumentException("edition id cannot be blank");
+            }
+            if (name.isBlank()) {
+                throw new IllegalArgumentException("challenge name cannot be blank");
+            }
         }
 
         public Challenge publish(ScoringScheme scoring, RankingScheme rankingScheme) {

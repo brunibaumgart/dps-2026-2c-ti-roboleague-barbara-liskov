@@ -65,9 +65,10 @@ public class Edition {
 
     public void addCategory(Category category) {
         Objects.requireNonNull(category, "category cannot be null");
-        if (!categories.contains(category)) {
-            categories.add(category);
+        if (categories.stream().anyMatch(offered -> offered.id().equals(category.id()))) {
+            throw new IllegalArgumentException("Category already offered in this edition: " + category.id());
         }
+        categories.add(category);
     }
 
     public void registerTeam(Team team) {

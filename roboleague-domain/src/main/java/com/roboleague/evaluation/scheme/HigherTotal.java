@@ -2,9 +2,11 @@ package com.roboleague.evaluation.scheme;
 
 public final class HigherTotal implements TieBreakCriterion {
 
+    public static final String CODE = "higher-total";
+
     @Override
     public String code() {
-        return "higher-total";
+        return CODE;
     }
 
     @Override

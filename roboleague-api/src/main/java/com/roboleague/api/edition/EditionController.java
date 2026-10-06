@@ -49,8 +49,7 @@ class EditionController {
                 if (category == null) {
                     throw new IllegalArgumentException("a category cannot be empty");
                 }
-                parsed.add(Category.of(category.id(), category.name(), category.minMembers(), category.maxMembers(),
-                        category.minAge(), category.maxAge(), category.maxWeightGrams()));
+                parsed.add(category.toCategory());
             }
             return new CreateEditionCommand(
                     new EditionContext(tournament.toTournament(), new EditionHeader(id, name, editionNumber)),
@@ -61,19 +60,32 @@ class EditionController {
     record TournamentBody(String id, String name, String description, SeasonBody season) {
 
         Tournament toTournament() {
-            if (season == null) {
-                throw new IllegalArgumentException("a tournament needs a season");
+            if (id == null || name == null || season == null) {
+                throw new IllegalArgumentException("a tournament needs id, name and season");
             }
-            return Tournament.of(id, name, description == null ? "" : description,
-                    new Season(season.id(), season.year(), season.name()));
+            return Tournament.of(id, name, description == null ? "" : description, season.toSeason());
         }
     }
 
     record SeasonBody(String id, int year, String name) {
+
+        Season toSeason() {
+            if (id == null || name == null) {
+                throw new IllegalArgumentException("a season needs id and name");
+            }
+            return new Season(id, year, name);
+        }
     }
 
     record CategoryBody(String id, String name, int minMembers, int maxMembers, int minAge, int maxAge,
                         double maxWeightGrams) {
+
+        Category toCategory() {
+            if (id == null || name == null) {
+                throw new IllegalArgumentException("a category needs id and name");
+            }
+            return Category.of(id, name, minMembers, maxMembers, minAge, maxAge, maxWeightGrams);
+        }
     }
 
     record EditionDto(String id, String name, LocalDate startDate, LocalDate endDate, List<String> categories) {

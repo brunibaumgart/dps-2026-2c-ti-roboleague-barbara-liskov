@@ -12,6 +12,8 @@ import com.roboleague.evaluation.scheme.HigherTotal;
 import com.roboleague.evaluation.scheme.RankingScheme;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.util.List;
 
@@ -132,5 +134,14 @@ class ChallengeTest {
         assertThat(v2.evaluate(tenSecondsUnderTarget)).isEqualTo(v1.evaluate(tenSecondsUnderTarget));
         assertThat(v1.rankingScheme().roundSelection()).isInstanceOf(AllRounds.class);
         assertThat(v2.rankingScheme().roundSelection()).isEqualTo(new BestNOfM(1, 2));
+    }
+
+    @ParameterizedTest(name = "edición \"{0}\", nombre \"{1}\"")
+    @CsvSource({"'  ', Laberinto, edition id cannot be blank", "ed-2026, '  ', challenge name cannot be blank"})
+    @DisplayName("Un desafío no acepta edición ni nombre en blanco")
+    void givenABlankEditionOrNameThenTheDraftIsRejected(String editionId, String name, String problem) {
+        assertThatThrownBy(() -> Challenge.draft(ChallengeId.of("ch-maze"), editionId, name))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(problem);
     }
 }

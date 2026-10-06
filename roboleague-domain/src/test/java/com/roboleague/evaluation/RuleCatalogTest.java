@@ -148,7 +148,15 @@ class RuleCatalogTest {
                 Arguments.of(Named.of("sin criterios", new RulebookDefinition(
                                 new RulebookDefinition.Scoring(List.of(time), List.of(), UNLIMITED),
                                 new RulebookDefinition.Ranking(ALL_ROUNDS, List.of()))),
-                        "ranking: a ranking scheme needs at least one criterion")
+                        "ranking: a ranking scheme needs at least one criterion"),
+                Arguments.of(Named.of("criterio repetido", new RulebookDefinition(
+                                new RulebookDefinition.Scoring(List.of(time), List.of(), UNLIMITED),
+                                new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("higher-total", "higher-total")))),
+                        "ranking: a ranking scheme cannot repeat a criterion"),
+                Arguments.of(Named.of("sin el total primero", new RulebookDefinition(
+                                new RulebookDefinition.Scoring(List.of(time), List.of(), UNLIMITED),
+                                new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("lower-time")))),
+                        "ranking: a ranking scheme orders by total before breaking ties")
         );
     }
 

@@ -57,12 +57,14 @@ class RankingSchemeTest {
     }
 
     @Test
-    @DisplayName("El orden de los criterios es el que declara el reglamento")
-    void givenCriteriaInAnotherOrderThenTheOrderChangesTheWinner() {
+    @DisplayName("El orden de los desempates es el que declara el reglamento")
+    void givenTieBreakersInAnotherOrderThenTheOrderChangesTheWinner() {
         ChallengeScore fastWithFouls = allOf(round("r1", 200.0, 40.0, 3));
         ChallengeScore slowClean = allOf(round("r1", 200.0, 50.0, 0));
-        RankingScheme timeFirst = new RankingScheme(new AllRounds(), List.of(new LowerTime(), new FewerPenalties()));
-        RankingScheme foulsFirst = new RankingScheme(new AllRounds(), List.of(new FewerPenalties(), new LowerTime()));
+        RankingScheme timeFirst = new RankingScheme(new AllRounds(),
+                List.of(new HigherTotal(), new LowerTime(), new FewerPenalties()));
+        RankingScheme foulsFirst = new RankingScheme(new AllRounds(),
+                List.of(new HigherTotal(), new FewerPenalties(), new LowerTime()));
 
         assertThat(timeFirst.compare(fastWithFouls, slowClean)).isNegative();
         assertThat(foulsFirst.compare(fastWithFouls, slowClean)).isPositive();
@@ -74,7 +76,7 @@ class RankingSchemeTest {
         ChallengeScore withRound = allOf(withJudges("r1", 0.0, 50.0, 0, Map.of("j1", 5.0)));
         ChallengeScore withoutRounds = allOf();
         RankingScheme timeThenJudges = new RankingScheme(new AllRounds(),
-                List.of(new LowerTime(), new HigherJudgeScore()));
+                List.of(new HigherTotal(), new LowerTime(), new HigherJudgeScore()));
 
         assertThat(timeThenJudges.compare(withRound, withoutRounds)).isNegative();
         assertThat(new HigherJudgeScore().compare(withRound, withoutRounds)).isNegative();
@@ -101,5 +103,22 @@ class RankingSchemeTest {
     void givenNoCriteriaThenTheSchemeIsRejected() {
         assertThatThrownBy(() -> new RankingScheme(new AllRounds(), List.of()))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("Un criterio no se puede repetir en la cadena")
+    void givenARepeatedCriterionThenTheSchemeIsRejected() {
+        assertThatThrownBy(() -> new RankingScheme(new AllRounds(),
+                List.of(new HigherTotal(), new LowerTime(), new HigherTotal())))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("a ranking scheme cannot repeat a criterion");
+    }
+
+    @Test
+    @DisplayName("El puntaje total ordena antes que cualquier desempate")
+    void givenAChainThatDoesNotStartWithTheTotalThenTheSchemeIsRejected() {
+        assertThatThrownBy(() -> new RankingScheme(new AllRounds(), List.of(new LowerTime(), new HigherTotal())))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("a ranking scheme orders by total before breaking ties: 'higher-total' goes first");
     }
 }
