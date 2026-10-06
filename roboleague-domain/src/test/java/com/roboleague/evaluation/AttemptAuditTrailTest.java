@@ -102,7 +102,7 @@ class AttemptAuditTrailTest {
 
         assertThatThrownBy(() -> attempt.registerInitialResult(metrics, "judge-2", standardPolicy))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("already has registered results");
+                .hasMessageContaining("cannot take a first result again");
     }
     @Test
     @DisplayName("Disqualification is audited and a rejected appeal restores the previous status")

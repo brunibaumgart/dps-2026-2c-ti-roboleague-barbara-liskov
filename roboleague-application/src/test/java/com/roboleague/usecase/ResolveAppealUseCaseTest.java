@@ -107,6 +107,32 @@ class ResolveAppealUseCaseTest {
         assertThat(stored.getLatestSnapshot().rulebookVersion()).isEqualTo(RulebookVersion.first());
     }
 
+    @Test
+    @DisplayName("Hallazgo 3: con dos apelaciones abiertas, rechazar una deja al intento en apelación")
+    void rejectingOneOfTwoOpenAppealsKeepsTheAttemptUnderAppeal() {
+        InMemoryAttemptRepository attemptRepository = new InMemoryAttemptRepository();
+        InMemoryAppealRepository appealRepository = new InMemoryAppealRepository();
+        ResolveAppealUseCase useCase = new ResolveAppealUseCase(appealRepository, attemptRepository,
+                new InMemoryChallengeRepository(), new RecalculateRankingUseCase(new InMemoryEditionRepository(),
+                attemptRepository, new InMemoryRankingRepository(), new RankingCalculatorService()));
+        Rulebook rulebook = new Rulebook(RulebookVersion.first(), scoringWithFaultsWorth(10.0),
+                new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
+        AttemptId attemptId = AttemptId.of("slot-1", 1);
+        Attempt attempt = Attempt.of(new AttemptIdentity(attemptId, "r-1", "t-1"), RulebookReference.of("ch-1", rulebook));
+        attempt.registerInitialResult(RawMetrics.of(55.0, 4, 0), "j-1", rulebook);
+        attemptRepository.save(attempt);
+        FileAppealUseCase fileAppeal = new FileAppealUseCase(attemptRepository, appealRepository);
+        Appeal first = fileAppeal.execute(attemptId.value(), "t-1", "tiempo", "video");
+        Appeal second = fileAppeal.execute(attemptId.value(), "t-1", "objetivos", "video");
+        new ReviewAppealUseCase(appealRepository).execute(first.getAppealId(), "arbitro");
+
+        useCase.rejectAppeal(first.getAppealId(), "sin evidencia", "arbitro");
+
+        assertThat(second.isPending()).isTrue();
+        assertThat(attemptRepository.findById(attemptId).orElseThrow().getStatus())
+                .isEqualTo(Attempt.AttemptStatus.UNDER_APPEAL);
+    }
+
     private static ScoringScheme scoringWithFaultsWorth(double deductionPerFault) {
         return ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0)),
                 List.of(new PenaltyRule("Faltas", deductionPerFault)));

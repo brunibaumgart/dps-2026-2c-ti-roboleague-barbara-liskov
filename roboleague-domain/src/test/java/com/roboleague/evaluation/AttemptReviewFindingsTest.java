@@ -85,6 +85,34 @@ class AttemptReviewFindingsTest {
         assertThat(attempt.getRevisionHistory()).hasSize(1);
     }
 
+    @Test
+    @DisplayName("Hallazgo 3: un intento descalificado y sin apelación no se ajusta a ningún puntaje")
+    void givenADisqualifiedAttemptThenAnAppealCannotAdjustIt() {
+        Attempt attempt = scoredAttempt();
+        attempt.disqualify("robot fuera de pista", "j-1");
+
+        assertThatThrownBy(() -> attempt.adjustAfterAppeal(new AppealRevision("no-existe", RawMetrics.of(1.0, 5, 0),
+                new AuditNote("cualquiera", "sin apelación")), RULEBOOK))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("attempt is disqualified: it cannot close an appeal: it has none open");
+        assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.DISQUALIFIED);
+        assertThat(attempt.getRevisionHistory()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Hallazgo 3: con dos apelaciones abiertas, rechazar una deja al intento en apelación")
+    void givenTwoOpenAppealsThenRejectingOneKeepsTheAttemptUnderAppeal() {
+        Attempt attempt = scoredAttempt();
+        attempt.markUnderAppeal();
+        attempt.markUnderAppeal();
+
+        attempt.restoreAfterRejectedAppeal();
+
+        assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.UNDER_APPEAL);
+        attempt.restoreAfterRejectedAppeal();
+        assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.EVALUATED);
+    }
+
     private static Attempt scoredAttempt() {
         Attempt attempt = Attempt.of(new AttemptIdentity(AttemptId.of("slot-1", 1), "r-1", "t-1"),
                 RulebookReference.of("ch-maze", RULEBOOK));

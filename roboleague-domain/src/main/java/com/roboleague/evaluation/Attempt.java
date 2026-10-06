@@ -15,16 +15,26 @@ import java.util.Objects;
 public class Attempt {
 
     public enum AttemptStatus {
-        PENDING,
-        EVALUATED,
-        UNDER_APPEAL,
-        ADJUSTED,
-        DISQUALIFIED
+        SCHEDULED("scheduled"),
+        EVALUATED("evaluated"),
+        UNDER_APPEAL("under appeal"),
+        ADJUSTED("adjusted"),
+        DISQUALIFIED("disqualified");
+
+        private final String label;
+
+        AttemptStatus(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
     }
 
     private final AttemptIdentity identity;
     private final RulebookReference rulebook;
-    private AttemptStatus status;
+    private AttemptState state;
 
     private final List<AttemptScoreSnapshot> revisionHistory;
     private final List<AttemptEvent> eventHistory;
@@ -32,7 +42,7 @@ public class Attempt {
     public Attempt(AttemptIdentity identity, RulebookReference rulebook) {
         this.identity = Objects.requireNonNull(identity, "identity cannot be null");
         this.rulebook = Objects.requireNonNull(rulebook, "rulebook cannot be null");
-        this.status = AttemptStatus.PENDING;
+        this.state = new ScheduledAttemptState();
         this.revisionHistory = new ArrayList<>();
         this.eventHistory = new ArrayList<>();
     }
@@ -65,7 +75,7 @@ public class Attempt {
     }
 
     public AttemptStatus getStatus() {
-        return status;
+        return state.status();
     }
 
     public List<AttemptScoreSnapshot> getRevisionHistory() {
@@ -109,24 +119,20 @@ public class Attempt {
      * Scores what was captured with the rulebook. The attempt computes its own score: nobody hands it one.
      */
     public void registerInitialResult(RawMetrics metrics, String judgeId, Rulebook rulebook) {
-        if (!revisionHistory.isEmpty()) {
-            throw new IllegalStateException("Attempt already has registered results. Use adjustment methods instead.");
-        }
+        AttemptState next = state.scored();
         Objects.requireNonNull(metrics, "metrics cannot be null");
         Objects.requireNonNull(judgeId, "judgeId cannot be null");
         EvaluationSnapshot evaluation = scored(metrics, rulebook);
 
         addRevision(evaluation, judgeId, "Initial attempt result registration");
         eventHistory.add(ResultRegisteredEvent.create(getId().value(), getTeamId(), evaluation, judgeId));
-        this.status = AttemptStatus.EVALUATED;
+        this.state = next;
     }
 
     public void applyPenaltyAdjustment(int additionalPenalties, AuditNote note, Rulebook rulebook) {
+        AttemptState next = state.faultsAdjusted();
         String reason = note.reason();
         String judgeId = note.authorId();
-        if (status == AttemptStatus.PENDING || revisionHistory.isEmpty()) {
-            throw new IllegalStateException("Cannot adjust an uncompleted attempt");
-        }
         RawMetrics currentMetrics = getLatestMetrics();
         RawMetrics updatedMetrics = currentMetrics.withPenalties(currentMetrics.penaltiesCount() + additionalPenalties);
 
@@ -135,30 +141,25 @@ public class Attempt {
         int revision = addRevision(evaluation, judgeId, "Penalty applied: " + reason);
         eventHistory.add(PenaltyAppliedEvent.create(getId().value(), additionalPenalties, reason, judgeId));
         eventHistory.add(ScoreAdjustedEvent.create(getId().value(), revision, evaluation, note));
-        this.status = AttemptStatus.ADJUSTED;
+        this.state = next;
     }
 
+    /**
+     * Opens one more appeal on the attempt; it stays under appeal until every open appeal is closed.
+     */
     public void markUnderAppeal() {
-        if (revisionHistory.isEmpty()) {
-            throw new IllegalStateException("Cannot appeal an attempt without registered results");
-        }
-        if (status == AttemptStatus.DISQUALIFIED) {
-            throw new IllegalStateException("Cannot appeal a disqualified attempt");
-        }
-        this.status = AttemptStatus.UNDER_APPEAL;
+        this.state = state.appealFiled();
     }
 
     public void restoreAfterRejectedAppeal() {
-        if (status != AttemptStatus.UNDER_APPEAL) {
-            throw new IllegalStateException("Attempt is not under appeal");
-        }
-        this.status = revisionHistory.size() > 1 ? AttemptStatus.ADJUSTED : AttemptStatus.EVALUATED;
+        this.state = state.appealRejected();
     }
 
     /**
      * Adds a revision with the metrics an accepted appeal corrected, scored with the rulebook.
      */
     public void adjustAfterAppeal(AppealRevision revision, Rulebook rulebook) {
+        AttemptState next = state.appealAccepted();
         String appealId = revision.appealId();
         AuditNote note = revision.note();
         EvaluationSnapshot evaluation = scored(revision.metrics(), rulebook);
@@ -167,17 +168,15 @@ public class Attempt {
                 "Revision due to accepted appeal " + appealId + ": " + note.reason());
         eventHistory.add(AppealAcceptedEvent.create(getId().value(), appealId, note.reason(), note.authorId()));
         eventHistory.add(ScoreAdjustedEvent.create(getId().value(), number, evaluation, note));
-        this.status = AttemptStatus.ADJUSTED;
+        this.state = next;
     }
 
     public void disqualify(String reason, String judgeId) {
         Objects.requireNonNull(reason, "reason cannot be null");
         Objects.requireNonNull(judgeId, "judgeId cannot be null");
-        if (status == AttemptStatus.DISQUALIFIED) {
-            throw new IllegalStateException("Attempt is already disqualified");
-        }
+        AttemptState next = state.disqualified();
         eventHistory.add(AttemptDisqualifiedEvent.create(getId().value(), reason, judgeId));
-        this.status = AttemptStatus.DISQUALIFIED;
+        this.state = next;
     }
 
     /**
