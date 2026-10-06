@@ -4,9 +4,13 @@ import com.roboleague.evaluation.audit.*;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Attempt aggregate root in the evaluation bounded context.
@@ -17,6 +21,7 @@ public class Attempt {
 
     public enum AttemptStatus {
         SCHEDULED("scheduled"),
+        AWAITING_SOURCES("awaiting sources"),
         EVALUATED("evaluated"),
         UNDER_APPEAL("under appeal"),
         ADJUSTED("adjusted"),
@@ -37,13 +42,15 @@ public class Attempt {
     private final RulebookReference rulebook;
     private AttemptState state;
 
+    private final Map<ResultSource, SourceDelivery> received;
     private final List<AttemptScoreSnapshot> revisionHistory;
     private final List<AttemptEvent> eventHistory;
 
     public Attempt(AttemptIdentity identity, RulebookReference rulebook) {
         this.identity = Objects.requireNonNull(identity, "identity cannot be null");
         this.rulebook = Objects.requireNonNull(rulebook, "rulebook cannot be null");
-        this.state = new ScheduledAttemptState();
+        this.state = WaitingAttemptState.scheduled();
+        this.received = new EnumMap<>(ResultSource.class);
         this.revisionHistory = new ArrayList<>();
         this.eventHistory = new ArrayList<>();
     }
@@ -77,6 +84,13 @@ public class Attempt {
 
     public AttemptStatus getStatus() {
         return state.status();
+    }
+
+    /**
+     * What each source sent so far, in the order of the sources.
+     */
+    public List<SourceDelivery> getDeliveries() {
+        return List.copyOf(received.values());
     }
 
     public List<AttemptScoreSnapshot> getRevisionHistory() {
@@ -125,6 +139,51 @@ public class Attempt {
     public RawMetrics getLatestMetrics() {
         AttemptScoreSnapshot latest = getLatestSnapshot();
         return latest != null ? latest.metrics() : null;
+    }
+
+    /**
+     * Takes what one source sent (F3). The measurements are checked against the rulebook first: when they do not
+     * fit, nothing changes and the problems come back. The attempt is scored when the last source its rulebook
+     * needs arrives; until then it awaits the others.
+     */
+    public MeasurementCheck receive(SourceDelivery delivery, Rulebook rulebook) {
+        Objects.requireNonNull(delivery, "delivery cannot be null");
+        this.rulebook.requireMatch(rulebook);
+        ResultSource source = delivery.source();
+        Set<ResultSource> missing = EnumSet.noneOf(ResultSource.class);
+        missing.addAll(rulebook.requiredSources());
+        missing.removeAll(received.keySet());
+        missing.remove(source);
+        AttemptState next = state.sourceReceived(missing.isEmpty());
+        if (!rulebook.requiredSources().contains(source)) {
+            return new MeasurementCheck.Rejected(List.of(this.rulebook + " takes no results from " + source));
+        }
+        if (received.containsKey(source)) {
+            throw new IllegalStateException(source + " already arrived for attempt " + getId()
+                    + "; corrections go through a fault adjustment or an appeal");
+        }
+        MeasurementCheck check = rulebook.check(source, delivery.report().named());
+        if (check instanceof MeasurementCheck.Rejected) {
+            return check;
+        }
+
+        received.put(source, delivery);
+        eventHistory.add(SourceReceivedEvent.create(getId().value(), source, delivery.judgeId()));
+        if (missing.isEmpty()) {
+            EvaluationSnapshot evaluation = scored(everythingReceived(), rulebook);
+            addRevision(evaluation, delivery.judgeId(), "Every source arrived");
+            eventHistory.add(ResultRegisteredEvent.create(getId().value(), getTeamId(), evaluation, delivery.judgeId()));
+        }
+        this.state = next;
+        return check;
+    }
+
+    private RawMetrics everythingReceived() {
+        RawMetrics metrics = RawMetrics.nothingMeasured();
+        for (SourceDelivery delivery : received.values()) {
+            metrics = delivery.report().addTo(metrics);
+        }
+        return metrics;
     }
 
     /**

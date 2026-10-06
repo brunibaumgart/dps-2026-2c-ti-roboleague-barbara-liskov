@@ -17,6 +17,13 @@ interface AttemptState {
         return false;
     }
 
+    /**
+     * A source of results arrived; {@code lastOne} says whether it was the last one the rulebook needs.
+     */
+    default AttemptState sourceReceived(boolean lastOne) {
+        throw refused("receive results; corrections go through a fault adjustment or an appeal");
+    }
+
     default AttemptState scored() {
         throw refused("take a first result again; corrections go through a fault adjustment or an appeal");
     }

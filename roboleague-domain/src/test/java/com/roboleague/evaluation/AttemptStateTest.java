@@ -17,6 +17,8 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 class AttemptStateTest {
 
     private static final UnaryOperator<AttemptState> SCORED = AttemptState::scored;
+    private static final UnaryOperator<AttemptState> ONE_SOURCE_LEFT = state -> state.sourceReceived(false);
+    private static final UnaryOperator<AttemptState> LAST_SOURCE = state -> state.sourceReceived(true);
     private static final UnaryOperator<AttemptState> APPEAL_FILED = AttemptState::appealFiled;
     private static final UnaryOperator<AttemptState> APPEAL_REJECTED = AttemptState::appealRejected;
     private static final UnaryOperator<AttemptState> APPEAL_ACCEPTED = AttemptState::appealAccepted;
@@ -26,6 +28,9 @@ class AttemptStateTest {
     static Stream<Arguments> acceptedChanges() {
         return Stream.of(
                 arguments(scheduled(), change("first result", SCORED), AttemptStatus.EVALUATED),
+                arguments(scheduled(), change("a source with another left", ONE_SOURCE_LEFT), AttemptStatus.AWAITING_SOURCES),
+                arguments(scheduled(), change("the only source", LAST_SOURCE), AttemptStatus.EVALUATED),
+                arguments(awaitingSources(), change("the last source", LAST_SOURCE), AttemptStatus.EVALUATED),
                 arguments(evaluated(), change("appeal", APPEAL_FILED), AttemptStatus.UNDER_APPEAL),
                 arguments(evaluated(), change("fault adjustment", FAULTS_ADJUSTED), AttemptStatus.ADJUSTED),
                 arguments(evaluated(), change("disqualification", DISQUALIFIED), AttemptStatus.DISQUALIFIED),
@@ -53,6 +58,14 @@ class AttemptStateTest {
                         "attempt is scheduled: it cannot be disqualified"),
                 arguments(evaluated(), change("second result", SCORED),
                         "attempt is evaluated: it cannot take a first result again; "
+                                + "corrections go through a fault adjustment or an appeal"),
+                arguments(evaluated(), change("another source", LAST_SOURCE),
+                        "attempt is evaluated: it cannot receive results; "
+                                + "corrections go through a fault adjustment or an appeal"),
+                arguments(awaitingSources(), change("appeal", APPEAL_FILED),
+                        "attempt is awaiting sources: it cannot be appealed"),
+                arguments(disqualified(), change("a source", LAST_SOURCE),
+                        "attempt is disqualified: it cannot receive results; "
                                 + "corrections go through a fault adjustment or an appeal"),
                 arguments(evaluated(), change("acceptance", APPEAL_ACCEPTED),
                         "attempt is evaluated: it cannot close an appeal: it has none open"),
@@ -103,7 +116,11 @@ class AttemptStateTest {
     }
 
     private static Named<AttemptState> scheduled() {
-        return Named.of("scheduled", new ScheduledAttemptState());
+        return Named.of("scheduled", WaitingAttemptState.scheduled());
+    }
+
+    private static Named<AttemptState> awaitingSources() {
+        return Named.of("awaiting sources", WaitingAttemptState.awaitingSources());
     }
 
     private static Named<AttemptState> evaluated() {
