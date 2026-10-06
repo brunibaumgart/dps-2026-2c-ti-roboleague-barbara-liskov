@@ -4,6 +4,7 @@ import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ScoreBreakdown;
 import com.roboleague.evaluation.ScoreItem;
 import com.roboleague.evaluation.audit.EvaluationSnapshot;
+import com.roboleague.evaluation.rules.ScoreRule.RuleEvaluation;
 
 import java.util.List;
 import java.util.Map;
@@ -17,14 +18,20 @@ final class RoundScores {
         return round(roundId, total, 60.0, 0);
     }
 
-    static RoundScore round(String roundId, double total, double seconds, int penalties) {
-        return withJudges(roundId, total, seconds, penalties, Map.of());
+    static RoundScore round(String roundId, double total, double seconds, double deducted) {
+        return withJudges(roundId, total, seconds, deducted, Map.of());
     }
 
-    static RoundScore withJudges(String roundId, double total, double seconds, int penalties,
+    /**
+     * A round that scored {@code total} after its deductions took away {@code deducted} points.
+     */
+    static RoundScore withJudges(String roundId, double total, double seconds, double deducted,
                                  Map<String, Double> judgeScores) {
-        ScoreBreakdown breakdown = ScoreBreakdown.of(List.of(ScoreItem.of("Puntaje", "-", "-", total)), List.of());
-        RawMetrics metrics = RawMetrics.of(seconds, 0, penalties, judgeScores);
+        ScoreBreakdown breakdown = new ScoreBreakdown(
+                RuleEvaluation.of(ScoreItem.of("Puntaje", "-", "-", total + deducted)),
+                RuleEvaluation.empty(),
+                RuleEvaluation.of(ScoreItem.of("Descuentos", "-", "-", -deducted)));
+        RawMetrics metrics = RawMetrics.of(seconds, 0, 0, judgeScores);
         return new RoundScore(roundId, EvaluationSnapshot.of(metrics, breakdown));
     }
 

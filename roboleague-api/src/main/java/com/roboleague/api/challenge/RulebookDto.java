@@ -13,7 +13,7 @@ record RulebookDto(int version, List<String> requiredSources, List<RulebookBody.
                    ScoringView scoring, RankingView ranking) {
 
     record ScoringView(List<RulebookBody.RuleBody> rules, List<RulebookBody.RuleBody> bonuses,
-                       RulebookBody.StrategyBody bonusLimit) {
+                       List<RulebookBody.RuleBody> deductions, RulebookBody.StrategyBody bonusLimit) {
     }
 
     record RankingView(RulebookBody.StrategyBody roundSelection, List<String> criteria) {
@@ -24,7 +24,8 @@ record RulebookDto(int version, List<String> requiredSources, List<RulebookBody.
         return new RulebookDto(rulebook.version().number(),
                 rulebook.requiredSources().stream().map(ResultSource::name).sorted().toList(),
                 body.metrics(),
-                new ScoringView(body.scoring().rules(), body.scoring().bonuses(), body.scoring().bonusLimit()),
+                new ScoringView(body.scoring().rules(), body.scoring().bonuses(), body.scoring().deductions(),
+                        body.scoring().bonusLimit()),
                 new RankingView(body.ranking().roundSelection(), body.ranking().criteria()));
     }
 }

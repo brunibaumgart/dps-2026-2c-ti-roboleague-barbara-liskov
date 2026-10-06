@@ -278,7 +278,7 @@ roboleague-domain/
   - **`RankingScheme`** es la tercera parte del `Rulebook`, junto a la versión y las reglas: `rulebook.rankingScheme()`. Agrupa la selección de rondas y la cadena de desempate porque las dos responden a "cómo se clasifica en este desafío", y tiene comportamiento propio (`decide`, `compare`).
   - **Strategy `RoundSelection`**: `BestNOfM(n, m)` y `AllRounds`. Trabaja sobre puntajes ya calculados (`RoundScore`: ronda + snapshot vigente del intento), así que no toca ninguna `ScoreRule`, que es el criterio de aceptación de F1.
   - **`ChallengeScore`** es la explicación de F1: rondas consideradas, descartadas y la regla aplicada ("mejores 2 de 3 rondas"), con total, mejor tiempo, faltas y nota de jueces de las consideradas.
-  - **`TieBreakCriterion`** con nombre de dominio (`HigherTotal`, `LowerTime`, `FewerPenalties`, `HigherJudgeScore`). `RankingScheme.decide` recorre la cadena en el orden declarado y devuelve un resultado `sealed`: `DecidedBy(criterio, orden)` o `Tied`. Que el desenlace sea un tipo propio y no un `if` sobre el tipo de criterio es lo que permite la regla #8.
+  - **`TieBreakCriterion`** con nombre de dominio (`HigherTotal`, `LowerTime`, `FewerPenalties`, `HigherJudgeScore`; desde 2.17, `LowerDeductions` reemplaza a `FewerPenalties`). `RankingScheme.decide` recorre la cadena en el orden declarado y devuelve un resultado `sealed`: `DecidedBy(criterio, orden)` o `Tied`. Que el desenlace sea un tipo propio y no un `if` sobre el tipo de criterio es lo que permite la regla #8.
   - **El total ordena primero**: la cadena siempre empieza con `HigherTotal` y no repite criterios; si no, `RankingScheme` la rechaza. Sin esa guarda, un reglamento con solo `lower-time` ordenaba ignorando el puntaje, y la consigna pide ordenar por puntaje y desempatar después.
   - **Ausencia sin relleno**: un equipo sin rondas no tiene tiempo, y una ronda sin panel de jueces no tiene nota (`OptionalDouble` vacío); quedan últimos en esos criterios en vez de usar `Double.MAX_VALUE` o 0 (regla #24).
   - **Por qué en `evaluation` y no en `ranking`**: el esquema es parte del reglamento, que vive en `evaluation`; `ranking` ya depende de `evaluation`, y al revés habría un ciclo de paquetes.
@@ -305,7 +305,7 @@ roboleague-domain/
 - **Solución Implementada**:
   - **`ResultSource`** (mediciones automáticas, panel de jueces) y **`ScoreRule.source()`**: cada regla declara de qué fuente lee. Las cinco reglas existentes devuelven una fuente fija; las nuevas la toman de la métrica que leen.
   - **`Metric(nombre, fuente)`**: una medición con nombre (precisión, víctimas rescatadas, salidas de línea…) que se lee de `RawMetrics.measurement(métrica)`. Si no fue capturada, falla nombrando la métrica en vez de devolver 0 (regla #24); es excepción y no resultado porque evaluar sin todas las fuentes no debería pasar: esperar las fuentes es el estado "esperando fuentes" del intento.
-  - **Cuatro reglas nuevas**: `PrecisionRule`, `VictimsRule` (suma por rescatada y resta por abandonada), `MilestoneBonusRule` y `CountedFaultRule` (faltas contadas con franquicia). "Salidas de línea" y "Colisiones" son dos instancias de `CountedFaultRule` con otra métrica, no dos clases (reglas #6 y #7). Con las cinco existentes son nueve; el décimo tipo es el tope de bonificaciones (F2).
+  - **Cuatro reglas nuevas**: `PrecisionRule`, `VictimsRule` (suma por rescatada y resta por abandonada; desde 2.17 la resta es `AbandonedVictimsRule`), `MilestoneBonusRule` y `CountedFaultRule` (faltas contadas con franquicia). "Salidas de línea" y "Colisiones" son dos instancias de `CountedFaultRule` con otra métrica, no dos clases (reglas #6 y #7). Con las cinco existentes son nueve; el décimo tipo es el tope de bonificaciones (F2).
   - **Regla compuesta "Desempeño en pista"** = Tiempo + Objetivos, con `CompositeScoreRule`. Una regla compuesta exige que sus hijas lean de la misma fuente, para que su fuente esté definida.
   - **`Rulebook.requiredSources()`** y **`Rulebook.contributions(métricas)`**: las fuentes que exige el reglamento y el desglose separado por fuente (`SourceContribution`). El piso en cero y el tope de F2 quedan en el desglose total, no en una fuente. Como un reglamento mixto mezcla fuentes, las reglas se guardan en listas (hoy dentro del `ScoringScheme`, 2.12) en vez de envolverse en un `CompositeScoreRule`; combinar evaluaciones vive en un solo lugar (`RuleEvaluation.combining` y `RuleEvaluation.concat`).
 
@@ -338,7 +338,7 @@ roboleague-domain/
 - **F2: clases modificadas**: `Rulebook` (recibe un `ScoringScheme` en lugar de una lista de reglas y le delega fuentes y contribuciones), `ScoreRule.RuleEvaluation` (`concat`), `Challenge` (`Draft.publish` y `publish` reciben el `ScoringScheme`), `DemoFixture` y los tests que arman reglamentos (`ScoringScheme.withoutBonuses(reglas)`).
 - **F2: refactors**: ninguno sobre las reglas de bonificación.
 - **F2: deuda que decidimos no resolver**:
-  - Nada impide poner una regla que resta (por ejemplo una penalización) en la lista de bonificaciones: lo obtenido puede ser negativo y el tope no recorta (lo documenta `BonusCapTest`). Clasificar cada regla como base, bonificación o penalización por tipo queda pendiente: quien configura el reglamento decide en qué lista va cada regla.
+  - ~~Nada impide poner una regla que resta en la lista de bonificaciones.~~ Cerrada en 2.17: cada regla es base, bonificación o deducción por tipo, y el bono por completar objetivos, que escapaba al tope, es una bonificación más.
   - La demo muestra el tope desde 2.15: los intentos de Laberinto recortan 10 puntos de bonificaciones.
 - **Patrones no aplicados**: Decorator sobre `ScoreRule` (ver arriba); tope por regla (la consigna pide sobre el conjunto).
 
@@ -358,7 +358,7 @@ roboleague-domain/
 - **Alternativas descartadas**: anotaciones de Jackson (`@JsonTypeInfo`) sobre las reglas (meten un tercero en el dominio, regla #11); una factory en la API y otra en la persistencia (la misma decisión dos veces); guardar las reglas serializando las clases (el esquema de la tabla quedaría atado a los campos privados).
 - **Patrones no aplicados**: Visitor para describir reglas (cada regla ya sabe describirse); Builder para armar reglamentos (los records alcanzan).
 - **Deuda**:
-  - Una regla que resta puede declararse como bonificación (2.12). Los nombres de métrica dejaron de ser texto libre en 2.16. Las dos cosas las pide la consigna en "Configuración de desafíos" y quedan para después de esta entrega.
+  - ~~Una regla que resta puede declararse como bonificación (2.12) y los nombres de métrica son texto libre.~~ Cerradas en 2.17 y 2.16.
   - `RuleCatalog.standard()` conoce las diez implementaciones desde el dominio. Son conceptos del dominio, no detalles técnicos, pero la lista podría armarse en el composition root (`UseCaseConfig`) para dejar la decisión más cerca del borde (regla #9).
   - Ciclo de paquetes `evaluation` ↔ `evaluation.definition` (por `Metric`), que se suma al de `evaluation` ↔ `evaluation.rules`. Se corta moviendo `Metric` y `ResultSource` a un paquete hoja.
   - La traducción JSON ↔ definición está escrita dos veces, en `RulebookBody` (API) y en `ChallengeMapper` (persistencia), porque cada borde fija su propia forma de datos; si las formas coinciden siempre, se puede compartir.
@@ -408,6 +408,42 @@ roboleague-domain/
   - Los reglamentos guardados antes de este cambio no tienen `metrics`: si alguna regla lee una métrica con nombre ya no se reconstruyen (`IllegalStateException`). Hoy solo hay datos de la demo, que se recargan en cada arranque.
   - Se permiten métricas declaradas que ninguna regla lee; la captura igual las exige.
   - El rango de una métrica no se cruza con los parámetros de la regla (por ejemplo, que el máximo de víctimas rescatadas coincida con `totalVictims`).
+
+---
+
+### 2.17 Reglas base, bonificaciones y deducciones; desempate por descuento
+
+- **Problema**:
+  F2 pide que el tope se aplique sobre "la suma de todas las bonificaciones". El reglamento tenía dos listas sin tipo (reglas y bonificaciones), así que nada impedía poner una penalización entre las bonificaciones (lo obtenido daba negativo y el tope no recortaba), y la regla de objetivos traía adentro un bono por completarlos todos que el tope no veía. `VictimsRule` sumaba y restaba en la misma regla. Además, el criterio `fewer-penalties` comparaba solo el campo fijo de faltas: en el Seguidor de línea, cuyas faltas son salidas de línea medidas, empataba siempre. Y un parámetro mal escrito se ignoraba en silencio.
+
+- **Solución Implementada**:
+  - **Tres secciones tipadas**: `BaseRule`, `BonusRule` y `DeductionRule` extienden `ScoreRule` sin métodos nuevos; el contrato (una base o una bonificación nunca resta, una deducción nunca suma) está en el Javadoc y lo verifica `ScoreRuleSectionsTest`. `ScoreRules(List<BaseRule>, List<BonusRule>, List<DeductionRule>)`: el compilador impide una penalización entre las bonificaciones, sin preguntar el tipo en tiempo de ejecución (regla #8). La compuesta solo admite reglas base.
+  - **El catálogo por sección**: `RuleCatalog` registra cada tipo en su `RuleSection` (base, bonificación o deducción); registrar un tipo solo compila si su regla es de esa sección. Un tipo en la lista equivocada es un problema 422 que dice a qué sección pertenece (`"type 'penalty' is a deduction, not a bonus"`).
+  - **Se separan las reglas que mezclaban**: el bono por completar todos los objetivos pasa a ser la bonificación `all-objectives` (`AllObjectivesBonusRule`), y `ObjectivesRule` (ex `ObjectiveBonusRule`) queda con los puntos por objetivo. Las víctimas abandonadas son la deducción `abandoned-victims` (`AbandonedVictimsRule`), que es la que conoce el total de víctimas. No se reescribe ninguna regla de bonificación: se saca un bono que estaba escondido en una regla base, así el tope de F2 cubre de verdad todas las bonificaciones.
+  - **El desglose por sección**: `ScoreBreakdown(base, bonificaciones con su tope, deducciones)`. Los ítems, las notas y el total se derivan (el total ya no puede contradecir a los ítems) y el piso en cero sigue apareciendo como ítem. `deducted()` dice cuántos puntos quitaron las deducciones.
+  - **Desempate por descuento**: `LowerDeductions` (`lower-deductions`) compara los puntos descontados en las rondas consideradas, sea cual sea la deducción (faltas, salidas de línea, colisiones, consumo). Un equipo sin rondas no tiene descuento y queda último (regla #24). Reemplaza a `FewerPenalties`.
+  - **Nada desconocido se ignora**: una regla, una estrategia o un rango con un parámetro, una métrica o reglas anidadas que no usa se rechaza (422). Para saber qué acepta cada pieza se la compara con su propia `definition()`, así la lista de nombres válidos no se repite (regla #27).
+  - **Validaciones chicas**: `basePoints` de la regla de tiempo no puede ser negativo, y `ObjectivesRule` formatea con `Locale.US` como las demás.
+
+- **Impacto en la demo**: el bono de "Todos los objetivos" entra al tope de Laberinto. TitanTeam pasa de 222,5 a 197,5 (el tope recorta 35 en vez de 10) y, después de la apelación, de 282,5 a 257,5; CyberTeam sigue en 235. La apelación sigue dando vuelta el orden. El descuento de TitanTeam baja de 65 a 5 puntos con la apelación.
+- **Clases agregadas**: `BaseRule`, `BonusRule`, `DeductionRule`, `RuleSection`, `AllObjectivesBonusRule`, `AbandonedVictimsRule`, `LowerDeductions`, `RulebookDefinition.Bonuses`.
+- **Clases modificadas**: las doce reglas (sección), `ObjectivesRule`, `VictimsRule`, `VictimTariff`, `CompositeScoreRule`, `TimeTargets`, `ScoreRule.RuleEvaluation` (`combining` con comodín), `ScoreRules`, `ScoringScheme`, `ScoreBreakdown`, `Rulebook`, `RuleCatalog`, `RulebookDefinition`, `Parameters` y `RuleArguments` (`unknownTo`), `RoundScore` y `ChallengeScore` (`deducted`), `RulebookBody`, `RulebookDto`, `ChallengeJpaEntity`, `ChallengeMapper`, `DemoRulebooks`.
+- **Clases eliminadas**: `ObjectiveRuleConfig`, `FewerPenalties`.
+- **Refactors**: `ObjectiveBonusRule` pasa a llamarse `ObjectivesRule`; `ScoreBreakdown` guarda sus secciones y deriva el total.
+- **Alternativas descartadas**:
+  - Un `kind()` en cada regla y validar la lista al publicar: es preguntar el tipo (regla #8), deja armar en código esquemas inválidos que recién fallan al construirse, y no ahorra lo caro (partir objetivos y víctimas, el desglose por sección).
+  - Una sola lista en el JSON que el catálogo reparte por tipo: el JSON deja de mostrar qué se bonifica y qué se descuenta.
+  - Marcar la sección en cada `ScoreItem`: cuatro parámetros (regla #2) y filtrar por un enum.
+  - Que el ranking vuelva a evaluar las deducciones con el reglamento: reinterpreta la pista al rankear (2.9).
+  - Una migración que reescriba los reglamentos guardados: meter el bono de objetivos dentro del tope cambiaría cómo puntúa una versión ya publicada.
+- **Patrones no aplicados**: compuesta por sección (alcanza con la base; se podría registrar el mismo tipo en cada sección sobre un grupo genérico); `ScoreRule` sellada (cerraría el conjunto de reglas, contra OCP); Visitor para clasificar.
+- **Deuda que decidimos no resolver en este paso**:
+  - Los reglamentos guardados antes de este cambio (una penalización en `rules`, `allCompletedBonus`, `fewer-penalties`) no se reconstruyen. Solo hay datos de la demo, que se recargan en cada arranque.
+  - El bono por segundo bajo el objetivo de la regla de tiempo sigue siendo parte de la base y no entra al tope.
+  - `all-objectives` es un `milestone` sobre los objetivos y `penalty` un `counted-fault` sobre las faltas: se unifican cuando esos campos fijos sean métricas declaradas (2.16).
+  - `TieBreakerChain` y `TeamScore` siguen contando faltas hasta que la tabla use `RankingScheme` (2.10).
+  - Una nota de jueces negativa rompería el contrato de la base: `EvaluationFeedback` no valida su signo.
+  - **La API ignora las claves JSON desconocidas** (configuración por defecto de Spring con Jackson): un reglamento que manda `"penalties"` en lugar de `"deductions"` se acepta con 201 y la penalización se pierde (verificado con un pedido real). Dentro de cada regla sí se rechaza lo desconocido, porque lo valida el catálogo. Activar `spring.jackson.deserialization.fail-on-unknown-properties` cambia todos los endpoints, así que es una decisión de plataforma (frente 5).
 
 ---
 
@@ -484,6 +520,7 @@ El diseño implementado se valida con pruebas automatizadas en `src/test/java` d
   - `EditionTest` y `EditionControllerTest` (API): una edición no ofrece dos categorías con el mismo id, no acepta ids ni nombres en blanco, y un dato obligatorio faltante es 400 y no 500.
   - `BonusCapTest`: Verifica, con casos parametrizados, que el tope recorta solo lo que la suma de bonificaciones supera, que se aplica sobre el conjunto y no sobre cada una, que la explicación muestra lo obtenido, el tope y el recorte, y que agregar el tope no cambia lo que da cada regla de bonificación.
   - `MetricDefinitionTest` y `MeasurementCheckTest`: con casos parametrizados, que una medición se acepta solo entera si es un conteo y dentro de su rango, y que revisar lo que manda una fuente junta todos los problemas (faltante, mal escrita, de otra fuente, fuera de rango) sin exigir las métricas de la otra fuente. `RuleCatalogTest` suma la ida y vuelta de las métricas declaradas y los rechazos por rango inválido, métrica repetida, no declarada o de otra fuente.
+  - `ScoreRuleSectionsTest`: con casos parametrizados por regla y carrera (perfecta, media, mala), que una regla base o una bonificación nunca resta y una deducción nunca suma. `RuleCatalogTest` prueba cada tipo en la lista de su sección y rechaza un tipo en la sección equivocada o con parámetros desconocidos; `RankingSchemeTest` desempata un Seguidor de línea real por menor descuento.
   - `MeasuredRulesTest` y `RulebookSourcesTest`: Verifican, con casos parametrizados, las reglas nuevas (faltas con franquicia, precisión, víctimas, hito), que una medición faltante no se convierte en cero, la fuente que declara cada regla, que una regla compuesta no mezcle fuentes, las fuentes que exige un reglamento y que, sin tope, las contribuciones por fuente sumen el total.
   - `BestNOfMTest` y `RankingSchemeTest`: Verifican, con casos parametrizados, qué rondas cuentan con mejores N de M y cuáles se descartan, que el primer criterio que separa a dos equipos dé su nombre, el empate en todos los criterios y que el orden declarado cambie al ganador.
   - `ChallengeTest`: Verifica que cada publicación del reglamento crea la versión siguiente, que una versión nueva no cambia cómo puntúa la anterior y que se puede pedir una versión exacta.

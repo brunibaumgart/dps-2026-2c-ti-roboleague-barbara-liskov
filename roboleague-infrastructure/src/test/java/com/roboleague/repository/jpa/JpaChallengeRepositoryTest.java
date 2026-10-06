@@ -15,12 +15,13 @@ import com.roboleague.evaluation.ScoreRules;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.TrackPerformance;
 import com.roboleague.evaluation.ValueRange;
+import com.roboleague.evaluation.rules.AllObjectivesBonusRule;
 import com.roboleague.evaluation.rules.CompositeScoreRule;
 import com.roboleague.evaluation.rules.CountedFaultRule;
 import com.roboleague.evaluation.rules.FaultTariff;
 import com.roboleague.evaluation.rules.Milestone;
 import com.roboleague.evaluation.rules.MilestoneBonusRule;
-import com.roboleague.evaluation.rules.ObjectiveBonusRule;
+import com.roboleague.evaluation.rules.ObjectivesRule;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.TimeBasedRule;
 import com.roboleague.evaluation.scheme.BestNOfM;
@@ -73,10 +74,11 @@ class JpaChallengeRepositoryTest {
                 new MetricDefinition(CHECKPOINT, MeasurementUnit.COUNT, ValueRange.between(0.0, 1.0))));
         return new ScoringScheme(metrics, new ScoreRules(
                 List.of(new CompositeScoreRule("Desempeño en pista", List.of(
-                                TimeBasedRule.standard(100.0, 60.0), ObjectiveBonusRule.standard(20.0, 5))),
-                        new PenaltyRule("Faltas", 15.0),
-                        new CountedFaultRule("Colisiones", COLLISIONS, new FaultTariff(1, 5.0))),
-                List.of(new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), 30.0))),
+                        TimeBasedRule.standard(100.0, 60.0), ObjectivesRule.standard(20.0)))),
+                List.of(new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), 30.0),
+                        new AllObjectivesBonusRule("Todos los objetivos", 5, 25.0)),
+                List.of(new PenaltyRule("Faltas", 15.0),
+                        new CountedFaultRule("Colisiones", COLLISIONS, new FaultTariff(1, 5.0)))),
                 new CappedAt(cap));
     }
 
@@ -118,7 +120,7 @@ class JpaChallengeRepositoryTest {
             assertThat(restored.evaluate(run)).isEqualTo(original.evaluate(run));
         }
         assertThat(stored.currentRulebook().evaluate(run).items())
-                .anyMatch(item -> item.concept().equals("Tope de bonificaciones") && item.subtotal() == -10.0);
+                .anyMatch(item -> item.concept().equals("Tope de bonificaciones") && item.subtotal() == -35.0);
         assertThat(stored.currentRulebook().rankingScheme().roundSelection()).isEqualTo(new BestNOfM(3, 5));
     }
 

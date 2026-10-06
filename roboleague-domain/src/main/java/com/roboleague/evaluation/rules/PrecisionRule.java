@@ -15,7 +15,7 @@ import java.util.Set;
 /**
  * Awards a share of the maximum points proportional to a measured precision between 0 and 1.
  */
-public final class PrecisionRule implements ScoreRule {
+public final class PrecisionRule implements BaseRule {
     private final String ruleName;
     private final Metric accuracy;
     private final double maxPoints;

@@ -15,7 +15,7 @@ import java.util.Set;
 /**
  * Scoring rule calculating points according to execution time.
  */
-public class TimeBasedRule implements ScoreRule {
+public class TimeBasedRule implements BaseRule {
     private final String ruleName;
     private final TimeRuleConfig config;
 

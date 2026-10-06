@@ -41,7 +41,7 @@ public interface ScoreRule {
             return total;
         }
 
-        public static RuleEvaluation combining(List<ScoreRule> rules, RawMetrics metrics) {
+        public static RuleEvaluation combining(List<? extends ScoreRule> rules, RawMetrics metrics) {
             List<RuleEvaluation> evaluations = new ArrayList<>();
             for (ScoreRule rule : rules) {
                 evaluations.add(rule.evaluate(metrics));

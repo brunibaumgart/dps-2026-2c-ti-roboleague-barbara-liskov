@@ -24,7 +24,9 @@ class AttemptAuditTrailTest {
     void setUp() {
         TimeBasedRule timeRule = new TimeBasedRule("Tiempo", TimeRuleConfig.of(100.0, 60.0, 1.0, 2.0, 0.0));
         PenaltyRule penaltyRule = new PenaltyRule("Penalizaciones", 10.0);
-        standardPolicy = new Rulebook(RulebookVersion.first(), ScoringScheme.withoutBonuses(List.of(timeRule, penaltyRule)), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
+        standardPolicy = new Rulebook(RulebookVersion.first(),
+                ScoringScheme.withoutBonuses(List.of(timeRule), List.of(penaltyRule)),
+                new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
     }
 
     @Test

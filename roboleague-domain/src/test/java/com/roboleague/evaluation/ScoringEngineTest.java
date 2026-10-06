@@ -8,6 +8,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,6 +35,24 @@ class ScoringEngineTest {
     }
 
     @Test
+    @DisplayName("La fórmula de objetivos se escribe igual sin importar el idioma de la máquina")
+    void objectiveFormulaDoesNotDependOnTheDefaultLocale() {
+        Locale previous = Locale.getDefault();
+        Locale.setDefault(Locale.GERMANY);
+        try {
+            ScoreItem objectives = new ObjectivesRule("Objetivos", 20.0).evaluate(RawMetrics.of(50.0, 5, 0))
+                    .items().getFirst();
+            ScoreItem allObjectives = new AllObjectivesBonusRule("Todos los objetivos", 5, 25.0)
+                    .evaluate(RawMetrics.of(50.0, 5, 0)).items().getFirst();
+
+            assertThat(objectives.appliedFormula()).isEqualTo("5 obj * 20.0 pts");
+            assertThat(allObjectives.appliedFormula()).isEqualTo("todos los objetivos: +25.0 pts");
+        } finally {
+            Locale.setDefault(previous);
+        }
+    }
+
+    @Test
     @DisplayName("TimeBasedRule penalizes when exceeding target time")
     void timeBasedRuleDeductsForSlowness() {
         TimeBasedRule rule = new TimeBasedRule("Tiempo de Carrera", TimeRuleConfig.of(100.0, 60.0, 2.0, 3.0, 0.0));
@@ -49,23 +68,17 @@ class ScoringEngineTest {
     }
 
     @Test
-    @DisplayName("ObjectiveBonusRule computes points per milestone plus all-completed bonus")
-    void objectiveBonusRuleCalculations() {
-        // 20 pts per objective, 4 total objectives, 30 pts all-completed bonus
-        ObjectiveBonusRule rule = new ObjectiveBonusRule("Hitos de Navegación", new ObjectiveRuleConfig(20.0, 4, 30.0));
+    @DisplayName("Los objetivos suman por cada uno; completar todos es una bonificación aparte")
+    void objectivesAndTheAllObjectivesBonusAreSeparateRules() {
+        ScoreRule objectives = new ObjectivesRule("Hitos de Navegación", 20.0);
+        ScoreRule allObjectives = new AllObjectivesBonusRule("Todos los hitos", 4, 30.0);
+        RawMetrics threeOfFour = RawMetrics.of(50.0, 3, 0);
+        RawMetrics fourOfFour = RawMetrics.of(50.0, 4, 0);
 
-        // Scenario 1: 3 out of 4 completed
-        RawMetrics metricsPartial = RawMetrics.of(50.0, 3, 0);
-        ScoreRule.RuleEvaluation evalPartial = rule.evaluate(metricsPartial);
-        // 3 * 20 = 60.0
-        assertThat(evalPartial.items().get(0).subtotal()).isEqualTo(60.0);
-
-        // Scenario 2: all 4 completed
-        RawMetrics metricsAll = RawMetrics.of(50.0, 4, 0);
-        ScoreRule.RuleEvaluation evalAll = rule.evaluate(metricsAll);
-        // 4 * 20 + 30 = 110.0
-        assertThat(evalAll.items().get(0).subtotal()).isEqualTo(110.0);
-        assertThat(evalAll.items().get(0).appliedFormula()).contains("bonificación total");
+        assertThat(objectives.evaluate(threeOfFour).total()).isEqualTo(60.0);
+        assertThat(allObjectives.evaluate(threeOfFour).total()).isZero();
+        assertThat(objectives.evaluate(fourOfFour).total()).isEqualTo(80.0);
+        assertThat(allObjectives.evaluate(fourOfFour).total()).isEqualTo(30.0);
     }
 
     @Test
@@ -104,16 +117,18 @@ class ScoringEngineTest {
     @Test
     @DisplayName("A rulebook consolidates rules from both sources into an explainable ScoreBreakdown")
     void rulebookConsolidatesExplainableBreakdown() {
-        ScoreRule timeRule = new TimeBasedRule("Tiempo", TimeRuleConfig.of(100.0, 60.0, 1.0, 2.0, 0.0));
-        ScoreRule objRule = new ObjectiveBonusRule("Objetivos", new ObjectiveRuleConfig(25.0, 4, 20.0));
-        ScoreRule penaltyRule = new PenaltyRule("Penalizaciones", 10.0);
-        ScoreRule judgeRule = new JudgeSubjectiveRule("Jueces", 2.0);
+        BaseRule timeRule = new TimeBasedRule("Tiempo", TimeRuleConfig.of(100.0, 60.0, 1.0, 2.0, 0.0));
+        BaseRule objRule = new ObjectivesRule("Objetivos", 25.0);
+        BonusRule allObjectives = new AllObjectivesBonusRule("Todos los objetivos", 4, 20.0);
+        DeductionRule penaltyRule = new PenaltyRule("Penalizaciones", 10.0);
+        BaseRule judgeRule = new JudgeSubjectiveRule("Jueces", 2.0);
 
-        Rulebook rulebook = new Rulebook(RulebookVersion.first(), ScoringScheme.withoutBonuses(List.of(timeRule, objRule, penaltyRule, judgeRule)),
-                new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
+        Rulebook rulebook = new Rulebook(RulebookVersion.first(), new ScoringScheme(MetricSheet.none(),
+                new ScoreRules(List.of(timeRule, objRule, judgeRule), List.of(allObjectives), List.of(penaltyRule)),
+                new Unlimited()), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
 
         // Time: 50s (+10 bonus => 110)
-        // Objectives: 4 (+100 + 20 => 120)
+        // Objectives: 4 * 25 = 100, plus the all-objectives bonus +20 => 120
         // Penalties: 2 (-20 => -20)
         // Judges: avg 8.0 * 2.0 = 16.0
         // Expected total = 110 + 120 - 20 + 16 = 226.0
@@ -124,12 +139,15 @@ class ScoringEngineTest {
 
         ScoreBreakdown breakdown = rulebook.evaluate(metrics);
 
-        assertThat(breakdown.items()).hasSize(4);
+        assertThat(breakdown.items()).hasSize(5);
         assertThat(breakdown.totalScore()).isEqualTo(226.0);
-        assertThat(breakdown.notesAndPenalties()).hasSize(4);
+        assertThat(breakdown.base().total()).isEqualTo(110.0 + 100.0 + 16.0);
+        assertThat(breakdown.bonuses().total()).isEqualTo(20.0);
+        assertThat(breakdown.deductions().total()).isEqualTo(-20.0);
+        assertThat(breakdown.notesAndPenalties()).hasSize(5);
 
         // Verify each line item exists and is explainable
         assertThat(breakdown.items()).extracting(ScoreItem::concept)
-                .containsExactly("Tiempo", "Objetivos", "Penalizaciones", "Jueces");
+                .containsExactly("Tiempo", "Objetivos", "Jueces", "Todos los objetivos", "Penalizaciones");
     }
 }

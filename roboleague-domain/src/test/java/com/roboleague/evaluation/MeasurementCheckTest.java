@@ -26,7 +26,7 @@ class MeasurementCheckTest {
                     new MetricDefinition(Metric.sensor("colisiones"), MeasurementUnit.COUNT, ValueRange.atLeast(0.0)),
                     new MetricDefinition(Metric.sensor("precision"), MeasurementUnit.RATIO, ValueRange.between(0.0, 1.0)),
                     new MetricDefinition(Metric.judged("victimas"), MeasurementUnit.COUNT, ValueRange.between(0.0, 4.0)))),
-            new ScoreRules(List.of(new PenaltyRule("Faltas", 10.0)), List.of()), new Unlimited()),
+            new ScoreRules(List.of(), List.of(), List.of(new PenaltyRule("Faltas", 10.0))), new Unlimited()),
             new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
 
     @Test

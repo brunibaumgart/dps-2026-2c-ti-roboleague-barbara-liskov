@@ -34,15 +34,17 @@ class ChallengeControllerTest extends ApiTest {
                      {"type": "composite", "name": "Desempeño en pista", "rules": [
                        {"type": "time", "name": "Tiempo", "numbers": {"basePoints": 100, "targetTimeSeconds": 60,
                          "pointsPerSecondUnder": 1.5, "deductionPerSecondOver": 2, "minPoints": 0}},
-                       {"type": "objectives", "name": "Objetivos", "numbers": {"pointsPerObjective": 20,
-                         "totalObjectives": 5, "allCompletedBonus": 25}}]},
-                     {"type": "%s", "name": "Faltas", "numbers": {"deductionPerPenalty": 15}}],
+                       {"type": "objectives", "name": "Objetivos", "numbers": {"pointsPerObjective": 20}}]}],
                    "bonuses": [
                      {"type": "milestone", "name": "Checkpoint", "numbers": {"threshold": 1, "bonus": 30},
-                      "metrics": {"metric": {"name": "checkpoint", "source": "AUTOMATIC_MEASUREMENTS"}}}],
+                      "metrics": {"metric": {"name": "checkpoint", "source": "AUTOMATIC_MEASUREMENTS"}}},
+                     {"type": "all-objectives", "name": "Todos los objetivos",
+                      "numbers": {"totalObjectives": 5, "bonus": 25}}],
+                   "deductions": [
+                     {"type": "%s", "name": "Faltas", "numbers": {"deductionPerPenalty": 15}}],
                    "bonusLimit": {"type": "capped", "numbers": {"maximum": %s}}},
                  "ranking": {"roundSelection": {"type": "best-n-of-m", "numbers": {"considered": 3, "outOf": 5}},
-                             "criteria": ["higher-total", "lower-time", "fewer-penalties"]}}
+                             "criteria": ["higher-total", "lower-time", "lower-deductions"]}}
                 """.formatted(penaltyType, cap);
     }
 
@@ -76,6 +78,7 @@ class ChallengeControllerTest extends ApiTest {
                 .andExpect(jsonPath("$.currentRulebook.metrics[0].unit").value("COUNT"))
                 .andExpect(jsonPath("$.currentRulebook.metrics[0].range.max").value(1.0))
                 .andExpect(jsonPath("$.currentRulebook.scoring.rules[0].type").value("composite"))
+                .andExpect(jsonPath("$.currentRulebook.scoring.deductions[0].type").value("penalty"))
                 .andExpect(jsonPath("$.currentRulebook.scoring.bonusLimit.numbers.maximum").value(40.0))
                 .andExpect(jsonPath("$.currentRulebook.ranking.criteria[1]").value("lower-time"));
     }
@@ -120,6 +123,50 @@ class ChallengeControllerTest extends ApiTest {
         mvc.perform(addChallenge("api-ed-ch", "api-ch-malformed", rulebook))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").exists());
+    }
+
+    @Test
+    @DisplayName("Un parámetro mal escrito es 422: no se ignora en silencio")
+    void aMisspelledParameterIsUnprocessable() throws Exception {
+        String misspelled = rulebook("penalty", 40)
+                .replace("\"deductionPerPenalty\": 15", "\"deductionPerPenalty\": 15, \"deductionPerPenaltyy\": 7");
+
+        mvc.perform(addChallenge("api-ed-ch", "api-ch-typo", misspelled))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.details[0]").value("rule 'Faltas': unknown parameter 'deductionPerPenaltyy'"));
+    }
+
+    @Test
+    @DisplayName("Un reglamento con el bono de objetivos adentro de la regla de objetivos es 422")
+    void theOldAllCompletedBonusIsUnprocessable() throws Exception {
+        String old = rulebook("penalty", 40).replace("\"pointsPerObjective\": 20}",
+                "\"pointsPerObjective\": 20, \"totalObjectives\": 5, \"allCompletedBonus\": 25}");
+
+        mvc.perform(addChallenge("api-ed-ch", "api-ch-old-objectives", old))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.details[0]").value("rule 'Desempeño en pista': rule 'Objetivos': "
+                        + "unknown parameter 'allCompletedBonus', unknown parameter 'totalObjectives'"));
+    }
+
+    @Test
+    @DisplayName("Una penalización puesta entre las bonificaciones es 422 y dice a qué lista pertenece")
+    void aPenaltyAmongTheBonusesIsUnprocessable() throws Exception {
+        String misplaced = rulebook("penalty", 40).replace("\"bonuses\": [", """
+                "bonuses": [{"type": "penalty", "name": "Faltas dobles", "numbers": {"deductionPerPenalty": 30}},""");
+
+        mvc.perform(addChallenge("api-ed-ch", "api-ch-misplaced", misplaced))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.details[0]").value("rule 'Faltas dobles': type 'penalty' is a deduction, not a bonus"));
+    }
+
+    @Test
+    @DisplayName("El criterio viejo fewer-penalties ya no existe: es 422")
+    void theOldFewerPenaltiesCriterionIsUnprocessable() throws Exception {
+        String old = rulebook("penalty", 40).replace("\"lower-deductions\"", "\"fewer-penalties\"");
+
+        mvc.perform(addChallenge("api-ed-ch", "api-ch-old-criterion", old))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.details[0]").value("tie-break criterion 'fewer-penalties': unknown criterion"));
     }
 
     @Test

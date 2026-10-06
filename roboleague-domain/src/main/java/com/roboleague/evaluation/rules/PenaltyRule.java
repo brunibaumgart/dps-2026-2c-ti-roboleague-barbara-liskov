@@ -15,7 +15,7 @@ import java.util.Set;
 /**
  * Scoring rule applying deductions for fouls or track infractions.
  */
-public class PenaltyRule implements ScoreRule {
+public class PenaltyRule implements DeductionRule {
     private final String ruleName;
     private final double deductionPerPenalty;
 

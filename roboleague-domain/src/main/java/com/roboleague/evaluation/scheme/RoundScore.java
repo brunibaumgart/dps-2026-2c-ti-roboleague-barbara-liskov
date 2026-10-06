@@ -22,8 +22,8 @@ public record RoundScore(String roundId, EvaluationSnapshot evaluation) {
         return evaluation.metrics().timeTakenSeconds();
     }
 
-    public int penalties() {
-        return evaluation.metrics().penaltiesCount();
+    public double deducted() {
+        return evaluation.breakdown().deducted();
     }
 
     public OptionalDouble judgeScore() {

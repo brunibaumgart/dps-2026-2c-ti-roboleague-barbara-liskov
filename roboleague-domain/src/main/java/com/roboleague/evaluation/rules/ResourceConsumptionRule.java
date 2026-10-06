@@ -13,9 +13,9 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Scoring rule calculating penalties or efficiency bonuses based on resource/energy consumption.
+ * Deducts for each unit of resource or energy consumed beyond the allowed maximum.
  */
-public class ResourceConsumptionRule implements ScoreRule {
+public class ResourceConsumptionRule implements DeductionRule {
     private final String ruleName;
     private final double maxAllowedConsumption;
     private final double penaltyPerExcessUnit;

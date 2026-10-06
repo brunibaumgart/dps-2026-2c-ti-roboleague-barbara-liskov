@@ -5,11 +5,16 @@ import com.roboleague.evaluation.rules.FaultTariff;
 import com.roboleague.evaluation.rules.JudgeSubjectiveRule;
 import com.roboleague.evaluation.rules.Milestone;
 import com.roboleague.evaluation.rules.MilestoneBonusRule;
+import com.roboleague.evaluation.rules.ObjectivesRule;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.PrecisionRule;
 import com.roboleague.evaluation.rules.ResourceConsumptionRule;
+import com.roboleague.evaluation.rules.ScoreRule.RuleEvaluation;
 import com.roboleague.evaluation.rules.TimeAdjustments;
+import com.roboleague.evaluation.rules.TimeBasedRule;
+import com.roboleague.evaluation.rules.TimeTargets;
 import com.roboleague.evaluation.rules.VictimTariff;
+import com.roboleague.evaluation.rules.VictimsRule;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Named;
@@ -49,32 +54,36 @@ class RulebookReviewFindingsTest {
     @Test
     @DisplayName("Hallazgo 1: la lista de reglas que expone la regla compuesta no se puede modificar")
     void givenTheCompositeRuleThenItsRulesListIsUnmodifiable() {
-        CompositeScoreRule composite = new CompositeScoreRule("Laberinto", List.of(new PenaltyRule("Faltas", 10.0)));
+        CompositeScoreRule composite = new CompositeScoreRule("Laberinto", List.of(TimeBasedRule.standard(100.0, 60.0)));
 
-        assertThatThrownBy(() -> composite.getRules().add(new PenaltyRule("Faltas extra", 15.0)))
+        assertThatThrownBy(() -> composite.getRules().add(ObjectivesRule.standard(15.0)))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test
-    @DisplayName("Pregunta abierta: un desglose no acepta un total distinto de la suma de sus ítems")
-    void givenItemsThatAddUpToTenThenATotalOfFiveHundredIsRejected() {
-        List<ScoreItem> items = List.of(ScoreItem.of("Tiempo", "50s", "formula", 10.0));
+    @DisplayName("Pregunta abierta: el total de un desglose es la suma de sus ítems, no un dato aparte que pueda diferir")
+    void givenABreakdownThenItsTotalIsTheSumOfItsItems() {
+        ScoreBreakdown breakdown = new ScoreBreakdown(
+                RuleEvaluation.of(ScoreItem.of("Tiempo", "50s", "formula", 100.0)),
+                RuleEvaluation.of(ScoreItem.of("Checkpoint", "1", "formula", 30.0)),
+                RuleEvaluation.of(ScoreItem.of("Penalizaciones", "2 faltas", "formula", -30.0)));
 
-        assertThatThrownBy(() -> new ScoreBreakdown(items, List.of(), 500.0))
-                .isInstanceOf(IllegalArgumentException.class);
+        double itemsSum = breakdown.items().stream().mapToDouble(ScoreItem::subtotal).sum();
+        assertThat(breakdown.totalScore()).isEqualTo(100.0).isEqualTo(itemsSum);
     }
 
     @Test
     @DisplayName("Pregunta abierta: el piso en cero aparece en el desglose y la explicación suma el total")
     void givenItemsBelowZeroThenTheFloorIsAnItemAndTheItemsAddUpToTheTotal() {
-        ScoreBreakdown breakdown = ScoreBreakdown.of(List.of(
-                ScoreItem.of("Tiempo", "90s", "formula", 10.0),
-                ScoreItem.of("Penalizaciones", "2 faltas", "formula", -30.0)
-        ), List.of());
+        ScoreBreakdown breakdown = new ScoreBreakdown(
+                RuleEvaluation.of(ScoreItem.of("Tiempo", "90s", "formula", 10.0)),
+                RuleEvaluation.empty(),
+                RuleEvaluation.of(ScoreItem.of("Penalizaciones", "2 faltas", "formula", -30.0)));
 
         double itemsSum = breakdown.items().stream().mapToDouble(ScoreItem::subtotal).sum();
         assertThat(breakdown.totalScore()).isZero();
         assertThat(itemsSum).isEqualTo(breakdown.totalScore());
+        assertThat(breakdown.items()).extracting(ScoreItem::concept).endsWith("Piso en cero");
     }
 
     @ParameterizedTest(name = "{0}")
@@ -90,13 +99,15 @@ class RulebookReviewFindingsTest {
                 Named.of("consumo con penalización negativa", () -> new ResourceConsumptionRule("Consumo", 100.0, -2.0)),
                 Named.of("consumo con máximo negativo", () -> new ResourceConsumptionRule("Consumo", -1.0, 2.0)),
                 Named.of("jueces con peso negativo", () -> new JudgeSubjectiveRule("Jueces", -1.0)),
+                Named.of("tiempo con base negativa", () -> TimeTargets.of(-100.0, 60.0)),
                 Named.of("tiempo con bonificación negativa", () -> TimeAdjustments.of(-1.5, 2.0, 0.0)),
                 Named.of("tiempo con deducción negativa", () -> TimeAdjustments.of(1.5, -2.0, 0.0)),
                 Named.of("tiempo con mínimo negativo", () -> TimeAdjustments.of(1.5, 2.0, -5.0)),
                 Named.of("faltas contadas con deducción negativa", () -> new FaultTariff(1, -5.0)),
                 Named.of("faltas contadas con franquicia negativa", () -> new FaultTariff(-1, 5.0)),
                 Named.of("precisión con máximo negativo", () -> new PrecisionRule("Precisión", Metric.sensor("precision"), -80.0)),
-                Named.of("víctimas con deducción negativa", () -> new VictimTariff(4, 25.0, -10.0)),
+                Named.of("víctimas con puntos negativos", () -> new VictimsRule("Víctimas", Metric.judged("v"), -25.0)),
+                Named.of("víctimas abandonadas con deducción negativa", () -> new VictimTariff(4, -10.0)),
                 Named.of("hito con bonus negativo", () -> new MilestoneBonusRule("Hito",
                         new Milestone(Metric.sensor("distancia_metros"), 10.0), -30.0)),
                 Named.of("tope de bonificaciones negativo", () -> new CappedAt(-10.0)),

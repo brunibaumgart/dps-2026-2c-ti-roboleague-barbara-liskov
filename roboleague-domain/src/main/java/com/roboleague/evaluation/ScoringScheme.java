@@ -2,6 +2,8 @@ package com.roboleague.evaluation;
 
 import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.definition.RulebookDefinition;
+import com.roboleague.evaluation.rules.BaseRule;
+import com.roboleague.evaluation.rules.DeductionRule;
 import com.roboleague.evaluation.rules.ScoreRule;
 import com.roboleague.evaluation.rules.ScoreRule.RuleEvaluation;
 
@@ -38,16 +40,17 @@ public record ScoringScheme(MetricSheet metrics, ScoreRules scoreRules, BonusLim
     /**
      * A scheme with no bonuses for rules that read no named metric, so there is nothing to declare.
      */
-    public static ScoringScheme withoutBonuses(List<ScoreRule> rules) {
-        return new ScoringScheme(MetricSheet.none(), new ScoreRules(rules, List.of()), new Unlimited());
+    public static ScoringScheme withoutBonuses(List<BaseRule> base, List<DeductionRule> deductions) {
+        return new ScoringScheme(MetricSheet.none(), new ScoreRules(base, List.of(), deductions), new Unlimited());
     }
 
     public RulebookDefinition.Scoring definition() {
-        return new RulebookDefinition.Scoring(definitionsOf(scoreRules.rules()), definitionsOf(scoreRules.bonuses()),
-                bonusLimit.definition());
+        return new RulebookDefinition.Scoring(definitionsOf(scoreRules.base()),
+                new RulebookDefinition.Bonuses(definitionsOf(scoreRules.bonuses()), bonusLimit.definition()),
+                definitionsOf(scoreRules.deductions()));
     }
 
-    private static List<RuleDefinition> definitionsOf(List<ScoreRule> rules) {
+    private static List<RuleDefinition> definitionsOf(List<? extends ScoreRule> rules) {
         List<RuleDefinition> definitions = new ArrayList<>();
         for (ScoreRule rule : rules) {
             definitions.add(rule.definition());
@@ -55,12 +58,12 @@ public record ScoringScheme(MetricSheet metrics, ScoreRules scoreRules, BonusLim
         return definitions;
     }
 
-    public RuleEvaluation evaluate(RawMetrics captured) {
+    public ScoreBreakdown evaluate(RawMetrics captured) {
         RuleEvaluation bonusesObtained = RuleEvaluation.combining(scoreRules.bonuses(), captured);
-        return RuleEvaluation.concat(List.of(
-                RuleEvaluation.combining(scoreRules.rules(), captured),
-                bonusesObtained,
-                bonusLimit.limit(bonusesObtained.total())));
+        return new ScoreBreakdown(
+                RuleEvaluation.combining(scoreRules.base(), captured),
+                RuleEvaluation.concat(List.of(bonusesObtained, bonusLimit.limit(bonusesObtained.total()))),
+                RuleEvaluation.combining(scoreRules.deductions(), captured));
     }
 
     public Set<ResultSource> requiredSources() {

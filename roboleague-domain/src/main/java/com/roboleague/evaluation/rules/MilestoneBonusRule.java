@@ -15,7 +15,7 @@ import java.util.Set;
 /**
  * Grants a fixed bonus when a milestone is reached, and nothing otherwise.
  */
-public final class MilestoneBonusRule implements ScoreRule {
+public final class MilestoneBonusRule implements BonusRule {
     private final String ruleName;
     private final Milestone milestone;
     private final double bonus;

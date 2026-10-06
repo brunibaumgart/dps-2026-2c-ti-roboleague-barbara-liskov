@@ -13,11 +13,24 @@ public record RulebookDefinition(List<MetricDeclaration> metrics, Scoring scorin
         Objects.requireNonNull(ranking, "ranking cannot be null");
     }
 
-    public record Scoring(List<RuleDefinition> rules, List<RuleDefinition> bonuses, StrategyDefinition bonusLimit) {
+    /**
+     * How a rulebook scores: its base rules, its bonuses with the limit on their sum, and its deductions.
+     */
+    public record Scoring(List<RuleDefinition> rules, Bonuses bonuses, List<RuleDefinition> deductions) {
         public Scoring {
             rules = List.copyOf(Objects.requireNonNull(rules, "rules cannot be null"));
-            bonuses = List.copyOf(Objects.requireNonNull(bonuses, "bonuses cannot be null"));
-            Objects.requireNonNull(bonusLimit, "bonusLimit cannot be null");
+            Objects.requireNonNull(bonuses, "bonuses cannot be null");
+            deductions = List.copyOf(Objects.requireNonNull(deductions, "deductions cannot be null"));
+        }
+    }
+
+    /**
+     * The bonus rules and the limit on their sum (F2), which only makes sense next to them.
+     */
+    public record Bonuses(List<RuleDefinition> rules, StrategyDefinition limit) {
+        public Bonuses {
+            rules = List.copyOf(Objects.requireNonNull(rules, "rules cannot be null"));
+            Objects.requireNonNull(limit, "limit cannot be null");
         }
     }
 

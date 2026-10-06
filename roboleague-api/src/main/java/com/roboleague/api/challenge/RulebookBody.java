@@ -24,7 +24,8 @@ record RulebookBody(List<MetricDeclarationBody> metrics, ScoringBody scoring, Ra
     record MetricDeclarationBody(String name, String source, String unit, Map<String, Double> range) {
     }
 
-    record ScoringBody(List<RuleBody> rules, List<RuleBody> bonuses, StrategyBody bonusLimit) {
+    record ScoringBody(List<RuleBody> rules, List<RuleBody> bonuses, List<RuleBody> deductions,
+                       StrategyBody bonusLimit) {
     }
 
     record RankingBody(StrategyBody roundSelection, List<String> criteria) {
@@ -45,15 +46,16 @@ record RulebookBody(List<MetricDeclarationBody> metrics, ScoringBody scoring, Ra
             throw new IllegalArgumentException("a rulebook needs scoring (with bonusLimit) and ranking (with roundSelection)");
         }
         return new RulebookDefinition(toDeclarations(metrics),
-                new RulebookDefinition.Scoring(toRules(scoring.rules()), toRules(scoring.bonuses()),
-                        toStrategy(scoring.bonusLimit())),
+                new RulebookDefinition.Scoring(toRules(scoring.rules()), new RulebookDefinition.Bonuses(
+                        toRules(scoring.bonuses()), toStrategy(scoring.bonusLimit())), toRules(scoring.deductions())),
                 new RulebookDefinition.Ranking(toStrategy(ranking.roundSelection()), orEmpty(ranking.criteria())));
     }
 
     static RulebookBody from(RulebookDefinition definition) {
         return new RulebookBody(fromDeclarations(definition.metrics()),
-                new ScoringBody(fromRules(definition.scoring().rules()), fromRules(definition.scoring().bonuses()),
-                        fromStrategy(definition.scoring().bonusLimit())),
+                new ScoringBody(fromRules(definition.scoring().rules()),
+                        fromRules(definition.scoring().bonuses().rules()), fromRules(definition.scoring().deductions()),
+                        fromStrategy(definition.scoring().bonuses().limit())),
                 new RankingBody(fromStrategy(definition.ranking().roundSelection()), definition.ranking().criteria()));
     }
 

@@ -5,6 +5,9 @@ package com.roboleague.evaluation.rules;
  */
 public record TimeTargets(double basePoints, double targetTimeSeconds) {
     public TimeTargets {
+        if (basePoints < 0) {
+            throw new IllegalArgumentException("basePoints cannot be negative");
+        }
         if (targetTimeSeconds <= 0) {
             throw new IllegalArgumentException("targetTimeSeconds must be positive");
         }
