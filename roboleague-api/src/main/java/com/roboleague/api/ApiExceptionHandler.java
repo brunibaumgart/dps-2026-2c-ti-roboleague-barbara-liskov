@@ -1,6 +1,8 @@
 package com.roboleague.api;
 
 import com.roboleague.usecase.TeamIneligibleException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -29,6 +31,16 @@ class ApiExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     ResponseEntity<ErrorDto> badRequest(IllegalArgumentException e) {
         return error(HttpStatus.BAD_REQUEST, e.getMessage(), List.of());
+    }
+
+    /**
+     * Inside a use case's transaction, Postgres refuses a stale or duplicate write when it commits: someone else
+     * saved the same aggregate in between. Like any conflicting transition, it is a 409 to retry.
+     */
+    @ExceptionHandler({OptimisticLockingFailureException.class, DataIntegrityViolationException.class})
+    ResponseEntity<ErrorDto> concurrentChange(RuntimeException e) {
+        return error(HttpStatus.CONFLICT, "Someone else changed the same data at the same time; load it again and retry",
+                List.of());
     }
 
     @ExceptionHandler(IllegalStateException.class)
