@@ -4,6 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -20,6 +21,8 @@ class AttemptJpaEntity {
 
     @Id
     String id;
+    @Version
+    Long version;
     String slotId;
     int attemptNumber;
     String roundId;

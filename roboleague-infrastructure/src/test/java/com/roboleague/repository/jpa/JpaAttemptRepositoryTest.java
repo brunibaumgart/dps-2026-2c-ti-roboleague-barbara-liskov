@@ -38,11 +38,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DataJpaTest(properties = "spring.jpa.hibernate.ddl-auto=validate")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -64,6 +67,55 @@ class JpaAttemptRepositoryTest {
 
     @Autowired
     private JpaAttemptRepository repository;
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("Two sources saved over the same stored attempt: the second save is refused instead of losing the first")
+    void givenTwoCopiesOfTheSameAttemptThenTheSecondSaveIsRefused() {
+        Attempt awaiting = attempt("slot-race-1", "r-race", "t-race");
+        awaiting.receive(SENSORS, RESCUE);
+        repository.save(awaiting);
+        Attempt first = repository.findById(awaiting.getId()).orElseThrow();
+        Attempt second = repository.findById(awaiting.getId()).orElseThrow();
+
+        first.receive(PANEL, RESCUE);
+        repository.save(first);
+        second.receive(PANEL, RESCUE);
+
+        assertThatThrownBy(() -> repository.save(second))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("was changed by someone else");
+        assertThat(repository.findById(awaiting.getId()).orElseThrow().getStatus()).isEqualTo(AttemptStatus.EVALUATED);
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("Two first sources creating the same attempt: the second one is refused instead of overwriting it")
+    void givenTwoNewAttemptsForTheSameTurnThenTheSecondSaveIsRefused() {
+        Attempt bySensors = attempt("slot-race-2", "r-race", "t-race");
+        bySensors.receive(SENSORS, RESCUE);
+        Attempt byPanel = attempt("slot-race-2", "r-race", "t-race");
+        byPanel.receive(PANEL, RESCUE);
+
+        repository.save(bySensors);
+
+        assertThatThrownBy(() -> repository.save(byPanel)).isInstanceOf(IllegalStateException.class);
+        assertThat(repository.findById(bySensors.getId()).orElseThrow().getDeliveries()).containsExactly(SENSORS);
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("The same loaded attempt can be saved again after each change")
+    void givenOneCopyThenItCanBeSavedAfterEachChange() {
+        Attempt attempt = attempt("slot-race-3", "r-race", "t-race");
+        attempt.receive(SENSORS, RESCUE);
+        repository.save(attempt);
+
+        attempt.receive(PANEL, RESCUE);
+        repository.save(attempt);
+
+        assertThat(repository.findById(attempt.getId()).orElseThrow().getStatus()).isEqualTo(AttemptStatus.EVALUATED);
+    }
 
     @Test
     @DisplayName("An attempt awaiting the judge panel comes back with what the sensors sent and still takes the panel")
