@@ -20,6 +20,7 @@ import com.roboleague.tournament.eligibility.TeamSizeSpecification;
 import com.roboleague.usecase.AddChallengeUseCase;
 import com.roboleague.usecase.CreateEditionUseCase;
 import com.roboleague.usecase.FileAppealUseCase;
+import com.roboleague.usecase.GetAttemptBreakdownUseCase;
 import com.roboleague.usecase.GetChallengeUseCase;
 import com.roboleague.usecase.PublishOfficialRankingUseCase;
 import com.roboleague.usecase.PublishRulebookUseCase;
@@ -95,6 +96,11 @@ class UseCaseConfig {
     ScheduleRoundUseCase scheduleRoundUseCase(EditionRepository editions, RoundRepository rounds,
                                               RoundSchedulerService scheduler) {
         return new ScheduleRoundUseCase(editions, rounds, scheduler);
+    }
+
+    @Bean
+    GetAttemptBreakdownUseCase getAttemptBreakdownUseCase(AttemptRepository attempts, ChallengeRepository challenges) {
+        return new GetAttemptBreakdownUseCase(attempts, challenges);
     }
 
     @Bean

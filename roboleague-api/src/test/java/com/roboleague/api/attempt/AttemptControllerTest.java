@@ -40,7 +40,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -105,6 +107,49 @@ class AttemptControllerTest extends ApiTest {
                 .andExpect(jsonPath("$.status").value("EVALUATED"))
                 .andExpect(jsonPath("$.received", contains("AUTOMATIC_MEASUREMENTS", "JUDGE_PANEL")))
                 .andExpect(jsonPath("$.score").value(130.0));
+    }
+
+    @Test
+    void theBreakdownShowsWhatIsPendingUntilEverySourceArrives() throws Exception {
+        scheduleSlot("api-att-slot-8");
+        mvc.perform(measurements("api-att-slot-8-1", RESCUE, "api-j-1", 90.0, 3, 0)).andExpect(status().isOk());
+
+        mvc.perform(get("/attempts/{attemptId}/breakdown", "api-att-slot-8-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("AWAITING_SOURCES"))
+                .andExpect(jsonPath("$.awaiting", contains("JUDGE_PANEL")))
+                .andExpect(jsonPath("$.score").value(nullValue()))
+                .andExpect(jsonPath("$.items", hasSize(0)))
+                .andExpect(jsonPath("$.revisions", hasSize(0)));
+    }
+
+    @Test
+    void theBreakdownExplainsEachSourceOnceTheAttemptIsScored() throws Exception {
+        scheduleSlot("api-att-slot-9");
+        mvc.perform(measurements("api-att-slot-9-1", RESCUE, "api-j-1", 90.0, 3, 0)).andExpect(status().isOk());
+        mvc.perform(judgeScores("api-att-slot-9-1", RESCUE, "api-j-2", """
+                {"api-j-1": 8, "api-j-2": 6}""", """
+                {"victimas_rescatadas": 2}""")).andExpect(status().isOk());
+
+        mvc.perform(get("/attempts/{attemptId}/breakdown", "api-att-slot-9-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.awaiting", hasSize(0)))
+                .andExpect(jsonPath("$.score").value(130.0))
+                .andExpect(jsonPath("$.items[*].concept",
+                        contains("Zonas despejadas", "Víctimas rescatadas", "Panel técnico")))
+                .andExpect(jsonPath("$.bySource[0].label").value("Mediciones automáticas"))
+                .andExpect(jsonPath("$.bySource[0].subtotal").value(45.0))
+                .andExpect(jsonPath("$.bySource[1].source").value("JUDGE_PANEL"))
+                .andExpect(jsonPath("$.bySource[1].subtotal").value(85.0))
+                .andExpect(jsonPath("$.revisions[0].rulebookVersion").value(1))
+                .andExpect(jsonPath("$.revisions[0].authorId").value("api-j-2"));
+    }
+
+    @Test
+    void theBreakdownOfAnUnknownAttemptIsABadRequest() throws Exception {
+        mvc.perform(get("/attempts/{attemptId}/breakdown", "api-att-nothing-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Attempt not found: api-att-nothing-1"));
     }
 
     @Test

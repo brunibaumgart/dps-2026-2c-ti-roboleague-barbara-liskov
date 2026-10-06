@@ -178,6 +178,29 @@ public class Attempt {
         return check;
     }
 
+    /**
+     * The sources its rulebook still needs before the attempt can be scored; none once it is scored.
+     */
+    public Set<ResultSource> awaitedSources(Rulebook rulebook) {
+        this.rulebook.requireMatch(rulebook);
+        Set<ResultSource> awaited = EnumSet.noneOf(ResultSource.class);
+        awaited.addAll(rulebook.requiredSources());
+        awaited.removeAll(received.keySet());
+        return awaited;
+    }
+
+    /**
+     * What the rules of each source contributed to the latest revision, so a mixed challenge explains each source
+     * on its own (F3). Nothing before the attempt is scored.
+     */
+    public List<SourceContribution> contributionsBySource(Rulebook rulebook) {
+        this.rulebook.requireMatch(rulebook);
+        if (revisionHistory.isEmpty()) {
+            return List.of();
+        }
+        return rulebook.contributions(getLatestMetrics());
+    }
+
     private RawMetrics everythingReceived() {
         RawMetrics metrics = RawMetrics.nothingMeasured();
         for (SourceDelivery delivery : received.values()) {

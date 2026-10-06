@@ -17,6 +17,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 /**
  * F3: the automatic measurements and the judge panel reach the same attempt separately.
@@ -67,6 +68,32 @@ class AttemptSourcesTest {
         assertThat(attempt.getOriginalSnapshot().authorOrJudgeId()).isEqualTo("j-2");
         assertThat(attempt.getEventHistory()).extracting(AttemptEvent::eventType)
                 .containsExactly("SOURCE_RECEIVED", "SOURCE_RECEIVED", "RESULT_REGISTERED");
+    }
+
+    @Test
+    @DisplayName("F3: el pendiente se ve: el intento dice qué fuente le falta")
+    void givenOneSourceInThenTheAttemptAwaitsTheOther() {
+        Attempt attempt = rescueAttempt();
+        assertThat(attempt.awaitedSources(RESCUE))
+                .containsExactlyInAnyOrder(ResultSource.AUTOMATIC_MEASUREMENTS, ResultSource.JUDGE_PANEL);
+
+        attempt.receive(SENSORS, RESCUE);
+
+        assertThat(attempt.awaitedSources(RESCUE)).containsExactly(ResultSource.JUDGE_PANEL);
+        assertThat(attempt.contributionsBySource(RESCUE)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("F3: la explicación separa lo que aportó cada fuente")
+    void givenAScoredMixedAttemptThenEachSourceExplainsItsShare() {
+        Attempt attempt = rescueAttempt();
+        attempt.receive(SENSORS, RESCUE);
+        attempt.receive(PANEL, RESCUE);
+
+        assertThat(attempt.awaitedSources(RESCUE)).isEmpty();
+        assertThat(attempt.contributionsBySource(RESCUE))
+                .extracting(SourceContribution::source, SourceContribution::subtotal)
+                .containsExactly(tuple(ResultSource.AUTOMATIC_MEASUREMENTS, 45.0), tuple(ResultSource.JUDGE_PANEL, 85.0));
     }
 
     @Test
