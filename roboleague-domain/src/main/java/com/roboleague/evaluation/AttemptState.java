@@ -10,6 +10,13 @@ interface AttemptState {
 
     AttemptStatus status();
 
+    /**
+     * Whether the attempt's latest score counts for the standings.
+     */
+    default boolean counts() {
+        return false;
+    }
+
     default AttemptState scored() {
         throw refused("take a first result again; corrections go through a fault adjustment or an appeal");
     }

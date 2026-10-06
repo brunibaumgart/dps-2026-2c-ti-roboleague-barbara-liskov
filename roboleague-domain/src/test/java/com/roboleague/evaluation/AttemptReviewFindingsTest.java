@@ -113,6 +113,25 @@ class AttemptReviewFindingsTest {
         assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.EVALUATED);
     }
 
+    @Test
+    @DisplayName("Hallazgo 3: un intento descalificado no tiene puntaje que cuente para la tabla")
+    void givenADisqualifiedAttemptThenItHasNoCountableScore() {
+        Attempt attempt = scoredAttempt();
+        assertThat(attempt.countableScore()).hasValueSatisfying(score -> assertThat(score.totalScore()).isEqualTo(70.0));
+
+        attempt.disqualify("robot fuera de pista", "j-1");
+
+        assertThat(attempt.countableScore()).isEmpty();
+    }
+
+    @Test
+    void givenAnAttemptNotScoredYetThenItHasNoCountableScore() {
+        Attempt attempt = Attempt.of(new AttemptIdentity(AttemptId.of("slot-1", 1), "r-1", "t-1"),
+                RulebookReference.of("ch-maze", RULEBOOK));
+
+        assertThat(attempt.countableScore()).isEmpty();
+    }
+
     private static Attempt scoredAttempt() {
         Attempt attempt = Attempt.of(new AttemptIdentity(AttemptId.of("slot-1", 1), "r-1", "t-1"),
                 RulebookReference.of("ch-maze", RULEBOOK));

@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Attempt aggregate root in the evaluation bounded context.
@@ -108,6 +109,17 @@ public class Attempt {
     public double getFinalScore() {
         ScoreBreakdown breakdown = getScoreBreakdown();
         return breakdown != null ? breakdown.totalScore() : 0.0;
+    }
+
+    /**
+     * The score that counts for the standings: the latest revision while the attempt is scored, nothing before
+     * it is scored or once it is disqualified.
+     */
+    public Optional<ScoreBreakdown> countableScore() {
+        if (!state.counts()) {
+            return Optional.empty();
+        }
+        return Optional.of(getLatestSnapshot().breakdown());
     }
 
     public RawMetrics getLatestMetrics() {

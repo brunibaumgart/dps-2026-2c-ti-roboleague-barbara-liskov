@@ -28,6 +28,11 @@ final class UnderAppealAttemptState implements AttemptState {
     }
 
     @Override
+    public boolean counts() {
+        return true;
+    }
+
+    @Override
     public AttemptState appealFiled() {
         return new UnderAppealAttemptState(openAppeals + 1, settled);
     }

@@ -27,6 +27,11 @@ final class SettledAttemptState implements AttemptState {
     }
 
     @Override
+    public boolean counts() {
+        return true;
+    }
+
+    @Override
     public AttemptState appealFiled() {
         return new UnderAppealAttemptState(1, this);
     }

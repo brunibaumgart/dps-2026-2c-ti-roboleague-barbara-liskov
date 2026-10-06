@@ -4,8 +4,10 @@ import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.RawMetrics;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Aggregated score summary for a team in a category and edition.
@@ -71,21 +73,25 @@ public record TeamScore(
         );
     }
 
+    /**
+     * Scores the team with its best attempt that counts. Attempts not scored yet or disqualified do not count, so a
+     * team without one that counts scores nothing.
+     */
     public static TeamScore fromBestAttempt(String teamId, String teamName, String categoryId, String editionId, List<Attempt> attempts) {
-        if (attempts == null || attempts.isEmpty()) {
+        List<Attempt> candidates = attempts != null ? attempts : List.of();
+        Optional<Attempt> countedAttempt = candidates.stream()
+                .filter(a -> a.countableScore().isPresent())
+                .max(Comparator.comparingDouble(a -> a.countableScore().orElseThrow().totalScore()));
+        if (countedAttempt.isEmpty()) {
             return TeamScore.of(
                     teamId, teamName, categoryId, editionId,
                     PerformanceSummary.of(0.0, Double.MAX_VALUE, 0, 0.0),
-                    List.of()
+                    candidates
             );
         }
 
-        Attempt bestAttempt = attempts.stream()
-                .filter(a -> a.getStatus() != Attempt.AttemptStatus.DISQUALIFIED)
-                .max((a1, a2) -> Double.compare(a1.getFinalScore(), a2.getFinalScore()))
-                .orElse(attempts.get(0));
-
-        double score = bestAttempt.getFinalScore();
+        Attempt bestAttempt = countedAttempt.orElseThrow();
+        double score = bestAttempt.countableScore().orElseThrow().totalScore();
         RawMetrics metrics = bestAttempt.getLatestMetrics();
         double time = metrics != null ? metrics.timeTakenSeconds() : Double.MAX_VALUE;
         int penalties = metrics != null ? metrics.penaltiesCount() : 0;
@@ -94,7 +100,7 @@ public record TeamScore(
         return TeamScore.of(
                 teamId, teamName, categoryId, editionId,
                 PerformanceSummary.of(score, time, penalties, judgeAvg),
-                attempts
+                candidates
         );
     }
 }
