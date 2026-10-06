@@ -66,12 +66,12 @@ public record ScoreAdjustedEvent(
         return "Score adjusted (rev " + newRevisionNumber() + ") to " + newScoreBreakdown().totalScore() + ": " + reason();
     }
 
-    public static ScoreAdjustedEvent create(String attemptId, int newRevisionNumber, RawMetrics newMetrics,
-                                            ScoreBreakdown newBreakdown, String reason, String authorId) {
+    public static ScoreAdjustedEvent create(String attemptId, int newRevisionNumber, EvaluationSnapshot evaluation,
+                                            AuditNote note) {
         return new ScoreAdjustedEvent(
                 EventMetadata.create(attemptId),
-                EvaluationSnapshot.of(newMetrics, newBreakdown),
-                ScoreAdjustmentDetails.of(newRevisionNumber, reason, authorId)
+                evaluation,
+                ScoreAdjustmentDetails.of(newRevisionNumber, note.reason(), note.authorId())
         );
     }
 }

@@ -2,6 +2,7 @@ package com.roboleague.usecase;
 
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.Rulebook;
+import com.roboleague.evaluation.RulebookReference;
 import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.ChallengeRepository;
 
@@ -31,7 +32,7 @@ public class CaptureAttemptResultUseCase {
                     + " was already captured; corrections go through a fault adjustment or an appeal");
         }
 
-        Attempt attempt = Attempt.of(command.attempt());
+        Attempt attempt = Attempt.of(command.attempt(), RulebookReference.of(command.challengeId().value(), rulebook));
         attempt.registerInitialResult(command.metrics(), command.judgeId(), rulebook);
 
         attemptRepository.save(attempt);

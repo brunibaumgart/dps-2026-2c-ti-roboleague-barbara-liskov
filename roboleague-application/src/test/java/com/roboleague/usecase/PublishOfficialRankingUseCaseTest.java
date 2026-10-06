@@ -5,6 +5,7 @@ import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.AttemptIdentity;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.Rulebook;
+import com.roboleague.evaluation.RulebookReference;
 import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.rules.TimeBasedRule;
@@ -53,7 +54,7 @@ class PublishOfficialRankingUseCaseTest {
 
     private void saveAppealedAttempt(String slotId, String teamId, String roundId) {
         AttemptId attemptId = AttemptId.of(slotId, 1);
-        Attempt attempt = Attempt.of(new AttemptIdentity(attemptId, roundId, teamId));
+        Attempt attempt = Attempt.of(new AttemptIdentity(attemptId, roundId, teamId), RulebookReference.of("ch-1", RULEBOOK));
         attempt.registerInitialResult(RawMetrics.of(30.0, 1, 0), "judge-1", RULEBOOK);
         attempt.markUnderAppeal();
         attemptRepo.save(attempt);

@@ -6,11 +6,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 
 /**
  * Attempt aggregate root in the evaluation bounded context.
- * Implements an append-only audit trail and snapshot revisions.
+ * Implements an append-only audit trail and snapshot revisions. It is scored with the rulebook version that was
+ * current when it was captured, and every revision records that version.
  */
 public class Attempt {
 
@@ -23,13 +23,15 @@ public class Attempt {
     }
 
     private final AttemptIdentity identity;
+    private final RulebookReference rulebook;
     private AttemptStatus status;
 
     private final List<AttemptScoreSnapshot> revisionHistory;
     private final List<AttemptEvent> eventHistory;
 
-    public Attempt(AttemptIdentity identity) {
+    public Attempt(AttemptIdentity identity, RulebookReference rulebook) {
         this.identity = Objects.requireNonNull(identity, "identity cannot be null");
+        this.rulebook = Objects.requireNonNull(rulebook, "rulebook cannot be null");
         this.status = AttemptStatus.PENDING;
         this.revisionHistory = new ArrayList<>();
         this.eventHistory = new ArrayList<>();
@@ -53,6 +55,13 @@ public class Attempt {
 
     public String getRoundId() {
         return identity.roundId();
+    }
+
+    /**
+     * The challenge and rulebook version this attempt is scored with.
+     */
+    public RulebookReference getRulebookReference() {
+        return rulebook;
     }
 
     public AttemptStatus getStatus() {
@@ -105,19 +114,10 @@ public class Attempt {
         }
         Objects.requireNonNull(metrics, "metrics cannot be null");
         Objects.requireNonNull(judgeId, "judgeId cannot be null");
-        Objects.requireNonNull(rulebook, "rulebook cannot be null");
-        ScoreBreakdown breakdown = rulebook.evaluate(metrics);
+        EvaluationSnapshot evaluation = scored(metrics, rulebook);
 
-        AttemptScoreSnapshot snapshot = AttemptScoreSnapshot.of(
-                UUID.randomUUID().toString(),
-                1,
-                judgeId,
-                metrics,
-                breakdown,
-                "Initial attempt result registration"
-        );
-        revisionHistory.add(snapshot);
-        eventHistory.add(ResultRegisteredEvent.create(getId().value(), getTeamId(), metrics, breakdown, judgeId));
+        addRevision(evaluation, judgeId, "Initial attempt result registration");
+        eventHistory.add(ResultRegisteredEvent.create(getId().value(), getTeamId(), evaluation, judgeId));
         this.status = AttemptStatus.EVALUATED;
     }
 
@@ -135,21 +135,11 @@ public class Attempt {
                 currentMetrics.judgeSubjectiveScores()
         );
 
-        ScoreBreakdown updatedBreakdown = rulebook.evaluate(updatedMetrics);
-        int nextRev = revisionHistory.size() + 1;
+        EvaluationSnapshot evaluation = scored(updatedMetrics, rulebook);
 
-        AttemptScoreSnapshot snapshot = AttemptScoreSnapshot.of(
-                UUID.randomUUID().toString(),
-                nextRev,
-                judgeId,
-                updatedMetrics,
-                updatedBreakdown,
-                "Penalty applied: " + reason
-        );
-
-        revisionHistory.add(snapshot);
+        int revision = addRevision(evaluation, judgeId, "Penalty applied: " + reason);
         eventHistory.add(PenaltyAppliedEvent.create(getId().value(), additionalPenalties, reason, judgeId));
-        eventHistory.add(ScoreAdjustedEvent.create(getId().value(), nextRev, updatedMetrics, updatedBreakdown, reason, judgeId));
+        eventHistory.add(ScoreAdjustedEvent.create(getId().value(), revision, evaluation, note));
         this.status = AttemptStatus.ADJUSTED;
     }
 
@@ -175,46 +165,13 @@ public class Attempt {
      */
     public void adjustAfterAppeal(AppealRevision revision, Rulebook rulebook) {
         String appealId = revision.appealId();
-        RawMetrics revisedMetrics = revision.metrics();
-        String resolutionNotes = revision.note().reason();
-        String reviewerId = revision.note().authorId();
-        ScoreBreakdown revisedBreakdown = rulebook.evaluate(revisedMetrics);
-        int nextRev = revisionHistory.size() + 1;
+        AuditNote note = revision.note();
+        EvaluationSnapshot evaluation = scored(revision.metrics(), rulebook);
 
-        AttemptScoreSnapshot snapshot = AttemptScoreSnapshot.of(
-                UUID.randomUUID().toString(),
-                nextRev,
-                reviewerId,
-                revisedMetrics,
-                revisedBreakdown,
-                "Revision due to accepted appeal " + appealId + ": " + resolutionNotes
-        );
-
-        revisionHistory.add(snapshot);
-        eventHistory.add(AppealAcceptedEvent.create(getId().value(), appealId, resolutionNotes, reviewerId));
-        eventHistory.add(ScoreAdjustedEvent.create(getId().value(), nextRev, revisedMetrics, revisedBreakdown, resolutionNotes, reviewerId));
-        this.status = AttemptStatus.ADJUSTED;
-    }
-
-    public void recalculateWith(Rulebook rulebook, String reason, String authorId) {
-        if (revisionHistory.isEmpty()) {
-            return;
-        }
-        RawMetrics currentMetrics = getLatestMetrics();
-        ScoreBreakdown recalculated = rulebook.evaluate(currentMetrics);
-        int nextRev = revisionHistory.size() + 1;
-
-        AttemptScoreSnapshot snapshot = AttemptScoreSnapshot.of(
-                UUID.randomUUID().toString(),
-                nextRev,
-                authorId,
-                currentMetrics,
-                recalculated,
-                "Recalculation with rulebook " + rulebook.version() + ": " + reason
-        );
-
-        revisionHistory.add(snapshot);
-        eventHistory.add(ScoreAdjustedEvent.create(getId().value(), nextRev, currentMetrics, recalculated, reason, authorId));
+        int number = addRevision(evaluation, note.authorId(),
+                "Revision due to accepted appeal " + appealId + ": " + note.reason());
+        eventHistory.add(AppealAcceptedEvent.create(getId().value(), appealId, note.reason(), note.authorId()));
+        eventHistory.add(ScoreAdjustedEvent.create(getId().value(), number, evaluation, note));
         this.status = AttemptStatus.ADJUSTED;
     }
 
@@ -228,7 +185,22 @@ public class Attempt {
         this.status = AttemptStatus.DISQUALIFIED;
     }
 
-    public static Attempt of(AttemptIdentity identity) {
-        return new Attempt(identity);
+    /**
+     * Scores the metrics with the attempt's own rulebook version; any other version is a mistake of the caller.
+     */
+    private EvaluationSnapshot scored(RawMetrics metrics, Rulebook rulebook) {
+        this.rulebook.requireMatch(rulebook);
+        return EvaluationSnapshot.scoring(metrics, rulebook);
+    }
+
+    private int addRevision(EvaluationSnapshot evaluation, String authorId, String reason) {
+        int number = revisionHistory.size() + 1;
+        SnapshotMetadata metadata = SnapshotMetadata.of(getId().value() + "-r" + number, number, authorId);
+        revisionHistory.add(AttemptScoreSnapshot.of(metadata, evaluation, reason));
+        return number;
+    }
+
+    public static Attempt of(AttemptIdentity identity, RulebookReference rulebook) {
+        return new Attempt(identity, rulebook);
     }
 }

@@ -6,6 +6,7 @@ import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.MetricDefinition;
 import com.roboleague.evaluation.MetricSheet;
 import com.roboleague.evaluation.RawMetrics;
+import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.ScoreRules;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.TrackPerformance;
@@ -129,7 +130,7 @@ class RankingSchemeTest {
     private static RoundScore scoredRound(ScoringScheme scoring, double seconds, Map<String, Double> measurements) {
         RawMetrics run = new RawMetrics(new TrackPerformance(seconds, 0, 0),
                 EvaluationFeedback.withMeasurements(measurements));
-        return new RoundScore("r1", EvaluationSnapshot.of(run, scoring.evaluate(run)));
+        return new RoundScore("r1", new EvaluationSnapshot(RulebookVersion.first(), run, scoring.evaluate(run)));
     }
 
     @Test

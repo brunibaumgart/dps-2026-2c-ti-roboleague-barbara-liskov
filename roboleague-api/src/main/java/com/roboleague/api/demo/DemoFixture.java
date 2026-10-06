@@ -119,7 +119,7 @@ class DemoFixture implements ApplicationRunner {
         Appeal appeal = useCases.fileAppeal().execute(
                 titanAttempt.getId().value(), titan.getId(), "Penalizacion inexistente", "Video pista");
         useCases.reviewAppeal().execute(appeal.getAppealId(), "j-arb");
-        useCases.resolveAppeal().acceptAppeal(appeal.getAppealId(), maze.getId(), junior.id(), round.getId(),
+        useCases.resolveAppeal().acceptAppeal(appeal.getAppealId(), junior.id(), round.getId(),
                 "Penalizaciones corregidas tras revision", mazeRun(45.0, 5, 0, 90.0), "j-arb");
 
         Ranking latest = rankings.findLatestByEditionAndCategory(edition.getId(), junior.id()).orElseThrow();

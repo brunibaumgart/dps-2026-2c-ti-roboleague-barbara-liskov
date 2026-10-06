@@ -198,7 +198,6 @@ class AppealAndRecalculateIntegrationTest {
         RawMetrics revisedMetricsBeta = RawMetrics.of(50.0, 5, 0);
         resolveAppealUseCase.acceptAppeal(
                 appealBeta.getAppealId(),
-                maze.getId(),
                 mazeCategory.id(),
                 round1.getId(),
                 "Video revisado por unanimidad. Se anulan las 4 faltas inexistentes.",

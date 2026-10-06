@@ -113,6 +113,7 @@ class AttemptAuditTrailTest {
     }
 
     private static Attempt newAttempt() {
-        return Attempt.of(new AttemptIdentity(AttemptId.of("slot-1", 1), "round-1", "team-1"));
+        return Attempt.of(new AttemptIdentity(AttemptId.of("slot-1", 1), "round-1", "team-1"),
+                new RulebookReference("ch-maze", RulebookVersion.first()));
     }
 }
