@@ -107,7 +107,8 @@ class RuleCatalogTest {
         assertThat(assembly).isInstanceOf(RulebookAssembly.Assembled.class);
         ScoringScheme rebuilt = ((RulebookAssembly.Assembled) assembly).scoring();
         assertThat(rebuilt.definition()).isEqualTo(definition.scoring());
-        assertThat(rebuilt.evaluate(everything)).isEqualTo(rule.evaluate(everything));
+        assertThat(rebuilt.evaluate(everything).items())
+                .startsWith(rule.evaluate(everything).items().toArray(ScoreItem[]::new));
     }
 
     static Stream<Arguments> everyRuleType() {

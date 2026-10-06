@@ -141,6 +141,9 @@ class ScoringEngineTest {
 
         assertThat(breakdown.items()).hasSize(5);
         assertThat(breakdown.totalScore()).isEqualTo(226.0);
+        assertThat(breakdown.base().total()).isEqualTo(110.0 + 100.0 + 16.0);
+        assertThat(breakdown.bonuses().total()).isEqualTo(20.0);
+        assertThat(breakdown.deductions().total()).isEqualTo(-20.0);
         assertThat(breakdown.notesAndPenalties()).hasSize(5);
 
         // Verify each line item exists and is explainable

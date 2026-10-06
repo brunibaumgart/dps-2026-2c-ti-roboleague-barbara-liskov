@@ -1,52 +1,53 @@
 package com.roboleague.evaluation;
 
+import com.roboleague.evaluation.rules.ScoreRule.RuleEvaluation;
+
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
-public record ScoreBreakdown(
-        List<ScoreItem> items,
-        List<String> notesAndPenalties,
-        double totalScore
-) {
-    private static final double TOLERANCE = 0.005;
+/**
+ * How an attempt scored, by section: what its base rules gave, its bonuses with the cap applied to them, and what
+ * its deductions took away. The total is the sum of every item, never below zero: when the sum is negative, a
+ * "Piso en cero" item shows what the floor added, so the items always explain the total.
+ */
+public record ScoreBreakdown(RuleEvaluation base, RuleEvaluation bonuses, RuleEvaluation deductions) {
     private static final String FLOOR_CONCEPT = "Piso en cero";
 
     public ScoreBreakdown {
-        items = items != null ? List.copyOf(items) : List.of();
-        notesAndPenalties = notesAndPenalties != null ? List.copyOf(notesAndPenalties) : List.of();
-        double itemsSum = sumOf(items);
-        if (Math.abs(itemsSum - totalScore) > TOLERANCE) {
-            throw new IllegalArgumentException(String.format(Locale.US,
-                    "totalScore %.2f must be the sum of its items (%.2f)", totalScore, itemsSum));
-        }
-    }
-
-    public static ScoreBreakdown of(List<ScoreItem> items, List<String> notesAndPenalties) {
-        double itemsSum = sumOf(items);
-        if (itemsSum >= 0) {
-            return new ScoreBreakdown(items, notesAndPenalties, itemsSum);
-        }
-        List<ScoreItem> withFloor = new ArrayList<>(items);
-        withFloor.add(ScoreItem.of(
-                FLOOR_CONCEPT,
-                String.format(Locale.US, "suma %.2f", itemsSum),
-                "max(0, suma)",
-                -itemsSum
-        ));
-        return new ScoreBreakdown(withFloor, notesAndPenalties, 0.0);
+        Objects.requireNonNull(base, "base cannot be null");
+        Objects.requireNonNull(bonuses, "bonuses cannot be null");
+        Objects.requireNonNull(deductions, "deductions cannot be null");
     }
 
     public static ScoreBreakdown empty() {
-        return new ScoreBreakdown(Collections.emptyList(), Collections.emptyList(), 0.0);
+        return new ScoreBreakdown(RuleEvaluation.empty(), RuleEvaluation.empty(), RuleEvaluation.empty());
     }
 
-    private static double sumOf(List<ScoreItem> items) {
-        double sum = 0.0;
-        for (ScoreItem item : items) {
-            sum += item.subtotal();
+    public List<ScoreItem> items() {
+        List<ScoreItem> items = new ArrayList<>(base.items());
+        items.addAll(bonuses.items());
+        items.addAll(deductions.items());
+        double sum = sumOfSections();
+        if (sum < 0) {
+            items.add(ScoreItem.of(FLOOR_CONCEPT, String.format(Locale.US, "suma %.2f", sum), "max(0, suma)", -sum));
         }
-        return sum;
+        return List.copyOf(items);
+    }
+
+    public List<String> notesAndPenalties() {
+        List<String> notes = new ArrayList<>(base.notes());
+        notes.addAll(bonuses.notes());
+        notes.addAll(deductions.notes());
+        return List.copyOf(notes);
+    }
+
+    public double totalScore() {
+        return Math.max(0.0, sumOfSections());
+    }
+
+    private double sumOfSections() {
+        return base.total() + bonuses.total() + deductions.total();
     }
 }

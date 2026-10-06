@@ -9,6 +9,7 @@ import com.roboleague.evaluation.rules.ObjectivesRule;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.PrecisionRule;
 import com.roboleague.evaluation.rules.ResourceConsumptionRule;
+import com.roboleague.evaluation.rules.ScoreRule.RuleEvaluation;
 import com.roboleague.evaluation.rules.TimeAdjustments;
 import com.roboleague.evaluation.rules.TimeBasedRule;
 import com.roboleague.evaluation.rules.TimeTargets;
@@ -60,25 +61,29 @@ class RulebookReviewFindingsTest {
     }
 
     @Test
-    @DisplayName("Pregunta abierta: un desglose no acepta un total distinto de la suma de sus ítems")
-    void givenItemsThatAddUpToTenThenATotalOfFiveHundredIsRejected() {
-        List<ScoreItem> items = List.of(ScoreItem.of("Tiempo", "50s", "formula", 10.0));
+    @DisplayName("Pregunta abierta: el total de un desglose es la suma de sus ítems, no un dato aparte que pueda diferir")
+    void givenABreakdownThenItsTotalIsTheSumOfItsItems() {
+        ScoreBreakdown breakdown = new ScoreBreakdown(
+                RuleEvaluation.of(ScoreItem.of("Tiempo", "50s", "formula", 100.0)),
+                RuleEvaluation.of(ScoreItem.of("Checkpoint", "1", "formula", 30.0)),
+                RuleEvaluation.of(ScoreItem.of("Penalizaciones", "2 faltas", "formula", -30.0)));
 
-        assertThatThrownBy(() -> new ScoreBreakdown(items, List.of(), 500.0))
-                .isInstanceOf(IllegalArgumentException.class);
+        double itemsSum = breakdown.items().stream().mapToDouble(ScoreItem::subtotal).sum();
+        assertThat(breakdown.totalScore()).isEqualTo(100.0).isEqualTo(itemsSum);
     }
 
     @Test
     @DisplayName("Pregunta abierta: el piso en cero aparece en el desglose y la explicación suma el total")
     void givenItemsBelowZeroThenTheFloorIsAnItemAndTheItemsAddUpToTheTotal() {
-        ScoreBreakdown breakdown = ScoreBreakdown.of(List.of(
-                ScoreItem.of("Tiempo", "90s", "formula", 10.0),
-                ScoreItem.of("Penalizaciones", "2 faltas", "formula", -30.0)
-        ), List.of());
+        ScoreBreakdown breakdown = new ScoreBreakdown(
+                RuleEvaluation.of(ScoreItem.of("Tiempo", "90s", "formula", 10.0)),
+                RuleEvaluation.empty(),
+                RuleEvaluation.of(ScoreItem.of("Penalizaciones", "2 faltas", "formula", -30.0)));
 
         double itemsSum = breakdown.items().stream().mapToDouble(ScoreItem::subtotal).sum();
         assertThat(breakdown.totalScore()).isZero();
         assertThat(itemsSum).isEqualTo(breakdown.totalScore());
+        assertThat(breakdown.items()).extracting(ScoreItem::concept).endsWith("Piso en cero");
     }
 
     @ParameterizedTest(name = "{0}")

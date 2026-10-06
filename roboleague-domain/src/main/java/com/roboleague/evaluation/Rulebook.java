@@ -1,7 +1,6 @@
 package com.roboleague.evaluation;
 
 import com.roboleague.evaluation.definition.RulebookDefinition;
-import com.roboleague.evaluation.rules.ScoreRule.RuleEvaluation;
 import com.roboleague.evaluation.scheme.RankingScheme;
 
 import java.util.List;
@@ -57,8 +56,7 @@ public final class Rulebook {
 
     public ScoreBreakdown evaluate(RawMetrics metrics) {
         Objects.requireNonNull(metrics, "metrics cannot be null");
-        RuleEvaluation evaluation = scoring.evaluate(metrics);
-        return ScoreBreakdown.of(evaluation.items(), evaluation.notes());
+        return scoring.evaluate(metrics);
     }
 
     /**

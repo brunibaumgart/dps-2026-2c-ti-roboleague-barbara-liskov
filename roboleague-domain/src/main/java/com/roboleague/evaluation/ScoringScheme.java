@@ -58,13 +58,12 @@ public record ScoringScheme(MetricSheet metrics, ScoreRules scoreRules, BonusLim
         return definitions;
     }
 
-    public RuleEvaluation evaluate(RawMetrics captured) {
+    public ScoreBreakdown evaluate(RawMetrics captured) {
         RuleEvaluation bonusesObtained = RuleEvaluation.combining(scoreRules.bonuses(), captured);
-        return RuleEvaluation.concat(List.of(
+        return new ScoreBreakdown(
                 RuleEvaluation.combining(scoreRules.base(), captured),
-                bonusesObtained,
-                bonusLimit.limit(bonusesObtained.total()),
-                RuleEvaluation.combining(scoreRules.deductions(), captured)));
+                RuleEvaluation.concat(List.of(bonusesObtained, bonusLimit.limit(bonusesObtained.total()))),
+                RuleEvaluation.combining(scoreRules.deductions(), captured));
     }
 
     public Set<ResultSource> requiredSources() {
