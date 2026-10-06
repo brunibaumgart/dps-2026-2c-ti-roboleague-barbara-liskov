@@ -15,7 +15,13 @@ public record Measurements(TrackPerformance track, double consumption, Map<Strin
         if (!Double.isFinite(consumption) || consumption < 0) {
             throw new IllegalArgumentException("consumption must be a finite, non-negative number: " + consumption);
         }
-        named = Map.copyOf(Objects.requireNonNull(named, "named measurements cannot be null"));
+        Objects.requireNonNull(named, "named measurements cannot be null");
+        named.forEach((name, value) -> {
+            if (value == null) {
+                throw new IllegalArgumentException("measurement '" + name + "' has no value");
+            }
+        });
+        named = Map.copyOf(named);
     }
 
     @Override
