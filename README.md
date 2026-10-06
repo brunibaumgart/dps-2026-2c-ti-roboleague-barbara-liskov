@@ -20,7 +20,7 @@ java -jar roboleague-api/target/roboleague-api-1.0-SNAPSHOT.jar --spring.profile
 
 El perfil `demo` vacía la base, aplica las migraciones y carga `DemoFixture` a través de los casos de uso. Cada corrida termina en el mismo estado:
 
-- Una edición (`ed-1`, categoría `cat-junior`) con tres desafíos: Laberinto (`ch-maze`), Seguidor de línea (`ch-line`, con su reglamento en v2) y Rescate (`ch-rescue`, mixto: exige mediciones automáticas y panel de jueces). Entre los tres usan los diez tipos de regla, la compuesta "Desempeño en pista", penalizaciones, bonificaciones con tope (40 / 30 / 30), mejores N de M y criterios de desempate encadenados. Se consultan con `GET /challenges/{id}`.
+- Una edición (`ed-1`, categoría `cat-junior`) con tres desafíos: Laberinto (`ch-maze`), Seguidor de línea (`ch-line`, con su reglamento en v2) y Rescate (`ch-rescue`, mixto: exige mediciones automáticas y panel de jueces). Entre los tres usan los doce tipos de regla (base, bonificaciones y deducciones), la compuesta "Desempeño en pista", penalizaciones, bonificaciones con tope (40 / 30 / 30), mejores N de M y criterios de desempate encadenados. Se consultan con `GET /challenges/{id}`.
 - Sobre Laberinto: dos equipos, una ronda, dos intentos (el desglose muestra el recorte del tope), un ranking provisional, una apelación aceptada con recálculo y la publicación oficial.
 
 Capturar en el desafío mixto, programar rondas por desafío y ver la tabla con mejores N de M son de los otros frentes; hoy la demo los deja configurados.
@@ -119,37 +119,44 @@ Un reglamento en JSON (lo que se manda es lo que `GET /challenges/{id}` devuelve
      {"type": "composite", "name": "Desempeño en pista", "rules": [
        {"type": "time", "name": "Tiempo", "numbers": {"basePoints": 100, "targetTimeSeconds": 60,
          "pointsPerSecondUnder": 1.5, "deductionPerSecondOver": 2, "minPoints": 0}},
-       {"type": "objectives", "name": "Objetivos", "numbers": {"pointsPerObjective": 20, "totalObjectives": 5,
-         "allCompletedBonus": 25}}]},
-     {"type": "penalty", "name": "Faltas de pista", "numbers": {"deductionPerPenalty": 15}}],
+       {"type": "objectives", "name": "Objetivos", "numbers": {"pointsPerObjective": 20}}]}],
    "bonuses": [
      {"type": "milestone", "name": "Checkpoint", "numbers": {"threshold": 1, "bonus": 30},
-      "metrics": {"metric": {"name": "checkpoint", "source": "AUTOMATIC_MEASUREMENTS"}}}],
+      "metrics": {"metric": {"name": "checkpoint", "source": "AUTOMATIC_MEASUREMENTS"}}},
+     {"type": "all-objectives", "name": "Todos los objetivos", "numbers": {"totalObjectives": 5, "bonus": 25}}],
+   "deductions": [
+     {"type": "penalty", "name": "Faltas de pista", "numbers": {"deductionPerPenalty": 15}}],
    "bonusLimit": {"type": "capped", "numbers": {"maximum": 40}}},
  "ranking": {"roundSelection": {"type": "best-n-of-m", "numbers": {"considered": 3, "outOf": 5}},
-             "criteria": ["higher-total", "lower-time", "fewer-penalties"]}}
+             "criteria": ["higher-total", "lower-time", "lower-deductions"]}}
 ```
 
-| `type` | `numbers` | `metrics` |
-| --- | --- | --- |
-| `time` | `basePoints`, `targetTimeSeconds`, `pointsPerSecondUnder`, `deductionPerSecondOver`, `minPoints` | — |
-| `objectives` | `pointsPerObjective`, `totalObjectives`, `allCompletedBonus` | — |
-| `penalty` | `deductionPerPenalty` | — |
-| `judges` | `weightMultiplier` | — |
-| `resource-consumption` | `maxAllowedConsumption`, `penaltyPerExcessUnit` | — |
-| `counted-fault` | `freeAllowance`, `deductionPerFault` | `faults` |
-| `precision` | `maxPoints` | `accuracy` |
-| `victims` | `totalVictims`, `pointsPerRescued`, `deductionPerAbandoned` | `rescued` |
-| `milestone` | `threshold`, `bonus` | `metric` |
-| `composite` | — | — (lleva `rules`) |
+Cada regla va en la lista de su sección: `rules` (base), `bonuses` o `deductions`. Una regla base o una bonificación nunca resta y una deducción nunca suma; el tope (`bonusLimit`) recorta la suma de las bonificaciones y no toca las deducciones.
 
-Una métrica es `{"name", "source"}` con `source` = `AUTOMATIC_MEASUREMENTS` o `JUDGE_PANEL`. Toda métrica que lee una regla tiene que estar declarada en `metrics` con la misma fuente, una unidad (`COUNT`, `SECONDS`, `METERS`, `RATIO` o `POINTS`; `COUNT` solo acepta enteros) y un rango (`min` y, si tiene tope, `max`). Una métrica no declarada o de otra fuente, un rango invertido o una métrica declarada dos veces: 422. Una unidad desconocida: 400. Tiempo, objetivos, faltas, consumo y notas de jueces son campos fijos y no se declaran. Límite de bonificaciones: `capped` (`maximum`) o `unlimited`. Selección de rondas: `best-n-of-m` (`considered`, `outOf`) o `all-rounds`. Criterios: `higher-total`, `lower-time`, `fewer-penalties`, `higher-judge-score`. El primero es siempre `higher-total` (se ordena por puntaje) y ninguno se repite; los demás desempatan en el orden declarado.
+| Sección | `type` | `numbers` | `metrics` |
+| --- | --- | --- | --- |
+| base | `time` | `basePoints`, `targetTimeSeconds`, `pointsPerSecondUnder`, `deductionPerSecondOver`, `minPoints` | — |
+| base | `objectives` | `pointsPerObjective` | — |
+| base | `judges` | `weightMultiplier` | — |
+| base | `precision` | `maxPoints` | `accuracy` |
+| base | `victims` | `pointsPerRescued` | `rescued` |
+| base | `composite` | — | — (lleva `rules`, solo reglas base) |
+| bonificación | `milestone` | `threshold`, `bonus` | `metric` |
+| bonificación | `all-objectives` | `totalObjectives`, `bonus` | — |
+| deducción | `penalty` | `deductionPerPenalty` | — |
+| deducción | `counted-fault` | `freeAllowance`, `deductionPerFault` | `faults` |
+| deducción | `resource-consumption` | `maxAllowedConsumption`, `penaltyPerExcessUnit` | — |
+| deducción | `abandoned-victims` | `totalVictims`, `deductionPerAbandoned` | `rescued` |
+
+Un tipo en la lista de otra sección es 422 y dice a cuál pertenece (`"rule 'Faltas': type 'penalty' is a deduction, not a bonus"`). Un parámetro, una métrica o un número que la pieza no usa también es 422 (`"unknown parameter 'deductionPerPenaltyy'"`): no se ignora en silencio.
+
+Una métrica es `{"name", "source"}` con `source` = `AUTOMATIC_MEASUREMENTS` o `JUDGE_PANEL`. Toda métrica que lee una regla tiene que estar declarada en `metrics` con la misma fuente, una unidad (`COUNT`, `SECONDS`, `METERS`, `RATIO` o `POINTS`; `COUNT` solo acepta enteros) y un rango (`min` y, si tiene tope, `max`). Una métrica no declarada o de otra fuente, un rango invertido o una métrica declarada dos veces: 422. Una unidad desconocida: 400. Tiempo, objetivos, faltas, consumo y notas de jueces son campos fijos y no se declaran. Límite de bonificaciones: `capped` (`maximum`) o `unlimited`. Selección de rondas: `best-n-of-m` (`considered`, `outOf`) o `all-rounds`. Criterios: `higher-total`, `lower-time`, `lower-deductions` (menos puntos descontados por las deducciones), `higher-judge-score`. El primero es siempre `higher-total` (se ordena por puntaje) y ninguno se repite; los demás desempatan en el orden declarado.
 
 ## Cómo sumar lo tuyo
 
 **Un endpoint.** Controller en `roboleague-api/src/main/java/com/roboleague/api/<contexto>/`, con su DTO. Si el caso de uso es nuevo, su `@Bean` va en `UseCaseConfig`. El test extiende `ApiTest` y usa ids propios (el contexto y la base se comparten entre clases de test).
 
-**Un tipo de regla nuevo.** Clase en `roboleague-domain/.../evaluation/rules/` que implementa `ScoreRule`, con `TYPE`, constantes para los nombres de sus parámetros, `static from(RuleDefinition)` y `definition()` (los dos usan las mismas constantes), y `metrics()` con las métricas con nombre que lee. Una entrada en `RuleCatalog.standard()`, un caso en `RuleCatalogTest.everyRuleType()` y una fila en la tabla de "Configurar el evento y los desafíos". Las reglas existentes no se tocan.
+**Un tipo de regla nuevo.** Clase en `roboleague-domain/.../evaluation/rules/` que implementa la interfaz de su sección (`BaseRule`, `BonusRule` o `DeductionRule`), con `TYPE`, constantes para los nombres de sus parámetros, `static from(RuleDefinition)` y `definition()` (los dos usan las mismas constantes), y `metrics()` con las métricas con nombre que lee. Un registro en la sección que le corresponde en `RuleCatalog.standard()`, un caso en `RuleCatalogTest.everyRuleType()` y en `ScoreRuleSectionsTest`, y una fila en la tabla de "Configurar el evento y los desafíos". Las reglas existentes no se tocan.
 
 **Validar una captura contra el reglamento.** `rulebook.check(fuente, mediciones)` revisa lo que mandó una fuente: que estén todas las métricas declaradas para ella, ninguna de más, cada una en su unidad y rango. Devuelve `MeasurementCheck.Accepted` o `Rejected(problemas)`; el caso de uso lo traduce a 422. En el desafío mixto se llama una vez por fuente (F3).
 
