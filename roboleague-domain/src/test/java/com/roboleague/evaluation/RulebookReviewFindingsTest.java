@@ -5,10 +5,12 @@ import com.roboleague.evaluation.rules.FaultTariff;
 import com.roboleague.evaluation.rules.JudgeSubjectiveRule;
 import com.roboleague.evaluation.rules.Milestone;
 import com.roboleague.evaluation.rules.MilestoneBonusRule;
+import com.roboleague.evaluation.rules.ObjectivesRule;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.PrecisionRule;
 import com.roboleague.evaluation.rules.ResourceConsumptionRule;
 import com.roboleague.evaluation.rules.TimeAdjustments;
+import com.roboleague.evaluation.rules.TimeBasedRule;
 import com.roboleague.evaluation.rules.TimeTargets;
 import com.roboleague.evaluation.rules.VictimTariff;
 import com.roboleague.evaluation.rules.VictimsRule;
@@ -51,9 +53,9 @@ class RulebookReviewFindingsTest {
     @Test
     @DisplayName("Hallazgo 1: la lista de reglas que expone la regla compuesta no se puede modificar")
     void givenTheCompositeRuleThenItsRulesListIsUnmodifiable() {
-        CompositeScoreRule composite = new CompositeScoreRule("Laberinto", List.of(new PenaltyRule("Faltas", 10.0)));
+        CompositeScoreRule composite = new CompositeScoreRule("Laberinto", List.of(TimeBasedRule.standard(100.0, 60.0)));
 
-        assertThatThrownBy(() -> composite.getRules().add(new PenaltyRule("Faltas extra", 15.0)))
+        assertThatThrownBy(() -> composite.getRules().add(ObjectivesRule.standard(15.0)))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 

@@ -37,10 +37,10 @@ class ResolveAppealUseCaseTest {
         );
         ResolveAppealUseCase useCase = new ResolveAppealUseCase(appealRepository, attemptRepository, new InMemoryChallengeRepository(), recalculate);
 
-        Rulebook rulebook = new Rulebook(RulebookVersion.first(), ScoringScheme.withoutBonuses(List.of(
-                TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0),
-                new PenaltyRule("Faltas", 10.0)
-        )), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
+        Rulebook rulebook = new Rulebook(RulebookVersion.first(), ScoringScheme.withoutBonuses(
+                List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0)),
+                List.of(new PenaltyRule("Faltas", 10.0))
+        ), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
         Attempt attempt = Attempt.of("att-1", "t-1", "slot-1", "r-1", 1);
         RawMetrics metrics = RawMetrics.of(40.0, 2, 3);
         attempt.registerInitialResult(metrics, rulebook.evaluate(metrics), "judge-1");

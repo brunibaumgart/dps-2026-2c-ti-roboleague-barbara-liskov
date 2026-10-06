@@ -27,7 +27,7 @@ class ChallengeTest {
 
     private Challenge mazeWithBase(double basePoints) {
         return Challenge.draft(ChallengeId.of("ch-maze"), "ed-2026", "Laberinto")
-                .publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(basePoints))), allRounds);
+                .publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(basePoints)), List.of()), allRounds);
     }
 
     private static TimeBasedRule timeRuleWithBase(double basePoints) {
@@ -47,7 +47,7 @@ class ChallengeTest {
     void givenASecondPublicationThenTheCurrentVersionIsTwo() {
         Challenge maze = mazeWithBase(100.0);
 
-        Rulebook second = maze.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(150.0))), allRounds);
+        Rulebook second = maze.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(150.0)), List.of()), allRounds);
 
         assertThat(second.version()).isEqualTo(new RulebookVersion(2));
         assertThat(maze.currentRulebook()).isSameAs(second);
@@ -59,7 +59,7 @@ class ChallengeTest {
         Challenge maze = mazeWithBase(100.0);
         double v1ScoreBefore = maze.currentRulebook().evaluate(tenSecondsUnderTarget).totalScore();
 
-        maze.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(150.0))), allRounds);
+        maze.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(150.0)), List.of()), allRounds);
 
         Rulebook v1 = maze.rulebook(new RulebookVersion(1)).orElseThrow();
         Rulebook v2 = maze.rulebook(new RulebookVersion(2)).orElseThrow();
@@ -80,7 +80,7 @@ class ChallengeTest {
     void givenNoRulesThenTheRulebookIsRejected() {
         Challenge.Draft draft = Challenge.draft(ChallengeId.of("ch-maze"), "ed-2026", "Laberinto");
 
-        assertThatThrownBy(() -> draft.publish(ScoringScheme.withoutBonuses(List.of()), allRounds))
+        assertThatThrownBy(() -> draft.publish(ScoringScheme.withoutBonuses(List.of(), List.of()), allRounds))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -88,12 +88,12 @@ class ChallengeTest {
     @DisplayName("Un desafío guardado se restaura con todas sus versiones y sigue publicando")
     void givenStoredRulebooksThenTheRestoredChallengeKeepsThemAndPublishesTheNext() {
         Challenge original = mazeWithBase(100.0);
-        original.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(150.0))), allRounds);
+        original.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(150.0)), List.of()), allRounds);
 
         Challenge restored = Challenge.restore(Challenge.draft(original.getId(), original.getEditionId(),
                 original.getName()), List.of(original.rulebook(RulebookVersion.first()).orElseThrow(),
                 original.currentRulebook()));
-        Rulebook third = restored.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(200.0))), allRounds);
+        Rulebook third = restored.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(200.0)), List.of()), allRounds);
 
         assertThat(restored.rulebook(RulebookVersion.first()).orElseThrow().evaluate(tenSecondsUnderTarget).totalScore())
                 .isEqualTo(110.0);
@@ -104,7 +104,7 @@ class ChallengeTest {
     @DisplayName("Restaurar versiones salteadas es un dato corrupto")
     void givenStoredVersionsThatSkipOneThenRestoringFails() {
         Challenge original = mazeWithBase(100.0);
-        Rulebook v2 = original.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(150.0))), allRounds);
+        Rulebook v2 = original.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(150.0)), List.of()), allRounds);
         Challenge.Draft draft = Challenge.draft(ChallengeId.of("ch-maze"), "ed-2026", "Laberinto");
 
         assertThatThrownBy(() -> Challenge.restore(draft, List.of(v2))).isInstanceOf(IllegalStateException.class);
@@ -117,7 +117,7 @@ class ChallengeTest {
         RankingScheme bestTwoOfThree = new RankingScheme(new BestNOfM(2, 3), List.of(new HigherTotal()));
 
         Challenge maze = Challenge.draft(ChallengeId.of("ch-maze"), "ed-2026", "Laberinto")
-                .publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(100.0))), bestTwoOfThree);
+                .publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(100.0)), List.of()), bestTwoOfThree);
 
         assertThat(maze.currentRulebook().rankingScheme()).isSameAs(bestTwoOfThree);
     }
@@ -128,7 +128,7 @@ class ChallengeTest {
         Challenge maze = mazeWithBase(100.0);
         RankingScheme bestOneOfTwo = new RankingScheme(new BestNOfM(1, 2), List.of(new HigherTotal()));
 
-        Rulebook v2 = maze.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(100.0))), bestOneOfTwo);
+        Rulebook v2 = maze.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(100.0)), List.of()), bestOneOfTwo);
 
         Rulebook v1 = maze.rulebook(RulebookVersion.first()).orElseThrow();
         assertThat(v2.evaluate(tenSecondsUnderTarget)).isEqualTo(v1.evaluate(tenSecondsUnderTarget));

@@ -149,6 +149,17 @@ class ChallengeControllerTest extends ApiTest {
     }
 
     @Test
+    @DisplayName("Una penalización puesta entre las bonificaciones es 422 y dice a qué lista pertenece")
+    void aPenaltyAmongTheBonusesIsUnprocessable() throws Exception {
+        String misplaced = rulebook("penalty", 40).replace("\"bonuses\": [", """
+                "bonuses": [{"type": "penalty", "name": "Faltas dobles", "numbers": {"deductionPerPenalty": 30}},""");
+
+        mvc.perform(addChallenge("api-ed-ch", "api-ch-misplaced", misplaced))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.details[0]").value("rule 'Faltas dobles': type 'penalty' is a deduction, not a bonus"));
+    }
+
+    @Test
     @DisplayName("Una versión nueva inválida es 422 y no cambia la vigente")
     void anInvalidNewVersionIsUnprocessable() throws Exception {
         mvc.perform(addChallenge("api-ed-ch", "api-ch-3", rulebook("penalty", 40))).andExpect(status().isCreated());

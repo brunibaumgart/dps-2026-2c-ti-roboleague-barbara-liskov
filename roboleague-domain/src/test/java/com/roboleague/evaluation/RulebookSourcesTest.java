@@ -1,8 +1,10 @@
 package com.roboleague.evaluation;
 
 import com.roboleague.evaluation.rules.AbandonedVictimsRule;
+import com.roboleague.evaluation.rules.BaseRule;
 import com.roboleague.evaluation.rules.CompositeScoreRule;
 import com.roboleague.evaluation.rules.CountedFaultRule;
+import com.roboleague.evaluation.rules.DeductionRule;
 import com.roboleague.evaluation.rules.FaultTariff;
 import com.roboleague.evaluation.rules.JudgeSubjectiveRule;
 import com.roboleague.evaluation.rules.Milestone;
@@ -36,19 +38,19 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class RulebookSourcesTest {
 
     private static final RankingScheme ANY_SCHEME = new RankingScheme(new AllRounds(), List.of(new HigherTotal()));
-    private static final ScoreRule TIME = TimeBasedRule.standard(100.0, 60.0);
-    private static final ScoreRule OBJECTIVES = ObjectivesRule.standard(20.0);
-    private static final ScoreRule JUDGES = JudgeSubjectiveRule.standard(2.0);
+    private static final BaseRule TIME = TimeBasedRule.standard(100.0, 60.0);
+    private static final BaseRule OBJECTIVES = ObjectivesRule.standard(20.0);
+    private static final BaseRule JUDGES = JudgeSubjectiveRule.standard(2.0);
     private static final Metric RESCUED = Metric.judged("victimas_rescatadas");
-    private static final ScoreRule VICTIMS = new VictimsRule("Víctimas rescatadas", RESCUED, 25.0);
-    private static final ScoreRule ABANDONED =
+    private static final BaseRule VICTIMS = new VictimsRule("Víctimas rescatadas", RESCUED, 25.0);
+    private static final DeductionRule ABANDONED =
             new AbandonedVictimsRule("Víctimas abandonadas", RESCUED, new VictimTariff(4, 10.0));
 
-    private static Rulebook rulebookWith(List<ScoreRule> rules) {
+    private static Rulebook rulebookWith(List<BaseRule> base, List<DeductionRule> deductions) {
         MetricSheet declared = new MetricSheet(List.of(
                 new MetricDefinition(RESCUED, MeasurementUnit.COUNT, ValueRange.between(0.0, 4.0))));
         return new Rulebook(RulebookVersion.first(),
-                new ScoringScheme(declared, new ScoreRules(rules, List.of(), List.of()), new Unlimited()), ANY_SCHEME);
+                new ScoringScheme(declared, new ScoreRules(base, List.of(), deductions), new Unlimited()), ANY_SCHEME);
     }
 
     @ParameterizedTest(name = "{0} → {1}")
@@ -85,9 +87,8 @@ class RulebookSourcesTest {
     }
 
     static Stream<Arguments> rulesAndTheMetricsTheyRead() {
-        Metric lineExits = Metric.sensor("salidas_de_linea");
-        Metric collisions = Metric.sensor("colisiones");
         Metric precision = Metric.sensor("precision");
+        Metric victimsBySensor = Metric.sensor("victimas_detectadas");
         return Stream.of(
                 Arguments.of(Named.of("Tiempo", TIME), Set.of()),
                 Arguments.of(Named.of("Panel de jueces", JUDGES), Set.of()),
@@ -96,10 +97,10 @@ class RulebookSourcesTest {
                 Arguments.of(Named.of("Víctimas abandonadas", ABANDONED), Set.of(RESCUED)),
                 Arguments.of(Named.of("Desempeño en pista", new CompositeScoreRule("Desempeño en pista",
                         List.of(TIME, OBJECTIVES))), Set.of()),
-                Arguments.of(Named.of("Faltas en pista", new CompositeScoreRule("Faltas en pista", List.of(
-                        new CountedFaultRule("Salidas de línea", lineExits, new FaultTariff(1, 5.0)),
-                        new CountedFaultRule("Colisiones", collisions, new FaultTariff(0, 10.0))))),
-                        Set.of(lineExits, collisions))
+                Arguments.of(Named.of("Medido en pista", new CompositeScoreRule("Medido en pista", List.of(
+                        new PrecisionRule("Precisión", precision, 80.0),
+                        new VictimsRule("Víctimas detectadas", victimsBySensor, 10.0)))),
+                        Set.of(precision, victimsBySensor))
         );
     }
 
@@ -133,21 +134,21 @@ class RulebookSourcesTest {
     @Test
     @DisplayName("Un reglamento solo de sensores exige una fuente")
     void givenOnlySensorRulesThenTheRulebookRequiresOneSource() {
-        assertThat(rulebookWith(List.of(TIME, OBJECTIVES)).requiredSources())
+        assertThat(rulebookWith(List.of(TIME, OBJECTIVES), List.of()).requiredSources())
                 .containsExactly(ResultSource.AUTOMATIC_MEASUREMENTS);
     }
 
     @Test
     @DisplayName("Un reglamento mixto exige sensores y panel de jueces")
     void givenAMixedRulebookThenItRequiresBothSources() {
-        assertThat(rulebookWith(List.of(TIME, VICTIMS, JUDGES)).requiredSources())
+        assertThat(rulebookWith(List.of(TIME, VICTIMS, JUDGES), List.of()).requiredSources())
                 .containsExactlyInAnyOrder(ResultSource.AUTOMATIC_MEASUREMENTS, ResultSource.JUDGE_PANEL);
     }
 
     @Test
     @DisplayName("Sin tope, las contribuciones separan los ítems por fuente y entre las dos suman el total")
     void givenAMixedRulebookThenContributionsSplitItemsBySourceAndAddUpToTheTotal() {
-        Rulebook rescue = rulebookWith(List.of(TIME, VICTIMS, ABANDONED, JUDGES));
+        Rulebook rescue = rulebookWith(List.of(TIME, VICTIMS, JUDGES), List.of(ABANDONED));
         RawMetrics metrics = new RawMetrics(new TrackPerformance(50.0, 0, 0),
                 EvaluationFeedback.of(0.0, Map.of("j1", 8.0), Map.of(RESCUED.name(), 3.0)));
 
@@ -157,7 +158,7 @@ class RulebookSourcesTest {
                 .containsExactly(ResultSource.AUTOMATIC_MEASUREMENTS, ResultSource.JUDGE_PANEL);
         assertThat(contributions.get(0).items()).extracting(ScoreItem::concept).containsExactly("Regla de Tiempo");
         assertThat(contributions.get(1).items()).extracting(ScoreItem::concept)
-                .containsExactly("Víctimas rescatadas", "Víctimas abandonadas", "Evaluación de Jueces");
+                .containsExactly("Víctimas rescatadas", "Evaluación de Jueces", "Víctimas abandonadas");
         assertThat(contributions.get(0).subtotal() + contributions.get(1).subtotal())
                 .isEqualTo(rescue.evaluate(metrics).totalScore());
     }
@@ -165,7 +166,7 @@ class RulebookSourcesTest {
     @Test
     @DisplayName("El piso en cero queda en el desglose total, no en una fuente")
     void givenANegativeSumThenTheFloorIsInTheBreakdownButNotInAnySource() {
-        Rulebook rescue = rulebookWith(List.of(VICTIMS, ABANDONED));
+        Rulebook rescue = rulebookWith(List.of(VICTIMS), List.of(ABANDONED));
         RawMetrics noneRescued = new RawMetrics(new TrackPerformance(50.0, 0, 0),
                 EvaluationFeedback.withMeasurements(Map.of(RESCUED.name(), 0.0)));
 

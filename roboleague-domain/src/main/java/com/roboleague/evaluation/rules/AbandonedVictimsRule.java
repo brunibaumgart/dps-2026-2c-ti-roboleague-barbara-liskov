@@ -16,7 +16,7 @@ import java.util.Set;
  * Deducts for each victim of the track that was not rescued. It reads the rescued count and knows how many
  * victims there were, so it is the one that rejects more rescued victims than placed.
  */
-public final class AbandonedVictimsRule implements ScoreRule {
+public final class AbandonedVictimsRule implements DeductionRule {
     private final String ruleName;
     private final Metric rescued;
     private final VictimTariff tariff;

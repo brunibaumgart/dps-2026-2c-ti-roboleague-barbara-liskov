@@ -16,7 +16,7 @@ import java.util.Set;
  * Adds points for each rescued victim. The deduction for the ones left behind is a separate rule
  * ({@link AbandonedVictimsRule}), so what is rewarded and what is deducted are told apart.
  */
-public final class VictimsRule implements ScoreRule {
+public final class VictimsRule implements BaseRule {
     private final String ruleName;
     private final Metric rescued;
     private final double pointsPerRescued;

@@ -15,7 +15,7 @@ import java.util.Set;
 /**
  * Scoring rule incorporating subjective evaluations by human judges (e.g. design, innovation, robustness).
  */
-public class JudgeSubjectiveRule implements ScoreRule {
+public class JudgeSubjectiveRule implements BaseRule {
     private final String ruleName;
     private final double weightMultiplier;
 

@@ -14,14 +14,15 @@ import java.util.Set;
 import java.util.function.Function;
 
 /**
- * Composite score rule aggregating child rules that read from the same source (e.g. "Desempeño en pista").
+ * Composite score rule aggregating base rules that read from the same source (e.g. "Desempeño en pista").
+ * Its children are base rules, so a composite never hides a bonus or a deduction.
  */
-public class CompositeScoreRule implements ScoreRule {
+public class CompositeScoreRule implements BaseRule {
     private final String name;
-    private final List<ScoreRule> rules;
+    private final List<BaseRule> rules;
     private final ResultSource source;
 
-    public CompositeScoreRule(String name, List<ScoreRule> rules) {
+    public CompositeScoreRule(String name, List<BaseRule> rules) {
         this.name = Objects.requireNonNull(name, "name cannot be null");
         this.rules = List.copyOf(Objects.requireNonNull(rules, "rules cannot be null"));
         if (this.rules.isEmpty()) {
@@ -36,8 +37,8 @@ public class CompositeScoreRule implements ScoreRule {
 
     public static final String TYPE = "composite";
 
-    public static CompositeScoreRule from(RuleDefinition definition, Function<RuleDefinition, ScoreRule> resolveChild) {
-        List<ScoreRule> children = new ArrayList<>();
+    public static CompositeScoreRule from(RuleDefinition definition, Function<RuleDefinition, BaseRule> resolveChild) {
+        List<BaseRule> children = new ArrayList<>();
         for (RuleDefinition child : definition.arguments().rules()) {
             children.add(resolveChild.apply(child));
         }
@@ -53,7 +54,7 @@ public class CompositeScoreRule implements ScoreRule {
         return new RuleDefinition(TYPE, name, RuleArguments.ofRules(children));
     }
 
-    public List<ScoreRule> getRules() {
+    public List<BaseRule> getRules() {
         return rules;
     }
 

@@ -16,7 +16,7 @@ import java.util.Set;
  * Grants a fixed bonus when every objective of the track is completed, and nothing otherwise.
  * As a bonus rule, the rulebook's bonus cap applies to it (F2).
  */
-public final class AllObjectivesBonusRule implements ScoreRule {
+public final class AllObjectivesBonusRule implements BonusRule {
     private final String ruleName;
     private final int totalObjectives;
     private final double bonus;

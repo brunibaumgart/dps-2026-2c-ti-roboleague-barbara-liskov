@@ -1,10 +1,11 @@
 package com.roboleague.evaluation;
 
 import com.roboleague.evaluation.rules.AllObjectivesBonusRule;
+import com.roboleague.evaluation.rules.BaseRule;
+import com.roboleague.evaluation.rules.BonusRule;
 import com.roboleague.evaluation.rules.Milestone;
 import com.roboleague.evaluation.rules.MilestoneBonusRule;
 import com.roboleague.evaluation.rules.PenaltyRule;
-import com.roboleague.evaluation.rules.ScoreRule;
 import com.roboleague.evaluation.rules.TimeBasedRule;
 import com.roboleague.evaluation.scheme.AllRounds;
 import com.roboleague.evaluation.scheme.HigherTotal;
@@ -23,10 +24,10 @@ class BonusCapTest {
 
     private static final Metric ZONE = Metric.sensor("zona_alcanzada");
     private static final Metric DISTANCE = Metric.sensor("distancia_metros");
-    private static final ScoreRule ZONE_BONUS = new MilestoneBonusRule("Bonus por zona", new Milestone(ZONE, 1.0), 30.0);
-    private static final ScoreRule DISTANCE_BONUS =
+    private static final BonusRule ZONE_BONUS = new MilestoneBonusRule("Bonus por zona", new Milestone(ZONE, 1.0), 30.0);
+    private static final BonusRule DISTANCE_BONUS =
             new MilestoneBonusRule("Bonus por distancia", new Milestone(DISTANCE, 10.0), 25.0);
-    private static final ScoreRule TIME = TimeBasedRule.standard(100.0, 60.0);
+    private static final BaseRule TIME = TimeBasedRule.standard(100.0, 60.0);
     private static final MetricSheet MILESTONES = new MetricSheet(List.of(
             new MetricDefinition(ZONE, MeasurementUnit.COUNT, ValueRange.between(0.0, 1.0)),
             new MetricDefinition(DISTANCE, MeasurementUnit.METERS, ValueRange.atLeast(0.0))));
@@ -148,20 +149,6 @@ class BonusCapTest {
 
         assertThat(capItem(breakdown).subtotal()).isEqualTo(-15.0);
         assertThat(breakdown.totalScore()).isEqualTo(100.0 + 55.0 - 15.0 - 20.0);
-    }
-
-    @Test
-    @DisplayName("Una regla que resta puesta entre las bonificaciones baja lo obtenido y el tope no recorta")
-    void givenARuleThatSubtractsAmongTheBonusesThenTheObtainedSumCanBeNegativeAndNothingIsCut() {
-        Rulebook rulebook = new Rulebook(RulebookVersion.first(), new ScoringScheme(MILESTONES,
-                new ScoreRules(List.of(TIME), List.of(new PenaltyRule("Faltas", 10.0)), List.of()),
-                new CappedAt(40.0)), ANY_RANKING);
-
-        ScoreItem cap = capItem(rulebook.evaluate(new RawMetrics(new TrackPerformance(60.0, 0, 2),
-                EvaluationFeedback.empty())));
-
-        assertThat(cap.rawMetric()).contains("-20.0");
-        assertThat(cap.subtotal()).isZero();
     }
 
     @Test

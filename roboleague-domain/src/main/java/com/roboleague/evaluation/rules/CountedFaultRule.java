@@ -16,7 +16,7 @@ import java.util.Set;
  * Deducts for each counted fault (line exits, collisions…) beyond a free allowance.
  * Line exits and collisions are two instances reading different metrics, not two classes.
  */
-public final class CountedFaultRule implements ScoreRule {
+public final class CountedFaultRule implements DeductionRule {
     private final String ruleName;
     private final Metric faults;
     private final FaultTariff tariff;

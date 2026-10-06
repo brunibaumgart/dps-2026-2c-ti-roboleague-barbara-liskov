@@ -105,10 +105,9 @@ class AppealAndRecalculateIntegrationTest {
         maze = Challenge.draft(ChallengeId.of("ch-maze"), edition2026.getId(), "Laberinto").publish(
                 new ScoringScheme(MetricSheet.none(), new ScoreRules(
                         List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0),
-                                new ObjectivesRule("Objetivos", 20.0),
-                                new PenaltyRule("Penalizaciones", 15.0)),
+                                new ObjectivesRule("Objetivos", 20.0)),
                         List.of(new AllObjectivesBonusRule("Todos los objetivos", 5, 25.0)),
-                        List.of()), new Unlimited()),
+                        List.of(new PenaltyRule("Penalizaciones", 15.0))), new Unlimited()),
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
         challengeRepository.save(maze);
     }

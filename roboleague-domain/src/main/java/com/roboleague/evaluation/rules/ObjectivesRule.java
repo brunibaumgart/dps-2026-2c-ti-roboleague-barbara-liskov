@@ -16,7 +16,7 @@ import java.util.Set;
  * Scoring rule granting points for each objective completed. The bonus for completing all of them is a separate
  * bonus rule ({@link AllObjectivesBonusRule}), so the bonus cap sees it.
  */
-public class ObjectivesRule implements ScoreRule {
+public class ObjectivesRule implements BaseRule {
     private final String ruleName;
     private final double pointsPerObjective;
 

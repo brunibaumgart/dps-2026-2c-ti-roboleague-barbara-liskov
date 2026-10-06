@@ -117,14 +117,14 @@ class ScoringEngineTest {
     @Test
     @DisplayName("A rulebook consolidates rules from both sources into an explainable ScoreBreakdown")
     void rulebookConsolidatesExplainableBreakdown() {
-        ScoreRule timeRule = new TimeBasedRule("Tiempo", TimeRuleConfig.of(100.0, 60.0, 1.0, 2.0, 0.0));
-        ScoreRule objRule = new ObjectivesRule("Objetivos", 25.0);
-        ScoreRule allObjectives = new AllObjectivesBonusRule("Todos los objetivos", 4, 20.0);
-        ScoreRule penaltyRule = new PenaltyRule("Penalizaciones", 10.0);
-        ScoreRule judgeRule = new JudgeSubjectiveRule("Jueces", 2.0);
+        BaseRule timeRule = new TimeBasedRule("Tiempo", TimeRuleConfig.of(100.0, 60.0, 1.0, 2.0, 0.0));
+        BaseRule objRule = new ObjectivesRule("Objetivos", 25.0);
+        BonusRule allObjectives = new AllObjectivesBonusRule("Todos los objetivos", 4, 20.0);
+        DeductionRule penaltyRule = new PenaltyRule("Penalizaciones", 10.0);
+        BaseRule judgeRule = new JudgeSubjectiveRule("Jueces", 2.0);
 
         Rulebook rulebook = new Rulebook(RulebookVersion.first(), new ScoringScheme(MetricSheet.none(),
-                new ScoreRules(List.of(timeRule, objRule, penaltyRule, judgeRule), List.of(allObjectives), List.of()),
+                new ScoreRules(List.of(timeRule, objRule, judgeRule), List.of(allObjectives), List.of(penaltyRule)),
                 new Unlimited()), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
 
         // Time: 50s (+10 bonus => 110)
@@ -145,6 +145,6 @@ class ScoringEngineTest {
 
         // Verify each line item exists and is explainable
         assertThat(breakdown.items()).extracting(ScoreItem::concept)
-                .containsExactly("Tiempo", "Objetivos", "Penalizaciones", "Jueces", "Todos los objetivos");
+                .containsExactly("Tiempo", "Objetivos", "Jueces", "Todos los objetivos", "Penalizaciones");
     }
 }
