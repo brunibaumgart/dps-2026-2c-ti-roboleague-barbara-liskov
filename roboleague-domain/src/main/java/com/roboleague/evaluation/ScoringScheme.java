@@ -39,12 +39,13 @@ public record ScoringScheme(MetricSheet metrics, ScoreRules scoreRules, BonusLim
      * A scheme with no bonuses for rules that read no named metric, so there is nothing to declare.
      */
     public static ScoringScheme withoutBonuses(List<ScoreRule> rules) {
-        return new ScoringScheme(MetricSheet.none(), new ScoreRules(rules, List.of()), new Unlimited());
+        return new ScoringScheme(MetricSheet.none(), new ScoreRules(rules, List.of(), List.of()), new Unlimited());
     }
 
     public RulebookDefinition.Scoring definition() {
-        return new RulebookDefinition.Scoring(definitionsOf(scoreRules.rules()), definitionsOf(scoreRules.bonuses()),
-                bonusLimit.definition());
+        return new RulebookDefinition.Scoring(definitionsOf(scoreRules.rules()),
+                new RulebookDefinition.Bonuses(definitionsOf(scoreRules.bonuses()), bonusLimit.definition()),
+                definitionsOf(scoreRules.deductions()));
     }
 
     private static List<RuleDefinition> definitionsOf(List<ScoreRule> rules) {
@@ -60,7 +61,8 @@ public record ScoringScheme(MetricSheet metrics, ScoreRules scoreRules, BonusLim
         return RuleEvaluation.concat(List.of(
                 RuleEvaluation.combining(scoreRules.rules(), captured),
                 bonusesObtained,
-                bonusLimit.limit(bonusesObtained.total())));
+                bonusLimit.limit(bonusesObtained.total()),
+                RuleEvaluation.combining(scoreRules.deductions(), captured)));
     }
 
     public Set<ResultSource> requiredSources() {

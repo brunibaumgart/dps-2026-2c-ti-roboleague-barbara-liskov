@@ -57,10 +57,13 @@ class ConfigureChallengesUseCaseTest {
                 List.of(Category.of("cat-junior", "Junior", 2, 4, 12, 17, 2500.0)));
     }
 
+    private static final RulebookDefinition.Bonuses NO_BONUSES =
+            new RulebookDefinition.Bonuses(List.of(), new StrategyDefinition(Unlimited.TYPE, Parameters.none()));
+
     private static RulebookDefinition penaltyRulebook(double deduction) {
         return new RulebookDefinition(List.of(),
-                new RulebookDefinition.Scoring(List.of(new PenaltyRule("Faltas", deduction).definition()), List.of(),
-                        new StrategyDefinition(Unlimited.TYPE, Parameters.none())),
+                new RulebookDefinition.Scoring(List.of(), NO_BONUSES,
+                        List.of(new PenaltyRule("Faltas", deduction).definition())),
                 new RulebookDefinition.Ranking(new StrategyDefinition(AllRounds.TYPE, Parameters.none()),
                         List.of("higher-total")));
     }
@@ -68,8 +71,7 @@ class ConfigureChallengesUseCaseTest {
     private static RulebookDefinition unknownRuleRulebook() {
         return new RulebookDefinition(List.of(),
                 new RulebookDefinition.Scoring(List.of(new RuleDefinition("teleport", "Teletransporte",
-                        RuleArguments.of(Parameters.none()))), List.of(),
-                        new StrategyDefinition(Unlimited.TYPE, Parameters.none())),
+                        RuleArguments.of(Parameters.none()))), NO_BONUSES, List.of()),
                 new RulebookDefinition.Ranking(new StrategyDefinition(AllRounds.TYPE, Parameters.none()),
                         List.of("higher-total")));
     }

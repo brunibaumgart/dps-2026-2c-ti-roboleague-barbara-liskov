@@ -73,10 +73,10 @@ class JpaChallengeRepositoryTest {
                 new MetricDefinition(CHECKPOINT, MeasurementUnit.COUNT, ValueRange.between(0.0, 1.0))));
         return new ScoringScheme(metrics, new ScoreRules(
                 List.of(new CompositeScoreRule("Desempeño en pista", List.of(
-                                TimeBasedRule.standard(100.0, 60.0), ObjectivesRule.standard(20.0, 5))),
-                        new PenaltyRule("Faltas", 15.0),
-                        new CountedFaultRule("Colisiones", COLLISIONS, new FaultTariff(1, 5.0))),
-                List.of(new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), 30.0))),
+                        TimeBasedRule.standard(100.0, 60.0), ObjectivesRule.standard(20.0, 5)))),
+                List.of(new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), 30.0)),
+                List.of(new PenaltyRule("Faltas", 15.0),
+                        new CountedFaultRule("Colisiones", COLLISIONS, new FaultTariff(1, 5.0)))),
                 new CappedAt(cap));
     }
 

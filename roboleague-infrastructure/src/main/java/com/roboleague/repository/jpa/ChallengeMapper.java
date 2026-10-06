@@ -63,8 +63,9 @@ final class ChallengeMapper {
 
     private Rulebook toRulebook(String challengeId, RulebookJson json) {
         RulebookDefinition definition = new RulebookDefinition(toDeclarations(json.metrics()),
-                new RulebookDefinition.Scoring(toRules(json.scoring().rules()), toRules(json.scoring().bonuses()),
-                        toStrategy(json.scoring().bonusLimit())),
+                new RulebookDefinition.Scoring(toRules(json.scoring().rules()), new RulebookDefinition.Bonuses(
+                        toRules(json.scoring().bonuses()), toStrategy(json.scoring().bonusLimit())),
+                        toRules(json.scoring().deductions())),
                 new RulebookDefinition.Ranking(toStrategy(json.ranking().roundSelection()), json.ranking().criteria()));
         return switch (catalog.assemble(definition)) {
             case RulebookAssembly.Assembled assembled ->
@@ -77,8 +78,8 @@ final class ChallengeMapper {
     private static RulebookJson toJson(Rulebook rulebook) {
         RulebookDefinition definition = rulebook.definition();
         return new RulebookJson(rulebook.version().number(), toJsonDeclarations(definition.metrics()),
-                new ScoringJson(toJson(definition.scoring().rules()), toJson(definition.scoring().bonuses()),
-                        toJson(definition.scoring().bonusLimit())),
+                new ScoringJson(toJson(definition.scoring().rules()), toJson(definition.scoring().bonuses().rules()),
+                        toJson(definition.scoring().deductions()), toJson(definition.scoring().bonuses().limit())),
                 new RankingJson(toJson(definition.ranking().roundSelection()), definition.ranking().criteria()));
     }
 

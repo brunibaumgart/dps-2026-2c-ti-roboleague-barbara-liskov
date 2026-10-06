@@ -55,46 +55,50 @@ final class DemoRulebooks {
     }
 
     static RulebookDefinition maze() {
-        ScoringScheme scoring = new ScoringScheme(new MetricSheet(List.of(
-                count(COLLISIONS, ValueRange.atLeast(0.0)), count(CHECKPOINT, ValueRange.between(0.0, 1.0)),
-                count(LAPS, ValueRange.atLeast(0.0)))), new ScoreRules(
+        MetricSheet metrics = new MetricSheet(List.of(count(COLLISIONS, ValueRange.atLeast(0.0)),
+                count(CHECKPOINT, ValueRange.between(0.0, 1.0)), count(LAPS, ValueRange.atLeast(0.0))));
+        ScoreRules rules = new ScoreRules(
                 List.of(new CompositeScoreRule("Desempeño en pista", List.of(
-                                TimeBasedRule.standard(100.0, 60.0), ObjectivesRule.standard(20.0, 5))),
-                        new PenaltyRule("Faltas de pista", 15.0),
-                        new CountedFaultRule("Colisiones", COLLISIONS, new FaultTariff(1, 5.0)),
-                        new ResourceConsumptionRule("Consumo de batería", 80.0, 0.5)),
+                        TimeBasedRule.standard(100.0, 60.0), ObjectivesRule.standard(20.0, 5)))),
                 List.of(new MilestoneBonusRule("Checkpoint central", new Milestone(CHECKPOINT, 1.0), 30.0),
-                        new MilestoneBonusRule("Vuelta completa", new Milestone(LAPS, 1.0), 20.0))),
-                new CappedAt(40.0));
+                        new MilestoneBonusRule("Vuelta completa", new Milestone(LAPS, 1.0), 20.0)),
+                List.of(new PenaltyRule("Faltas de pista", 15.0),
+                        new CountedFaultRule("Colisiones", COLLISIONS, new FaultTariff(1, 5.0)),
+                        new ResourceConsumptionRule("Consumo de batería", 80.0, 0.5)));
         RankingScheme ranking = new RankingScheme(new BestNOfM(3, 5),
                 List.of(new HigherTotal(), new LowerTime(), new FewerPenalties()));
-        return new RulebookDefinition(scoring.metrics().declarations(), scoring.definition(), ranking.definition());
+        return definitionOf(new ScoringScheme(metrics, rules, new CappedAt(40.0)), ranking);
     }
 
     static RulebookDefinition lineFollower(double bonusCap) {
-        ScoringScheme scoring = new ScoringScheme(new MetricSheet(List.of(
+        MetricSheet metrics = new MetricSheet(List.of(
                 new MetricDefinition(PRECISION, MeasurementUnit.RATIO, ValueRange.between(0.0, 1.0)),
-                count(LINE_EXITS, ValueRange.atLeast(0.0)), count(FAST_LAP, ValueRange.between(0.0, 1.0)))), new ScoreRules(
+                count(LINE_EXITS, ValueRange.atLeast(0.0)), count(FAST_LAP, ValueRange.between(0.0, 1.0))));
+        ScoreRules rules = new ScoreRules(
                 List.of(TimeBasedRule.of("Tiempo de vuelta", 100.0, 90.0, 1.0, 1.0, 0.0),
-                        new PrecisionRule("Precisión de trazado", PRECISION, 50.0),
-                        new CountedFaultRule("Salidas de línea", LINE_EXITS, new FaultTariff(2, 10.0))),
-                List.of(new MilestoneBonusRule("Vuelta rápida", new Milestone(FAST_LAP, 1.0), 35.0))),
-                new CappedAt(bonusCap));
+                        new PrecisionRule("Precisión de trazado", PRECISION, 50.0)),
+                List.of(new MilestoneBonusRule("Vuelta rápida", new Milestone(FAST_LAP, 1.0), 35.0)),
+                List.of(new CountedFaultRule("Salidas de línea", LINE_EXITS, new FaultTariff(2, 10.0))));
         RankingScheme ranking = new RankingScheme(new BestNOfM(2, 3),
                 List.of(new HigherTotal(), new FewerPenalties(), new LowerTime()));
-        return new RulebookDefinition(scoring.metrics().declarations(), scoring.definition(), ranking.definition());
+        return definitionOf(new ScoringScheme(metrics, rules, new CappedAt(bonusCap)), ranking);
     }
 
     static RulebookDefinition rescue() {
-        ScoringScheme scoring = new ScoringScheme(new MetricSheet(List.of(
-                count(RESCUED, ValueRange.between(0.0, 4.0)), count(FULL_RESCUE, ValueRange.between(0.0, 1.0)))), new ScoreRules(
+        MetricSheet metrics = new MetricSheet(List.of(
+                count(RESCUED, ValueRange.between(0.0, 4.0)), count(FULL_RESCUE, ValueRange.between(0.0, 1.0))));
+        ScoreRules rules = new ScoreRules(
                 List.of(ObjectivesRule.of("Zonas despejadas", 15.0, 4, 20.0),
                         new VictimsRule("Víctimas", RESCUED, new VictimTariff(4, 25.0, 10.0)),
                         new JudgeSubjectiveRule("Panel técnico", 5.0)),
-                List.of(new MilestoneBonusRule("Rescate completo", new Milestone(FULL_RESCUE, 1.0), 40.0))),
-                new CappedAt(30.0));
+                List.of(new MilestoneBonusRule("Rescate completo", new Milestone(FULL_RESCUE, 1.0), 40.0)),
+                List.of());
         RankingScheme ranking = new RankingScheme(new BestNOfM(2, 3),
                 List.of(new HigherTotal(), new HigherJudgeScore(), new FewerPenalties(), new LowerTime()));
+        return definitionOf(new ScoringScheme(metrics, rules, new CappedAt(30.0)), ranking);
+    }
+
+    private static RulebookDefinition definitionOf(ScoringScheme scoring, RankingScheme ranking) {
         return new RulebookDefinition(scoring.metrics().declarations(), scoring.definition(), ranking.definition());
     }
 }

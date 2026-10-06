@@ -52,6 +52,7 @@ class RuleCatalogTest {
             new MetricDefinition(RESCUED, MeasurementUnit.COUNT, ValueRange.between(0.0, 4.0)),
             new MetricDefinition(CHECKPOINT, MeasurementUnit.COUNT, ValueRange.between(0.0, 1.0))));
     private static final StrategyDefinition UNLIMITED = new StrategyDefinition(Unlimited.TYPE, Parameters.none());
+    private static final RulebookDefinition.Bonuses NO_BONUSES = new RulebookDefinition.Bonuses(List.of(), UNLIMITED);
     private static final StrategyDefinition ALL_ROUNDS = new StrategyDefinition(AllRounds.TYPE, Parameters.none());
 
     private final RuleCatalog catalog = RuleCatalog.standard();
@@ -61,13 +62,13 @@ class RuleCatalogTest {
 
     private static RulebookDefinition withRule(RuleDefinition rule) {
         return new RulebookDefinition(DECLARED.declarations(),
-                new RulebookDefinition.Scoring(List.of(rule), List.of(), UNLIMITED),
+                new RulebookDefinition.Scoring(List.of(rule), NO_BONUSES, List.of()),
                 new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("higher-total")));
     }
 
     private static RulebookDefinition declaring(List<MetricDeclaration> metrics) {
         return new RulebookDefinition(metrics, new RulebookDefinition.Scoring(
-                List.of(new PenaltyRule("Faltas", 10.0).definition()), List.of(), UNLIMITED),
+                List.of(), NO_BONUSES, List.of(new PenaltyRule("Faltas", 10.0).definition())),
                 new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("higher-total")));
     }
 
@@ -111,13 +112,15 @@ class RuleCatalogTest {
     @Test
     @DisplayName("El tope, la selección de rondas y los criterios también se describen y se reconstruyen")
     void givenSchemesThenTheirDefinitionsRebuildEqualSchemes() {
-        ScoringScheme scoring = new ScoringScheme(DECLARED, new ScoreRules(List.of(new PenaltyRule("Faltas", 10.0)),
-                List.of(new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), 30.0))), new CappedAt(40.0));
+        ScoringScheme scoring = new ScoringScheme(DECLARED, new ScoreRules(
+                List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.5, 2.0, 0.0)),
+                List.of(new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), 30.0)),
+                List.of(new PenaltyRule("Faltas", 10.0))), new CappedAt(40.0));
         RankingScheme ranking = new RankingScheme(new BestNOfM(3, 5),
                 List.of(new HigherTotal(), new LowerTime(), new FewerPenalties(), new HigherJudgeScore()));
 
-        RulebookAssembly assembly = catalog.assemble(new RulebookDefinition(scoring.metrics().declarations(), scoring.definition(),
-                ranking.definition()));
+        RulebookAssembly assembly = catalog.assemble(
+                new RulebookDefinition(scoring.metrics().declarations(), scoring.definition(), ranking.definition()));
 
         RulebookAssembly.Assembled assembled = (RulebookAssembly.Assembled) assembly;
         assertThat(assembled.scoring().definition()).isEqualTo(scoring.definition());
@@ -170,24 +173,24 @@ class RuleCatalogTest {
                                 RuleArguments.of(Parameters.none().with("maxPoints", 50.0))))),
                         "rule 'Precisión': missing metric 'accuracy'"),
                 Arguments.of(Named.of("N de M inválido", new RulebookDefinition(List.of(),
-                                new RulebookDefinition.Scoring(List.of(time), List.of(), UNLIMITED),
+                                new RulebookDefinition.Scoring(List.of(time), NO_BONUSES, List.of()),
                                 new RulebookDefinition.Ranking(new StrategyDefinition(BestNOfM.TYPE,
                                         Parameters.none().with("considered", 4.0).with("outOf", 3.0)), List.of("higher-total")))),
                         "round selection: considered must be between 1 and outOf"),
                 Arguments.of(Named.of("criterio desconocido", new RulebookDefinition(List.of(),
-                                new RulebookDefinition.Scoring(List.of(time), List.of(), UNLIMITED),
+                                new RulebookDefinition.Scoring(List.of(time), NO_BONUSES, List.of()),
                                 new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("higher-total", "luck")))),
                         "tie-break criterion 'luck': unknown criterion"),
                 Arguments.of(Named.of("sin criterios", new RulebookDefinition(List.of(),
-                                new RulebookDefinition.Scoring(List.of(time), List.of(), UNLIMITED),
+                                new RulebookDefinition.Scoring(List.of(time), NO_BONUSES, List.of()),
                                 new RulebookDefinition.Ranking(ALL_ROUNDS, List.of()))),
                         "ranking: a ranking scheme needs at least one criterion"),
                 Arguments.of(Named.of("criterio repetido", new RulebookDefinition(List.of(),
-                                new RulebookDefinition.Scoring(List.of(time), List.of(), UNLIMITED),
+                                new RulebookDefinition.Scoring(List.of(time), NO_BONUSES, List.of()),
                                 new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("higher-total", "higher-total")))),
                         "ranking: a ranking scheme cannot repeat a criterion"),
                 Arguments.of(Named.of("sin el total primero", new RulebookDefinition(List.of(),
-                                new RulebookDefinition.Scoring(List.of(time), List.of(), UNLIMITED),
+                                new RulebookDefinition.Scoring(List.of(time), NO_BONUSES, List.of()),
                                 new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("lower-time")))),
                         "ranking: a ranking scheme orders by total before breaking ties"),
                 Arguments.of(Named.of("rango invertido", declaring(List.of(
@@ -215,12 +218,13 @@ class RuleCatalogTest {
                                         RuleArguments.of(timeNumbers.with("bonus", 5.0)))))))),
                         "rule 'Desempeño': rule 'Tiempo': unknown parameter 'bonus'"),
                 Arguments.of(Named.of("tope con un número de más", new RulebookDefinition(DECLARED.declarations(),
-                                new RulebookDefinition.Scoring(List.of(time), List.of(), new StrategyDefinition(
-                                        CappedAt.TYPE, Parameters.none().with("maximum", 40.0).with("max", 30.0))),
+                                new RulebookDefinition.Scoring(List.of(time), new RulebookDefinition.Bonuses(List.of(),
+                                        new StrategyDefinition(CappedAt.TYPE,
+                                                Parameters.none().with("maximum", 40.0).with("max", 30.0))), List.of()),
                                 new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("higher-total")))),
                         "bonus limit: unknown parameter 'max'"),
                 Arguments.of(Named.of("N de M con un número de más", new RulebookDefinition(DECLARED.declarations(),
-                                new RulebookDefinition.Scoring(List.of(time), List.of(), UNLIMITED),
+                                new RulebookDefinition.Scoring(List.of(time), NO_BONUSES, List.of()),
                                 new RulebookDefinition.Ranking(new StrategyDefinition(BestNOfM.TYPE, Parameters.none()
                                         .with("considered", 2.0).with("outOf", 3.0).with("total", 3.0)),
                                         List.of("higher-total")))),
@@ -256,7 +260,7 @@ class RuleCatalogTest {
     void givenSeveralProblemsThenAllAreReported() {
         RulebookDefinition twoBadRules = new RulebookDefinition(List.of(), new RulebookDefinition.Scoring(List.of(
                 new RuleDefinition("teleport", "A", RuleArguments.of(Parameters.none())),
-                new RuleDefinition("penalty", "B", RuleArguments.of(Parameters.none()))), List.of(), UNLIMITED),
+                new RuleDefinition("penalty", "B", RuleArguments.of(Parameters.none()))), NO_BONUSES, List.of()),
                 new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("higher-total")));
 
         assertThat(((RulebookAssembly.Rejected) catalog.assemble(twoBadRules)).problems()).hasSize(2);

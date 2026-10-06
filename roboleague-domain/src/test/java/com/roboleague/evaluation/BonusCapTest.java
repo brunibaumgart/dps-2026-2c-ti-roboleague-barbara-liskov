@@ -40,7 +40,7 @@ class BonusCapTest {
 
     private static Rulebook rulebook(BonusLimit limit) {
         return new Rulebook(RulebookVersion.first(),
-                new ScoringScheme(MILESTONES, new ScoreRules(List.of(TIME), List.of(ZONE_BONUS, DISTANCE_BONUS)), limit), ANY_RANKING);
+                new ScoringScheme(MILESTONES, new ScoreRules(List.of(TIME), List.of(ZONE_BONUS, DISTANCE_BONUS), List.of()), limit), ANY_RANKING);
     }
 
     private static ScoreItem capItem(ScoreBreakdown breakdown) {
@@ -108,7 +108,7 @@ class BonusCapTest {
     @DisplayName("El tope se aplica antes del piso en cero: una penalización grande sigue llevando el total a cero")
     void givenACappedBonusAndALargePenaltyThenTheFloorAppliesAfterTheCap() {
         Rulebook rulebook = new Rulebook(RulebookVersion.first(), new ScoringScheme(MILESTONES,
-                new ScoreRules(List.of(new PenaltyRule("Faltas", 100.0)), List.of(ZONE_BONUS, DISTANCE_BONUS)),
+                new ScoreRules(List.of(), List.of(ZONE_BONUS, DISTANCE_BONUS), List.of(new PenaltyRule("Faltas", 100.0))),
                 new CappedAt(40.0)),
                 ANY_RANKING);
         RawMetrics threeFaults = new RawMetrics(new TrackPerformance(60.0, 0, 3),
@@ -122,10 +122,26 @@ class BonusCapTest {
     }
 
     @Test
+    @DisplayName("Las deducciones no cuentan para el tope: se restan aparte de lo que se recorta")
+    void givenDeductionsThenTheCapOnlyLooksAtTheBonuses() {
+        Rulebook rulebook = new Rulebook(RulebookVersion.first(), new ScoringScheme(MILESTONES,
+                new ScoreRules(List.of(TIME), List.of(ZONE_BONUS, DISTANCE_BONUS), List.of(new PenaltyRule("Faltas", 10.0))),
+                new CappedAt(40.0)), ANY_RANKING);
+        RawMetrics twoFaults = new RawMetrics(new TrackPerformance(60.0, 0, 2),
+                EvaluationFeedback.withMeasurements(Map.of(ZONE.name(), 1.0, DISTANCE.name(), 12.0)));
+
+        ScoreBreakdown breakdown = rulebook.evaluate(twoFaults);
+
+        assertThat(capItem(breakdown).subtotal()).isEqualTo(-15.0);
+        assertThat(breakdown.totalScore()).isEqualTo(100.0 + 55.0 - 15.0 - 20.0);
+    }
+
+    @Test
     @DisplayName("Una regla que resta puesta entre las bonificaciones baja lo obtenido y el tope no recorta")
     void givenARuleThatSubtractsAmongTheBonusesThenTheObtainedSumCanBeNegativeAndNothingIsCut() {
         Rulebook rulebook = new Rulebook(RulebookVersion.first(), new ScoringScheme(MILESTONES,
-                new ScoreRules(List.of(TIME), List.of(new PenaltyRule("Faltas", 10.0))), new CappedAt(40.0)), ANY_RANKING);
+                new ScoreRules(List.of(TIME), List.of(new PenaltyRule("Faltas", 10.0)), List.of()),
+                new CappedAt(40.0)), ANY_RANKING);
 
         ScoreItem cap = capItem(rulebook.evaluate(new RawMetrics(new TrackPerformance(60.0, 0, 2),
                 EvaluationFeedback.empty())));

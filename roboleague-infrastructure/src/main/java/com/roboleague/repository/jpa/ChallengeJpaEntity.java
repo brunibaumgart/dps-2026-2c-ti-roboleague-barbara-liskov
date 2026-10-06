@@ -39,7 +39,8 @@ class ChallengeJpaEntity {
     record MetricDeclarationJson(String name, String source, String unit, Map<String, Double> range) {
     }
 
-    record ScoringJson(List<RuleJson> rules, List<RuleJson> bonuses, StrategyJson bonusLimit) {
+    record ScoringJson(List<RuleJson> rules, List<RuleJson> bonuses, List<RuleJson> deductions,
+                       StrategyJson bonusLimit) {
     }
 
     record RankingJson(StrategyJson roundSelection, List<String> criteria) {

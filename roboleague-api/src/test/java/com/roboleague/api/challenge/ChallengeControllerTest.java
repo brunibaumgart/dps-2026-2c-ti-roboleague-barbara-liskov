@@ -35,11 +35,12 @@ class ChallengeControllerTest extends ApiTest {
                        {"type": "time", "name": "Tiempo", "numbers": {"basePoints": 100, "targetTimeSeconds": 60,
                          "pointsPerSecondUnder": 1.5, "deductionPerSecondOver": 2, "minPoints": 0}},
                        {"type": "objectives", "name": "Objetivos", "numbers": {"pointsPerObjective": 20,
-                         "totalObjectives": 5, "allCompletedBonus": 25}}]},
-                     {"type": "%s", "name": "Faltas", "numbers": {"deductionPerPenalty": 15}}],
+                         "totalObjectives": 5, "allCompletedBonus": 25}}]}],
                    "bonuses": [
                      {"type": "milestone", "name": "Checkpoint", "numbers": {"threshold": 1, "bonus": 30},
                       "metrics": {"metric": {"name": "checkpoint", "source": "AUTOMATIC_MEASUREMENTS"}}}],
+                   "deductions": [
+                     {"type": "%s", "name": "Faltas", "numbers": {"deductionPerPenalty": 15}}],
                    "bonusLimit": {"type": "capped", "numbers": {"maximum": %s}}},
                  "ranking": {"roundSelection": {"type": "best-n-of-m", "numbers": {"considered": 3, "outOf": 5}},
                              "criteria": ["higher-total", "lower-time", "fewer-penalties"]}}
@@ -76,6 +77,7 @@ class ChallengeControllerTest extends ApiTest {
                 .andExpect(jsonPath("$.currentRulebook.metrics[0].unit").value("COUNT"))
                 .andExpect(jsonPath("$.currentRulebook.metrics[0].range.max").value(1.0))
                 .andExpect(jsonPath("$.currentRulebook.scoring.rules[0].type").value("composite"))
+                .andExpect(jsonPath("$.currentRulebook.scoring.deductions[0].type").value("penalty"))
                 .andExpect(jsonPath("$.currentRulebook.scoring.bonusLimit.numbers.maximum").value(40.0))
                 .andExpect(jsonPath("$.currentRulebook.ranking.criteria[1]").value("lower-time"));
     }

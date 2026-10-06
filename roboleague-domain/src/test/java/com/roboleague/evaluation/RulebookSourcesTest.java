@@ -45,7 +45,7 @@ class RulebookSourcesTest {
         MetricSheet declared = new MetricSheet(List.of(
                 new MetricDefinition(RESCUED, MeasurementUnit.COUNT, ValueRange.between(0.0, 4.0))));
         return new Rulebook(RulebookVersion.first(),
-                new ScoringScheme(declared, new ScoreRules(rules, List.of()), new Unlimited()), ANY_SCHEME);
+                new ScoringScheme(declared, new ScoreRules(rules, List.of(), List.of()), new Unlimited()), ANY_SCHEME);
     }
 
     @ParameterizedTest(name = "{0} → {1}")

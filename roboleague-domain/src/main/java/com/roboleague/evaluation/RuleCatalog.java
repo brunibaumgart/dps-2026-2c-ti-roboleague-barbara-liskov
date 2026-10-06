@@ -82,9 +82,10 @@ public final class RuleCatalog {
         }
         Optional<MetricSheet> metrics = build("metrics", () -> new MetricSheet(declared), problems);
         List<ScoreRule> scoreRules = rulesOf(definition.scoring().rules(), problems);
-        List<ScoreRule> bonuses = rulesOf(definition.scoring().bonuses(), problems);
+        List<ScoreRule> bonuses = rulesOf(definition.scoring().bonuses().rules(), problems);
+        List<ScoreRule> deductions = rulesOf(definition.scoring().deductions(), problems);
         Optional<BonusLimit> limit = build("bonus limit",
-                () -> resolve(limits, definition.scoring().bonusLimit(), BonusLimit::definition), problems);
+                () -> resolve(limits, definition.scoring().bonuses().limit(), BonusLimit::definition), problems);
         Optional<RoundSelection> selection = build("round selection",
                 () -> resolve(selections, definition.ranking().roundSelection(), RoundSelection::definition), problems);
         List<TieBreakCriterion> chain = new ArrayList<>();
@@ -100,7 +101,7 @@ public final class RuleCatalog {
             return new RulebookAssembly.Rejected(problems);
         }
         Optional<ScoringScheme> scoring = build("scoring", () -> new ScoringScheme(metrics.orElseThrow(),
-                new ScoreRules(scoreRules, bonuses), limit.orElseThrow()), problems);
+                new ScoreRules(scoreRules, bonuses, deductions), limit.orElseThrow()), problems);
         Optional<RankingScheme> ranking = build("ranking",
                 () -> new RankingScheme(selection.orElseThrow(), chain), problems);
         if (!problems.isEmpty()) {
