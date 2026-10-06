@@ -59,6 +59,13 @@ public record RawMetrics(
         return (int) value;
     }
 
+    /**
+     * The same capture with another fault count: everything else that was measured stays as it was.
+     */
+    public RawMetrics withPenalties(int penaltiesCount) {
+        return new RawMetrics(new TrackPerformance(timeTakenSeconds(), objectivesCompleted(), penaltiesCount), feedback);
+    }
+
     public static RawMetrics of(TrackPerformance performance, EvaluationFeedback feedback) {
         return new RawMetrics(performance, feedback);
     }

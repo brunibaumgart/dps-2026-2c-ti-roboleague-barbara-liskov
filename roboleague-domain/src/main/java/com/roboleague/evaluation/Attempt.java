@@ -128,12 +128,7 @@ public class Attempt {
             throw new IllegalStateException("Cannot adjust an uncompleted attempt");
         }
         RawMetrics currentMetrics = getLatestMetrics();
-        RawMetrics updatedMetrics = RawMetrics.of(
-                currentMetrics.timeTakenSeconds(),
-                currentMetrics.objectivesCompleted(),
-                currentMetrics.penaltiesCount() + additionalPenalties,
-                currentMetrics.judgeSubjectiveScores()
-        );
+        RawMetrics updatedMetrics = currentMetrics.withPenalties(currentMetrics.penaltiesCount() + additionalPenalties);
 
         EvaluationSnapshot evaluation = scored(updatedMetrics, rulebook);
 

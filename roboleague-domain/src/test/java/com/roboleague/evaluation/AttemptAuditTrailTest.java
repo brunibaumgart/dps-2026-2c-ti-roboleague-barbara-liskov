@@ -13,6 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -70,6 +71,25 @@ class AttemptAuditTrailTest {
         assertThat(rev2.reason()).contains("Toque de bordes verificado");
 
         assertThat(attempt.getFinalScore()).isEqualTo(90.0);
+    }
+
+    @Test
+    @DisplayName("A fault adjustment keeps every other measurement of the capture (issue #5)")
+    void faultAdjustmentKeepsTheOtherMeasurements() {
+        Attempt attempt = newAttempt();
+        RawMetrics captured = new RawMetrics(new TrackPerformance(50.0, 2, 0),
+                EvaluationFeedback.of(12.5, Map.of("judge-1", 8.0), Map.of("precision", 0.9)));
+        attempt.registerInitialResult(captured, "judge-1", standardPolicy);
+
+        attempt.applyPenaltyAdjustment(1, new AuditNote("judge-2", "Falta vista en video"), standardPolicy);
+
+        RawMetrics adjusted = attempt.getLatestMetrics();
+        assertThat(adjusted.penaltiesCount()).isEqualTo(1);
+        assertThat(adjusted.timeTakenSeconds()).isEqualTo(50.0);
+        assertThat(adjusted.objectivesCompleted()).isEqualTo(2);
+        assertThat(adjusted.resourceConsumption()).isEqualTo(12.5);
+        assertThat(adjusted.judgeSubjectiveScores()).containsExactly(Map.entry("judge-1", 8.0));
+        assertThat(adjusted.customMetrics()).containsExactly(Map.entry("precision", 0.9));
     }
 
     @Test
