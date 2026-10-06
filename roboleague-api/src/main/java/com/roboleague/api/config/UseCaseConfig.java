@@ -8,6 +8,7 @@ import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.ChallengeRepository;
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.RankingRepository;
+import com.roboleague.repository.RoundRepository;
 import com.roboleague.repository.TeamRepository;
 import com.roboleague.scheduling.RoundSchedulerService;
 import com.roboleague.tournament.Team;
@@ -91,8 +92,9 @@ class UseCaseConfig {
     }
 
     @Bean
-    ScheduleRoundUseCase scheduleRoundUseCase(EditionRepository editions, RoundSchedulerService scheduler) {
-        return new ScheduleRoundUseCase(editions, scheduler);
+    ScheduleRoundUseCase scheduleRoundUseCase(EditionRepository editions, RoundRepository rounds,
+                                              RoundSchedulerService scheduler) {
+        return new ScheduleRoundUseCase(editions, rounds, scheduler);
     }
 
     @Bean

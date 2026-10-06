@@ -1,6 +1,7 @@
 package com.roboleague.usecase;
 
 import com.roboleague.repository.memory.InMemoryEditionRepository;
+import com.roboleague.repository.memory.InMemoryRoundRepository;
 import com.roboleague.scheduling.Judge;
 import com.roboleague.scheduling.Round;
 import com.roboleague.scheduling.RoundSchedulerService;
@@ -25,7 +26,8 @@ class ScheduleRoundUseCaseTest {
     void schedulesRoundSuccessfully() {
         InMemoryEditionRepository editionRepo = new InMemoryEditionRepository();
         RoundSchedulerService schedulerService = new RoundSchedulerService();
-        ScheduleRoundUseCase useCase = new ScheduleRoundUseCase(editionRepo, schedulerService);
+        InMemoryRoundRepository rounds = new InMemoryRoundRepository();
+        ScheduleRoundUseCase useCase = new ScheduleRoundUseCase(editionRepo, rounds, schedulerService);
 
         Category category = Category.of("cat-sumo", "Sumo", 2, 4, 15, 20, 2500);
         Season season = new Season("s-1", 2026, "2026");
@@ -53,13 +55,15 @@ class ScheduleRoundUseCaseTest {
         assertThat(round.getSlots().get(0).getTeamId()).isEqualTo("t-1");
         assertThat(round.getSlots().get(1).getTeamId()).isEqualTo("t-2");
         assertThat(round.getSlots().get(0).getAssignedJudges()).isNotEmpty();
+        assertThat(rounds.findBySlotId(round.getSlots().get(1).getSlotId())).containsSame(round);
     }
 
     @Test
     @DisplayName("Fails to schedule when no teams are registered in the category")
     void failsWhenNoTeamsRegistered() {
         InMemoryEditionRepository editionRepo = new InMemoryEditionRepository();
-        ScheduleRoundUseCase useCase = new ScheduleRoundUseCase(editionRepo, new RoundSchedulerService());
+        ScheduleRoundUseCase useCase = new ScheduleRoundUseCase(editionRepo, new InMemoryRoundRepository(),
+                new RoundSchedulerService());
 
         Category category = Category.of("cat-sumo", "Sumo", 2, 4, 15, 20, 2500);
         Season season = new Season("s-1", 2026, "2026");

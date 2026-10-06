@@ -71,7 +71,8 @@ class AppealAndRecalculateIntegrationTest {
                 .and(new DocumentationVerifiedSpecification());
 
         registerTeamUseCase = new RegisterTeamUseCase(teamRepository, editionRepository, eligibilitySpec);
-        scheduleRoundUseCase = new ScheduleRoundUseCase(editionRepository, new RoundSchedulerService());
+        scheduleRoundUseCase = new ScheduleRoundUseCase(editionRepository, new InMemoryRoundRepository(),
+                new RoundSchedulerService());
         captureAttemptResultUseCase = new CaptureAttemptResultUseCase(attemptRepository, challengeRepository);
 
         RankingCalculatorService rankingService = new RankingCalculatorService(TieBreakerChain.defaultRules());

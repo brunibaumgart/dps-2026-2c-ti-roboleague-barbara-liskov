@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Competition round grouping slots for a category in an edition.
@@ -56,6 +57,12 @@ public class Round {
 
     public List<Slot> getSlots() {
         return Collections.unmodifiableList(slots);
+    }
+
+    public Optional<Slot> slot(String slotId) {
+        return slots.stream()
+                .filter(slot -> slot.getSlotId().equals(slotId))
+                .findFirst();
     }
 
     public void addSlot(Slot slot) {

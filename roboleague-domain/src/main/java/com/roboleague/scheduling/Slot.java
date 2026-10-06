@@ -69,6 +69,10 @@ public class Slot {
         return Collections.unmodifiableList(assignedJudges);
     }
 
+    public boolean isJudgedBy(String judgeId) {
+        return assignedJudges.stream().anyMatch(judge -> judge.id().equals(judgeId));
+    }
+
     public SlotStatus getStatus() {
         return status;
     }
