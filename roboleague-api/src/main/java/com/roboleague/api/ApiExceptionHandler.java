@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import tools.jackson.databind.exc.UnrecognizedPropertyException;
 
 import java.util.List;
 
@@ -25,6 +26,10 @@ class ApiExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     ResponseEntity<ErrorDto> unreadable(HttpMessageNotReadableException e) {
+        if (e.getCause() instanceof UnrecognizedPropertyException unknown) {
+            return error(HttpStatus.BAD_REQUEST, "Unknown field '" + unknown.getPropertyName() + "'",
+                    List.of("expected one of " + unknown.getKnownPropertyIds().stream().map(String::valueOf).sorted().toList()));
+        }
         return error(HttpStatus.BAD_REQUEST, "Malformed request body", List.of());
     }
 
