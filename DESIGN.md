@@ -255,9 +255,9 @@ roboleague-domain/
   La consigna pide dos cosas que se parecen y no son iguales: *“los resultados deben poder recalcularse utilizando exactamente la versión de reglas correspondiente”* y, en la tabla, *“Recálculo: reprocesar posiciones después de una corrección”*. Si se las fusiona, el caso de uso de ranking parecería tener que volver a correr todas las `ScoreRule` sobre cada `RawMetrics` cada vez que cambia una apelación.
 
 - **Qué se eligió**:  
-  - **Evaluar con el reglamento vigente del desafío** en el momento en que el puntaje nace: `CaptureAttemptResultUseCase` y `ResolveAppealUseCase.acceptAppeal` usan `challenge.currentRulebook()`. El snapshot guarda métricas y desglose; un reglamento publicado no cambia.  
+  - **Evaluar con la versión del reglamento del intento** (actualizado en 2.18): el intento se abre con la versión vigente de su desafío y la guarda; cada revisión, también la de una apelación aceptada, se puntúa con esa versión aunque el desafío publique otra. El snapshot guarda la versión, las métricas y el desglose.  
   - **Recalcular el ranking** (`RecalculateRankingUseCase`) lee el último snapshot de cada intento, arma `TeamScore` y vuelve a ordenar con `TieBreakerChain`. Cumple la fila de la tabla: reprocesa **posiciones** después de una corrección.  
-  - Existe `Attempt.recalculateWith(Rulebook)` como gancho para re-aplicar un reglamento sobre las mismas métricas. **No está cableado** al caso de uso de ranking: con reglamentos publicados inmutables, re-evaluar en cada recálculo duplicaría trabajo sin cambiar el resultado.
+  - No se re-aplica un reglamento sobre las mismas métricas: `Attempt.recalculateWith`, que lo permitía con cualquier versión, se borró en 2.18.
 
 - **Pros**:  
   - El recálculo es barato y determinista: la tabla sigue a la fotografía vigente, no reinterpreta la pista.  
@@ -265,7 +265,7 @@ roboleague-domain/
   - Encaja la corrección por apelación: primero se evalúa de nuevo (métricas revisadas + reglamento vigente del desafío), después se reconstruye el ranking.
 
 - **Contras**:  
-  - Si un desafío publica una versión nueva, los snapshots viejos no se re-evalúan solos. Las versiones anteriores siguen disponibles en `Challenge.rulebook(versión)` para hacerlo cuando el intento guarde su versión.
+  - Si un desafío publica una versión nueva, los intentos ya abiertos siguen con la suya: es lo que pide la consigna, pero una corrección del reglamento no alcanza a intentos anteriores.
 
 ---
 
@@ -444,6 +444,47 @@ roboleague-domain/
   - `TieBreakerChain` y `TeamScore` siguen contando faltas hasta que la tabla use `RankingScheme` (2.10).
   - Una nota de jueces negativa rompería el contrato de la base: `EvaluationFeedback` no valida su signo.
   - **La API ignora las claves JSON desconocidas** (configuración por defecto de Spring con Jackson): un reglamento que manda `"penalties"` en lugar de `"deductions"` se acepta con 201 y la penalización se pierde (verificado con un pedido real). Dentro de cada regla sí se rechaza lo desconocido, porque lo valida el catálogo. Activar `spring.jackson.deserialization.fail-on-unknown-properties` cambia todos los endpoints, así que es una decisión de plataforma (frente 5).
+
+---
+
+### 2.18 Intento y captura: identidad del turno, estados, versión del reglamento y dos fuentes (F3, hallazgos 2, 3 y 4)
+
+- **Problema**:
+  El intento recibía resultados en vez de producirlos. Su id lo elegía quien capturaba y el repositorio hacía `put`, así que capturar dos veces borraba el original (hallazgo 4); no se validaba turno, equipo ni juez. El desglose entraba armado desde el caso de uso, en cualquier estado: un intento descalificado y sin apelación quedó en 9999 (hallazgo 3). El estado era un enum que cualquier método pisaba, así que rechazar una de dos apelaciones lo liberaba, y un equipo con su único intento descalificado entraba a la tabla con 185. El intento no sabía con qué reglamento se puntuó: una apelación aceptada lo reevaluaba con el desafío que pasara quien llamaba (hallazgo 2). Para F3, las mediciones y el panel de jueces tienen que llegar por separado al mismo turno y el puntaje tiene que quedar pendiente, y visible como tal, hasta que estén las dos. Además, un ajuste de faltas perdía las mediciones con nombre y el consumo (issue #5).
+
+- **Solución Implementada**:
+  - **Identidad desde el turno**: `AttemptId(slot, número)` la deriva el dominio (`slot-7-1`); `AttemptIdentity(id, ronda, equipo)`. El mismo turno llega al mismo intento y un segundo resultado de la misma fuente se rechaza; las correcciones van por un ajuste de faltas o una apelación, con autor y motivo.
+  - **Cada fuente por separado (F3)**: lo que manda una fuente es un `SourceReport` sellado, `Measurements` (tiempo, objetivos, faltas, consumo y mediciones de sensores) o `JudgeScores` (nota de cada juez y mediciones del panel), y `SourceDelivery` le suma el juez que lo cargó. `Attempt.receive(entrega, reglamento)` revisa las mediciones con `Rulebook.check` y devuelve el `MeasurementCheck` (regla #28): si no cumplen, no cambia nada. Mientras falte una fuente que el reglamento exige el intento queda `AWAITING_SOURCES`, sin puntaje; con la última se puntúa con todas, en cualquier orden. Cada fuente suma lo suyo a las métricas (`addTo`) sin preguntar de qué tipo es (regla #8).
+  - **El intento se puntúa solo**: ningún método público recibe un `ScoreBreakdown`. Una apelación aceptada trae métricas corregidas (`AppealRevision`) y el intento las puntúa; quién cambió y por qué viajan en `AuditNote`.
+  - **Versión fijada (hallazgo 2)**: `RulebookReference(desafío, versión)` se guarda al abrir el intento y `EvaluationSnapshot` guarda la versión de cada revisión. Puntuar con otra versión falla. `ResolveAppealUseCase.acceptAppeal` ya no recibe el desafío: carga la versión del intento. `recalculateWith`, que puntuaba con cualquier reglamento, se borró.
+  - **Estados (State, como `Appeal`)**: `AttemptState` con una clase por forma de comportarse: `WaitingAttemptState` (programado o esperando fuentes: solo toma resultados), `SettledAttemptState` (evaluado o ajustado: toma apelaciones, ajustes de faltas y la descalificación), `UnderAppealAttemptState` (cuenta las apelaciones abiertas y recuerda si vuelve a evaluado o ajustado) y `DisqualifiedAttemptState` (no toma nada). Lo que un estado no acepta lo rechaza un método por defecto que nombra el estado (409 en la API).
+  - **Puntaje computable**: `countableScore()` es el desglose que cuenta, vacío antes de puntuar o si está descalificado (regla #24). `TeamScore` solo usa intentos que cuentan; un equipo sin ninguno no suma.
+  - **Validación contra la ronda**: `ScheduleRoundUseCase` guarda la ronda en un `RoundRepository` mínimo (`save`, `findBySlotId`); `Round.slot(id)` y `Slot.isJudgedBy(juez)`. `ReceiveResultUseCase` exige que el turno exista (400) y que el juez esté asignado (422), toma el equipo del slot y abre el intento con la versión vigente del desafío.
+  - **API**: `PUT /attempts/{id}/measurements`, `PUT /attempts/{id}/judge-scores` y `GET /attempts/{id}/breakdown`, que muestra lo pendiente y lo que aportó cada fuente (README, "Cargar los resultados de un intento").
+  - **Persistencia**: migración V3 con el turno, la versión y la etapa en columnas, y las entregas, revisiones y eventos en JSONB. `Attempt.restore(identidad, referencia, AttemptProgress)` reconstruye sin repetir transiciones, como `Appeal.restore`; `AttemptStage` es el estado como dato y el único lugar que elige un estado por su nombre (regla #9). `AttemptEvent` pasa a ser sellado para que el mapper guarde cada tipo.
+  - **Issue #5**: `RawMetrics.withPenalties` cambia solo las faltas.
+
+- **Impacto en la demo**: Laberinto no cambia (TitanTeam 197,5 → 257,5 con la apelación, CyberTeam 235). En Rescate, CyberTeam recibe las mediciones y el panel y suma 147,5; TitanTeam tiene las mediciones y espera el panel.
+- **Clases agregadas**: `AttemptId`, `RulebookReference`, `AppealRevision`, `AuditNote`, `SourceReport`, `Measurements`, `JudgeScores`, `SourceDelivery`, `SourceReceivedEvent`, `AttemptState`, `WaitingAttemptState`, `SettledAttemptState`, `UnderAppealAttemptState`, `DisqualifiedAttemptState`, `AttemptStage`, `AttemptProgress`, `AuditTrail`, `RoundRepository`, `InMemoryRoundRepository`, `ReceiveResultUseCase`, `ReceiveResultCommand`, `Reception`, `GetAttemptBreakdownUseCase`, `AttemptBreakdown`, `AttemptController`, `AttemptDto`, `BreakdownDto`, `AttemptJpaEntity`, `AttemptMapper`, `JpaAttemptRepository`, `SpringDataAttempts`, `MetricsJson`.
+- **Clases modificadas**: `Attempt`, `AttemptIdentity`, `AttemptRepository`, `InMemoryAttemptRepository`, `RawMetrics`, `EvaluationSnapshot`, `AttemptScoreSnapshot`, `ResultRegisteredEvent`, `ScoreAdjustedEvent`, `AttemptEvent`, `TeamScore`, `Round`, `Slot`, `ScheduleRoundUseCase`, `FileAppealUseCase`, `ResolveAppealUseCase`, `PublishOfficialRankingUseCase`, `AppealJpaEntity`, `AppealMapper`, `UseCaseConfig`, `InMemoryRepositoryConfig`, `DemoFixture`, `DemoConfig`.
+- **Clases eliminadas**: `SlotReference`, `CaptureAttemptResultUseCase`, `CaptureAttemptResultCommand`.
+- **Alternativas descartadas**:
+  - Dos casos de uso, `ReceiveMeasurements` y `ReceiveJudgeScores`, como decía la hoja de ruta: harían lo mismo con un reporte distinto (regla #27). Quedan los dos endpoints sobre un caso de uso.
+  - Un método por fuente en el intento (`receiveMeasurements`, `receiveJudgeScores`): agregar una fuente obligaría a abrir `Attempt`. La fuente es una pieza nueva que implementa `SourceReport`.
+  - Crear los intentos al programar la ronda: depende de cómo modele la ronda el frente 3. El primer resultado abre el intento, y el estado programado queda para cuando la ronda los cree.
+  - Devolver como resultado la misma fuente dos veces o un cambio que el estado no acepta: es una transición no permitida, como en `Appeal`, y la convención de la API la traduce a 409. Los problemas de las mediciones y el juez no asignado sí son resultados (422).
+  - Una clase por estado para evaluado y ajustado: aceptan lo mismo y solo cambia cómo se muestran (regla #7). Lo mismo para programado y esperando fuentes.
+  - Guardar en el intento las fuentes que exige su reglamento: se deducen de su versión, que el intento ya guarda.
+  - Reconstruir el desglose al leer de la base, con el reglamento: el snapshot guardado es el registro de auditoría y no tiene que depender del catálogo.
+- **Patrones no aplicados**: event sourcing (reconstruir el intento desde sus eventos; se guardan revisiones y eventos tal cual); Visitor para las fuentes (alcanza con `addTo` polimórfico).
+- **Deuda que decidimos no resolver en este paso**:
+  - `challengeId` viaja en el cuerpo de la captura hasta que la ronda conozca su desafío (frente 3); entonces sale de la ronda.
+  - `RoundRepository` es mínimo y en memoria; el frente 3 lo completa y lo persiste.
+  - No se valida el horario del turno ni su estado (`Slot.status`), y del panel de jueces solo se valida al juez que carga, no a cada juez que puntúa.
+  - Descalificar solo se acepta sobre un intento puntuado, como el diagrama de estados.
+  - La tabla sigue armándose con el mejor intento (`TeamScore`) y `TieBreakerChain`; cuando use `RankingScheme` (frente 4), cada `RoundScore` sale de `countableScore()` y su snapshot.
+  - Las rutas de apelación (`POST /attempts/{id}/appeals`, aceptación y rechazo) son del frente 4; los casos de uso ya usan el intento nuevo.
+  - Los eventos siguen tomando `now()` y `UUID` (frente 3: `Clock` e `IdGenerator`).
 
 ---
 
