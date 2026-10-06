@@ -1,6 +1,8 @@
 package com.roboleague.usecase;
 
 import com.roboleague.evaluation.Attempt;
+import com.roboleague.evaluation.AttemptId;
+import com.roboleague.evaluation.AttemptIdentity;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookVersion;
@@ -41,19 +43,20 @@ class ResolveAppealUseCaseTest {
                 List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0)),
                 List.of(new PenaltyRule("Faltas", 10.0))
         ), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
-        Attempt attempt = Attempt.of("att-1", "t-1", "slot-1", "r-1", 1);
+        AttemptId attemptId = AttemptId.of("slot-1", 1);
+        Attempt attempt = Attempt.of(new AttemptIdentity(attemptId, "r-1", "t-1"));
         RawMetrics metrics = RawMetrics.of(40.0, 2, 3);
         attempt.registerInitialResult(metrics, rulebook.evaluate(metrics), "judge-1");
         attemptRepository.save(attempt);
 
         Appeal appeal = new FileAppealUseCase(attemptRepository, appealRepository)
-                .execute("att-1", "t-1", "Faltas mal contadas", "Video");
+                .execute(attemptId.value(), "t-1", "Faltas mal contadas", "Video");
         new ReviewAppealUseCase(appealRepository).execute(appeal.getAppealId(), "arb-1");
 
         Appeal resolved = useCase.rejectAppeal(appeal.getAppealId(), "El video confirma las faltas", "arb-1");
 
         assertThat(resolved.isRejected()).isTrue();
-        Attempt stored = attemptRepository.findById("att-1").orElseThrow();
+        Attempt stored = attemptRepository.findById(attemptId).orElseThrow();
         assertThat(stored.getStatus()).isEqualTo(Attempt.AttemptStatus.EVALUATED);
         assertThat(stored.getRevisionHistory()).hasSize(1);
         // 40s => 100 + 20 bonus; 3 fouls => -30

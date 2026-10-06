@@ -10,7 +10,8 @@ import java.util.Objects;
 
 /**
  * Use case to capture raw attempt measurements, evaluate against the challenge's current rulebook,
- * and append the initial audited score snapshot.
+ * and append the initial audited score snapshot. A turn is captured once: a second capture would replace the
+ * first, so corrections go through a fault adjustment or an appeal instead.
  */
 public class CaptureAttemptResultUseCase {
     private final AttemptRepository attemptRepository;
@@ -26,15 +27,13 @@ public class CaptureAttemptResultUseCase {
         Rulebook rulebook = challengeRepository.findById(command.challengeId())
                 .orElseThrow(() -> new IllegalArgumentException("Challenge not found: " + command.challengeId()))
                 .currentRulebook();
+        if (attemptRepository.findById(command.attempt().id()).isPresent()) {
+            throw new IllegalStateException("Attempt " + command.attempt().id()
+                    + " was already captured; corrections go through a fault adjustment or an appeal");
+        }
         ScoreBreakdown breakdown = rulebook.evaluate(command.metrics());
 
-        Attempt attempt = Attempt.of(
-                command.attemptId(),
-                command.teamId(),
-                command.slotId(),
-                command.roundId(),
-                command.attemptNumber()
-        );
+        Attempt attempt = Attempt.of(command.attempt());
         attempt.registerInitialResult(command.metrics(), breakdown, command.judgeId());
 
         attemptRepository.save(attempt);

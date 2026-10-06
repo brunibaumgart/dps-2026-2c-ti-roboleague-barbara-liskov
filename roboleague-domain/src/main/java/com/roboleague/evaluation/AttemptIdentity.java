@@ -2,16 +2,17 @@ package com.roboleague.evaluation;
 
 import java.util.Objects;
 
-public record AttemptIdentity(String attemptId, String teamId, int attemptNumber) {
+/**
+ * Which turn an attempt was run in and by whom: its id (slot and attempt number), the round of the slot and the team.
+ */
+public record AttemptIdentity(AttemptId id, String roundId, String teamId) {
     public AttemptIdentity {
-        Objects.requireNonNull(attemptId, "attemptId cannot be null");
+        Objects.requireNonNull(id, "id cannot be null");
+        Objects.requireNonNull(roundId, "roundId cannot be null");
         Objects.requireNonNull(teamId, "teamId cannot be null");
-        if (attemptNumber <= 0) {
-            throw new IllegalArgumentException("attemptNumber must be positive");
-        }
     }
 
-    public static AttemptIdentity of(String attemptId, String teamId, int attemptNumber) {
-        return new AttemptIdentity(attemptId, teamId, attemptNumber);
+    public static AttemptIdentity of(AttemptId id, String roundId, String teamId) {
+        return new AttemptIdentity(id, roundId, teamId);
     }
 }

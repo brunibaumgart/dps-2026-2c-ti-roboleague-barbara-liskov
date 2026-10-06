@@ -1,6 +1,8 @@
 package com.roboleague.api.demo;
 
 import com.roboleague.evaluation.Attempt;
+import com.roboleague.evaluation.AttemptId;
+import com.roboleague.evaluation.AttemptIdentity;
 import com.roboleague.evaluation.EvaluationFeedback;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.TrackPerformance;
@@ -10,6 +12,7 @@ import com.roboleague.ranking.appeal.Appeal;
 import com.roboleague.repository.RankingRepository;
 import com.roboleague.scheduling.Judge;
 import com.roboleague.scheduling.Round;
+import com.roboleague.scheduling.Slot;
 import com.roboleague.scheduling.Track;
 import com.roboleague.tournament.Category;
 import com.roboleague.tournament.Challenge;
@@ -106,16 +109,15 @@ class DemoFixture implements ApplicationRunner {
                 List.of(Judge.of("j-1", "Chief Judge", "Principal"), Judge.of("j-2", "Field Judge", "Pista")),
                 LocalDateTime.now(), Duration.ofMinutes(10), Duration.ofMinutes(2)));
 
-        useCases.captureResult().execute(CaptureAttemptResultCommand.of(maze.getId(), "att-a1", cyber.getId(),
-                round.getSlots().get(0).getSlotId(), round.getId(), 1, mazeRun(50.0, 4, 0, 70.0), "j-1"));
-        Attempt titanAttempt = useCases.captureResult().execute(CaptureAttemptResultCommand.of(
-                maze.getId(), "att-b1", titan.getId(),
-                round.getSlots().get(1).getSlotId(), round.getId(), 1, mazeRun(45.0, 5, 4, 90.0), "j-2"));
+        useCases.captureResult().execute(new CaptureAttemptResultCommand(maze.getId(),
+                firstAttempt(round, 0), mazeRun(50.0, 4, 0, 70.0), "j-1"));
+        Attempt titanAttempt = useCases.captureResult().execute(new CaptureAttemptResultCommand(maze.getId(),
+                firstAttempt(round, 1), mazeRun(45.0, 5, 4, 90.0), "j-2"));
 
         useCases.recalculateRanking().execute(edition.getId(), junior.id(), round.getId());
 
         Appeal appeal = useCases.fileAppeal().execute(
-                titanAttempt.getAttemptId(), titan.getId(), "Penalizacion inexistente", "Video pista");
+                titanAttempt.getId().value(), titan.getId(), "Penalizacion inexistente", "Video pista");
         useCases.reviewAppeal().execute(appeal.getAppealId(), "j-arb");
         useCases.resolveAppeal().acceptAppeal(appeal.getAppealId(), maze.getId(), junior.id(), round.getId(),
                 "Penalizaciones corregidas tras revision", mazeRun(45.0, 5, 0, 90.0), "j-arb");
@@ -146,6 +148,11 @@ class DemoFixture implements ApplicationRunner {
             case Publication.Rejected<T> rejected ->
                     throw new IllegalStateException("Demo rulebook rejected: " + rejected.problems());
         };
+    }
+
+    private static AttemptIdentity firstAttempt(Round round, int slotIndex) {
+        Slot slot = round.getSlots().get(slotIndex);
+        return new AttemptIdentity(AttemptId.of(slot.getSlotId(), 1), round.getId(), slot.getTeamId());
     }
 
     private static RawMetrics mazeRun(double seconds, int objectives, int penalties, double batteryUsed) {

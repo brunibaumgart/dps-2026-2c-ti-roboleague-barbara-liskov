@@ -23,15 +23,13 @@ public class Attempt {
     }
 
     private final AttemptIdentity identity;
-    private final SlotReference slotReference;
     private AttemptStatus status;
 
     private final List<AttemptScoreSnapshot> revisionHistory;
     private final List<AttemptEvent> eventHistory;
 
-    public Attempt(AttemptIdentity identity, SlotReference slotReference) {
+    public Attempt(AttemptIdentity identity) {
         this.identity = Objects.requireNonNull(identity, "identity cannot be null");
-        this.slotReference = Objects.requireNonNull(slotReference, "slotReference cannot be null");
         this.status = AttemptStatus.PENDING;
         this.revisionHistory = new ArrayList<>();
         this.eventHistory = new ArrayList<>();
@@ -41,12 +39,8 @@ public class Attempt {
         return identity;
     }
 
-    public SlotReference getSlotReference() {
-        return slotReference;
-    }
-
-    public String getAttemptId() {
-        return identity.attemptId();
+    public AttemptId getId() {
+        return identity.id();
     }
 
     public String getTeamId() {
@@ -54,15 +48,11 @@ public class Attempt {
     }
 
     public String getSlotId() {
-        return slotReference.slotId();
+        return identity.id().slotId();
     }
 
     public String getRoundId() {
-        return slotReference.roundId();
-    }
-
-    public int getAttemptNumber() {
-        return identity.attemptNumber();
+        return identity.roundId();
     }
 
     public AttemptStatus getStatus() {
@@ -123,7 +113,7 @@ public class Attempt {
                 "Initial attempt result registration"
         );
         revisionHistory.add(snapshot);
-        eventHistory.add(ResultRegisteredEvent.create(getAttemptId(), getTeamId(), metrics, breakdown, judgeId));
+        eventHistory.add(ResultRegisteredEvent.create(getId().value(), getTeamId(), metrics, breakdown, judgeId));
         this.status = AttemptStatus.EVALUATED;
     }
 
@@ -152,8 +142,8 @@ public class Attempt {
         );
 
         revisionHistory.add(snapshot);
-        eventHistory.add(PenaltyAppliedEvent.create(getAttemptId(), additionalPenalties, reason, judgeId));
-        eventHistory.add(ScoreAdjustedEvent.create(getAttemptId(), nextRev, updatedMetrics, updatedBreakdown, reason, judgeId));
+        eventHistory.add(PenaltyAppliedEvent.create(getId().value(), additionalPenalties, reason, judgeId));
+        eventHistory.add(ScoreAdjustedEvent.create(getId().value(), nextRev, updatedMetrics, updatedBreakdown, reason, judgeId));
         this.status = AttemptStatus.ADJUSTED;
     }
 
@@ -188,8 +178,8 @@ public class Attempt {
         );
 
         revisionHistory.add(snapshot);
-        eventHistory.add(AppealAcceptedEvent.create(getAttemptId(), appealId, resolutionNotes, reviewerId));
-        eventHistory.add(ScoreAdjustedEvent.create(getAttemptId(), nextRev, revisedMetrics, revisedBreakdown, resolutionNotes, reviewerId));
+        eventHistory.add(AppealAcceptedEvent.create(getId().value(), appealId, resolutionNotes, reviewerId));
+        eventHistory.add(ScoreAdjustedEvent.create(getId().value(), nextRev, revisedMetrics, revisedBreakdown, resolutionNotes, reviewerId));
         this.status = AttemptStatus.ADJUSTED;
     }
 
@@ -211,7 +201,7 @@ public class Attempt {
         );
 
         revisionHistory.add(snapshot);
-        eventHistory.add(ScoreAdjustedEvent.create(getAttemptId(), nextRev, currentMetrics, recalculated, reason, authorId));
+        eventHistory.add(ScoreAdjustedEvent.create(getId().value(), nextRev, currentMetrics, recalculated, reason, authorId));
         this.status = AttemptStatus.ADJUSTED;
     }
 
@@ -221,18 +211,11 @@ public class Attempt {
         if (status == AttemptStatus.DISQUALIFIED) {
             throw new IllegalStateException("Attempt is already disqualified");
         }
-        eventHistory.add(AttemptDisqualifiedEvent.create(getAttemptId(), reason, judgeId));
+        eventHistory.add(AttemptDisqualifiedEvent.create(getId().value(), reason, judgeId));
         this.status = AttemptStatus.DISQUALIFIED;
     }
 
-    public static Attempt of(AttemptIdentity identity, SlotReference slotReference) {
-        return new Attempt(identity, slotReference);
-    }
-
-    public static Attempt of(String attemptId, String teamId, String slotId, String roundId, int attemptNumber) {
-        return new Attempt(
-                new AttemptIdentity(attemptId, teamId, attemptNumber),
-                new SlotReference(slotId, roundId)
-        );
+    public static Attempt of(AttemptIdentity identity) {
+        return new Attempt(identity);
     }
 }

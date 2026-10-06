@@ -1,6 +1,7 @@
 package com.roboleague.usecase;
 
 import com.roboleague.evaluation.Attempt;
+import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ScoreBreakdown;
 import com.roboleague.ranking.Ranking;
@@ -39,7 +40,7 @@ public class ResolveAppealUseCase {
         Appeal appeal = appealRepository.findById(appealId)
                 .orElseThrow(() -> new IllegalArgumentException("Appeal not found: " + appealId));
 
-        Attempt attempt = attemptRepository.findById(appeal.getAttemptId())
+        Attempt attempt = attemptRepository.findById(AttemptId.parse(appeal.getAttemptId()))
                 .orElseThrow(() -> new IllegalArgumentException("Attempt not found: " + appeal.getAttemptId()));
 
         Challenge challenge = challengeRepository.findById(challengeId)
@@ -65,7 +66,7 @@ public class ResolveAppealUseCase {
         Appeal appeal = appealRepository.findById(appealId)
                 .orElseThrow(() -> new IllegalArgumentException("Appeal not found: " + appealId));
 
-        Attempt attempt = attemptRepository.findById(appeal.getAttemptId())
+        Attempt attempt = attemptRepository.findById(AttemptId.parse(appeal.getAttemptId()))
                 .orElseThrow(() -> new IllegalArgumentException("Attempt not found: " + appeal.getAttemptId()));
 
         appeal.reject(resolutionNotes, reviewerId);

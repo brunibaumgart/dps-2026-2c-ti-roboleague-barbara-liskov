@@ -32,7 +32,7 @@ class AttemptAuditTrailTest {
     @Test
     @DisplayName("Attempt preserves append-only snapshot history and never overwrites previous scores")
     void preservesAppendOnlySnapshotHistory() {
-        Attempt attempt = Attempt.of("att-1", "team-1", "slot-1", "round-1", 1);
+        Attempt attempt = newAttempt();
 
         // Initial result: 50s, 0 objectives, 0 penalties => Score: 100 + 10 = 110.0
         RawMetrics initialMetrics = RawMetrics.of(50.0, 0, 0);
@@ -74,7 +74,7 @@ class AttemptAuditTrailTest {
     @Test
     @DisplayName("Cannot call registerInitialResult twice on the same attempt")
     void cannotRegisterInitialResultTwice() {
-        Attempt attempt = Attempt.of("att-2", "team-1", "slot-1", "round-1", 1);
+        Attempt attempt = newAttempt();
         RawMetrics metrics = RawMetrics.of(50.0, 0, 0);
         ScoreBreakdown breakdown = standardPolicy.evaluate(metrics);
 
@@ -87,7 +87,7 @@ class AttemptAuditTrailTest {
     @Test
     @DisplayName("Disqualification is audited and a rejected appeal restores the previous status")
     void disqualificationAndRejectedAppealAreTracked() {
-        Attempt attempt = Attempt.of("att-3", "team-1", "slot-1", "round-1", 1);
+        Attempt attempt = newAttempt();
         RawMetrics metrics = RawMetrics.of(50.0, 3, 1);
         attempt.registerInitialResult(metrics, standardPolicy.evaluate(metrics), "judge-1");
 
@@ -110,5 +110,9 @@ class AttemptAuditTrailTest {
         assertThatThrownBy(attempt::markUnderAppeal)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("disqualified");
+    }
+
+    private static Attempt newAttempt() {
+        return Attempt.of(new AttemptIdentity(AttemptId.of("slot-1", 1), "round-1", "team-1"));
     }
 }

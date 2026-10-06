@@ -1,22 +1,23 @@
 package com.roboleague.repository.memory;
 
 import com.roboleague.evaluation.Attempt;
+import com.roboleague.evaluation.AttemptId;
 import com.roboleague.repository.AttemptRepository;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class InMemoryAttemptRepository implements AttemptRepository {
-    private final Map<String, Attempt> storage = new ConcurrentHashMap<>();
+    private final Map<AttemptId, Attempt> storage = new ConcurrentHashMap<>();
 
     @Override
     public void save(Attempt attempt) {
         Objects.requireNonNull(attempt, "attempt cannot be null");
-        storage.put(attempt.getAttemptId(), attempt);
+        storage.put(attempt.getId(), attempt);
     }
 
     @Override
-    public Optional<Attempt> findById(String attemptId) {
+    public Optional<Attempt> findById(AttemptId attemptId) {
         return Optional.ofNullable(storage.get(attemptId));
     }
 

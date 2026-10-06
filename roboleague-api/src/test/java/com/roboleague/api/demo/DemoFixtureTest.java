@@ -1,6 +1,7 @@
 package com.roboleague.api.demo;
 
 import com.roboleague.PostgresContainer;
+import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.MeasurementCheck;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.RulebookVersion;
@@ -44,17 +45,17 @@ class DemoFixtureTest {
         Ranking official = rankings.findLatestByEditionAndCategory("ed-1", "cat-junior").orElseThrow();
         assertThat(official.isOfficial()).isTrue();
         assertThat(official.getEntries().getFirst().teamScore().teamId()).isEqualTo("t-b");
-        assertThat(attempts.findById("att-b1").orElseThrow().getOriginalSnapshot().breakdown().totalScore())
+        assertThat(attemptOf("t-b").getOriginalSnapshot().breakdown().totalScore())
                 .isEqualTo(197.5);
-        assertThat(attempts.findById("att-b1").orElseThrow().getFinalScore()).isEqualTo(257.5);
-        assertThat(attempts.findById("att-a1").orElseThrow().getFinalScore()).isEqualTo(235.0);
+        assertThat(attemptOf("t-b").getFinalScore()).isEqualTo(257.5);
+        assertThat(attemptOf("t-a").getFinalScore()).isEqualTo(235.0);
     }
 
     @Test
     void theAppealLowersWhatTheDeductionsTookFromTitanTeam() {
-        assertThat(attempts.findById("att-b1").orElseThrow().getOriginalSnapshot().breakdown().deducted())
+        assertThat(attemptOf("t-b").getOriginalSnapshot().breakdown().deducted())
                 .isEqualTo(65.0);
-        assertThat(attempts.findById("att-b1").orElseThrow().getScoreBreakdown().deducted()).isEqualTo(5.0);
+        assertThat(attemptOf("t-b").getScoreBreakdown().deducted()).isEqualTo(5.0);
     }
 
     @Test
@@ -75,9 +76,13 @@ class DemoFixtureTest {
 
     @Test
     void theMazeAttemptsShowTheBonusCapInTheirBreakdown() {
-        assertThat(attempts.findById("att-a1").orElseThrow().getScoreBreakdown().items())
+        assertThat(attemptOf("t-a").getScoreBreakdown().items())
                 .anyMatch(item -> item.concept().equals("Tope de bonificaciones") && item.subtotal() == -10.0);
-        assertThat(attempts.findById("att-b1").orElseThrow().getOriginalSnapshot().breakdown().items())
+        assertThat(attemptOf("t-b").getOriginalSnapshot().breakdown().items())
                 .anyMatch(item -> item.concept().equals("Tope de bonificaciones") && item.subtotal() == -35.0);
+    }
+
+    private Attempt attemptOf(String teamId) {
+        return attempts.findByTeamId(teamId).getFirst();
     }
 }

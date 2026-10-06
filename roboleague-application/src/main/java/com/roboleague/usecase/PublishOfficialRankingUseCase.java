@@ -1,6 +1,7 @@
 package com.roboleague.usecase;
 
 import com.roboleague.evaluation.Attempt;
+import com.roboleague.evaluation.AttemptId;
 import com.roboleague.ranking.Ranking;
 import com.roboleague.ranking.RankingEntry;
 import com.roboleague.ranking.appeal.Appeal;
@@ -60,7 +61,7 @@ public class PublishOfficialRankingUseCase {
                 .map(score -> score.teamId())
                 .collect(Collectors.toSet());
 
-        return attemptRepository.findById(appeal.getAttemptId())
+        return attemptRepository.findById(AttemptId.parse(appeal.getAttemptId()))
                 .filter(attempt -> rankedTeamIds.contains(attempt.getTeamId()))
                 .filter(attempt -> belongsToRound(attempt, ranking))
                 .isPresent();
