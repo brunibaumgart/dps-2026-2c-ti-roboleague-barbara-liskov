@@ -10,6 +10,10 @@ interface AttemptState {
 
     AttemptStatus status();
 
+    default AttemptStage stage() {
+        return AttemptStage.of(status());
+    }
+
     /**
      * Whether the attempt's latest score counts for the standings.
      */

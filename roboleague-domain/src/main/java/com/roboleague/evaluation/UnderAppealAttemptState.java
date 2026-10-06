@@ -18,8 +18,9 @@ final class UnderAppealAttemptState implements AttemptState {
         this.settled = settled;
     }
 
-    int openAppeals() {
-        return openAppeals;
+    @Override
+    public AttemptStage stage() {
+        return new AttemptStage(AttemptStatus.UNDER_APPEAL, openAppeals, settled.status());
     }
 
     @Override

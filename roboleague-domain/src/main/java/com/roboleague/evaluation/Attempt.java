@@ -86,6 +86,10 @@ public class Attempt {
         return state.status();
     }
 
+    public AttemptStage getStage() {
+        return state.stage();
+    }
+
     /**
      * What each source sent so far, in the order of the sources.
      */
@@ -272,6 +276,22 @@ public class Attempt {
         SnapshotMetadata metadata = SnapshotMetadata.of(getId().value() + "-r" + number, number, authorId);
         revisionHistory.add(AttemptScoreSnapshot.of(metadata, evaluation, reason));
         return number;
+    }
+
+    /**
+     * Rebuilds a stored attempt as it was, without replaying its changes. Only persistence mappers use it; business
+     * code opens attempts with {@code of} and moves them through their states.
+     */
+    public static Attempt restore(AttemptIdentity identity, RulebookReference rulebook, AttemptProgress progress) {
+        Objects.requireNonNull(progress, "progress cannot be null");
+        Attempt attempt = new Attempt(identity, rulebook);
+        attempt.state = progress.stage().state();
+        for (SourceDelivery delivery : progress.deliveries()) {
+            attempt.received.put(delivery.source(), delivery);
+        }
+        attempt.revisionHistory.addAll(progress.trail().revisions());
+        attempt.eventHistory.addAll(progress.trail().events());
+        return attempt;
     }
 
     public static Attempt of(AttemptIdentity identity, RulebookReference rulebook) {
