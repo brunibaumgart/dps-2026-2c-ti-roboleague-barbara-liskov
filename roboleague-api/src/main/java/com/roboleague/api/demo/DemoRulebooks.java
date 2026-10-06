@@ -9,6 +9,7 @@ import com.roboleague.evaluation.ScoreRules;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.ValueRange;
 import com.roboleague.evaluation.definition.RulebookDefinition;
+import com.roboleague.evaluation.rules.AbandonedVictimsRule;
 import com.roboleague.evaluation.rules.AllObjectivesBonusRule;
 import com.roboleague.evaluation.rules.CompositeScoreRule;
 import com.roboleague.evaluation.rules.CountedFaultRule;
@@ -91,11 +92,11 @@ final class DemoRulebooks {
                 count(RESCUED, ValueRange.between(0.0, 4.0)), count(FULL_RESCUE, ValueRange.between(0.0, 1.0))));
         ScoreRules rules = new ScoreRules(
                 List.of(new ObjectivesRule("Zonas despejadas", 15.0),
-                        new VictimsRule("Víctimas", RESCUED, new VictimTariff(4, 25.0, 10.0)),
+                        new VictimsRule("Víctimas rescatadas", RESCUED, 25.0),
                         new JudgeSubjectiveRule("Panel técnico", 5.0)),
                 List.of(new MilestoneBonusRule("Rescate completo", new Milestone(FULL_RESCUE, 1.0), 40.0),
                         new AllObjectivesBonusRule("Todas las zonas despejadas", 4, 20.0)),
-                List.of());
+                List.of(new AbandonedVictimsRule("Víctimas abandonadas", RESCUED, new VictimTariff(4, 10.0))));
         RankingScheme ranking = new RankingScheme(new BestNOfM(2, 3),
                 List.of(new HigherTotal(), new HigherJudgeScore(), new FewerPenalties(), new LowerTime()));
         return definitionOf(new ScoringScheme(metrics, rules, new CappedAt(30.0)), ranking);

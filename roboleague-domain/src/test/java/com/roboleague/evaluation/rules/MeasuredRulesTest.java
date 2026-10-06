@@ -58,12 +58,30 @@ class MeasuredRulesTest {
     }
 
     @ParameterizedTest(name = "{0} de 4 rescatadas → {1} pts")
-    @CsvSource({"4, 100.0", "3, 65.0", "0, -40.0"})
-    @DisplayName("Cada víctima rescatada suma y cada abandonada resta")
-    void givenRescuedVictimsThenEachRescuedAddsAndEachAbandonedDeducts(int rescued, double expected) {
-        VictimsRule rule = new VictimsRule("Víctimas", RESCUED, new VictimTariff(4, 25.0, 10.0));
+    @CsvSource({"4, 100.0", "3, 75.0", "0, 0.0"})
+    @DisplayName("Cada víctima rescatada suma")
+    void givenRescuedVictimsThenEachRescuedAdds(int rescued, double expected) {
+        VictimsRule rule = new VictimsRule("Víctimas rescatadas", RESCUED, 25.0);
 
         assertThat(subtotal(rule, measuring(RESCUED, rescued))).isEqualTo(expected);
+    }
+
+    @ParameterizedTest(name = "{0} de 4 rescatadas → {1} pts")
+    @CsvSource({"4, 0.0", "3, -10.0", "0, -40.0"})
+    @DisplayName("Cada víctima que no se rescató resta, en una regla aparte")
+    void givenRescuedVictimsThenEachAbandonedDeducts(int rescued, double expected) {
+        AbandonedVictimsRule rule = new AbandonedVictimsRule("Víctimas abandonadas", RESCUED, new VictimTariff(4, 10.0));
+
+        assertThat(subtotal(rule, measuring(RESCUED, rescued))).isEqualTo(expected);
+    }
+
+    @Test
+    @DisplayName("No se pueden rescatar más víctimas que las que hay en la pista")
+    void givenMoreRescuedThanPlacedThenTheEvaluationIsRejected() {
+        AbandonedVictimsRule rule = new AbandonedVictimsRule("Víctimas abandonadas", RESCUED, new VictimTariff(4, 10.0));
+        RawMetrics fiveRescued = measuring(RESCUED, 5.0);
+
+        assertThatThrownBy(() -> rule.evaluate(fiveRescued)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @ParameterizedTest(name = "{0} metros con umbral 10 → {1} pts")
@@ -79,7 +97,7 @@ class MeasuredRulesTest {
     @CsvSource({"2.7", "-1.0", "NaN"})
     @DisplayName("Un conteo que no es un número entero no negativo se rechaza en vez de truncarse")
     void givenACountThatIsNotAWholeNumberThenTheEvaluationIsRejected(double rescued) {
-        VictimsRule rule = new VictimsRule("Víctimas", RESCUED, new VictimTariff(4, 25.0, 10.0));
+        VictimsRule rule = new VictimsRule("Víctimas rescatadas", RESCUED, 25.0);
         RawMetrics invalid = measuring(RESCUED, rescued);
 
         assertThatThrownBy(() -> rule.evaluate(invalid)).isInstanceOf(IllegalArgumentException.class);

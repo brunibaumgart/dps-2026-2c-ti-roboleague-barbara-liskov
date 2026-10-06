@@ -4,6 +4,7 @@ import com.roboleague.evaluation.definition.MetricDeclaration;
 import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.definition.RulebookDefinition;
 import com.roboleague.evaluation.definition.StrategyDefinition;
+import com.roboleague.evaluation.rules.AbandonedVictimsRule;
 import com.roboleague.evaluation.rules.AllObjectivesBonusRule;
 import com.roboleague.evaluation.rules.CompositeScoreRule;
 import com.roboleague.evaluation.rules.CountedFaultRule;
@@ -58,6 +59,7 @@ public final class RuleCatalog {
         catalog.rules.put(CountedFaultRule.TYPE, CountedFaultRule::from);
         catalog.rules.put(PrecisionRule.TYPE, PrecisionRule::from);
         catalog.rules.put(VictimsRule.TYPE, VictimsRule::from);
+        catalog.rules.put(AbandonedVictimsRule.TYPE, AbandonedVictimsRule::from);
         catalog.rules.put(MilestoneBonusRule.TYPE, MilestoneBonusRule::from);
         catalog.rules.put(CompositeScoreRule.TYPE, definition -> CompositeScoreRule.from(definition, catalog::child));
         catalog.selections.put(BestNOfM.TYPE, BestNOfM::from);

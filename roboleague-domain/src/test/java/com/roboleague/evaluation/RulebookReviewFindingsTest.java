@@ -11,6 +11,7 @@ import com.roboleague.evaluation.rules.ResourceConsumptionRule;
 import com.roboleague.evaluation.rules.TimeAdjustments;
 import com.roboleague.evaluation.rules.TimeTargets;
 import com.roboleague.evaluation.rules.VictimTariff;
+import com.roboleague.evaluation.rules.VictimsRule;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Named;
@@ -98,7 +99,8 @@ class RulebookReviewFindingsTest {
                 Named.of("faltas contadas con deducción negativa", () -> new FaultTariff(1, -5.0)),
                 Named.of("faltas contadas con franquicia negativa", () -> new FaultTariff(-1, 5.0)),
                 Named.of("precisión con máximo negativo", () -> new PrecisionRule("Precisión", Metric.sensor("precision"), -80.0)),
-                Named.of("víctimas con deducción negativa", () -> new VictimTariff(4, 25.0, -10.0)),
+                Named.of("víctimas con puntos negativos", () -> new VictimsRule("Víctimas", Metric.judged("v"), -25.0)),
+                Named.of("víctimas abandonadas con deducción negativa", () -> new VictimTariff(4, -10.0)),
                 Named.of("hito con bonus negativo", () -> new MilestoneBonusRule("Hito",
                         new Milestone(Metric.sensor("distancia_metros"), 10.0), -30.0)),
                 Named.of("tope de bonificaciones negativo", () -> new CappedAt(-10.0)),

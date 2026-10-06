@@ -6,6 +6,7 @@ import com.roboleague.evaluation.definition.RuleArguments;
 import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.definition.RulebookDefinition;
 import com.roboleague.evaluation.definition.StrategyDefinition;
+import com.roboleague.evaluation.rules.AbandonedVictimsRule;
 import com.roboleague.evaluation.rules.AllObjectivesBonusRule;
 import com.roboleague.evaluation.rules.CompositeScoreRule;
 import com.roboleague.evaluation.rules.CountedFaultRule;
@@ -105,7 +106,9 @@ class RuleCatalogTest {
                 Named.of("consumo", new ResourceConsumptionRule("Consumo", 80.0, 0.5)),
                 Named.of("faltas contadas", new CountedFaultRule("Colisiones", COLLISIONS, new FaultTariff(1, 5.0))),
                 Named.of("precisión", new PrecisionRule("Precisión", PRECISION, 50.0)),
-                Named.of("víctimas", new VictimsRule("Víctimas", RESCUED, new VictimTariff(4, 25.0, 10.0))),
+                Named.of("víctimas", new VictimsRule("Víctimas", RESCUED, 25.0)),
+                Named.of("víctimas abandonadas", new AbandonedVictimsRule("Víctimas abandonadas", RESCUED,
+                        new VictimTariff(4, 10.0))),
                 Named.of("hito", new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), 30.0)),
                 Named.of("compuesta", new CompositeScoreRule("Desempeño en pista", List.of(time, objectives)))
         );
