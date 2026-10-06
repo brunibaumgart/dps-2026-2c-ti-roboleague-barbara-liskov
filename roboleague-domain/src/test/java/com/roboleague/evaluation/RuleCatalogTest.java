@@ -24,9 +24,9 @@ import com.roboleague.evaluation.rules.VictimTariff;
 import com.roboleague.evaluation.rules.VictimsRule;
 import com.roboleague.evaluation.scheme.AllRounds;
 import com.roboleague.evaluation.scheme.BestNOfM;
-import com.roboleague.evaluation.scheme.FewerPenalties;
 import com.roboleague.evaluation.scheme.HigherJudgeScore;
 import com.roboleague.evaluation.scheme.HigherTotal;
+import com.roboleague.evaluation.scheme.LowerDeductions;
 import com.roboleague.evaluation.scheme.LowerTime;
 import com.roboleague.evaluation.scheme.RankingScheme;
 import org.junit.jupiter.api.DisplayName;
@@ -171,7 +171,7 @@ class RuleCatalogTest {
                 List.of(new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), 30.0)),
                 List.of(new PenaltyRule("Faltas", 10.0))), new CappedAt(40.0));
         RankingScheme ranking = new RankingScheme(new BestNOfM(3, 5),
-                List.of(new HigherTotal(), new LowerTime(), new FewerPenalties(), new HigherJudgeScore()));
+                List.of(new HigherTotal(), new LowerTime(), new LowerDeductions(), new HigherJudgeScore()));
 
         RulebookAssembly assembly = catalog.assemble(
                 new RulebookDefinition(scoring.metrics().declarations(), scoring.definition(), ranking.definition()));

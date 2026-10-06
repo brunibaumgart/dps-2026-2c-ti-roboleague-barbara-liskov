@@ -1,5 +1,21 @@
 package com.roboleague.evaluation.scheme;
 
+import com.roboleague.evaluation.EvaluationFeedback;
+import com.roboleague.evaluation.MeasurementUnit;
+import com.roboleague.evaluation.Metric;
+import com.roboleague.evaluation.MetricDefinition;
+import com.roboleague.evaluation.MetricSheet;
+import com.roboleague.evaluation.RawMetrics;
+import com.roboleague.evaluation.ScoreRules;
+import com.roboleague.evaluation.ScoringScheme;
+import com.roboleague.evaluation.TrackPerformance;
+import com.roboleague.evaluation.Unlimited;
+import com.roboleague.evaluation.ValueRange;
+import com.roboleague.evaluation.audit.EvaluationSnapshot;
+import com.roboleague.evaluation.rules.CountedFaultRule;
+import com.roboleague.evaluation.rules.FaultTariff;
+import com.roboleague.evaluation.rules.PrecisionRule;
+import com.roboleague.evaluation.rules.TimeBasedRule;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -19,7 +35,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class RankingSchemeTest {
 
     private final RankingScheme fourCriteria = new RankingScheme(new AllRounds(), List.of(
-            new HigherTotal(), new LowerTime(), new FewerPenalties(), new HigherJudgeScore()));
+            new HigherTotal(), new LowerTime(), new LowerDeductions(), new HigherJudgeScore()));
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("pairsDecidedByEachCriterion")
@@ -38,19 +54,20 @@ class RankingSchemeTest {
     static Stream<Arguments> pairsDecidedByEachCriterion() {
         return Stream.of(
                 Arguments.of("Mayor puntaje total", allOf(round("r1", 200.0)), allOf(round("r1", 150.0))),
-                Arguments.of("Menor tiempo", allOf(round("r1", 200.0, 45.0, 0)), allOf(round("r1", 200.0, 50.0, 0))),
-                Arguments.of("Menos faltas", allOf(round("r1", 200.0, 45.0, 1)), allOf(round("r1", 200.0, 45.0, 3))),
+                Arguments.of("Menor tiempo", allOf(round("r1", 200.0, 45.0, 0.0)), allOf(round("r1", 200.0, 50.0, 0.0))),
+                Arguments.of("Menor descuento por penalizaciones", allOf(round("r1", 200.0, 45.0, 10.0)),
+                        allOf(round("r1", 200.0, 45.0, 30.0))),
                 Arguments.of("Mayor nota de jueces",
-                        allOf(withJudges("r1", 200.0, 45.0, 1, Map.of("j1", 9.0))),
-                        allOf(withJudges("r1", 200.0, 45.0, 1, Map.of("j1", 7.0))))
+                        allOf(withJudges("r1", 200.0, 45.0, 10.0, Map.of("j1", 9.0))),
+                        allOf(withJudges("r1", 200.0, 45.0, 10.0, Map.of("j1", 7.0))))
         );
     }
 
     @Test
     @DisplayName("Iguales en todos los criterios: empate")
     void givenEqualScoresOnEveryCriterionThenTheyAreTied() {
-        ChallengeScore a = allOf(round("r1", 200.0, 45.0, 1));
-        ChallengeScore b = allOf(round("r1", 200.0, 45.0, 1));
+        ChallengeScore a = allOf(round("r1", 200.0, 45.0, 10.0));
+        ChallengeScore b = allOf(round("r1", 200.0, 45.0, 10.0));
 
         assertThat(fourCriteria.decide(a, b)).isInstanceOf(TieBreakDecision.Tied.class);
         assertThat(fourCriteria.compare(a, b)).isZero();
@@ -59,34 +76,67 @@ class RankingSchemeTest {
     @Test
     @DisplayName("El orden de los desempates es el que declara el reglamento")
     void givenTieBreakersInAnotherOrderThenTheOrderChangesTheWinner() {
-        ChallengeScore fastWithFouls = allOf(round("r1", 200.0, 40.0, 3));
-        ChallengeScore slowClean = allOf(round("r1", 200.0, 50.0, 0));
+        ChallengeScore fastWithFouls = allOf(round("r1", 200.0, 40.0, 30.0));
+        ChallengeScore slowClean = allOf(round("r1", 200.0, 50.0, 0.0));
         RankingScheme timeFirst = new RankingScheme(new AllRounds(),
-                List.of(new HigherTotal(), new LowerTime(), new FewerPenalties()));
+                List.of(new HigherTotal(), new LowerTime(), new LowerDeductions()));
         RankingScheme foulsFirst = new RankingScheme(new AllRounds(),
-                List.of(new HigherTotal(), new FewerPenalties(), new LowerTime()));
+                List.of(new HigherTotal(), new LowerDeductions(), new LowerTime()));
 
         assertThat(timeFirst.compare(fastWithFouls, slowClean)).isNegative();
         assertThat(foulsFirst.compare(fastWithFouls, slowClean)).isPositive();
     }
 
     @Test
-    @DisplayName("Un equipo sin rondas queda detrás en tiempo y en nota de jueces")
+    @DisplayName("Un equipo sin rondas queda detrás en tiempo, en descuento y en nota de jueces")
     void givenATeamWithoutRoundsThenItGoesAfterOneWithRounds() {
-        ChallengeScore withRound = allOf(withJudges("r1", 0.0, 50.0, 0, Map.of("j1", 5.0)));
+        ChallengeScore withRound = allOf(withJudges("r1", 0.0, 50.0, 0.0, Map.of("j1", 5.0)));
         ChallengeScore withoutRounds = allOf();
         RankingScheme timeThenJudges = new RankingScheme(new AllRounds(),
                 List.of(new HigherTotal(), new LowerTime(), new HigherJudgeScore()));
 
         assertThat(timeThenJudges.compare(withRound, withoutRounds)).isNegative();
         assertThat(new HigherJudgeScore().compare(withRound, withoutRounds)).isNegative();
+        assertThat(new LowerDeductions().compare(withRound, withoutRounds)).isNegative();
+    }
+
+    @Test
+    @DisplayName("Seguidor de línea: con el mismo total, desempata quien perdió menos puntos por salidas de línea")
+    void givenALineFollowerTieThenTheTeamWithFewerDeductedPointsWins() {
+        Metric precision = Metric.sensor("precision");
+        Metric lineExits = Metric.sensor("salidas_de_linea");
+        ScoringScheme lineFollower = new ScoringScheme(new MetricSheet(List.of(
+                new MetricDefinition(precision, MeasurementUnit.RATIO, ValueRange.between(0.0, 1.0)),
+                new MetricDefinition(lineExits, MeasurementUnit.COUNT, ValueRange.atLeast(0.0)))),
+                new ScoreRules(
+                        List.of(TimeBasedRule.of("Tiempo de vuelta", 100.0, 90.0, 1.0, 1.0, 0.0),
+                                new PrecisionRule("Precisión", precision, 50.0)),
+                        List.of(),
+                        List.of(new CountedFaultRule("Salidas de línea", lineExits, new FaultTariff(2, 10.0)))),
+                new Unlimited());
+        ChallengeScore fastWithExits = allOf(scoredRound(lineFollower, 80.0,
+                Map.of(precision.name(), 0.8, lineExits.name(), 3.0)));
+        ChallengeScore slowClean = allOf(scoredRound(lineFollower, 90.0,
+                Map.of(precision.name(), 0.8, lineExits.name(), 2.0)));
+        RankingScheme scheme = new RankingScheme(new AllRounds(),
+                List.of(new HigherTotal(), new LowerDeductions(), new LowerTime()));
+
+        assertThat(fastWithExits.total()).isEqualTo(140.0).isEqualTo(slowClean.total());
+        assertThat(scheme.decide(slowClean, fastWithExits))
+                .isEqualTo(new TieBreakDecision.DecidedBy("Menor descuento por penalizaciones", -1));
+    }
+
+    private static RoundScore scoredRound(ScoringScheme scoring, double seconds, Map<String, Double> measurements) {
+        RawMetrics run = new RawMetrics(new TrackPerformance(seconds, 0, 0),
+                EvaluationFeedback.withMeasurements(measurements));
+        return new RoundScore("r1", EvaluationSnapshot.of(run, scoring.evaluate(run)));
     }
 
     @Test
     @DisplayName("Rondas sin panel de jueces no cuentan como nota cero")
     void givenRoundsWithoutJudgesThenTheTeamHasNoJudgeScoreAndGoesAfterOneThatHasIt() {
         ChallengeScore withoutJudges = allOf(round("r1", 200.0));
-        ChallengeScore withLowJudgeScore = allOf(withJudges("r1", 200.0, 60.0, 0, Map.of("j1", 0.5)));
+        ChallengeScore withLowJudgeScore = allOf(withJudges("r1", 200.0, 60.0, 0.0, Map.of("j1", 0.5)));
 
         assertThat(withoutJudges.judgeScore()).isEmpty();
         assertThat(new HigherJudgeScore().compare(withLowJudgeScore, withoutJudges)).isNegative();

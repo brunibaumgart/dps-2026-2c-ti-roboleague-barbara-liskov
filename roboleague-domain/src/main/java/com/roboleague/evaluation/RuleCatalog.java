@@ -22,9 +22,9 @@ import com.roboleague.evaluation.rules.TimeBasedRule;
 import com.roboleague.evaluation.rules.VictimsRule;
 import com.roboleague.evaluation.scheme.AllRounds;
 import com.roboleague.evaluation.scheme.BestNOfM;
-import com.roboleague.evaluation.scheme.FewerPenalties;
 import com.roboleague.evaluation.scheme.HigherJudgeScore;
 import com.roboleague.evaluation.scheme.HigherTotal;
+import com.roboleague.evaluation.scheme.LowerDeductions;
 import com.roboleague.evaluation.scheme.LowerTime;
 import com.roboleague.evaluation.scheme.RankingScheme;
 import com.roboleague.evaluation.scheme.RoundSelection;
@@ -73,7 +73,7 @@ public final class RuleCatalog {
         catalog.selections.put(AllRounds.TYPE, definition -> new AllRounds());
         catalog.limits.put(CappedAt.TYPE, CappedAt::from);
         catalog.limits.put(Unlimited.TYPE, definition -> new Unlimited());
-        for (TieBreakCriterion criterion : List.of(new HigherTotal(), new LowerTime(), new FewerPenalties(),
+        for (TieBreakCriterion criterion : List.of(new HigherTotal(), new LowerTime(), new LowerDeductions(),
                 new HigherJudgeScore())) {
             catalog.criteria.put(criterion.code(), criterion);
         }

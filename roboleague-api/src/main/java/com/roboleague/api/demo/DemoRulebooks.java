@@ -25,9 +25,9 @@ import com.roboleague.evaluation.rules.TimeBasedRule;
 import com.roboleague.evaluation.rules.VictimTariff;
 import com.roboleague.evaluation.rules.VictimsRule;
 import com.roboleague.evaluation.scheme.BestNOfM;
-import com.roboleague.evaluation.scheme.FewerPenalties;
 import com.roboleague.evaluation.scheme.HigherJudgeScore;
 import com.roboleague.evaluation.scheme.HigherTotal;
+import com.roboleague.evaluation.scheme.LowerDeductions;
 import com.roboleague.evaluation.scheme.LowerTime;
 import com.roboleague.evaluation.scheme.RankingScheme;
 
@@ -69,7 +69,7 @@ final class DemoRulebooks {
                         new CountedFaultRule("Colisiones", COLLISIONS, new FaultTariff(1, 5.0)),
                         new ResourceConsumptionRule("Consumo de batería", 80.0, 0.5)));
         RankingScheme ranking = new RankingScheme(new BestNOfM(3, 5),
-                List.of(new HigherTotal(), new LowerTime(), new FewerPenalties()));
+                List.of(new HigherTotal(), new LowerTime(), new LowerDeductions()));
         return definitionOf(new ScoringScheme(metrics, rules, new CappedAt(40.0)), ranking);
     }
 
@@ -83,7 +83,7 @@ final class DemoRulebooks {
                 List.of(new MilestoneBonusRule("Vuelta rápida", new Milestone(FAST_LAP, 1.0), 35.0)),
                 List.of(new CountedFaultRule("Salidas de línea", LINE_EXITS, new FaultTariff(2, 10.0))));
         RankingScheme ranking = new RankingScheme(new BestNOfM(2, 3),
-                List.of(new HigherTotal(), new FewerPenalties(), new LowerTime()));
+                List.of(new HigherTotal(), new LowerDeductions(), new LowerTime()));
         return definitionOf(new ScoringScheme(metrics, rules, new CappedAt(bonusCap)), ranking);
     }
 
@@ -98,7 +98,7 @@ final class DemoRulebooks {
                         new AllObjectivesBonusRule("Todas las zonas despejadas", 4, 20.0)),
                 List.of(new AbandonedVictimsRule("Víctimas abandonadas", RESCUED, new VictimTariff(4, 10.0))));
         RankingScheme ranking = new RankingScheme(new BestNOfM(2, 3),
-                List.of(new HigherTotal(), new HigherJudgeScore(), new FewerPenalties(), new LowerTime()));
+                List.of(new HigherTotal(), new HigherJudgeScore(), new LowerDeductions(), new LowerTime()));
         return definitionOf(new ScoringScheme(metrics, rules, new CappedAt(30.0)), ranking);
     }
 

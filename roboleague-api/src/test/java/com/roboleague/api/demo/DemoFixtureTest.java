@@ -51,6 +51,13 @@ class DemoFixtureTest {
     }
 
     @Test
+    void theAppealLowersWhatTheDeductionsTookFromTitanTeam() {
+        assertThat(attempts.findById("att-b1").orElseThrow().getOriginalSnapshot().breakdown().deducted())
+                .isEqualTo(65.0);
+        assertThat(attempts.findById("att-b1").orElseThrow().getScoreBreakdown().deducted()).isEqualTo(5.0);
+    }
+
+    @Test
     void theDemoConfiguresThreeChallengesThroughTheUseCases() {
         assertThat(challenges.findById(ChallengeId.of("ch-maze"))).isPresent();
         assertThat(challenges.findById(ChallengeId.of("ch-line")).orElseThrow().currentRulebook().version())

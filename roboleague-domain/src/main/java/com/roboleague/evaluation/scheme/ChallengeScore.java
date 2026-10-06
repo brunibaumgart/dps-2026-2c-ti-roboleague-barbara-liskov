@@ -26,12 +26,11 @@ public record ChallengeScore(List<RoundScore> considered, List<RoundScore> disca
         return considered.stream().mapToDouble(RoundScore::timeTakenSeconds).min();
     }
 
-    public int penalties() {
-        int penalties = 0;
-        for (RoundScore round : considered) {
-            penalties += round.penalties();
-        }
-        return penalties;
+    /**
+     * Points the deductions took away in the considered rounds; nothing without rounds.
+     */
+    public OptionalDouble deducted() {
+        return considered.stream().mapToDouble(RoundScore::deducted).reduce(Double::sum);
     }
 
     public OptionalDouble judgeScore() {

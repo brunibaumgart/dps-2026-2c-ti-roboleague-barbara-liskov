@@ -44,7 +44,7 @@ class ChallengeControllerTest extends ApiTest {
                      {"type": "%s", "name": "Faltas", "numbers": {"deductionPerPenalty": 15}}],
                    "bonusLimit": {"type": "capped", "numbers": {"maximum": %s}}},
                  "ranking": {"roundSelection": {"type": "best-n-of-m", "numbers": {"considered": 3, "outOf": 5}},
-                             "criteria": ["higher-total", "lower-time", "fewer-penalties"]}}
+                             "criteria": ["higher-total", "lower-time", "lower-deductions"]}}
                 """.formatted(penaltyType, cap);
     }
 
@@ -157,6 +157,16 @@ class ChallengeControllerTest extends ApiTest {
         mvc.perform(addChallenge("api-ed-ch", "api-ch-misplaced", misplaced))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.details[0]").value("rule 'Faltas dobles': type 'penalty' is a deduction, not a bonus"));
+    }
+
+    @Test
+    @DisplayName("El criterio viejo fewer-penalties ya no existe: es 422")
+    void theOldFewerPenaltiesCriterionIsUnprocessable() throws Exception {
+        String old = rulebook("penalty", 40).replace("\"lower-deductions\"", "\"fewer-penalties\"");
+
+        mvc.perform(addChallenge("api-ed-ch", "api-ch-old-criterion", old))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.details[0]").value("tie-break criterion 'fewer-penalties': unknown criterion"));
     }
 
     @Test

@@ -43,6 +43,13 @@ public record ScoreBreakdown(RuleEvaluation base, RuleEvaluation bonuses, RuleEv
         return List.copyOf(notes);
     }
 
+    /**
+     * Points the deductions took away, as a positive amount.
+     */
+    public double deducted() {
+        return Math.abs(deductions.total());
+    }
+
     public double totalScore() {
         return Math.max(0.0, sumOfSections());
     }
