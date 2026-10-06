@@ -477,6 +477,7 @@ roboleague-domain/
   - Guardar en el intento las fuentes que exige su reglamento: se deducen de su versión, que el intento ya guarda.
   - Reconstruir el desglose al leer de la base, con el reglamento: el snapshot guardado es el registro de auditoría y no tiene que depender del catálogo.
 - **Patrones no aplicados**: event sourcing (reconstruir el intento desde sus eventos; se guardan revisiones y eventos tal cual); Visitor para las fuentes (alcanza con `addTo` polimórfico).
+- **Dos fuentes al mismo tiempo**: en F3 las mediciones y el panel pueden llegar casi juntos. Postgres guarda el intento con bloqueo optimista (`@Version`, migración `V4`): `JpaAttemptRepository` recuerda con qué versión cargó cada intento y la manda al guardar, así que si otro pedido lo guardó en el medio el segundo se rechaza con 409 y se reintenta, en lugar de pisar la fuente que ya llegó. La versión es un detalle del adaptador: el agregado no la conoce.
 - **Deuda que decidimos no resolver en este paso**:
   - `challengeId` viaja en el cuerpo de la captura hasta que la ronda conozca su desafío (frente 3); entonces sale de la ronda.
   - `RoundRepository` es mínimo y en memoria; el frente 3 lo completa y lo persiste.
