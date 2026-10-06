@@ -2,6 +2,7 @@ package com.roboleague.api.demo;
 
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
+import com.roboleague.evaluation.JudgeScores;
 import com.roboleague.evaluation.Measurements;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.SourceDelivery;
@@ -59,6 +60,8 @@ import java.util.Set;
  * Loads the demo through the use cases, the same way a user would through the API: an edition with three
  * challenges (maze, line follower and the mixed rescue), a new rulebook version for the line follower, and on the
  * maze two teams, a round, two attempts, a provisional ranking, an accepted appeal and the official publication.
+ * On the rescue (F3), one attempt is scored with the measurements and the judge panel, and the other one still
+ * awaits the panel.
  */
 class DemoFixture implements ApplicationRunner {
 
@@ -91,7 +94,7 @@ class DemoFixture implements ApplicationRunner {
         Edition edition = createEdition(junior);
         Challenge maze = addChallenge(edition, "ch-maze", "Laberinto", DemoRulebooks.maze());
         addChallenge(edition, "ch-line", "Seguidor de línea", DemoRulebooks.lineFollower(25.0));
-        addChallenge(edition, "ch-rescue", "Rescate", DemoRulebooks.rescue());
+        Challenge rescue = addChallenge(edition, "ch-rescue", "Rescate", DemoRulebooks.rescue());
         published(useCases.publishRulebook().execute(ChallengeId.of("ch-line"), DemoRulebooks.lineFollower(30.0)));
 
         Team cyber = team("t-a", "CyberTeam", junior, new Robot("r-a", "CyberBot", robotSpec()),
@@ -103,11 +106,7 @@ class DemoFixture implements ApplicationRunner {
         useCases.registerTeam().execute(edition.getId(), cyber);
         useCases.registerTeam().execute(edition.getId(), titan);
 
-        Round round = useCases.scheduleRound().execute(ScheduleRoundCommand.of(
-                edition.getId(), junior.id(), 1, "Ronda Clasificatoria",
-                List.of(Track.active("trk-1", "Laberinto 1", "Madera")),
-                List.of(Judge.of("j-1", "Chief Judge", "Principal"), Judge.of("j-2", "Field Judge", "Pista")),
-                LocalDateTime.now(), Duration.ofMinutes(10), Duration.ofMinutes(2)));
+        Round round = scheduleRound(edition, 1, "Ronda Clasificatoria", Track.active("trk-1", "Laberinto 1", "Madera"));
 
         receive(maze, firstAttempt(round, 0), new SourceDelivery(mazeRun(50.0, 4, 0, 70.0), "j-1"));
         Attempt titanAttempt = receive(maze, firstAttempt(round, 1),
@@ -125,8 +124,22 @@ class DemoFixture implements ApplicationRunner {
         Ranking latest = rankings.findLatestByEditionAndCategory(edition.getId(), junior.id()).orElseThrow();
         useCases.publishRanking().execute(latest.getRankingId(), "Publicacion definitiva post-arbitraje");
 
-        log.info("Demo loaded: edition {}, challenges ch-maze/ch-line/ch-rescue, round {}, appeal {}, official ranking {}",
-                edition.getId(), round.getId(), appeal.getAppealId(), latest.getRankingId());
+        Round rescueRound = scheduleRound(edition, 2, "Ronda de Rescate", Track.active("trk-2", "Rescate 1", "Madera"));
+        receive(rescue, firstAttempt(rescueRound, 0), new SourceDelivery(rescueRun(120.0, 3), "j-1"));
+        receive(rescue, firstAttempt(rescueRound, 0), new SourceDelivery(rescuePanel(8.0, 7.0, 3), "j-2"));
+        Attempt awaitingPanel = receive(rescue, firstAttempt(rescueRound, 1),
+                new SourceDelivery(rescueRun(110.0, 4), "j-2"));
+
+        log.info("Demo loaded: edition {}, challenges ch-maze/ch-line/ch-rescue, round {}, appeal {}, official ranking {}, "
+                        + "rescue attempt {} awaiting the judge panel",
+                edition.getId(), round.getId(), appeal.getAppealId(), latest.getRankingId(), awaitingPanel.getId());
+    }
+
+    private Round scheduleRound(Edition edition, int number, String name, Track track) {
+        return useCases.scheduleRound().execute(ScheduleRoundCommand.of(
+                edition.getId(), edition.getCategories().getFirst().id(), number, name, List.of(track),
+                List.of(Judge.of("j-1", "Chief Judge", "Principal"), Judge.of("j-2", "Field Judge", "Pista")),
+                LocalDateTime.now(), Duration.ofMinutes(10), Duration.ofMinutes(2)));
     }
 
     private Edition createEdition(Category category) {
@@ -166,6 +179,15 @@ class DemoFixture implements ApplicationRunner {
         return new Measurements(new TrackPerformance(seconds, objectives, penalties), batteryUsed,
                 Map.of(DemoRulebooks.COLLISIONS.name(), 1.0, DemoRulebooks.CHECKPOINT.name(), 1.0,
                         DemoRulebooks.LAPS.name(), 1.0));
+    }
+
+    private static Measurements rescueRun(double seconds, int clearedZones) {
+        return new Measurements(new TrackPerformance(seconds, clearedZones, 0), 0.0, Map.of());
+    }
+
+    private static JudgeScores rescuePanel(double chiefScore, double fieldScore, int rescued) {
+        return new JudgeScores(Map.of("j-1", chiefScore, "j-2", fieldScore),
+                Map.of(DemoRulebooks.RESCUED.name(), (double) rescued, DemoRulebooks.FULL_RESCUE.name(), 0.0));
     }
 
     private static Team team(String id, String name, Category category, Robot robot, TeamMember... members) {
