@@ -447,6 +447,16 @@ roboleague-domain/
 
 ---
 
+### 2.19 Plataforma: transacciones, JSON estricto y demo con fechas fijas
+
+- **Una transacción por caso de uso (issue #13)**: un caso de uso que guarda dos agregados (aceptar una apelación guarda la apelación y el intento) podía dejar uno guardado y el otro no. `TransactionalUseCases` envuelve cada bean del paquete de casos de uso en un proxy transaccional desde el composition root, como un decorador: `roboleague-application` sigue sin Spring (regla #11) y ningún caso de uso cambió. Un guardado que Postgres rechaza al confirmar (versión vieja o id repetido) es 409.
+  - *Alternativas descartadas*: `@Transactional` en los casos de uso (mete Spring en la aplicación); un puerto `Transactions` inyectado en cada caso de uso (cambia constructores de varios frentes para el mismo efecto); transacciones en los controllers (la demo, que llama a los casos de uso directo, quedaría afuera).
+- **JSON estricto (issue #14)**: un campo desconocido es 400 con el nombre del campo y los esperados, en lugar de ignorarse (`"penalties"` en vez de `"deductions"` perdía la penalización). El reglamento acepta y descarta `version` y `requiredSources`, que trae cuando se lo lee con `GET`, para poder mandarlo de vuelta tal cual.
+- **Demo con fechas fijas**: la edición es del 10 al 12/11/2026 y la ronda arranca a las 9:00, así cada corrida termina igual.
+- **Deuda**: la elegibilidad todavía mide la edad con la fecha de hoy (`UseCaseConfig`) y los ids de ronda y apelación son UUID; se resuelven con los puertos de reloj e ids y la inscripción (frente 3).
+
+---
+
 ## 3. Matriz Comparativa Exhaustiva de Trade-offs
 
 | Decisión Arquitectónica | Pros Clave | Contras y Costos Asociados | Alternativa Considerada y Rechazada |
