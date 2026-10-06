@@ -27,7 +27,9 @@ class ChallengeControllerTest extends ApiTest {
 
     private static String rulebook(String penaltyType, double cap) {
         return """
-                {"scoring": {
+                {"metrics": [{"name": "checkpoint", "source": "AUTOMATIC_MEASUREMENTS", "unit": "COUNT",
+                              "range": {"min": 0, "max": 1}}],
+                 "scoring": {
                    "rules": [
                      {"type": "composite", "name": "Desempeño en pista", "rules": [
                        {"type": "time", "name": "Tiempo", "numbers": {"basePoints": 100, "targetTimeSeconds": 60,
@@ -70,6 +72,9 @@ class ChallengeControllerTest extends ApiTest {
                 .andExpect(jsonPath("$.editionId").value("api-ed-ch"))
                 .andExpect(jsonPath("$.currentRulebook.version").value(1))
                 .andExpect(jsonPath("$.currentRulebook.requiredSources[0]").value("AUTOMATIC_MEASUREMENTS"))
+                .andExpect(jsonPath("$.currentRulebook.metrics[0].name").value("checkpoint"))
+                .andExpect(jsonPath("$.currentRulebook.metrics[0].unit").value("COUNT"))
+                .andExpect(jsonPath("$.currentRulebook.metrics[0].range.max").value(1.0))
                 .andExpect(jsonPath("$.currentRulebook.scoring.rules[0].type").value("composite"))
                 .andExpect(jsonPath("$.currentRulebook.scoring.bonusLimit.numbers.maximum").value(40.0))
                 .andExpect(jsonPath("$.currentRulebook.ranking.criteria[1]").value("lower-time"));
@@ -108,6 +113,7 @@ class ChallengeControllerTest extends ApiTest {
             "parámetro nulo   | {\"scoring\": {\"rules\": [{\"type\": \"penalty\", \"name\": \"F\", \"numbers\": {\"deductionPerPenalty\": null}}], \"bonusLimit\": {\"type\": \"unlimited\"}}, \"ranking\": {\"roundSelection\": {\"type\": \"all-rounds\"}, \"criteria\": [\"higher-total\"]}}",
             "criterio nulo    | {\"scoring\": {\"rules\": [{\"type\": \"penalty\", \"name\": \"F\", \"numbers\": {\"deductionPerPenalty\": 5}}], \"bonusLimit\": {\"type\": \"unlimited\"}}, \"ranking\": {\"roundSelection\": {\"type\": \"all-rounds\"}, \"criteria\": [null]}}",
             "sin ranking      | {\"scoring\": {\"rules\": [], \"bonusLimit\": {\"type\": \"unlimited\"}}}",
+            "unidad desconocida | {\"metrics\": [{\"name\": \"c\", \"source\": \"AUTOMATIC_MEASUREMENTS\", \"unit\": \"KG\", \"range\": {\"min\": 0}}], \"scoring\": {\"rules\": [{\"type\": \"penalty\", \"name\": \"F\", \"numbers\": {\"deductionPerPenalty\": 5}}], \"bonusLimit\": {\"type\": \"unlimited\"}}, \"ranking\": {\"roundSelection\": {\"type\": \"all-rounds\"}, \"criteria\": [\"higher-total\"]}}",
             "JSON mal formado | {\"scoring\": "})
     @DisplayName("Un cuerpo mal armado es un pedido inválido, no un error del servidor")
     void aMalformedBodyIsABadRequest(String caseName, String rulebook) throws Exception {

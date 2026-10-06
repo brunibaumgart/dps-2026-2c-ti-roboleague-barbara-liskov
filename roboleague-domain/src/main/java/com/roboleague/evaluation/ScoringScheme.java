@@ -12,25 +12,39 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * How a rulebook scores an attempt: its score rules, its bonus rules and the limit on the sum of bonuses (F2).
- * The bonus rules are ordinary score rules; the limit wraps their sum without changing any of them.
+ * How a rulebook scores an attempt: the metrics it declares, its score and bonus rules, and the limit on the sum
+ * of bonuses (F2). The bonus rules are ordinary score rules; the limit wraps their sum without changing any of them.
+ * Every metric a rule reads has to be declared, so a misspelled name is rejected when publishing, not when scoring.
  */
-public record ScoringScheme(List<ScoreRule> rules, List<ScoreRule> bonuses, BonusLimit bonusLimit) {
+public record ScoringScheme(MetricSheet metrics, ScoreRules scoreRules, BonusLimit bonusLimit) {
     public ScoringScheme {
-        rules = List.copyOf(Objects.requireNonNull(rules, "rules cannot be null"));
-        bonuses = List.copyOf(Objects.requireNonNull(bonuses, "bonuses cannot be null"));
+        Objects.requireNonNull(metrics, "metrics cannot be null");
+        Objects.requireNonNull(scoreRules, "scoreRules cannot be null");
         Objects.requireNonNull(bonusLimit, "bonusLimit cannot be null");
-        if (rules.isEmpty() && bonuses.isEmpty()) {
-            throw new IllegalArgumentException("a scoring scheme needs at least one rule");
+        List<String> undeclared = new ArrayList<>();
+        for (ScoreRule rule : scoreRules.all()) {
+            for (Metric metric : rule.metrics()) {
+                if (!metrics.declares(metric)) {
+                    undeclared.add("rule '" + rule.getRuleName() + "' reads metric '" + metric.name() + "' ("
+                            + metric.source() + "), which the rulebook does not declare");
+                }
+            }
+        }
+        if (!undeclared.isEmpty()) {
+            throw new IllegalArgumentException(String.join("; ", undeclared));
         }
     }
 
+    /**
+     * A scheme with no bonuses for rules that read no named metric, so there is nothing to declare.
+     */
     public static ScoringScheme withoutBonuses(List<ScoreRule> rules) {
-        return new ScoringScheme(rules, List.of(), new Unlimited());
+        return new ScoringScheme(MetricSheet.none(), new ScoreRules(rules, List.of()), new Unlimited());
     }
 
     public RulebookDefinition.Scoring definition() {
-        return new RulebookDefinition.Scoring(definitionsOf(rules), definitionsOf(bonuses), bonusLimit.definition());
+        return new RulebookDefinition.Scoring(definitionsOf(scoreRules.rules()), definitionsOf(scoreRules.bonuses()),
+                bonusLimit.definition());
     }
 
     private static List<RuleDefinition> definitionsOf(List<ScoreRule> rules) {
@@ -41,17 +55,17 @@ public record ScoringScheme(List<ScoreRule> rules, List<ScoreRule> bonuses, Bonu
         return definitions;
     }
 
-    public RuleEvaluation evaluate(RawMetrics metrics) {
-        RuleEvaluation bonusesObtained = RuleEvaluation.combining(bonuses, metrics);
+    public RuleEvaluation evaluate(RawMetrics captured) {
+        RuleEvaluation bonusesObtained = RuleEvaluation.combining(scoreRules.bonuses(), captured);
         return RuleEvaluation.concat(List.of(
-                RuleEvaluation.combining(rules, metrics),
+                RuleEvaluation.combining(scoreRules.rules(), captured),
                 bonusesObtained,
                 bonusLimit.limit(bonusesObtained.total())));
     }
 
     public Set<ResultSource> requiredSources() {
         Set<ResultSource> sources = EnumSet.noneOf(ResultSource.class);
-        for (ScoreRule rule : allRules()) {
+        for (ScoreRule rule : scoreRules.all()) {
             sources.add(rule.source());
         }
         return Set.copyOf(sources);
@@ -60,20 +74,14 @@ public record ScoringScheme(List<ScoreRule> rules, List<ScoreRule> bonuses, Bonu
     /**
      * What the rules of each source contributed. The bonus cap applies to the whole score, so it belongs to no source.
      */
-    public List<SourceContribution> contributions(RawMetrics metrics) {
+    public List<SourceContribution> contributions(RawMetrics captured) {
         List<SourceContribution> contributions = new ArrayList<>();
         for (ResultSource source : ResultSource.values()) {
-            List<ScoreRule> fromSource = allRules().stream().filter(rule -> rule.source() == source).toList();
+            List<ScoreRule> fromSource = scoreRules.all().stream().filter(rule -> rule.source() == source).toList();
             if (!fromSource.isEmpty()) {
-                contributions.add(new SourceContribution(source, RuleEvaluation.combining(fromSource, metrics)));
+                contributions.add(new SourceContribution(source, RuleEvaluation.combining(fromSource, captured)));
             }
         }
         return List.copyOf(contributions);
-    }
-
-    private List<ScoreRule> allRules() {
-        List<ScoreRule> all = new ArrayList<>(rules);
-        all.addAll(bonuses);
-        return all;
     }
 }

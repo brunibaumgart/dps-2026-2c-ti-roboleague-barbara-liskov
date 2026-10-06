@@ -26,6 +26,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,7 +42,10 @@ class RulebookSourcesTest {
     private static final ScoreRule VICTIMS = new VictimsRule("Víctimas", RESCUED, new VictimTariff(4, 25.0, 10.0));
 
     private static Rulebook rulebookWith(List<ScoreRule> rules) {
-        return new Rulebook(RulebookVersion.first(), ScoringScheme.withoutBonuses(rules), ANY_SCHEME);
+        MetricSheet declared = new MetricSheet(List.of(
+                new MetricDefinition(RESCUED, MeasurementUnit.COUNT, ValueRange.between(0.0, 4.0))));
+        return new Rulebook(RulebookVersion.first(),
+                new ScoringScheme(declared, new ScoreRules(rules, List.of()), new Unlimited()), ANY_SCHEME);
     }
 
     @ParameterizedTest(name = "{0} → {1}")
@@ -66,6 +70,31 @@ class RulebookSourcesTest {
                 Arguments.of(Named.of("Víctimas", VICTIMS), judges),
                 Arguments.of(Named.of("Bonus por hito", new MilestoneBonusRule("Bonus por hito",
                         new Milestone(Metric.sensor("distancia_metros"), 10.0), 30.0)), sensors)
+        );
+    }
+
+    @ParameterizedTest(name = "{0} → {1}")
+    @MethodSource("rulesAndTheMetricsTheyRead")
+    @DisplayName("Cada regla dice qué métricas con nombre lee; una compuesta, las de sus hijas")
+    void givenARuleThenItNamesTheMetricsItReads(ScoreRule rule, Set<Metric> expected) {
+        assertThat(rule.metrics()).isEqualTo(expected);
+    }
+
+    static Stream<Arguments> rulesAndTheMetricsTheyRead() {
+        Metric lineExits = Metric.sensor("salidas_de_linea");
+        Metric collisions = Metric.sensor("colisiones");
+        Metric precision = Metric.sensor("precision");
+        return Stream.of(
+                Arguments.of(Named.of("Tiempo", TIME), Set.of()),
+                Arguments.of(Named.of("Panel de jueces", JUDGES), Set.of()),
+                Arguments.of(Named.of("Precisión", new PrecisionRule("Precisión", precision, 80.0)), Set.of(precision)),
+                Arguments.of(Named.of("Víctimas", VICTIMS), Set.of(RESCUED)),
+                Arguments.of(Named.of("Desempeño en pista", new CompositeScoreRule("Desempeño en pista",
+                        List.of(TIME, OBJECTIVES))), Set.of()),
+                Arguments.of(Named.of("Faltas en pista", new CompositeScoreRule("Faltas en pista", List.of(
+                        new CountedFaultRule("Salidas de línea", lineExits, new FaultTariff(1, 5.0)),
+                        new CountedFaultRule("Colisiones", collisions, new FaultTariff(0, 10.0))))),
+                        Set.of(lineExits, collisions))
         );
     }
 

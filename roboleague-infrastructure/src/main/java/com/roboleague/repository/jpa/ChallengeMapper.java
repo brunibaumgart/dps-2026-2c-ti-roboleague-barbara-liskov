@@ -1,16 +1,19 @@
 package com.roboleague.repository.jpa;
 
+import com.roboleague.evaluation.MeasurementUnit;
 import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.RuleCatalog;
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookAssembly;
 import com.roboleague.evaluation.RulebookVersion;
+import com.roboleague.evaluation.definition.MetricDeclaration;
 import com.roboleague.evaluation.definition.Parameters;
 import com.roboleague.evaluation.definition.RuleArguments;
 import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.definition.RulebookDefinition;
 import com.roboleague.evaluation.definition.StrategyDefinition;
+import com.roboleague.repository.jpa.ChallengeJpaEntity.MetricDeclarationJson;
 import com.roboleague.repository.jpa.ChallengeJpaEntity.MetricJson;
 import com.roboleague.repository.jpa.ChallengeJpaEntity.RankingJson;
 import com.roboleague.repository.jpa.ChallengeJpaEntity.RuleJson;
@@ -59,7 +62,7 @@ final class ChallengeMapper {
     }
 
     private Rulebook toRulebook(String challengeId, RulebookJson json) {
-        RulebookDefinition definition = new RulebookDefinition(
+        RulebookDefinition definition = new RulebookDefinition(toDeclarations(json.metrics()),
                 new RulebookDefinition.Scoring(toRules(json.scoring().rules()), toRules(json.scoring().bonuses()),
                         toStrategy(json.scoring().bonusLimit())),
                 new RulebookDefinition.Ranking(toStrategy(json.ranking().roundSelection()), json.ranking().criteria()));
@@ -73,10 +76,19 @@ final class ChallengeMapper {
 
     private static RulebookJson toJson(Rulebook rulebook) {
         RulebookDefinition definition = rulebook.definition();
-        return new RulebookJson(rulebook.version().number(),
+        return new RulebookJson(rulebook.version().number(), toJsonDeclarations(definition.metrics()),
                 new ScoringJson(toJson(definition.scoring().rules()), toJson(definition.scoring().bonuses()),
                         toJson(definition.scoring().bonusLimit())),
                 new RankingJson(toJson(definition.ranking().roundSelection()), definition.ranking().criteria()));
+    }
+
+    private static List<MetricDeclarationJson> toJsonDeclarations(List<MetricDeclaration> declarations) {
+        List<MetricDeclarationJson> json = new ArrayList<>();
+        for (MetricDeclaration declaration : declarations) {
+            json.add(new MetricDeclarationJson(declaration.metric().name(), declaration.metric().source().name(),
+                    declaration.unit().name(), declaration.range().values()));
+        }
+        return json;
     }
 
     private static List<RuleJson> toJson(List<RuleDefinition> rules) {
@@ -93,6 +105,15 @@ final class ChallengeMapper {
 
     private static StrategyJson toJson(StrategyDefinition strategy) {
         return new StrategyJson(strategy.type(), strategy.numbers().values());
+    }
+
+    private static List<MetricDeclaration> toDeclarations(List<MetricDeclarationJson> json) {
+        List<MetricDeclaration> declarations = new ArrayList<>();
+        for (MetricDeclarationJson metric : json == null ? List.<MetricDeclarationJson>of() : json) {
+            declarations.add(new MetricDeclaration(new Metric(metric.name(), ResultSource.valueOf(metric.source())),
+                    MeasurementUnit.valueOf(metric.unit()), Parameters.of(metric.range())));
+        }
+        return declarations;
     }
 
     private static List<RuleDefinition> toRules(List<RuleJson> json) {

@@ -10,6 +10,7 @@ import com.roboleague.evaluation.ScoreItem;
 
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Deducts for each counted fault (line exits, collisions…) beyond a free allowance.
@@ -47,6 +48,11 @@ public final class CountedFaultRule implements ScoreRule {
     @Override
     public ResultSource source() {
         return faults.source();
+    }
+
+    @Override
+    public Set<Metric> metrics() {
+        return Set.of(faults);
     }
 
     @Override

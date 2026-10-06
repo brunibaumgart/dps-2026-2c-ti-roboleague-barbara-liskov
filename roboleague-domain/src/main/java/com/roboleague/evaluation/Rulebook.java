@@ -5,6 +5,7 @@ import com.roboleague.evaluation.rules.ScoreRule.RuleEvaluation;
 import com.roboleague.evaluation.scheme.RankingScheme;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -36,7 +37,8 @@ public final class Rulebook {
     }
 
     public RulebookDefinition definition() {
-        return new RulebookDefinition(scoring.definition(), rankingScheme.definition());
+        return new RulebookDefinition(scoring.metrics().declarations(), scoring.definition(),
+                rankingScheme.definition());
     }
 
     /**
@@ -44,6 +46,13 @@ public final class Rulebook {
      */
     public Set<ResultSource> requiredSources() {
         return scoring.requiredSources();
+    }
+
+    /**
+     * Checks the measurements one source sent for an attempt against the metrics this rulebook declares for it.
+     */
+    public MeasurementCheck check(ResultSource source, Map<String, Double> measurements) {
+        return scoring.metrics().check(source, measurements);
     }
 
     public ScoreBreakdown evaluate(RawMetrics metrics) {

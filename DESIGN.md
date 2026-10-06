@@ -313,10 +313,10 @@ roboleague-domain/
 - **Clases modificadas**: `ScoreRule` (`source()` y `RuleEvaluation.combining`), las cinco reglas existentes (`source()`), `CompositeScoreRule` (fuente única), `Rulebook` (lista de reglas, `requiredSources`, `contributions`), `RawMetrics` (`measurement`), `EvaluationFeedback` (`withMeasurements`), `DemoFixture` (Sumo puntúa con "Desempeño en pista"); la demo actual es la de 2.15.
 - **Refactors**: `Rulebook` deja de usar un composite interno; `CompositeScoreRule.evaluateBreakdown` desaparece.
 - **Deuda que decidimos no resolver en este paso**:
-  - Las mediciones se leen por nombre (`String` dentro de `Metric`): un nombre mal escrito compila y recién falla al evaluar. Se cierra cuando el reglamento declare sus métricas (`MetricDefinition`) y la captura se valide contra ellas.
+  - ~~Las mediciones se leen por nombre: un nombre mal escrito compila y recién falla al evaluar.~~ Cerrada en 2.16: el reglamento declara sus métricas y rechaza una regla que lee una no declarada.
   - El intento todavía no espera sus fuentes ni guarda contribuciones: el estado "esperando fuentes", recibir cada fuente y armar las `RawMetrics` del turno son parte del intento y la captura. Un ajuste de faltas pierde las mediciones del intento (issue #5).
   - `averageJudgeScore()` sigue devolviendo 0 sin jueces en `RawMetrics`; con fuentes, un desafío que exige panel no debería evaluarse sin él.
-  - Una medición fuera de rango (precisión fuera de 0 a 1, conteo no entero o negativo, más víctimas rescatadas que las del desafío) se rechaza con `IllegalArgumentException` al evaluar. Es un dato que entra por la captura, así que es una falla esperable: cuando la captura se valide contra las métricas del reglamento, ese rechazo pasa a ser un resultado de la captura (regla #28).
+  - Una medición fuera de rango (precisión fuera de 0 a 1, conteo no entero o negativo, más víctimas rescatadas que las del desafío) se rechaza con `IllegalArgumentException` al evaluar. Desde 2.16 la captura se puede revisar antes con `Rulebook.check`, que devuelve el rechazo como resultado (regla #28); la excepción al evaluar queda para una invariante rota. Falta que el caso de uso de captura (frente 2) lo llame.
   - `PenaltyRule` (lee `penaltiesCount`) y `CountedFaultRule` sin franquicia calculan lo mismo con el conteo de otra parte. Se unifican cuando las faltas sean una métrica declarada más.
   - `ScoreRule.source()` devuelve una sola fuente. El tope de bonificaciones (F2) agrupa bonificaciones de fuentes distintas, así que se aplica en el reglamento sobre el conjunto de bonificaciones y no como una regla más con fuente propia (ver 2.12).
 - **Patrones no aplicados**: mapa fuente → reglas en el constructor del reglamento (duplica lo que cada regla ya sabe); fuente en cada `ScoreItem` (el piso y el tope de F2 no tienen fuente).
@@ -358,7 +358,7 @@ roboleague-domain/
 - **Alternativas descartadas**: anotaciones de Jackson (`@JsonTypeInfo`) sobre las reglas (meten un tercero en el dominio, regla #11); una factory en la API y otra en la persistencia (la misma decisión dos veces); guardar las reglas serializando las clases (el esquema de la tabla quedaría atado a los campos privados).
 - **Patrones no aplicados**: Visitor para describir reglas (cada regla ya sabe describirse); Builder para armar reglamentos (los records alcanzan).
 - **Deuda**:
-  - Los nombres de métrica siguen siendo texto libre hasta que el reglamento declare sus métricas (`MetricDefinition`, 2.11), y una regla que resta puede declararse como bonificación (2.12). Las dos cosas las pide la consigna en "Configuración de desafíos" y quedan para después de esta entrega.
+  - Una regla que resta puede declararse como bonificación (2.12). Los nombres de métrica dejaron de ser texto libre en 2.16. Las dos cosas las pide la consigna en "Configuración de desafíos" y quedan para después de esta entrega.
   - `RuleCatalog.standard()` conoce las diez implementaciones desde el dominio. Son conceptos del dominio, no detalles técnicos, pero la lista podría armarse en el composition root (`UseCaseConfig`) para dejar la decisión más cerca del borde (regla #9).
   - Ciclo de paquetes `evaluation` ↔ `evaluation.definition` (por `Metric`), que se suma al de `evaluation` ↔ `evaluation.rules`. Se corta moviendo `Metric` y `ResultSource` a un paquete hoja.
   - La traducción JSON ↔ definición está escrita dos veces, en `RulebookBody` (API) y en `ChallengeMapper` (persistencia), porque cada borde fija su propia forma de datos; si las formas coinciden siempre, se puede compartir.
@@ -380,6 +380,34 @@ roboleague-domain/
 - **Demo**: `DemoFixture` crea la edición y los tres desafíos con los casos de uso (`DemoRulebooks`), publica la v2 del Seguidor y corre el flujo de apelación sobre Laberinto. Rondas por desafío, captura del desafío mixto y tabla con N de M quedan para los frentes que los tienen.
 - **Clases agregadas**: definiciones, `RuleCatalog`, `RulebookAssembly`, `Publication`, los cuatro casos de uso con sus comandos, `JpaChallengeRepository`, `ChallengeJpaEntity`, `ChallengeMapper`, `ChallengeController`, `EditionController`, `DemoRulebooks`.
 - **Clases modificadas**: todas las reglas, estrategias y criterios (`definition()`/`from`/`code()`), `ScoringScheme`, `RankingScheme`, `Rulebook` (`definition()`), `Challenge` (`restore`), `UseCaseConfig`, `InMemoryRepositoryConfig` (sin bean en memoria de desafíos), `DemoConfig`, `DemoFixture`.
+
+---
+
+### 2.16 Métricas declaradas en el reglamento (`MetricDefinition`, hallazgo 8)
+
+- **Problema**:
+  La consigna pide configurar "métricas" en cada desafío y el hallazgo 8 marcó que el reglamento no las declaraba: las reglas leían mediciones por nombre libre, un nombre mal escrito recién fallaba al puntuar y nada revisaba lo capturado (una precisión de 1.4 o 2.5 colisiones reventaban en medio del cálculo).
+
+- **Solución Implementada**:
+  - **`MetricDefinition(Metric, MeasurementUnit, ValueRange)`**: qué se mide, en qué unidad y qué valores puede tomar. `MeasurementUnit` es un enum cuya constante `COUNT` redefine `accepts` para exigir enteros (polimorfismo de enum, sin `if` por unidad). `ValueRange` incluye los extremos; sin `max` queda abierto hacia arriba.
+  - **`MetricSheet`** agrupa las métricas de un reglamento y rechaza nombres repetidos. Vive en el `ScoringScheme`, que pasa a ser `(MetricSheet, ScoreRules, BonusLimit)`: las dos listas de reglas se agrupan en `ScoreRules` para respetar los tres parámetros (regla #2). El reglamento queda como lo cuenta el negocio: qué se mide, cómo se puntúa, cómo se clasifica.
+  - **Cada regla dice qué lee** (`ScoreRule.metrics()`, la compuesta devuelve la unión de sus hijas) y el `ScoringScheme` rechaza una regla que lee una métrica no declarada o declarada con otra fuente. Por la API es un 422 que nombra la regla y la métrica, junto con el resto de los problemas del catálogo.
+  - **Revisar una captura**: `Rulebook.check(fuente, mediciones)` devuelve `MeasurementCheck.Accepted` o `Rejected(problemas)` (regla #28) con todo junto: métricas faltantes, no declaradas para esa fuente, no enteras o fuera de rango. Revisa una fuente por vez, que es como llegan en el desafío mixto (F3).
+  - **Definición, API y Postgres**: `RulebookDefinition(metrics, scoring, ranking)` con `MetricDeclaration` (el rango viaja como números `min`/`max`, así un rango inválido es un problema 422 del catálogo y no un 400). El JSON del reglamento suma `"metrics"` arriba de todo; se guarda en la misma columna JSONB, sin migración.
+
+- **Clases agregadas**: `MetricDefinition`, `MeasurementUnit`, `ValueRange`, `MetricSheet`, `ScoreRules`, `MeasurementCheck`, `MetricDeclaration`.
+- **Clases modificadas**: `ScoreRule` y las diez reglas (`metrics()`), `ScoringScheme`, `Rulebook` (`check`, `definition`), `RulebookDefinition`, `RuleCatalog`, `RulebookBody`, `RulebookDto`, `ChallengeJpaEntity`, `ChallengeMapper`, `DemoRulebooks` y los tests que arman reglamentos con reglas medidas.
+- **Refactors**: `ScoringScheme` agrupa sus listas en `ScoreRules`; el resto de las reglas no cambia cómo puntúa.
+- **Alternativas descartadas**:
+  - Que las reglas referencien la métrica solo por nombre y tomen fuente, unidad y rango de la declaración: más limpio, pero cambia la definición de las cuatro reglas medidas y el JSON de cada regla. Se dejó la referencia `{"name", "source"}` y se valida que coincida.
+  - Validar la captura dentro del caso de uso de captura: el caso de uso es del frente 2 y se está rehaciendo para F3; el reglamento ofrece `check` y el caso de uso lo llama.
+  - Un cuarto parámetro en `ScoringScheme` o en `Rulebook`: rompe la regla #2.
+- **Patrones no aplicados**: Specification para las métricas (no hay combinaciones `and`/`or`: cada métrica se revisa sola contra su definición).
+- **Deuda que decidimos no resolver en este paso**:
+  - Tiempo, objetivos, faltas, consumo y notas de jueces siguen siendo campos fijos de `TrackPerformance`/`EvaluationFeedback` y no se declaran. Pasarlos a métricas declaradas toca el intento y la persistencia de apelaciones (frentes 2 y 4); con eso se podría unificar `PenaltyRule` con `CountedFaultRule` (2.11).
+  - Los reglamentos guardados antes de este cambio no tienen `metrics`: si alguna regla lee una métrica con nombre ya no se reconstruyen (`IllegalStateException`). Hoy solo hay datos de la demo, que se recargan en cada arranque.
+  - Se permiten métricas declaradas que ninguna regla lee; la captura igual las exige.
+  - El rango de una métrica no se cruza con los parámetros de la regla (por ejemplo, que el máximo de víctimas rescatadas coincida con `totalVictims`).
 
 ---
 
@@ -455,6 +483,7 @@ El diseño implementado se valida con pruebas automatizadas en `src/test/java` d
   - `ChallengeControllerTest` (API): 201, 400, 409 y 422 de cada endpoint de configuración. `DemoFixtureTest` verifica los tres desafíos, la v2 del Seguidor, las fuentes de Rescate y el tope en el desglose.
   - `EditionTest` y `EditionControllerTest` (API): una edición no ofrece dos categorías con el mismo id, no acepta ids ni nombres en blanco, y un dato obligatorio faltante es 400 y no 500.
   - `BonusCapTest`: Verifica, con casos parametrizados, que el tope recorta solo lo que la suma de bonificaciones supera, que se aplica sobre el conjunto y no sobre cada una, que la explicación muestra lo obtenido, el tope y el recorte, y que agregar el tope no cambia lo que da cada regla de bonificación.
+  - `MetricDefinitionTest` y `MeasurementCheckTest`: con casos parametrizados, que una medición se acepta solo entera si es un conteo y dentro de su rango, y que revisar lo que manda una fuente junta todos los problemas (faltante, mal escrita, de otra fuente, fuera de rango) sin exigir las métricas de la otra fuente. `RuleCatalogTest` suma la ida y vuelta de las métricas declaradas y los rechazos por rango inválido, métrica repetida, no declarada o de otra fuente.
   - `MeasuredRulesTest` y `RulebookSourcesTest`: Verifican, con casos parametrizados, las reglas nuevas (faltas con franquicia, precisión, víctimas, hito), que una medición faltante no se convierte en cero, la fuente que declara cada regla, que una regla compuesta no mezcle fuentes, las fuentes que exige un reglamento y que, sin tope, las contribuciones por fuente sumen el total.
   - `BestNOfMTest` y `RankingSchemeTest`: Verifican, con casos parametrizados, qué rondas cuentan con mejores N de M y cuáles se descartan, que el primer criterio que separa a dos equipos dé su nombre, el empate en todos los criterios y que el orden declarado cambie al ganador.
   - `ChallengeTest`: Verifica que cada publicación del reglamento crea la versión siguiente, que una versión nueva no cambia cómo puntúa la anterior y que se puede pedir una versión exacta.
