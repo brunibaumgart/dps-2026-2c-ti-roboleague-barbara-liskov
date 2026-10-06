@@ -3,11 +3,14 @@ package com.roboleague.usecase;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.AttemptIdentity;
+import com.roboleague.evaluation.Measurements;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookReference;
 import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.ScoringScheme;
+import com.roboleague.evaluation.SourceDelivery;
+import com.roboleague.evaluation.TrackPerformance;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.TimeBasedRule;
 import com.roboleague.evaluation.scheme.AllRounds;
@@ -31,6 +34,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -53,8 +57,7 @@ class ResolveAppealUseCaseTest {
         ), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
         AttemptId attemptId = AttemptId.of("slot-1", 1);
         Attempt attempt = Attempt.of(new AttemptIdentity(attemptId, "r-1", "t-1"), RulebookReference.of("ch-1", rulebook));
-        RawMetrics metrics = RawMetrics.of(40.0, 2, 3);
-        attempt.registerInitialResult(metrics, "judge-1", rulebook);
+        attempt.receive(sensors(40.0, 2, 3, "judge-1"), rulebook);
         attemptRepository.save(attempt);
 
         Appeal appeal = new FileAppealUseCase(attemptRepository, appealRepository)
@@ -91,7 +94,7 @@ class ResolveAppealUseCaseTest {
         AttemptId attemptId = AttemptId.of("slot-1", 1);
         Rulebook first = challenge.currentRulebook();
         Attempt attempt = Attempt.of(new AttemptIdentity(attemptId, "r-1", "t-1"), RulebookReference.of("ch-1", first));
-        attempt.registerInitialResult(RawMetrics.of(40.0, 2, 3), "judge-1", first);
+        attempt.receive(sensors(40.0, 2, 3, "judge-1"), first);
         attemptRepository.save(attempt);
         challenge.publish(scoringWithFaultsWorth(100.0), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
         Appeal appeal = new FileAppealUseCase(attemptRepository, appealRepository)
@@ -119,7 +122,7 @@ class ResolveAppealUseCaseTest {
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
         AttemptId attemptId = AttemptId.of("slot-1", 1);
         Attempt attempt = Attempt.of(new AttemptIdentity(attemptId, "r-1", "t-1"), RulebookReference.of("ch-1", rulebook));
-        attempt.registerInitialResult(RawMetrics.of(55.0, 4, 0), "j-1", rulebook);
+        attempt.receive(sensors(55.0, 4, 0, "j-1"), rulebook);
         attemptRepository.save(attempt);
         FileAppealUseCase fileAppeal = new FileAppealUseCase(attemptRepository, appealRepository);
         Appeal first = fileAppeal.execute(attemptId.value(), "t-1", "tiempo", "video");
@@ -131,6 +134,11 @@ class ResolveAppealUseCaseTest {
         assertThat(second.isPending()).isTrue();
         assertThat(attemptRepository.findById(attemptId).orElseThrow().getStatus())
                 .isEqualTo(Attempt.AttemptStatus.UNDER_APPEAL);
+    }
+
+    private static SourceDelivery sensors(double seconds, int objectives, int faults, String judgeId) {
+        return new SourceDelivery(new Measurements(new TrackPerformance(seconds, objectives, faults), 0.0, Map.of()),
+                judgeId);
     }
 
     private static ScoringScheme scoringWithFaultsWorth(double deductionPerFault) {

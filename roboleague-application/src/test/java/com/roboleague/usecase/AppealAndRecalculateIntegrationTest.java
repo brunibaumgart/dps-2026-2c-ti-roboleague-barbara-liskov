@@ -16,7 +16,6 @@ import com.roboleague.repository.memory.*;
 import com.roboleague.scheduling.Judge;
 import com.roboleague.scheduling.Round;
 import com.roboleague.scheduling.RoundSchedulerService;
-import com.roboleague.scheduling.Slot;
 import com.roboleague.scheduling.Track;
 import com.roboleague.tournament.*;
 import com.roboleague.tournament.eligibility.*;
@@ -28,6 +27,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,7 +44,7 @@ class AppealAndRecalculateIntegrationTest {
 
     private RegisterTeamUseCase registerTeamUseCase;
     private ScheduleRoundUseCase scheduleRoundUseCase;
-    private CaptureAttemptResultUseCase captureAttemptResultUseCase;
+    private ReceiveResultUseCase receiveResultUseCase;
     private FileAppealUseCase fileAppealUseCase;
     private ReviewAppealUseCase reviewAppealUseCase;
     private ResolveAppealUseCase resolveAppealUseCase;
@@ -71,9 +71,10 @@ class AppealAndRecalculateIntegrationTest {
                 .and(new DocumentationVerifiedSpecification());
 
         registerTeamUseCase = new RegisterTeamUseCase(teamRepository, editionRepository, eligibilitySpec);
-        scheduleRoundUseCase = new ScheduleRoundUseCase(editionRepository, new InMemoryRoundRepository(),
+        InMemoryRoundRepository roundRepository = new InMemoryRoundRepository();
+        scheduleRoundUseCase = new ScheduleRoundUseCase(editionRepository, roundRepository,
                 new RoundSchedulerService());
-        captureAttemptResultUseCase = new CaptureAttemptResultUseCase(attemptRepository, challengeRepository);
+        receiveResultUseCase = new ReceiveResultUseCase(attemptRepository, roundRepository, challengeRepository);
 
         RankingCalculatorService rankingService = new RankingCalculatorService(TieBreakerChain.defaultRules());
         recalculateRankingUseCase = new RecalculateRankingUseCase(
@@ -127,9 +128,15 @@ class AppealAndRecalculateIntegrationTest {
         return team;
     }
 
-    private static AttemptIdentity firstAttemptIn(Round round, int slotIndex) {
-        Slot slot = round.getSlots().get(slotIndex);
-        return new AttemptIdentity(AttemptId.of(slot.getSlotId(), 1), round.getId(), slot.getTeamId());
+    private static AttemptId firstAttemptIn(Round round, int slotIndex) {
+        return AttemptId.of(round.getSlots().get(slotIndex).getSlotId(), 1);
+    }
+
+    private Attempt receive(AttemptId attemptId, Measurements measurements, String judgeId) {
+        Reception reception = receiveResultUseCase.execute(
+                new ReceiveResultCommand(maze.getId(), attemptId, new SourceDelivery(measurements, judgeId)));
+        assertThat(reception).isInstanceOf(Reception.Received.class);
+        return ((Reception.Received) reception).attempt();
     }
 
     @Test
@@ -153,17 +160,11 @@ class AppealAndRecalculateIntegrationTest {
 
         // 3. Capture Initial Attempt Results
         // Team Alpha: 55s (5s under target => 105), 4 objectives (80 pts), 0 penalties => Total: 185.0
-        RawMetrics metricsAlpha = RawMetrics.of(55.0, 4, 0);
-        Attempt attemptAlpha = captureAttemptResultUseCase.execute(new CaptureAttemptResultCommand(
-                maze.getId(), firstAttemptIn(round1, 0), metricsAlpha, "j-1"
-        ));
+        Attempt attemptAlpha = receive(firstAttemptIn(round1, 0), track(55.0, 4, 0), "j-1");
 
         // Team Beta: 50s (10s under target => 110), 5 objectives (all done: 100 + 25 = 125 pts),
         // BUT wrongly assigned 4 penalties (-60 pts) => Total: 110 + 125 - 60 = 175.0
-        RawMetrics initialMetricsBeta = RawMetrics.of(50.0, 5, 4);
-        Attempt attemptBeta = captureAttemptResultUseCase.execute(new CaptureAttemptResultCommand(
-                maze.getId(), firstAttemptIn(round1, 1), initialMetricsBeta, "j-2"
-        ));
+        Attempt attemptBeta = receive(firstAttemptIn(round1, 1), track(50.0, 5, 4), "j-2");
 
         // 4. Initial Ranking Calculation (Provisional)
         Ranking provisionalRanking = recalculateRankingUseCase.execute(edition2026.getId(), mazeCategory.id(), round1.getId());
@@ -233,5 +234,9 @@ class AppealAndRecalculateIntegrationTest {
         assertThat(officialRanking.isOfficial()).isTrue();
         assertThat(officialRanking.getPublishedAt()).isNotNull();
         assertThat(officialRanking.getPublicationNotes()).contains("Resultados definitivos");
+    }
+
+    private static Measurements track(double seconds, int objectives, int faults) {
+        return new Measurements(new TrackPerformance(seconds, objectives, faults), 0.0, Map.of());
     }
 }

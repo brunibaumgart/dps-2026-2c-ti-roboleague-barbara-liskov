@@ -13,6 +13,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -45,7 +46,8 @@ class AttemptReviewFindingsTest {
     void givenAnAcceptedAppealThenTheAttemptScoresTheCorrectedMetrics() {
         Attempt attempt = Attempt.of(new AttemptIdentity(AttemptId.of("slot-1", 1), "r-1", "t-1"),
                 RulebookReference.of("ch-maze", RULEBOOK));
-        attempt.registerInitialResult(RawMetrics.of(50.0, 0, 4), "judge-1", RULEBOOK);
+        attempt.receive(new SourceDelivery(new Measurements(new TrackPerformance(50.0, 0, 4), 0.0, Map.of()), "judge-1"),
+                RULEBOOK);
         attempt.markUnderAppeal();
 
         attempt.adjustAfterAppeal(new AppealRevision("app-1", RawMetrics.of(50.0, 0, 0),
@@ -135,7 +137,8 @@ class AttemptReviewFindingsTest {
     private static Attempt scoredAttempt() {
         Attempt attempt = Attempt.of(new AttemptIdentity(AttemptId.of("slot-1", 1), "r-1", "t-1"),
                 RulebookReference.of("ch-maze", RULEBOOK));
-        attempt.registerInitialResult(RawMetrics.of(50.0, 0, 4), "judge-1", RULEBOOK);
+        attempt.receive(new SourceDelivery(new Measurements(new TrackPerformance(50.0, 0, 4), 0.0, Map.of()), "judge-1"),
+                RULEBOOK);
         return attempt;
     }
 }

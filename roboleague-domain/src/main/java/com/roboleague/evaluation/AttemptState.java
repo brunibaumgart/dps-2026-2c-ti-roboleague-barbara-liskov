@@ -24,10 +24,6 @@ interface AttemptState {
         throw refused("receive results; corrections go through a fault adjustment or an appeal");
     }
 
-    default AttemptState scored() {
-        throw refused("take a first result again; corrections go through a fault adjustment or an appeal");
-    }
-
     default AttemptState appealFiled() {
         throw refused("be appealed");
     }

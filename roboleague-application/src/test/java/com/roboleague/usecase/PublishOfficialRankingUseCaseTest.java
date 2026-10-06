@@ -3,11 +3,13 @@ package com.roboleague.usecase;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.AttemptIdentity;
-import com.roboleague.evaluation.RawMetrics;
+import com.roboleague.evaluation.Measurements;
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookReference;
 import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.ScoringScheme;
+import com.roboleague.evaluation.SourceDelivery;
+import com.roboleague.evaluation.TrackPerformance;
 import com.roboleague.evaluation.rules.TimeBasedRule;
 import com.roboleague.evaluation.scheme.AllRounds;
 import com.roboleague.evaluation.scheme.HigherTotal;
@@ -25,6 +27,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -55,7 +58,8 @@ class PublishOfficialRankingUseCaseTest {
     private void saveAppealedAttempt(String slotId, String teamId, String roundId) {
         AttemptId attemptId = AttemptId.of(slotId, 1);
         Attempt attempt = Attempt.of(new AttemptIdentity(attemptId, roundId, teamId), RulebookReference.of("ch-1", RULEBOOK));
-        attempt.registerInitialResult(RawMetrics.of(30.0, 1, 0), "judge-1", RULEBOOK);
+        attempt.receive(new SourceDelivery(new Measurements(new TrackPerformance(30.0, 1, 0), 0.0, Map.of()), "judge-1"),
+                RULEBOOK);
         attempt.markUnderAppeal();
         attemptRepo.save(attempt);
         appealRepo.save(Appeal.of("app-" + slotId, attemptId.value(), teamId, "Revision", ""));

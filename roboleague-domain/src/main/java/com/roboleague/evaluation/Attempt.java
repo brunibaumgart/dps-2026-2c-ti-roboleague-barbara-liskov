@@ -186,20 +186,6 @@ public class Attempt {
         return metrics;
     }
 
-    /**
-     * Scores what was captured with the rulebook. The attempt computes its own score: nobody hands it one.
-     */
-    public void registerInitialResult(RawMetrics metrics, String judgeId, Rulebook rulebook) {
-        AttemptState next = state.scored();
-        Objects.requireNonNull(metrics, "metrics cannot be null");
-        Objects.requireNonNull(judgeId, "judgeId cannot be null");
-        EvaluationSnapshot evaluation = scored(metrics, rulebook);
-
-        addRevision(evaluation, judgeId, "Initial attempt result registration");
-        eventHistory.add(ResultRegisteredEvent.create(getId().value(), getTeamId(), evaluation, judgeId));
-        this.state = next;
-    }
-
     public void applyPenaltyAdjustment(int additionalPenalties, AuditNote note, Rulebook rulebook) {
         AttemptState next = state.faultsAdjusted();
         String reason = note.reason();

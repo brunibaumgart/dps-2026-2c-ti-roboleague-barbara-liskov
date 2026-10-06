@@ -2,11 +2,11 @@ package com.roboleague.api.demo;
 
 import com.roboleague.repository.RankingRepository;
 import com.roboleague.usecase.AddChallengeUseCase;
-import com.roboleague.usecase.CaptureAttemptResultUseCase;
 import com.roboleague.usecase.CreateEditionUseCase;
 import com.roboleague.usecase.FileAppealUseCase;
 import com.roboleague.usecase.PublishOfficialRankingUseCase;
 import com.roboleague.usecase.PublishRulebookUseCase;
+import com.roboleague.usecase.ReceiveResultUseCase;
 import com.roboleague.usecase.RecalculateRankingUseCase;
 import com.roboleague.usecase.RegisterTeamUseCase;
 import com.roboleague.usecase.ResolveAppealUseCase;
@@ -36,11 +36,11 @@ class DemoConfig {
     DemoFixture demoFixture(RankingRepository rankings, CreateEditionUseCase createEdition,
                             AddChallengeUseCase addChallenge, PublishRulebookUseCase publishRulebook,
                             RegisterTeamUseCase registerTeam, ScheduleRoundUseCase scheduleRound,
-                            CaptureAttemptResultUseCase captureResult, RecalculateRankingUseCase recalculateRanking,
+                            ReceiveResultUseCase receiveResult, RecalculateRankingUseCase recalculateRanking,
                             FileAppealUseCase fileAppeal, ReviewAppealUseCase reviewAppeal,
                             ResolveAppealUseCase resolveAppeal, PublishOfficialRankingUseCase publishRanking) {
         return new DemoFixture(rankings, new DemoFixture.DemoUseCases(
-                createEdition, addChallenge, publishRulebook, registerTeam, scheduleRound, captureResult, recalculateRanking,
+                createEdition, addChallenge, publishRulebook, registerTeam, scheduleRound, receiveResult, recalculateRanking,
                 fileAppeal, reviewAppeal, resolveAppeal, publishRanking));
     }
 }

@@ -3,11 +3,13 @@ package com.roboleague.ranking;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.AttemptIdentity;
-import com.roboleague.evaluation.RawMetrics;
+import com.roboleague.evaluation.Measurements;
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookReference;
 import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.ScoringScheme;
+import com.roboleague.evaluation.SourceDelivery;
+import com.roboleague.evaluation.TrackPerformance;
 import com.roboleague.evaluation.rules.ObjectivesRule;
 import com.roboleague.evaluation.rules.TimeBasedRule;
 import com.roboleague.evaluation.scheme.AllRounds;
@@ -17,6 +19,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -53,7 +56,8 @@ class TeamScoreTest {
     private static Attempt scored(String slotId, double seconds, int objectives) {
         Attempt attempt = Attempt.of(new AttemptIdentity(AttemptId.of(slotId, 1), "r-1", "t-alpha"),
                 RulebookReference.of("ch-maze", MAZE));
-        attempt.registerInitialResult(RawMetrics.of(seconds, objectives, 0), "j-1", MAZE);
+        attempt.receive(new SourceDelivery(new Measurements(new TrackPerformance(seconds, objectives, 0), 0.0, Map.of()),
+                "j-1"), MAZE);
         return attempt;
     }
 }

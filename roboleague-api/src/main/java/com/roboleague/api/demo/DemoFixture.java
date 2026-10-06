@@ -2,9 +2,9 @@ package com.roboleague.api.demo;
 
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
-import com.roboleague.evaluation.AttemptIdentity;
-import com.roboleague.evaluation.EvaluationFeedback;
+import com.roboleague.evaluation.Measurements;
 import com.roboleague.evaluation.RawMetrics;
+import com.roboleague.evaluation.SourceDelivery;
 import com.roboleague.evaluation.TrackPerformance;
 import com.roboleague.evaluation.definition.RulebookDefinition;
 import com.roboleague.ranking.Ranking;
@@ -12,7 +12,6 @@ import com.roboleague.ranking.appeal.Appeal;
 import com.roboleague.repository.RankingRepository;
 import com.roboleague.scheduling.Judge;
 import com.roboleague.scheduling.Round;
-import com.roboleague.scheduling.Slot;
 import com.roboleague.scheduling.Track;
 import com.roboleague.tournament.Category;
 import com.roboleague.tournament.Challenge;
@@ -29,14 +28,15 @@ import com.roboleague.tournament.TeamMember;
 import com.roboleague.tournament.Tournament;
 import com.roboleague.usecase.AddChallengeCommand;
 import com.roboleague.usecase.AddChallengeUseCase;
-import com.roboleague.usecase.CaptureAttemptResultCommand;
-import com.roboleague.usecase.CaptureAttemptResultUseCase;
 import com.roboleague.usecase.CreateEditionCommand;
 import com.roboleague.usecase.CreateEditionUseCase;
 import com.roboleague.usecase.FileAppealUseCase;
 import com.roboleague.usecase.Publication;
 import com.roboleague.usecase.PublishOfficialRankingUseCase;
 import com.roboleague.usecase.PublishRulebookUseCase;
+import com.roboleague.usecase.ReceiveResultCommand;
+import com.roboleague.usecase.ReceiveResultUseCase;
+import com.roboleague.usecase.Reception;
 import com.roboleague.usecase.RecalculateRankingUseCase;
 import com.roboleague.usecase.RegisterTeamUseCase;
 import com.roboleague.usecase.ResolveAppealUseCase;
@@ -77,7 +77,7 @@ class DemoFixture implements ApplicationRunner {
                         PublishRulebookUseCase publishRulebook,
                         RegisterTeamUseCase registerTeam,
                         ScheduleRoundUseCase scheduleRound,
-                        CaptureAttemptResultUseCase captureResult,
+                        ReceiveResultUseCase receiveResult,
                         RecalculateRankingUseCase recalculateRanking,
                         FileAppealUseCase fileAppeal,
                         ReviewAppealUseCase reviewAppeal,
@@ -109,10 +109,9 @@ class DemoFixture implements ApplicationRunner {
                 List.of(Judge.of("j-1", "Chief Judge", "Principal"), Judge.of("j-2", "Field Judge", "Pista")),
                 LocalDateTime.now(), Duration.ofMinutes(10), Duration.ofMinutes(2)));
 
-        useCases.captureResult().execute(new CaptureAttemptResultCommand(maze.getId(),
-                firstAttempt(round, 0), mazeRun(50.0, 4, 0, 70.0), "j-1"));
-        Attempt titanAttempt = useCases.captureResult().execute(new CaptureAttemptResultCommand(maze.getId(),
-                firstAttempt(round, 1), mazeRun(45.0, 5, 4, 90.0), "j-2"));
+        receive(maze, firstAttempt(round, 0), new SourceDelivery(mazeRun(50.0, 4, 0, 70.0), "j-1"));
+        Attempt titanAttempt = receive(maze, firstAttempt(round, 1),
+                new SourceDelivery(mazeRun(45.0, 5, 4, 90.0), "j-2"));
 
         useCases.recalculateRanking().execute(edition.getId(), junior.id(), round.getId());
 
@@ -120,7 +119,8 @@ class DemoFixture implements ApplicationRunner {
                 titanAttempt.getId().value(), titan.getId(), "Penalizacion inexistente", "Video pista");
         useCases.reviewAppeal().execute(appeal.getAppealId(), "j-arb");
         useCases.resolveAppeal().acceptAppeal(appeal.getAppealId(), junior.id(), round.getId(),
-                "Penalizaciones corregidas tras revision", mazeRun(45.0, 5, 0, 90.0), "j-arb");
+                "Penalizaciones corregidas tras revision", mazeRun(45.0, 5, 0, 90.0).addTo(RawMetrics.nothingMeasured()),
+                "j-arb");
 
         Ranking latest = rankings.findLatestByEditionAndCategory(edition.getId(), junior.id()).orElseThrow();
         useCases.publishRanking().execute(latest.getRankingId(), "Publicacion definitiva post-arbitraje");
@@ -150,15 +150,22 @@ class DemoFixture implements ApplicationRunner {
         };
     }
 
-    private static AttemptIdentity firstAttempt(Round round, int slotIndex) {
-        Slot slot = round.getSlots().get(slotIndex);
-        return new AttemptIdentity(AttemptId.of(slot.getSlotId(), 1), round.getId(), slot.getTeamId());
+    private Attempt receive(Challenge challenge, AttemptId attemptId, SourceDelivery delivery) {
+        return switch (useCases.receiveResult().execute(new ReceiveResultCommand(challenge.getId(), attemptId, delivery))) {
+            case Reception.Received received -> received.attempt();
+            case Reception.Rejected rejected ->
+                    throw new IllegalStateException("Demo result rejected: " + rejected.problems());
+        };
     }
 
-    private static RawMetrics mazeRun(double seconds, int objectives, int penalties, double batteryUsed) {
-        return new RawMetrics(new TrackPerformance(seconds, objectives, penalties), EvaluationFeedback.of(batteryUsed,
-                Map.of(), Map.of(DemoRulebooks.COLLISIONS.name(), 1.0, DemoRulebooks.CHECKPOINT.name(), 1.0,
-                        DemoRulebooks.LAPS.name(), 1.0)));
+    private static AttemptId firstAttempt(Round round, int slotIndex) {
+        return AttemptId.of(round.getSlots().get(slotIndex).getSlotId(), 1);
+    }
+
+    private static Measurements mazeRun(double seconds, int objectives, int penalties, double batteryUsed) {
+        return new Measurements(new TrackPerformance(seconds, objectives, penalties), batteryUsed,
+                Map.of(DemoRulebooks.COLLISIONS.name(), 1.0, DemoRulebooks.CHECKPOINT.name(), 1.0,
+                        DemoRulebooks.LAPS.name(), 1.0));
     }
 
     private static Team team(String id, String name, Category category, Robot robot, TeamMember... members) {
