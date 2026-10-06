@@ -45,8 +45,8 @@ class DemoFixtureTest {
         assertThat(official.isOfficial()).isTrue();
         assertThat(official.getEntries().getFirst().teamScore().teamId()).isEqualTo("t-b");
         assertThat(attempts.findById("att-b1").orElseThrow().getOriginalSnapshot().breakdown().totalScore())
-                .isEqualTo(222.5);
-        assertThat(attempts.findById("att-b1").orElseThrow().getFinalScore()).isEqualTo(282.5);
+                .isEqualTo(197.5);
+        assertThat(attempts.findById("att-b1").orElseThrow().getFinalScore()).isEqualTo(257.5);
         assertThat(attempts.findById("att-a1").orElseThrow().getFinalScore()).isEqualTo(235.0);
     }
 
@@ -70,5 +70,7 @@ class DemoFixtureTest {
     void theMazeAttemptsShowTheBonusCapInTheirBreakdown() {
         assertThat(attempts.findById("att-a1").orElseThrow().getScoreBreakdown().items())
                 .anyMatch(item -> item.concept().equals("Tope de bonificaciones") && item.subtotal() == -10.0);
+        assertThat(attempts.findById("att-b1").orElseThrow().getOriginalSnapshot().breakdown().items())
+                .anyMatch(item -> item.concept().equals("Tope de bonificaciones") && item.subtotal() == -35.0);
     }
 }

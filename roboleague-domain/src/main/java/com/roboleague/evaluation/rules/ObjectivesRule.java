@@ -13,51 +13,38 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Scoring rule granting bonuses for completing predefined objectives and milestones.
+ * Scoring rule granting points for each objective completed. The bonus for completing all of them is a separate
+ * bonus rule ({@link AllObjectivesBonusRule}), so the bonus cap sees it.
  */
 public class ObjectivesRule implements ScoreRule {
     private final String ruleName;
-    private final ObjectiveRuleConfig config;
+    private final double pointsPerObjective;
 
-    public ObjectivesRule(String ruleName, ObjectiveRuleConfig config) {
+    public ObjectivesRule(String ruleName, double pointsPerObjective) {
+        if (pointsPerObjective < 0) {
+            throw new IllegalArgumentException("pointsPerObjective cannot be negative");
+        }
         this.ruleName = Objects.requireNonNull(ruleName, "ruleName cannot be null");
-        this.config = Objects.requireNonNull(config, "config cannot be null");
+        this.pointsPerObjective = pointsPerObjective;
     }
 
-    public static ObjectivesRule of(String ruleName, ObjectiveRuleConfig config) {
-        return new ObjectivesRule(ruleName, config);
-    }
-
-    public static ObjectivesRule of(String ruleName, double pointsPerObjective, int totalObjectives, double allCompletedBonus) {
-        return new ObjectivesRule(ruleName, new ObjectiveRuleConfig(pointsPerObjective, totalObjectives, allCompletedBonus));
-    }
-
-    public static ObjectivesRule standard(double pointsPerObjective, int totalObjectives) {
-        return new ObjectivesRule(
-                "Bonificación por Objetivos",
-                new ObjectiveRuleConfig(pointsPerObjective, totalObjectives, 25.0)
-        );
+    public static ObjectivesRule standard(double pointsPerObjective) {
+        return new ObjectivesRule("Objetivos", pointsPerObjective);
     }
 
     public static final String TYPE = "objectives";
     private static final String POINTS_PER_OBJECTIVE = "pointsPerObjective";
-    private static final String TOTAL_OBJECTIVES = "totalObjectives";
-    private static final String ALL_COMPLETED_BONUS = "allCompletedBonus";
 
     public static ObjectivesRule from(RuleDefinition definition) {
-        Parameters numbers = definition.arguments().numbers();
-        return new ObjectivesRule(definition.name(), new ObjectiveRuleConfig(
-                numbers.number(POINTS_PER_OBJECTIVE), numbers.whole(TOTAL_OBJECTIVES),
-                numbers.number(ALL_COMPLETED_BONUS)));
+        return new ObjectivesRule(definition.name(), definition.arguments().numbers().number(POINTS_PER_OBJECTIVE));
     }
 
     @Override
     public RuleDefinition definition() {
-        return new RuleDefinition(TYPE, ruleName, RuleArguments.of(Parameters.none()
-                .with(POINTS_PER_OBJECTIVE, config.pointsPerObjective())
-                .with(TOTAL_OBJECTIVES, config.totalPossibleObjectives())
-                .with(ALL_COMPLETED_BONUS, config.allCompletedBonus())));
+        return new RuleDefinition(TYPE, ruleName,
+                RuleArguments.of(Parameters.none().with(POINTS_PER_OBJECTIVE, pointsPerObjective)));
     }
+
     @Override
     public ResultSource source() {
         return ResultSource.AUTOMATIC_MEASUREMENTS;
@@ -73,30 +60,15 @@ public class ObjectivesRule implements ScoreRule {
         return ruleName;
     }
 
-    public ObjectiveRuleConfig getConfig() {
-        return config;
-    }
-
     @Override
     public RuleEvaluation evaluate(RawMetrics metrics) {
         int completed = metrics.objectivesCompleted();
-        double baseBonus = completed * config.pointsPerObjective();
-        boolean allDone = (config.totalPossibleObjectives() > 0 && completed >= config.totalPossibleObjectives());
-        double totalSubtotal = baseBonus + (allDone ? config.allCompletedBonus() : 0.0);
-
-        String formula = String.format(Locale.US, "%d obj * %.1f pts", completed, config.pointsPerObjective());
-        if (allDone) {
-            formula += String.format(Locale.US, " + %.1f pts (bonificación total)", config.allCompletedBonus());
-        }
-
         ScoreItem item = ScoreItem.of(
                 ruleName,
-                String.format(Locale.US, "%d / %d objetivos", completed, config.totalPossibleObjectives()),
-                formula,
-                totalSubtotal
+                String.format(Locale.US, "%d objetivos", completed),
+                String.format(Locale.US, "%d obj * %.1f pts", completed, pointsPerObjective),
+                completed * pointsPerObjective
         );
-
-        String note = String.format(Locale.US, "Objetivos completados: %d/%d", completed, config.totalPossibleObjectives());
-        return RuleEvaluation.of(item, note);
+        return RuleEvaluation.of(item, String.format(Locale.US, "Objetivos completados: %d", completed));
     }
 }

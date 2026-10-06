@@ -6,6 +6,7 @@ import com.roboleague.evaluation.definition.RuleArguments;
 import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.definition.RulebookDefinition;
 import com.roboleague.evaluation.definition.StrategyDefinition;
+import com.roboleague.evaluation.rules.AllObjectivesBonusRule;
 import com.roboleague.evaluation.rules.CompositeScoreRule;
 import com.roboleague.evaluation.rules.CountedFaultRule;
 import com.roboleague.evaluation.rules.FaultTariff;
@@ -94,10 +95,11 @@ class RuleCatalogTest {
 
     static Stream<Named<ScoreRule>> everyRuleType() {
         TimeBasedRule time = TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.5, 2.0, 0.0);
-        ObjectivesRule objectives = ObjectivesRule.of("Objetivos", 20.0, 5, 25.0);
+        ObjectivesRule objectives = new ObjectivesRule("Objetivos", 20.0);
         return Stream.of(
                 Named.of("tiempo", time),
                 Named.of("objetivos", objectives),
+                Named.of("todos los objetivos", new AllObjectivesBonusRule("Todos los objetivos", 5, 25.0)),
                 Named.of("faltas", new PenaltyRule("Faltas", 15.0)),
                 Named.of("panel de jueces", new JudgeSubjectiveRule("Jueces", 5.0)),
                 Named.of("consumo", new ResourceConsumptionRule("Consumo", 80.0, 0.5)),
@@ -270,7 +272,7 @@ class RuleCatalogTest {
     @DisplayName("Una regla compuesta se reconstruye con sus hijas")
     void givenACompositeThenItsChildrenAreRebuilt() {
         CompositeScoreRule track = new CompositeScoreRule("Desempeño en pista", List.of(
-                TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.5, 2.0, 0.0), ObjectivesRule.of("Objetivos", 20.0, 5, 25.0)));
+                TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.5, 2.0, 0.0), new ObjectivesRule("Objetivos", 20.0)));
 
         RulebookDefinition.Scoring rebuilt = scoringOf(catalog.assemble(withRule(track.definition())));
 

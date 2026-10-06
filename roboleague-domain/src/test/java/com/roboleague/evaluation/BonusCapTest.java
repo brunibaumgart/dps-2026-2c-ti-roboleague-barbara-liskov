@@ -1,5 +1,6 @@
 package com.roboleague.evaluation;
 
+import com.roboleague.evaluation.rules.AllObjectivesBonusRule;
 import com.roboleague.evaluation.rules.Milestone;
 import com.roboleague.evaluation.rules.MilestoneBonusRule;
 import com.roboleague.evaluation.rules.PenaltyRule;
@@ -119,6 +120,19 @@ class BonusCapTest {
         assertThat(capItem(breakdown).subtotal()).isEqualTo(-15.0);
         assertThat(breakdown.totalScore()).isZero();
         assertThat(breakdown.items()).extracting(ScoreItem::concept).endsWith("Piso en cero");
+    }
+
+    @ParameterizedTest(name = "{0} objetivos de 5 → recorte {1}")
+    @CsvSource({"4, 15.0", "5, 40.0"})
+    @DisplayName("El bono por completar todos los objetivos es una bonificación más: el tope también lo recorta")
+    void givenTheAllObjectivesBonusThenTheCapIncludesIt(int objectives, double expectedCut) {
+        Rulebook rulebook = new Rulebook(RulebookVersion.first(), new ScoringScheme(MILESTONES, new ScoreRules(
+                List.of(TIME), List.of(ZONE_BONUS, DISTANCE_BONUS, new AllObjectivesBonusRule("Todos", 5, 25.0)),
+                List.of()), new CappedAt(40.0)), ANY_RANKING);
+        RawMetrics run = new RawMetrics(new TrackPerformance(60.0, objectives, 0),
+                EvaluationFeedback.withMeasurements(Map.of(ZONE.name(), 1.0, DISTANCE.name(), 12.0)));
+
+        assertThat(capItem(rulebook.evaluate(run)).subtotal()).isEqualTo(-expectedCut);
     }
 
     @Test

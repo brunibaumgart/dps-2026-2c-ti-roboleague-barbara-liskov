@@ -36,7 +36,7 @@ class RulebookSourcesTest {
 
     private static final RankingScheme ANY_SCHEME = new RankingScheme(new AllRounds(), List.of(new HigherTotal()));
     private static final ScoreRule TIME = TimeBasedRule.standard(100.0, 60.0);
-    private static final ScoreRule OBJECTIVES = ObjectivesRule.standard(20.0, 5);
+    private static final ScoreRule OBJECTIVES = ObjectivesRule.standard(20.0);
     private static final ScoreRule JUDGES = JudgeSubjectiveRule.standard(2.0);
     private static final Metric RESCUED = Metric.judged("victimas_rescatadas");
     private static final ScoreRule VICTIMS = new VictimsRule("Víctimas", RESCUED, new VictimTariff(4, 25.0, 10.0));
@@ -106,7 +106,7 @@ class RulebookSourcesTest {
         ScoreRule.RuleEvaluation evaluation = trackPerformance.evaluate(RawMetrics.of(50.0, 5, 0));
 
         assertThat(evaluation.items()).hasSize(2);
-        assertThat(evaluation.items().stream().mapToDouble(ScoreItem::subtotal).sum()).isEqualTo(115.0 + 125.0);
+        assertThat(evaluation.items().stream().mapToDouble(ScoreItem::subtotal).sum()).isEqualTo(115.0 + 100.0);
         assertThat(trackPerformance.source()).isEqualTo(ResultSource.AUTOMATIC_MEASUREMENTS);
     }
 

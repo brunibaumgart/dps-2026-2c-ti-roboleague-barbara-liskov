@@ -34,11 +34,12 @@ class ChallengeControllerTest extends ApiTest {
                      {"type": "composite", "name": "Desempeño en pista", "rules": [
                        {"type": "time", "name": "Tiempo", "numbers": {"basePoints": 100, "targetTimeSeconds": 60,
                          "pointsPerSecondUnder": 1.5, "deductionPerSecondOver": 2, "minPoints": 0}},
-                       {"type": "objectives", "name": "Objetivos", "numbers": {"pointsPerObjective": 20,
-                         "totalObjectives": 5, "allCompletedBonus": 25}}]}],
+                       {"type": "objectives", "name": "Objetivos", "numbers": {"pointsPerObjective": 20}}]}],
                    "bonuses": [
                      {"type": "milestone", "name": "Checkpoint", "numbers": {"threshold": 1, "bonus": 30},
-                      "metrics": {"metric": {"name": "checkpoint", "source": "AUTOMATIC_MEASUREMENTS"}}}],
+                      "metrics": {"metric": {"name": "checkpoint", "source": "AUTOMATIC_MEASUREMENTS"}}},
+                     {"type": "all-objectives", "name": "Todos los objetivos",
+                      "numbers": {"totalObjectives": 5, "bonus": 25}}],
                    "deductions": [
                      {"type": "%s", "name": "Faltas", "numbers": {"deductionPerPenalty": 15}}],
                    "bonusLimit": {"type": "capped", "numbers": {"maximum": %s}}},
@@ -133,6 +134,18 @@ class ChallengeControllerTest extends ApiTest {
         mvc.perform(addChallenge("api-ed-ch", "api-ch-typo", misspelled))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.details[0]").value("rule 'Faltas': unknown parameter 'deductionPerPenaltyy'"));
+    }
+
+    @Test
+    @DisplayName("Un reglamento con el bono de objetivos adentro de la regla de objetivos es 422")
+    void theOldAllCompletedBonusIsUnprocessable() throws Exception {
+        String old = rulebook("penalty", 40).replace("\"pointsPerObjective\": 20}",
+                "\"pointsPerObjective\": 20, \"totalObjectives\": 5, \"allCompletedBonus\": 25}");
+
+        mvc.perform(addChallenge("api-ed-ch", "api-ch-old-objectives", old))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.details[0]").value("rule 'Desempeño en pista': rule 'Objetivos': "
+                        + "unknown parameter 'allCompletedBonus', unknown parameter 'totalObjectives'"));
     }
 
     @Test

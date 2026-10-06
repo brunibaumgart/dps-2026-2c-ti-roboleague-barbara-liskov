@@ -9,6 +9,7 @@ import com.roboleague.evaluation.ScoreRules;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.ValueRange;
 import com.roboleague.evaluation.definition.RulebookDefinition;
+import com.roboleague.evaluation.rules.AllObjectivesBonusRule;
 import com.roboleague.evaluation.rules.CompositeScoreRule;
 import com.roboleague.evaluation.rules.CountedFaultRule;
 import com.roboleague.evaluation.rules.FaultTariff;
@@ -59,9 +60,10 @@ final class DemoRulebooks {
                 count(CHECKPOINT, ValueRange.between(0.0, 1.0)), count(LAPS, ValueRange.atLeast(0.0))));
         ScoreRules rules = new ScoreRules(
                 List.of(new CompositeScoreRule("Desempeño en pista", List.of(
-                        TimeBasedRule.standard(100.0, 60.0), ObjectivesRule.standard(20.0, 5)))),
+                        TimeBasedRule.standard(100.0, 60.0), ObjectivesRule.standard(20.0)))),
                 List.of(new MilestoneBonusRule("Checkpoint central", new Milestone(CHECKPOINT, 1.0), 30.0),
-                        new MilestoneBonusRule("Vuelta completa", new Milestone(LAPS, 1.0), 20.0)),
+                        new MilestoneBonusRule("Vuelta completa", new Milestone(LAPS, 1.0), 20.0),
+                        new AllObjectivesBonusRule("Todos los objetivos", 5, 25.0)),
                 List.of(new PenaltyRule("Faltas de pista", 15.0),
                         new CountedFaultRule("Colisiones", COLLISIONS, new FaultTariff(1, 5.0)),
                         new ResourceConsumptionRule("Consumo de batería", 80.0, 0.5)));
@@ -88,10 +90,11 @@ final class DemoRulebooks {
         MetricSheet metrics = new MetricSheet(List.of(
                 count(RESCUED, ValueRange.between(0.0, 4.0)), count(FULL_RESCUE, ValueRange.between(0.0, 1.0))));
         ScoreRules rules = new ScoreRules(
-                List.of(ObjectivesRule.of("Zonas despejadas", 15.0, 4, 20.0),
+                List.of(new ObjectivesRule("Zonas despejadas", 15.0),
                         new VictimsRule("Víctimas", RESCUED, new VictimTariff(4, 25.0, 10.0)),
                         new JudgeSubjectiveRule("Panel técnico", 5.0)),
-                List.of(new MilestoneBonusRule("Rescate completo", new Milestone(FULL_RESCUE, 1.0), 40.0)),
+                List.of(new MilestoneBonusRule("Rescate completo", new Milestone(FULL_RESCUE, 1.0), 40.0),
+                        new AllObjectivesBonusRule("Todas las zonas despejadas", 4, 20.0)),
                 List.of());
         RankingScheme ranking = new RankingScheme(new BestNOfM(2, 3),
                 List.of(new HigherTotal(), new HigherJudgeScore(), new FewerPenalties(), new LowerTime()));
