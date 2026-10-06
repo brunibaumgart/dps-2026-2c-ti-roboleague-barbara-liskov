@@ -96,13 +96,17 @@ public class Attempt {
         return latest != null ? latest.metrics() : null;
     }
 
-    public void registerInitialResult(RawMetrics metrics, ScoreBreakdown breakdown, String judgeId) {
+    /**
+     * Scores what was captured with the rulebook. The attempt computes its own score: nobody hands it one.
+     */
+    public void registerInitialResult(RawMetrics metrics, String judgeId, Rulebook rulebook) {
         if (!revisionHistory.isEmpty()) {
             throw new IllegalStateException("Attempt already has registered results. Use adjustment methods instead.");
         }
         Objects.requireNonNull(metrics, "metrics cannot be null");
-        Objects.requireNonNull(breakdown, "breakdown cannot be null");
         Objects.requireNonNull(judgeId, "judgeId cannot be null");
+        Objects.requireNonNull(rulebook, "rulebook cannot be null");
+        ScoreBreakdown breakdown = rulebook.evaluate(metrics);
 
         AttemptScoreSnapshot snapshot = AttemptScoreSnapshot.of(
                 UUID.randomUUID().toString(),
@@ -117,7 +121,9 @@ public class Attempt {
         this.status = AttemptStatus.EVALUATED;
     }
 
-    public void applyPenaltyAdjustment(int additionalPenalties, String reason, String judgeId, Rulebook rulebook) {
+    public void applyPenaltyAdjustment(int additionalPenalties, AuditNote note, Rulebook rulebook) {
+        String reason = note.reason();
+        String judgeId = note.authorId();
         if (status == AttemptStatus.PENDING || revisionHistory.isEmpty()) {
             throw new IllegalStateException("Cannot adjust an uncompleted attempt");
         }
@@ -164,8 +170,15 @@ public class Attempt {
         this.status = revisionHistory.size() > 1 ? AttemptStatus.ADJUSTED : AttemptStatus.EVALUATED;
     }
 
-    public void adjustAfterAppeal(String appealId, RawMetrics revisedMetrics, ScoreBreakdown revisedBreakdown,
-                                  String resolutionNotes, String reviewerId) {
+    /**
+     * Adds a revision with the metrics an accepted appeal corrected, scored with the rulebook.
+     */
+    public void adjustAfterAppeal(AppealRevision revision, Rulebook rulebook) {
+        String appealId = revision.appealId();
+        RawMetrics revisedMetrics = revision.metrics();
+        String resolutionNotes = revision.note().reason();
+        String reviewerId = revision.note().authorId();
+        ScoreBreakdown revisedBreakdown = rulebook.evaluate(revisedMetrics);
         int nextRev = revisionHistory.size() + 1;
 
         AttemptScoreSnapshot snapshot = AttemptScoreSnapshot.of(

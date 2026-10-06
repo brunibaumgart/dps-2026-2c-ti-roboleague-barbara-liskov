@@ -2,7 +2,6 @@ package com.roboleague.usecase;
 
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.Rulebook;
-import com.roboleague.evaluation.ScoreBreakdown;
 import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.ChallengeRepository;
 
@@ -31,10 +30,9 @@ public class CaptureAttemptResultUseCase {
             throw new IllegalStateException("Attempt " + command.attempt().id()
                     + " was already captured; corrections go through a fault adjustment or an appeal");
         }
-        ScoreBreakdown breakdown = rulebook.evaluate(command.metrics());
 
         Attempt attempt = Attempt.of(command.attempt());
-        attempt.registerInitialResult(command.metrics(), breakdown, command.judgeId());
+        attempt.registerInitialResult(command.metrics(), command.judgeId(), rulebook);
 
         attemptRepository.save(attempt);
         return attempt;

@@ -1,6 +1,7 @@
 package com.roboleague.evaluation;
 
 import com.roboleague.evaluation.audit.AttemptScoreSnapshot;
+import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.TimeBasedRule;
 import com.roboleague.evaluation.rules.TimeRuleConfig;
@@ -36,9 +37,8 @@ class AttemptAuditTrailTest {
 
         // Initial result: 50s, 0 objectives, 0 penalties => Score: 100 + 10 = 110.0
         RawMetrics initialMetrics = RawMetrics.of(50.0, 0, 0);
-        ScoreBreakdown initialBreakdown = standardPolicy.evaluate(initialMetrics);
 
-        attempt.registerInitialResult(initialMetrics, initialBreakdown, "judge-alfa");
+        attempt.registerInitialResult(initialMetrics, "judge-alfa", standardPolicy);
 
         assertThat(attempt.getRevisionHistory()).hasSize(1);
         assertThat(attempt.getEventHistory()).hasSize(1);
@@ -46,7 +46,8 @@ class AttemptAuditTrailTest {
         assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.EVALUATED);
 
         // Later, video review identifies 2 track infractions (penalties)
-        attempt.applyPenaltyAdjustment(2, "Toque de bordes verificado en camara lenta", "judge-beta", standardPolicy);
+        attempt.applyPenaltyAdjustment(2, new AuditNote("judge-beta", "Toque de bordes verificado en camara lenta"),
+                standardPolicy);
 
         // Verify history has grown, not overwritten
         assertThat(attempt.getRevisionHistory()).hasSize(2);
@@ -76,11 +77,10 @@ class AttemptAuditTrailTest {
     void cannotRegisterInitialResultTwice() {
         Attempt attempt = newAttempt();
         RawMetrics metrics = RawMetrics.of(50.0, 0, 0);
-        ScoreBreakdown breakdown = standardPolicy.evaluate(metrics);
 
-        attempt.registerInitialResult(metrics, breakdown, "judge-1");
+        attempt.registerInitialResult(metrics, "judge-1", standardPolicy);
 
-        assertThatThrownBy(() -> attempt.registerInitialResult(metrics, breakdown, "judge-2"))
+        assertThatThrownBy(() -> attempt.registerInitialResult(metrics, "judge-2", standardPolicy))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("already has registered results");
     }
@@ -89,7 +89,7 @@ class AttemptAuditTrailTest {
     void disqualificationAndRejectedAppealAreTracked() {
         Attempt attempt = newAttempt();
         RawMetrics metrics = RawMetrics.of(50.0, 3, 1);
-        attempt.registerInitialResult(metrics, standardPolicy.evaluate(metrics), "judge-1");
+        attempt.registerInitialResult(metrics, "judge-1", standardPolicy);
 
         attempt.markUnderAppeal();
         assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.UNDER_APPEAL);

@@ -1,9 +1,10 @@
 package com.roboleague.usecase;
 
+import com.roboleague.evaluation.AppealRevision;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.RawMetrics;
-import com.roboleague.evaluation.ScoreBreakdown;
+import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.ranking.Ranking;
 import com.roboleague.ranking.appeal.Appeal;
 import com.roboleague.repository.AppealRepository;
@@ -45,13 +46,13 @@ public class ResolveAppealUseCase {
 
         Challenge challenge = challengeRepository.findById(challengeId)
                 .orElseThrow(() -> new IllegalArgumentException("Challenge not found: " + challengeId));
-        ScoreBreakdown revisedBreakdown = challenge.currentRulebook().evaluate(revisedMetrics);
 
         // Transition appeal state to ACCEPTED
         appeal.accept(resolutionNotes, revisedMetrics, reviewerId);
 
-        // Adjust attempt audit trail
-        attempt.adjustAfterAppeal(appealId, revisedMetrics, revisedBreakdown, resolutionNotes, reviewerId);
+        // Adjust attempt audit trail: the attempt scores the revised metrics itself
+        attempt.adjustAfterAppeal(new AppealRevision(appealId, revisedMetrics, new AuditNote(reviewerId, resolutionNotes)),
+                challenge.currentRulebook());
 
         attemptRepository.save(attempt);
         appealRepository.save(appeal);

@@ -4,7 +4,13 @@ import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.AttemptIdentity;
 import com.roboleague.evaluation.RawMetrics;
-import com.roboleague.evaluation.ScoreBreakdown;
+import com.roboleague.evaluation.Rulebook;
+import com.roboleague.evaluation.RulebookVersion;
+import com.roboleague.evaluation.ScoringScheme;
+import com.roboleague.evaluation.rules.TimeBasedRule;
+import com.roboleague.evaluation.scheme.AllRounds;
+import com.roboleague.evaluation.scheme.HigherTotal;
+import com.roboleague.evaluation.scheme.RankingScheme;
 import com.roboleague.ranking.PerformanceSummary;
 import com.roboleague.ranking.Ranking;
 import com.roboleague.ranking.RankingEntry;
@@ -23,6 +29,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class PublishOfficialRankingUseCaseTest {
+
+    private static final Rulebook RULEBOOK = new Rulebook(RulebookVersion.first(),
+            ScoringScheme.withoutBonuses(List.of(TimeBasedRule.standard(100.0, 60.0)), List.of()),
+            new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
 
     private InMemoryRankingRepository rankingRepo;
     private InMemoryAppealRepository appealRepo;
@@ -44,7 +54,7 @@ class PublishOfficialRankingUseCaseTest {
     private void saveAppealedAttempt(String slotId, String teamId, String roundId) {
         AttemptId attemptId = AttemptId.of(slotId, 1);
         Attempt attempt = Attempt.of(new AttemptIdentity(attemptId, roundId, teamId));
-        attempt.registerInitialResult(RawMetrics.of(30.0, 1, 0), ScoreBreakdown.empty(), "judge-1");
+        attempt.registerInitialResult(RawMetrics.of(30.0, 1, 0), "judge-1", RULEBOOK);
         attempt.markUnderAppeal();
         attemptRepo.save(attempt);
         appealRepo.save(Appeal.of("app-" + slotId, attemptId.value(), teamId, "Revision", ""));

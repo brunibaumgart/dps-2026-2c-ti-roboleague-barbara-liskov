@@ -46,7 +46,7 @@ class ResolveAppealUseCaseTest {
         AttemptId attemptId = AttemptId.of("slot-1", 1);
         Attempt attempt = Attempt.of(new AttemptIdentity(attemptId, "r-1", "t-1"));
         RawMetrics metrics = RawMetrics.of(40.0, 2, 3);
-        attempt.registerInitialResult(metrics, rulebook.evaluate(metrics), "judge-1");
+        attempt.registerInitialResult(metrics, "judge-1", rulebook);
         attemptRepository.save(attempt);
 
         Appeal appeal = new FileAppealUseCase(attemptRepository, appealRepository)
