@@ -38,8 +38,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Map;
@@ -67,6 +69,9 @@ class JpaAttemptRepositoryTest {
 
     @Autowired
     private JpaAttemptRepository repository;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -101,6 +106,26 @@ class JpaAttemptRepositoryTest {
 
         assertThatThrownBy(() -> repository.save(byPanel)).isInstanceOf(IllegalStateException.class);
         assertThat(repository.findById(bySensors.getId()).orElseThrow().getDeliveries()).containsExactly(SENSORS);
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("An attempt saved inside one transaction can be saved again in the next one without a false conflict")
+    void givenSavesInsideTransactionsThenTheRememberedVersionStaysCurrent() {
+        TransactionTemplate useCase = new TransactionTemplate(transactionManager);
+        repository.save(attempt("slot-race-4", "r-race", "t-race"));
+        Attempt loaded = repository.findById(AttemptId.of("slot-race-4", 1)).orElseThrow();
+
+        useCase.executeWithoutResult(status -> {
+            loaded.receive(SENSORS, RESCUE);
+            repository.save(loaded);
+        });
+        useCase.executeWithoutResult(status -> {
+            loaded.receive(PANEL, RESCUE);
+            repository.save(loaded);
+        });
+
+        assertThat(repository.findById(loaded.getId()).orElseThrow().getStatus()).isEqualTo(AttemptStatus.EVALUATED);
     }
 
     @Test
