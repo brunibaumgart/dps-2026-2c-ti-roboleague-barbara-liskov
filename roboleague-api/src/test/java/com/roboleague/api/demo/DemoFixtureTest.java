@@ -1,9 +1,11 @@
 package com.roboleague.api.demo;
 
 import com.roboleague.PostgresContainer;
+import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.MeasurementCheck;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.RulebookVersion;
+import com.roboleague.evaluation.SourceDelivery;
 import com.roboleague.ranking.Ranking;
 import com.roboleague.repository.AppealRepository;
 import com.roboleague.repository.AttemptRepository;
@@ -44,17 +46,17 @@ class DemoFixtureTest {
         Ranking official = rankings.findLatestByEditionAndCategory("ed-1", "cat-junior").orElseThrow();
         assertThat(official.isOfficial()).isTrue();
         assertThat(official.getEntries().getFirst().teamScore().teamId()).isEqualTo("t-b");
-        assertThat(attempts.findById("att-b1").orElseThrow().getOriginalSnapshot().breakdown().totalScore())
+        assertThat(mazeAttemptOf("t-b").getOriginalSnapshot().breakdown().totalScore())
                 .isEqualTo(197.5);
-        assertThat(attempts.findById("att-b1").orElseThrow().getFinalScore()).isEqualTo(257.5);
-        assertThat(attempts.findById("att-a1").orElseThrow().getFinalScore()).isEqualTo(235.0);
+        assertThat(mazeAttemptOf("t-b").getFinalScore()).isEqualTo(257.5);
+        assertThat(mazeAttemptOf("t-a").getFinalScore()).isEqualTo(235.0);
     }
 
     @Test
     void theAppealLowersWhatTheDeductionsTookFromTitanTeam() {
-        assertThat(attempts.findById("att-b1").orElseThrow().getOriginalSnapshot().breakdown().deducted())
+        assertThat(mazeAttemptOf("t-b").getOriginalSnapshot().breakdown().deducted())
                 .isEqualTo(65.0);
-        assertThat(attempts.findById("att-b1").orElseThrow().getScoreBreakdown().deducted()).isEqualTo(5.0);
+        assertThat(mazeAttemptOf("t-b").getScoreBreakdown().deducted()).isEqualTo(5.0);
     }
 
     @Test
@@ -75,9 +77,34 @@ class DemoFixtureTest {
 
     @Test
     void theMazeAttemptsShowTheBonusCapInTheirBreakdown() {
-        assertThat(attempts.findById("att-a1").orElseThrow().getScoreBreakdown().items())
+        assertThat(mazeAttemptOf("t-a").getScoreBreakdown().items())
                 .anyMatch(item -> item.concept().equals("Tope de bonificaciones") && item.subtotal() == -10.0);
-        assertThat(attempts.findById("att-b1").orElseThrow().getOriginalSnapshot().breakdown().items())
+        assertThat(mazeAttemptOf("t-b").getOriginalSnapshot().breakdown().items())
                 .anyMatch(item -> item.concept().equals("Tope de bonificaciones") && item.subtotal() == -35.0);
+    }
+
+    @Test
+    void theMixedRescueHasOneAttemptScoredWithBothSourcesAndOneAwaitingTheJudgePanel() {
+        Attempt scored = attemptOf("t-a", "ch-rescue");
+        assertThat(scored.getStatus()).isEqualTo(Attempt.AttemptStatus.EVALUATED);
+        assertThat(scored.getDeliveries()).extracting(SourceDelivery::source)
+                .containsExactly(ResultSource.AUTOMATIC_MEASUREMENTS, ResultSource.JUDGE_PANEL);
+        // 3 zones => 45; 3 victims => 75; judges 8 and 7 => 7.5 * 5 = 37.5; one victim abandoned => -10
+        assertThat(scored.countableScore()).hasValueSatisfying(score -> assertThat(score.totalScore()).isEqualTo(147.5));
+
+        Attempt awaiting = attemptOf("t-b", "ch-rescue");
+        assertThat(awaiting.getStatus()).isEqualTo(Attempt.AttemptStatus.AWAITING_SOURCES);
+        assertThat(awaiting.countableScore()).isEmpty();
+    }
+
+    private Attempt mazeAttemptOf(String teamId) {
+        return attemptOf(teamId, "ch-maze");
+    }
+
+    private Attempt attemptOf(String teamId, String challengeId) {
+        return attempts.findByTeamId(teamId).stream()
+                .filter(attempt -> attempt.getRulebookReference().challengeId().equals(challengeId))
+                .findFirst()
+                .orElseThrow();
     }
 }

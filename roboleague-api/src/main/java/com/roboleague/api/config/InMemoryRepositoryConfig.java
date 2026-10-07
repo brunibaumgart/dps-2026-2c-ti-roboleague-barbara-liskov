@@ -1,12 +1,12 @@
 package com.roboleague.api.config;
 
-import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.RankingRepository;
+import com.roboleague.repository.RoundRepository;
 import com.roboleague.repository.TeamRepository;
-import com.roboleague.repository.memory.InMemoryAttemptRepository;
 import com.roboleague.repository.memory.InMemoryEditionRepository;
 import com.roboleague.repository.memory.InMemoryRankingRepository;
+import com.roboleague.repository.memory.InMemoryRoundRepository;
 import com.roboleague.repository.memory.InMemoryTeamRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -29,12 +29,12 @@ class InMemoryRepositoryConfig {
     }
 
     @Bean
-    AttemptRepository attemptRepository() {
-        return new InMemoryAttemptRepository();
+    RankingRepository rankingRepository() {
+        return new InMemoryRankingRepository();
     }
 
     @Bean
-    RankingRepository rankingRepository() {
-        return new InMemoryRankingRepository();
+    RoundRepository roundRepository() {
+        return new InMemoryRoundRepository();
     }
 }

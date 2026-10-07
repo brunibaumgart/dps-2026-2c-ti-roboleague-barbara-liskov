@@ -62,10 +62,10 @@ public record ResultRegisteredEvent(
         return "Initial result registered by judge " + judgeId() + " with score " + scoreBreakdown().totalScore();
     }
 
-    public static ResultRegisteredEvent create(String attemptId, String teamId, RawMetrics metrics, ScoreBreakdown breakdown, String judgeId) {
+    public static ResultRegisteredEvent create(String attemptId, String teamId, EvaluationSnapshot evaluation, String judgeId) {
         return new ResultRegisteredEvent(
                 EventMetadata.create(attemptId),
-                EvaluationSnapshot.of(metrics, breakdown),
+                evaluation,
                 TeamJudgeBinding.of(teamId, judgeId)
         );
     }

@@ -1,5 +1,6 @@
 package com.roboleague.evaluation;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -57,6 +58,42 @@ public record RawMetrics(
             throw new IllegalArgumentException("measurement '" + metric.name() + "' must be a whole count: " + value);
         }
         return (int) value;
+    }
+
+    /**
+     * Nothing measured yet: what the sources of an attempt add their results to.
+     */
+    public static RawMetrics nothingMeasured() {
+        return new RawMetrics(new TrackPerformance(0.0, 0, 0), EvaluationFeedback.empty());
+    }
+
+    /**
+     * The capture with what the track's sensors measured: time, objectives, faults, consumption and their named
+     * measurements. What the judges sent stays.
+     */
+    public RawMetrics withTrack(TrackPerformance track, double consumption, Map<String, Double> named) {
+        return new RawMetrics(track, EvaluationFeedback.of(consumption, judgeSubjectiveScores(), measuredWith(named)));
+    }
+
+    /**
+     * The capture with what the judge panel sent: each judge's score and their named measurements. What the
+     * sensors measured stays.
+     */
+    public RawMetrics withJudgePanel(Map<String, Double> scores, Map<String, Double> named) {
+        return new RawMetrics(performance, EvaluationFeedback.of(resourceConsumption(), scores, measuredWith(named)));
+    }
+
+    private Map<String, Double> measuredWith(Map<String, Double> named) {
+        Map<String, Double> measured = new HashMap<>(customMetrics());
+        measured.putAll(named);
+        return measured;
+    }
+
+    /**
+     * The same capture with another fault count: everything else that was measured stays as it was.
+     */
+    public RawMetrics withPenalties(int penaltiesCount) {
+        return new RawMetrics(new TrackPerformance(timeTakenSeconds(), objectivesCompleted(), penaltiesCount), feedback);
     }
 
     public static RawMetrics of(TrackPerformance performance, EvaluationFeedback feedback) {

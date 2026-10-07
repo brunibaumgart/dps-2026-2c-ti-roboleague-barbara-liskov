@@ -1,6 +1,7 @@
 package com.roboleague.evaluation.scheme;
 
 import com.roboleague.evaluation.RawMetrics;
+import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.ScoreBreakdown;
 import com.roboleague.evaluation.ScoreItem;
 import com.roboleague.evaluation.audit.EvaluationSnapshot;
@@ -32,7 +33,7 @@ final class RoundScores {
                 RuleEvaluation.empty(),
                 RuleEvaluation.of(ScoreItem.of("Descuentos", "-", "-", -deducted)));
         RawMetrics metrics = RawMetrics.of(seconds, 0, 0, judgeScores);
-        return new RoundScore(roundId, EvaluationSnapshot.of(metrics, breakdown));
+        return new RoundScore(roundId, new EvaluationSnapshot(RulebookVersion.first(), metrics, breakdown));
     }
 
     static ChallengeScore allOf(RoundScore... rounds) {

@@ -1,8 +1,12 @@
 package com.roboleague.usecase;
 
+import com.roboleague.evaluation.AppealRevision;
 import com.roboleague.evaluation.Attempt;
+import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.RawMetrics;
-import com.roboleague.evaluation.ScoreBreakdown;
+import com.roboleague.evaluation.Rulebook;
+import com.roboleague.evaluation.RulebookReference;
+import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.ranking.Ranking;
 import com.roboleague.ranking.appeal.Appeal;
 import com.roboleague.repository.AppealRepository;
@@ -34,23 +38,30 @@ public class ResolveAppealUseCase {
         this.recalculateRankingUseCase = Objects.requireNonNull(recalculateRankingUseCase, "recalculateRankingUseCase cannot be null");
     }
 
-    public Appeal acceptAppeal(String appealId, ChallengeId challengeId, String categoryId, String roundId,
+    /**
+     * Accepts the appeal and rescores the attempt with its own rulebook version: the caller does not choose the rules.
+     */
+    public Appeal acceptAppeal(String appealId, String categoryId, String roundId,
                                String resolutionNotes, RawMetrics revisedMetrics, String reviewerId) {
         Appeal appeal = appealRepository.findById(appealId)
                 .orElseThrow(() -> new IllegalArgumentException("Appeal not found: " + appealId));
 
-        Attempt attempt = attemptRepository.findById(appeal.getAttemptId())
+        Attempt attempt = attemptRepository.findById(AttemptId.parse(appeal.getAttemptId()))
                 .orElseThrow(() -> new IllegalArgumentException("Attempt not found: " + appeal.getAttemptId()));
 
-        Challenge challenge = challengeRepository.findById(challengeId)
-                .orElseThrow(() -> new IllegalArgumentException("Challenge not found: " + challengeId));
-        ScoreBreakdown revisedBreakdown = challenge.currentRulebook().evaluate(revisedMetrics);
+        RulebookReference scoredWith = attempt.getRulebookReference();
+        Challenge challenge = challengeRepository.findById(ChallengeId.of(scoredWith.challengeId()))
+                .orElseThrow(() -> new IllegalStateException("Challenge of attempt " + attempt.getId()
+                        + " not found: " + scoredWith.challengeId()));
+        Rulebook rulebook = challenge.rulebook(scoredWith.version())
+                .orElseThrow(() -> new IllegalStateException("Rulebook " + scoredWith + " not found"));
 
         // Transition appeal state to ACCEPTED
         appeal.accept(resolutionNotes, revisedMetrics, reviewerId);
 
         // Adjust attempt audit trail
-        attempt.adjustAfterAppeal(appealId, revisedMetrics, revisedBreakdown, resolutionNotes, reviewerId);
+        attempt.adjustAfterAppeal(new AppealRevision(appealId, revisedMetrics, new AuditNote(reviewerId, resolutionNotes)),
+                rulebook);
 
         attemptRepository.save(attempt);
         appealRepository.save(appeal);
@@ -65,7 +76,7 @@ public class ResolveAppealUseCase {
         Appeal appeal = appealRepository.findById(appealId)
                 .orElseThrow(() -> new IllegalArgumentException("Appeal not found: " + appealId));
 
-        Attempt attempt = attemptRepository.findById(appeal.getAttemptId())
+        Attempt attempt = attemptRepository.findById(AttemptId.parse(appeal.getAttemptId()))
                 .orElseThrow(() -> new IllegalArgumentException("Attempt not found: " + appeal.getAttemptId()));
 
         appeal.reject(resolutionNotes, reviewerId);

@@ -27,6 +27,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,7 +44,7 @@ class AppealAndRecalculateIntegrationTest {
 
     private RegisterTeamUseCase registerTeamUseCase;
     private ScheduleRoundUseCase scheduleRoundUseCase;
-    private CaptureAttemptResultUseCase captureAttemptResultUseCase;
+    private ReceiveResultUseCase receiveResultUseCase;
     private FileAppealUseCase fileAppealUseCase;
     private ReviewAppealUseCase reviewAppealUseCase;
     private ResolveAppealUseCase resolveAppealUseCase;
@@ -70,8 +71,10 @@ class AppealAndRecalculateIntegrationTest {
                 .and(new DocumentationVerifiedSpecification());
 
         registerTeamUseCase = new RegisterTeamUseCase(teamRepository, editionRepository, eligibilitySpec);
-        scheduleRoundUseCase = new ScheduleRoundUseCase(editionRepository, new RoundSchedulerService());
-        captureAttemptResultUseCase = new CaptureAttemptResultUseCase(attemptRepository, challengeRepository);
+        InMemoryRoundRepository roundRepository = new InMemoryRoundRepository();
+        scheduleRoundUseCase = new ScheduleRoundUseCase(editionRepository, roundRepository,
+                new RoundSchedulerService());
+        receiveResultUseCase = new ReceiveResultUseCase(attemptRepository, roundRepository, challengeRepository);
 
         RankingCalculatorService rankingService = new RankingCalculatorService(TieBreakerChain.defaultRules());
         recalculateRankingUseCase = new RecalculateRankingUseCase(
@@ -125,6 +128,17 @@ class AppealAndRecalculateIntegrationTest {
         return team;
     }
 
+    private static AttemptId firstAttemptIn(Round round, int slotIndex) {
+        return AttemptId.of(round.getSlots().get(slotIndex).getSlotId(), 1);
+    }
+
+    private Attempt receive(AttemptId attemptId, Measurements measurements, String judgeId) {
+        Reception reception = receiveResultUseCase.execute(
+                new ReceiveResultCommand(maze.getId(), attemptId, new SourceDelivery(measurements, judgeId)));
+        assertThat(reception).isInstanceOf(Reception.Received.class);
+        return ((Reception.Received) reception).attempt();
+    }
+
     @Test
     @DisplayName("Complete end-to-end integration flow: Registration -> Scheduling -> Scoring -> Appeal -> Recalculate -> Publish")
     void fullCompetitionLifecycleWithAppealAndRecalculation() {
@@ -146,19 +160,11 @@ class AppealAndRecalculateIntegrationTest {
 
         // 3. Capture Initial Attempt Results
         // Team Alpha: 55s (5s under target => 105), 4 objectives (80 pts), 0 penalties => Total: 185.0
-        RawMetrics metricsAlpha = RawMetrics.of(55.0, 4, 0);
-        Attempt attemptAlpha = captureAttemptResultUseCase.execute(CaptureAttemptResultCommand.of(
-                maze.getId(), "att-alpha-1", teamAlpha.getId(),
-                round1.getSlots().get(0).getSlotId(), round1.getId(), 1, metricsAlpha, "j-1"
-        ));
+        Attempt attemptAlpha = receive(firstAttemptIn(round1, 0), track(55.0, 4, 0), "j-1");
 
         // Team Beta: 50s (10s under target => 110), 5 objectives (all done: 100 + 25 = 125 pts),
         // BUT wrongly assigned 4 penalties (-60 pts) => Total: 110 + 125 - 60 = 175.0
-        RawMetrics initialMetricsBeta = RawMetrics.of(50.0, 5, 4);
-        Attempt attemptBeta = captureAttemptResultUseCase.execute(CaptureAttemptResultCommand.of(
-                maze.getId(), "att-beta-1", teamBeta.getId(),
-                round1.getSlots().get(1).getSlotId(), round1.getId(), 1, initialMetricsBeta, "j-2"
-        ));
+        Attempt attemptBeta = receive(firstAttemptIn(round1, 1), track(50.0, 5, 4), "j-2");
 
         // 4. Initial Ranking Calculation (Provisional)
         Ranking provisionalRanking = recalculateRankingUseCase.execute(edition2026.getId(), mazeCategory.id(), round1.getId());
@@ -173,7 +179,7 @@ class AppealAndRecalculateIntegrationTest {
 
         // 5. Team Beta files an Appeal regarding wrongly counted penalties
         Appeal appealBeta = fileAppealUseCase.execute(
-                attemptBeta.getAttemptId(),
+                attemptBeta.getId().value(),
                 teamBeta.getId(),
                 "Las 4 faltas registradas fueron un error de lectura en los sensores del juez",
                 "Video oficial de camara 1 muestra recorrido limpio"
@@ -194,7 +200,6 @@ class AppealAndRecalculateIntegrationTest {
         RawMetrics revisedMetricsBeta = RawMetrics.of(50.0, 5, 0);
         resolveAppealUseCase.acceptAppeal(
                 appealBeta.getAppealId(),
-                maze.getId(),
                 mazeCategory.id(),
                 round1.getId(),
                 "Video revisado por unanimidad. Se anulan las 4 faltas inexistentes.",
@@ -203,7 +208,7 @@ class AppealAndRecalculateIntegrationTest {
         );
 
         // 9. Verify Attempt Beta Audit Trail
-        Attempt auditedAttemptBeta = attemptRepository.findById(attemptBeta.getAttemptId()).orElseThrow();
+        Attempt auditedAttemptBeta = attemptRepository.findById(attemptBeta.getId()).orElseThrow();
         assertThat(auditedAttemptBeta.getRevisionHistory()).hasSize(2);
         assertThat(auditedAttemptBeta.getOriginalSnapshot().breakdown().totalScore()).isEqualTo(175.0);
         assertThat(auditedAttemptBeta.getLatestSnapshot().breakdown().totalScore()).isEqualTo(235.0);
@@ -229,5 +234,9 @@ class AppealAndRecalculateIntegrationTest {
         assertThat(officialRanking.isOfficial()).isTrue();
         assertThat(officialRanking.getPublishedAt()).isNotNull();
         assertThat(officialRanking.getPublicationNotes()).contains("Resultados definitivos");
+    }
+
+    private static Measurements track(double seconds, int objectives, int faults) {
+        return new Measurements(new TrackPerformance(seconds, objectives, faults), 0.0, Map.of());
     }
 }
