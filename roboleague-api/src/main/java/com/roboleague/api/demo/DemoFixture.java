@@ -66,6 +66,10 @@ import java.util.Set;
 class DemoFixture implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DemoFixture.class);
+    /** Fixed dates, so every run of the demo ends in the same state whatever day it starts. */
+    private static final DateRange EDITION_DATES = new DateRange(LocalDate.of(2026, 11, 10), LocalDate.of(2026, 11, 12));
+    /** Round n starts n - 1 hours after the first one. */
+    private static final LocalDateTime ROUND_START = LocalDateTime.of(2026, 11, 10, 9, 0);
 
     private final RankingRepository rankings;
     private final DemoUseCases useCases;
@@ -139,7 +143,7 @@ class DemoFixture implements ApplicationRunner {
         return useCases.scheduleRound().execute(ScheduleRoundCommand.of(
                 edition.getId(), edition.getCategories().getFirst().id(), number, name, List.of(track),
                 List.of(Judge.of("j-1", "Chief Judge", "Principal"), Judge.of("j-2", "Field Judge", "Pista")),
-                LocalDateTime.now(), Duration.ofMinutes(10), Duration.ofMinutes(2)));
+                ROUND_START.plusHours(number - 1L), Duration.ofMinutes(10), Duration.ofMinutes(2)));
     }
 
     private Edition createEdition(Category category) {
@@ -147,7 +151,7 @@ class DemoFixture implements ApplicationRunner {
                 new Season("s-2026", 2026, "Temporada 2026"));
         return useCases.createEdition().execute(new CreateEditionCommand(
                 new EditionContext(tournament, new EditionHeader("ed-1", "Edicion Inaugural", 1)),
-                new DateRange(LocalDate.now(), LocalDate.now().plusDays(3)), List.of(category)));
+                EDITION_DATES, List.of(category)));
     }
 
     private Challenge addChallenge(Edition edition, String id, String name, RulebookDefinition rulebook) {

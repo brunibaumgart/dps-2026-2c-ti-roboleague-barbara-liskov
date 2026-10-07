@@ -5,6 +5,10 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:${DB_PORT:5432}/roboleague}
     username: ${DB_USER:roboleague}
     password: ${DB_PASSWORD:roboleague}
+  jackson:
+    deserialization:
+      # A misspelled field is a 400, not silently ignored (a "penalties" list would be lost).
+      fail-on-unknown-properties: true
   jpa:
     open-in-view: false
     hibernate:

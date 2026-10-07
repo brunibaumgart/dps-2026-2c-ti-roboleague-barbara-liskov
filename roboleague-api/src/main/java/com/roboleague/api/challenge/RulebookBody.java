@@ -1,5 +1,6 @@
 package com.roboleague.api.challenge;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.roboleague.evaluation.MeasurementUnit;
 import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.ResultSource;
@@ -17,8 +18,10 @@ import java.util.Map;
 
 /**
  * JSON shape of a rulebook, the same when it is sent and when it is read back. It only translates to and from
- * {@link RulebookDefinition}; which class each "type" becomes is decided by the domain's rule catalog.
+ * {@link RulebookDefinition}; which class each "type" becomes is decided by the domain's rule catalog. The version and
+ * required sources that a read rulebook carries are accepted and ignored, so it can be sent back as is.
  */
+@JsonIgnoreProperties({"version", "requiredSources"})
 record RulebookBody(List<MetricDeclarationBody> metrics, ScoringBody scoring, RankingBody ranking) {
 
     record MetricDeclarationBody(String name, String source, String unit, Map<String, Double> range) {

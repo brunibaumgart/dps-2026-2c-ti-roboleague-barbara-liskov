@@ -73,8 +73,11 @@ Los paquetes no cambiaron al separar módulos (`com.roboleague.usecase`, `com.ro
   | `IllegalArgumentException` (datos inválidos, id inexistente) | 400 |
   | `IllegalStateException` (transición no permitida) | 409 |
   | `TeamIneligibleException` | 422, con cada motivo en `details` |
+  | Un campo JSON que el cuerpo no tiene (por ejemplo `"penalties"`) | 400 `Unknown field '...'`, con los campos esperados en `details` |
+  | Otro pedido guardó lo mismo a la vez (versión vieja o id repetido al confirmar) | 409, para volver a cargar y reintentar |
 
   Un caso de uso que devuelva un resultado `sealed` se traduce en su controller con un `switch` (por ejemplo `Published → 200`, `Rejected → 409`).
+- Cada caso de uso corre en una transacción: si falla a mitad de camino no queda nada guardado (`TransactionalUseCases`).
 - Referencia: `AppealController` y `AppealControllerTest`.
 
 ### Contratos

@@ -10,14 +10,17 @@ import com.roboleague.ranking.Ranking;
 import com.roboleague.repository.AppealRepository;
 import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.ChallengeRepository;
+import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.RankingRepository;
 import com.roboleague.tournament.ChallengeId;
+import com.roboleague.tournament.DateRange;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.time.LocalDate;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -38,6 +41,15 @@ class DemoFixtureTest {
 
     @Autowired
     private AttemptRepository attempts;
+
+    @Autowired
+    private EditionRepository editions;
+
+    @Test
+    void theDemoUsesFixedDatesSoEveryRunEndsTheSame() {
+        assertThat(editions.findById("ed-1").orElseThrow().getDates())
+                .isEqualTo(new DateRange(LocalDate.of(2026, 11, 10), LocalDate.of(2026, 11, 12)));
+    }
 
     @Test
     void theDemoEndsWithAnAcceptedAppealAndAnOfficialRanking() {

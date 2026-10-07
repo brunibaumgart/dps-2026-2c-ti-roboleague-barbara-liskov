@@ -443,7 +443,7 @@ roboleague-domain/
   - `all-objectives` es un `milestone` sobre los objetivos y `penalty` un `counted-fault` sobre las faltas: se unifican cuando esos campos fijos sean métricas declaradas (2.16).
   - `TieBreakerChain` y `TeamScore` siguen contando faltas hasta que la tabla use `RankingScheme` (2.10).
   - Una nota de jueces negativa rompería el contrato de la base: `EvaluationFeedback` no valida su signo.
-  - **La API ignora las claves JSON desconocidas** (configuración por defecto de Spring con Jackson): un reglamento que manda `"penalties"` en lugar de `"deductions"` se acepta con 201 y la penalización se pierde (verificado con un pedido real). Dentro de cada regla sí se rechaza lo desconocido, porque lo valida el catálogo. Activar `spring.jackson.deserialization.fail-on-unknown-properties` cambia todos los endpoints, así que es una decisión de plataforma (frente 5).
+  - ~~La API ignora las claves JSON desconocidas.~~ Cerrada en 2.19 (issue #14): un campo desconocido es 400.
 
 ---
 
@@ -486,6 +486,16 @@ roboleague-domain/
   - La tabla sigue armándose con el mejor intento (`TeamScore`) y `TieBreakerChain`; cuando use `RankingScheme` (frente 4), cada `RoundScore` sale de `countableScore()` y su snapshot.
   - Las rutas de apelación (`POST /attempts/{id}/appeals`, aceptación y rechazo) son del frente 4; los casos de uso ya usan el intento nuevo.
   - Los eventos siguen tomando `now()` y `UUID` (frente 3: `Clock` e `IdGenerator`).
+
+---
+
+### 2.19 Plataforma: transacciones, JSON estricto y demo con fechas fijas
+
+- **Una transacción por caso de uso (issue #13)**: un caso de uso que guarda dos agregados (aceptar una apelación guarda la apelación y el intento) podía dejar uno guardado y el otro no. `TransactionalUseCases` envuelve cada bean del paquete de casos de uso en un proxy transaccional desde el composition root, como un decorador: `roboleague-application` sigue sin Spring (regla #11) y ningún caso de uso cambió. Un guardado que Postgres rechaza al confirmar (versión vieja o id repetido) es 409.
+  - *Alternativas descartadas*: `@Transactional` en los casos de uso (mete Spring en la aplicación); un puerto `Transactions` inyectado en cada caso de uso (cambia constructores de varios frentes para el mismo efecto); transacciones en los controllers (la demo, que llama a los casos de uso directo, quedaría afuera).
+- **JSON estricto (issue #14)**: un campo desconocido es 400 con el nombre del campo y los esperados, en lugar de ignorarse (`"penalties"` en vez de `"deductions"` perdía la penalización). El reglamento acepta y descarta `version` y `requiredSources`, que trae cuando se lo lee con `GET`, para poder mandarlo de vuelta tal cual.
+- **Demo con fechas fijas**: la edición es del 10 al 12/11/2026 y las rondas arrancan desde las 9:00 del primer día, una por hora, así cada corrida termina igual.
+- **Deuda**: la elegibilidad todavía mide la edad con la fecha de hoy (`UseCaseConfig`) y los ids de ronda y apelación son UUID; se resuelven con los puertos de reloj e ids y la inscripción (frente 3).
 
 ---
 

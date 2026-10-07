@@ -23,7 +23,8 @@ public class JpaAttemptRepository implements AttemptRepository {
     /**
      * The stored version each loaded attempt was read with. Saving sends it back, so Postgres refuses the write if
      * someone else saved the attempt in between (for example, the other source of a mixed challenge arriving at the
-     * same time). The aggregate itself knows nothing about it.
+     * same time). Saving flushes right away, inside the use case's transaction, so the version kept here is the one
+     * Postgres stored and a conflict surfaces in {@link #save}. The aggregate itself knows nothing about it.
      */
     private final Map<Attempt, Long> loadedVersions = Collections.synchronizedMap(new WeakHashMap<>());
 
@@ -36,7 +37,7 @@ public class JpaAttemptRepository implements AttemptRepository {
         AttemptJpaEntity entity = AttemptMapper.toEntity(attempt);
         entity.version = loadedVersions.get(attempt);
         try {
-            loadedVersions.put(attempt, jpa.save(entity).version);
+            loadedVersions.put(attempt, jpa.saveAndFlush(entity).version);
         } catch (OptimisticLockingFailureException | DataIntegrityViolationException concurrent) {
             throw new IllegalStateException("Attempt " + attempt.getId()
                     + " was changed by someone else while it was being updated; load it again and retry");

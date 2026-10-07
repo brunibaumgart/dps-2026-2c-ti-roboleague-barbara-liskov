@@ -1,6 +1,7 @@
 package com.roboleague.api.challenge;
 
 import com.roboleague.api.ApiTest;
+import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -8,6 +9,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.RequestBuilder;
+import tools.jackson.databind.json.JsonMapper;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -167,6 +169,29 @@ class ChallengeControllerTest extends ApiTest {
         mvc.perform(addChallenge("api-ed-ch", "api-ch-old-criterion", old))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.details[0]").value("tie-break criterion 'fewer-penalties': unknown criterion"));
+    }
+
+    @Test
+    @DisplayName("Una clave JSON mal escrita es 400 y dice cuál: no se ignora en silencio")
+    void aMisspelledJsonFieldIsABadRequestNamingIt() throws Exception {
+        String misspelled = rulebook("penalty", 40).replace("\"deductions\": [", "\"penalties\": [");
+
+        mvc.perform(addChallenge("api-ed-ch", "api-ch-unknown-key", misspelled))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Unknown field 'penalties'"))
+                .andExpect(jsonPath("$.details[0]").value(containsString("deductions")));
+    }
+
+    @Test
+    @DisplayName("El reglamento que devuelve GET se puede volver a publicar tal cual")
+    void aRulebookReadBackCanBePublishedAgainAsIs() throws Exception {
+        mvc.perform(addChallenge("api-ed-ch", "api-ch-read-back", rulebook("penalty", 40))).andExpect(status().isCreated());
+        String read = mvc.perform(get("/challenges/{id}", "api-ch-read-back")).andReturn().getResponse().getContentAsString();
+        Object currentRulebook = JsonPath.read(read, "$.currentRulebook");
+
+        mvc.perform(publish("api-ch-read-back", JsonMapper.builder().build().writeValueAsString(currentRulebook)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.version").value(2));
     }
 
     @Test
