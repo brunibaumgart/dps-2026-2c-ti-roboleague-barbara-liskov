@@ -22,8 +22,9 @@ El perfil `demo` vacía la base, aplica las migraciones y carga `DemoFixture` a 
 
 - Una edición (`ed-1`, categoría `cat-junior`) con tres desafíos: Laberinto (`ch-maze`), Seguidor de línea (`ch-line`, con su reglamento en v2) y Rescate (`ch-rescue`, mixto: exige mediciones automáticas y panel de jueces). Entre los tres usan los doce tipos de regla (base, bonificaciones y deducciones), la compuesta "Desempeño en pista", penalizaciones, bonificaciones con tope (40 / 30 / 30), mejores N de M y criterios de desempate encadenados. Se consultan con `GET /challenges/{id}`.
 - Sobre Laberinto: dos equipos, una ronda, dos intentos (el desglose muestra el recorte del tope), un ranking provisional, una apelación aceptada con recálculo y la publicación oficial.
+- Sobre Rescate (F3): una ronda con un intento de CyberTeam que recibió las mediciones y el panel de jueces (147,5) y uno de TitanTeam que tiene las mediciones y espera el panel (`GET /attempts/{id}/breakdown` lo muestra pendiente).
 
-Capturar en el desafío mixto, programar rondas por desafío y ver la tabla con mejores N de M son de los otros frentes; hoy la demo los deja configurados.
+Programar rondas por desafío y ver la tabla con mejores N de M son de los otros frentes; hoy la demo los deja configurados.
 
 Sin el perfil `demo`, la app levanta en `http://localhost:8080` sobre la base tal como esté.
 
@@ -90,9 +91,9 @@ Los paquetes no cambiaron al separar módulos (`com.roboleague.usecase`, `com.ro
 | GET | `/challenges/{id}` | hecho |
 | POST | `/editions/{id}/registrations` | pendiente |
 | POST | `/challenges/{id}/rounds` | pendiente |
-| PUT | `/attempts/{id}/measurements` | pendiente |
-| PUT | `/attempts/{id}/judge-scores` | pendiente |
-| GET | `/attempts/{id}/breakdown` | pendiente |
+| PUT | `/attempts/{id}/measurements` | hecho |
+| PUT | `/attempts/{id}/judge-scores` | hecho |
+| GET | `/attempts/{id}/breakdown` | hecho |
 | POST | `/attempts/{id}/appeals` | pendiente |
 | POST | `/appeals/{id}/acceptance` · `/rejection` | pendiente |
 | GET | `/challenges/{id}/standings[/versions/{v}]` | pendiente |
@@ -155,13 +156,52 @@ Un tipo en la lista de otra sección es 422 y dice a cuál pertenece (`"rule 'Fa
 
 Una métrica es `{"name", "source"}` con `source` = `AUTOMATIC_MEASUREMENTS` o `JUDGE_PANEL`. Toda métrica que lee una regla tiene que estar declarada en `metrics` con la misma fuente, una unidad (`COUNT`, `SECONDS`, `METERS`, `RATIO` o `POINTS`; `COUNT` solo acepta enteros) y un rango (`min` y, si tiene tope, `max`). Una métrica no declarada o de otra fuente, un rango invertido o una métrica declarada dos veces: 422. Una unidad desconocida: 400. Tiempo, objetivos, faltas, consumo y notas de jueces son campos fijos y no se declaran. Límite de bonificaciones: `capped` (`maximum`) o `unlimited`. Selección de rondas: `best-n-of-m` (`considered`, `outOf`) o `all-rounds`. Criterios: `higher-total`, `lower-time`, `lower-deductions` (menos puntos descontados por las deducciones), `higher-judge-score`. El primero es siempre `higher-total` (se ordena por puntaje) y ninguno se repite; los demás desempatan en el orden declarado.
 
+### Cargar los resultados de un intento
+
+El id de un intento es su turno: el slot y el número de intento (`<slotId>-<n>`, por ejemplo `slot-7-1`). El turno tiene que estar en una ronda programada, el juez que carga tiene que estar asignado al slot y el equipo es el del slot. El primer resultado abre el intento con la versión vigente del reglamento del desafío; los siguientes se puntúan con esa misma versión aunque se publique otra.
+
+Cada fuente llega por separado (F3). El reglamento dice qué fuentes exige: si todas sus reglas leen sensores alcanza con las mediciones; el desafío mixto espera también al panel de jueces y queda `AWAITING_SOURCES`, sin puntaje, hasta que llega la última.
+
+`PUT /attempts/{id}/measurements` → 200:
+
+```json
+{"challengeId": "ch-maze", "judgeId": "j-1", "timeSeconds": 50, "objectives": 4, "penalties": 0,
+ "consumption": 70, "measurements": {"colisiones": 1, "checkpoint": 1, "vueltas": 1}}
+```
+
+`PUT /attempts/{id}/judge-scores` → 200:
+
+```json
+{"challengeId": "ch-rescue", "judgeId": "j-2", "scores": {"j-1": 8, "j-2": 7},
+ "measurements": {"victimas_rescatadas": 3, "rescate_completo": 0}}
+```
+
+`measurements` son las métricas con nombre que el reglamento declara para esa fuente; tiempo, objetivos, faltas, consumo y notas de jueces son campos fijos. Las dos responden el intento:
+
+```json
+{"id": "slot-7-1", "slotId": "slot-7", "roundId": "…", "teamId": "t-a", "challengeId": "ch-rescue",
+ "rulebookVersion": 1, "status": "AWAITING_SOURCES", "received": ["AUTOMATIC_MEASUREMENTS"], "score": null}
+```
+
+`status` es `SCHEDULED`, `AWAITING_SOURCES`, `EVALUATED`, `UNDER_APPEAL`, `ADJUSTED` o `DISQUALIFIED`; `score` es el puntaje que cuenta para la tabla, `null` mientras espera una fuente o si está descalificado.
+
+| Caso | HTTP |
+| --- | --- |
+| Mediciones que no cumplen el reglamento (faltan, sobran, fuera de rango), una fuente que el reglamento no toma, un juez no asignado al slot | 422, con cada problema en `details` |
+| La misma fuente dos veces, un intento ya puntuado (las correcciones van por ajuste o apelación), un intento de otro desafío | 409 |
+| Un slot que no está en ninguna ronda, un id sin número, un campo obligatorio que falta, un valor negativo | 400 |
+
+`GET /attempts/{id}/breakdown` → 200 con lo que el intento todavía espera (`awaiting`), su puntaje, cada ítem de la última revisión (tope y piso incluidos), lo que aportó cada fuente (`bySource`) y cada revisión con su versión de reglamento, autor y motivo.
+
 ## Cómo sumar lo tuyo
 
 **Un endpoint.** Controller en `roboleague-api/src/main/java/com/roboleague/api/<contexto>/`, con su DTO. Si el caso de uso es nuevo, su `@Bean` va en `UseCaseConfig`. El test extiende `ApiTest` y usa ids propios (el contexto y la base se comparten entre clases de test).
 
 **Un tipo de regla nuevo.** Clase en `roboleague-domain/.../evaluation/rules/` que implementa la interfaz de su sección (`BaseRule`, `BonusRule` o `DeductionRule`), con `TYPE`, constantes para los nombres de sus parámetros, `static from(RuleDefinition)` y `definition()` (los dos usan las mismas constantes), y `metrics()` con las métricas con nombre que lee. Un registro en la sección que le corresponde en `RuleCatalog.standard()`, un caso en `RuleCatalogTest.everyRuleType()` y en `ScoreRuleSectionsTest`, y una fila en la tabla de "Configurar el evento y los desafíos". Las reglas existentes no se tocan.
 
-**Validar una captura contra el reglamento.** `rulebook.check(fuente, mediciones)` revisa lo que mandó una fuente: que estén todas las métricas declaradas para ella, ninguna de más, cada una en su unidad y rango. Devuelve `MeasurementCheck.Accepted` o `Rejected(problemas)`; el caso de uso lo traduce a 422. En el desafío mixto se llama una vez por fuente (F3).
+**Validar una captura contra el reglamento.** `rulebook.check(fuente, mediciones)` revisa lo que mandó una fuente: que estén todas las métricas declaradas para ella, ninguna de más, cada una en su unidad y rango. Devuelve `MeasurementCheck.Accepted` o `Rejected(problemas)`. `Attempt.receive` lo llama con cada fuente que llega y no cambia nada si la rechaza; `ReceiveResultUseCase` lo traduce a 422.
+
+**Leer el puntaje de un intento.** `attempt.countableScore()` es el desglose que cuenta para la tabla: vacío mientras espera una fuente o si está descalificado, nunca un cero de relleno. Cada revisión (`getRevisionHistory()`) guarda la versión de reglamento que la puntuó.
 
 **Persistencia de un agregado.** Seguir el caso de `Appeal` en `roboleague-infrastructure/.../repository/jpa/`:
 

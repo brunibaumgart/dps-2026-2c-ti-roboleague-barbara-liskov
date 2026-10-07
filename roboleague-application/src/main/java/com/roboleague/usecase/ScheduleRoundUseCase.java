@@ -4,6 +4,7 @@ import com.roboleague.scheduling.*;
 import com.roboleague.tournament.Edition;
 import com.roboleague.tournament.Team;
 import com.roboleague.repository.EditionRepository;
+import com.roboleague.repository.RoundRepository;
 
 import java.util.List;
 import java.util.Objects;
@@ -14,10 +15,13 @@ import java.util.UUID;
  */
 public class ScheduleRoundUseCase {
     private final EditionRepository editionRepository;
+    private final RoundRepository roundRepository;
     private final RoundSchedulerService schedulerService;
 
-    public ScheduleRoundUseCase(EditionRepository editionRepository, RoundSchedulerService schedulerService) {
+    public ScheduleRoundUseCase(EditionRepository editionRepository, RoundRepository roundRepository,
+                                RoundSchedulerService schedulerService) {
         this.editionRepository = Objects.requireNonNull(editionRepository, "editionRepository cannot be null");
+        this.roundRepository = Objects.requireNonNull(roundRepository, "roundRepository cannot be null");
         this.schedulerService = Objects.requireNonNull(schedulerService, "schedulerService cannot be null");
     }
 
@@ -42,6 +46,8 @@ public class ScheduleRoundUseCase {
         RoundScheduleTiming timing = RoundScheduleTiming.of(command.startTime(), command.slotDuration(), command.interval());
         RoundScheduleRequest request = RoundScheduleRequest.of(info, resources, timing);
 
-        return schedulerService.scheduleRound(request, teamIds);
+        Round round = schedulerService.scheduleRound(request, teamIds);
+        roundRepository.save(round);
+        return round;
     }
 }

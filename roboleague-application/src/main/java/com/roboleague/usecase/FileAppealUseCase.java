@@ -1,6 +1,7 @@
 package com.roboleague.usecase;
 
 import com.roboleague.evaluation.Attempt;
+import com.roboleague.evaluation.AttemptId;
 import com.roboleague.ranking.appeal.Appeal;
 import com.roboleague.repository.AppealRepository;
 import com.roboleague.repository.AttemptRepository;
@@ -21,7 +22,7 @@ public class FileAppealUseCase {
     }
 
     public Appeal execute(String attemptId, String teamId, String reason, String evidenceDescription) {
-        Attempt attempt = attemptRepository.findById(attemptId)
+        Attempt attempt = attemptRepository.findById(AttemptId.parse(attemptId))
                 .orElseThrow(() -> new IllegalArgumentException("Attempt not found: " + attemptId));
 
         if (!attempt.getTeamId().equals(teamId)) {
@@ -29,7 +30,7 @@ public class FileAppealUseCase {
         }
 
         String appealId = UUID.randomUUID().toString();
-        Appeal appeal = Appeal.of(appealId, attemptId, teamId, reason, evidenceDescription);
+        Appeal appeal = Appeal.of(appealId, attempt.getId().value(), teamId, reason, evidenceDescription);
 
         attempt.markUnderAppeal();
         attemptRepository.save(attempt);

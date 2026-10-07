@@ -1,10 +1,16 @@
 package com.roboleague.usecase;
 
 import com.roboleague.evaluation.Attempt;
+import com.roboleague.evaluation.AttemptId;
+import com.roboleague.evaluation.AttemptIdentity;
+import com.roboleague.evaluation.Measurements;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.Rulebook;
+import com.roboleague.evaluation.RulebookReference;
 import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.ScoringScheme;
+import com.roboleague.evaluation.SourceDelivery;
+import com.roboleague.evaluation.TrackPerformance;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.TimeBasedRule;
 import com.roboleague.evaluation.scheme.AllRounds;
@@ -17,10 +23,18 @@ import com.roboleague.repository.memory.InMemoryAttemptRepository;
 import com.roboleague.repository.memory.InMemoryChallengeRepository;
 import com.roboleague.repository.memory.InMemoryEditionRepository;
 import com.roboleague.repository.memory.InMemoryRankingRepository;
+import com.roboleague.tournament.Category;
+import com.roboleague.tournament.Challenge;
+import com.roboleague.tournament.ChallengeId;
+import com.roboleague.tournament.Edition;
+import com.roboleague.tournament.Season;
+import com.roboleague.tournament.Tournament;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -41,22 +55,94 @@ class ResolveAppealUseCaseTest {
                 List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0)),
                 List.of(new PenaltyRule("Faltas", 10.0))
         ), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
-        Attempt attempt = Attempt.of("att-1", "t-1", "slot-1", "r-1", 1);
-        RawMetrics metrics = RawMetrics.of(40.0, 2, 3);
-        attempt.registerInitialResult(metrics, rulebook.evaluate(metrics), "judge-1");
+        AttemptId attemptId = AttemptId.of("slot-1", 1);
+        Attempt attempt = Attempt.of(new AttemptIdentity(attemptId, "r-1", "t-1"), RulebookReference.of("ch-1", rulebook));
+        attempt.receive(sensors(40.0, 2, 3, "judge-1"), rulebook);
         attemptRepository.save(attempt);
 
         Appeal appeal = new FileAppealUseCase(attemptRepository, appealRepository)
-                .execute("att-1", "t-1", "Faltas mal contadas", "Video");
+                .execute(attemptId.value(), "t-1", "Faltas mal contadas", "Video");
         new ReviewAppealUseCase(appealRepository).execute(appeal.getAppealId(), "arb-1");
 
         Appeal resolved = useCase.rejectAppeal(appeal.getAppealId(), "El video confirma las faltas", "arb-1");
 
         assertThat(resolved.isRejected()).isTrue();
-        Attempt stored = attemptRepository.findById("att-1").orElseThrow();
+        Attempt stored = attemptRepository.findById(attemptId).orElseThrow();
         assertThat(stored.getStatus()).isEqualTo(Attempt.AttemptStatus.EVALUATED);
         assertThat(stored.getRevisionHistory()).hasSize(1);
         // 40s => 100 + 20 bonus; 3 fouls => -30
         assertThat(stored.getFinalScore()).isEqualTo(90.0);
+    }
+
+    @Test
+    @DisplayName("Hallazgo 2: aceptar una apelación puntúa con la versión del intento aunque el desafío haya publicado otra")
+    void acceptedAppealScoresWithTheAttemptsOwnRulebookVersion() {
+        InMemoryAttemptRepository attemptRepository = new InMemoryAttemptRepository();
+        InMemoryAppealRepository appealRepository = new InMemoryAppealRepository();
+        InMemoryEditionRepository editionRepository = new InMemoryEditionRepository();
+        InMemoryChallengeRepository challengeRepository = new InMemoryChallengeRepository();
+        Category maze = Category.of("cat-maze", "Laberinto", 2, 4, 15, 25, 2500);
+        editionRepository.save(Edition.of("ed-1", Tournament.of("tor-1", "Torneo", "Desc", new Season("s-1", 2026, "2026")),
+                1, "Edicion 1", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 2), List.of(maze)));
+        Challenge challenge = Challenge.draft(ChallengeId.of("ch-1"), "ed-1", "Laberinto")
+                .publish(scoringWithFaultsWorth(10.0), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
+        challengeRepository.save(challenge);
+        ResolveAppealUseCase useCase = new ResolveAppealUseCase(appealRepository, attemptRepository, challengeRepository,
+                new RecalculateRankingUseCase(editionRepository, attemptRepository, new InMemoryRankingRepository(),
+                        new RankingCalculatorService()));
+
+        AttemptId attemptId = AttemptId.of("slot-1", 1);
+        Rulebook first = challenge.currentRulebook();
+        Attempt attempt = Attempt.of(new AttemptIdentity(attemptId, "r-1", "t-1"), RulebookReference.of("ch-1", first));
+        attempt.receive(sensors(40.0, 2, 3, "judge-1"), first);
+        attemptRepository.save(attempt);
+        challenge.publish(scoringWithFaultsWorth(100.0), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
+        Appeal appeal = new FileAppealUseCase(attemptRepository, appealRepository)
+                .execute(attemptId.value(), "t-1", "Faltas mal contadas", "Video");
+        new ReviewAppealUseCase(appealRepository).execute(appeal.getAppealId(), "arb-1");
+
+        useCase.acceptAppeal(appeal.getAppealId(), "cat-maze", "r-1", "Era una sola falta",
+                RawMetrics.of(40.0, 2, 1), "arb-1");
+
+        Attempt stored = attemptRepository.findById(attemptId).orElseThrow();
+        // 40s => 100 + 20; one fault at 10 => 110 with v1 (v2 would charge 100 for it)
+        assertThat(stored.getFinalScore()).isEqualTo(110.0);
+        assertThat(stored.getLatestSnapshot().rulebookVersion()).isEqualTo(RulebookVersion.first());
+    }
+
+    @Test
+    @DisplayName("Hallazgo 3: con dos apelaciones abiertas, rechazar una deja al intento en apelación")
+    void rejectingOneOfTwoOpenAppealsKeepsTheAttemptUnderAppeal() {
+        InMemoryAttemptRepository attemptRepository = new InMemoryAttemptRepository();
+        InMemoryAppealRepository appealRepository = new InMemoryAppealRepository();
+        ResolveAppealUseCase useCase = new ResolveAppealUseCase(appealRepository, attemptRepository,
+                new InMemoryChallengeRepository(), new RecalculateRankingUseCase(new InMemoryEditionRepository(),
+                attemptRepository, new InMemoryRankingRepository(), new RankingCalculatorService()));
+        Rulebook rulebook = new Rulebook(RulebookVersion.first(), scoringWithFaultsWorth(10.0),
+                new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
+        AttemptId attemptId = AttemptId.of("slot-1", 1);
+        Attempt attempt = Attempt.of(new AttemptIdentity(attemptId, "r-1", "t-1"), RulebookReference.of("ch-1", rulebook));
+        attempt.receive(sensors(55.0, 4, 0, "j-1"), rulebook);
+        attemptRepository.save(attempt);
+        FileAppealUseCase fileAppeal = new FileAppealUseCase(attemptRepository, appealRepository);
+        Appeal first = fileAppeal.execute(attemptId.value(), "t-1", "tiempo", "video");
+        Appeal second = fileAppeal.execute(attemptId.value(), "t-1", "objetivos", "video");
+        new ReviewAppealUseCase(appealRepository).execute(first.getAppealId(), "arbitro");
+
+        useCase.rejectAppeal(first.getAppealId(), "sin evidencia", "arbitro");
+
+        assertThat(second.isPending()).isTrue();
+        assertThat(attemptRepository.findById(attemptId).orElseThrow().getStatus())
+                .isEqualTo(Attempt.AttemptStatus.UNDER_APPEAL);
+    }
+
+    private static SourceDelivery sensors(double seconds, int objectives, int faults, String judgeId) {
+        return new SourceDelivery(new Measurements(new TrackPerformance(seconds, objectives, faults), 0.0, Map.of()),
+                judgeId);
+    }
+
+    private static ScoringScheme scoringWithFaultsWorth(double deductionPerFault) {
+        return ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0)),
+                List.of(new PenaltyRule("Faltas", deductionPerFault)));
     }
 }

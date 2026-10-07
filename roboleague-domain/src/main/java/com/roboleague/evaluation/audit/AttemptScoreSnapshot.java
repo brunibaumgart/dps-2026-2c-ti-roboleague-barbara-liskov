@@ -1,6 +1,7 @@
 package com.roboleague.evaluation.audit;
 
 import com.roboleague.evaluation.RawMetrics;
+import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.ScoreBreakdown;
 
 import java.time.LocalDateTime;
@@ -45,16 +46,11 @@ public record AttemptScoreSnapshot(
         return evaluation.breakdown();
     }
 
-    public static AttemptScoreSnapshot of(SnapshotMetadata metadata, EvaluationSnapshot evaluation, String reason) {
-        return new AttemptScoreSnapshot(metadata, evaluation, reason);
+    public RulebookVersion rulebookVersion() {
+        return evaluation.version();
     }
 
-    public static AttemptScoreSnapshot of(String snapshotId, int revisionNumber, String authorOrJudgeId,
-                                          RawMetrics metrics, ScoreBreakdown breakdown, String reason) {
-        return new AttemptScoreSnapshot(
-                SnapshotMetadata.of(snapshotId, revisionNumber, authorOrJudgeId),
-                EvaluationSnapshot.of(metrics, breakdown),
-                reason
-        );
+    public static AttemptScoreSnapshot of(SnapshotMetadata metadata, EvaluationSnapshot evaluation, String reason) {
+        return new AttemptScoreSnapshot(metadata, evaluation, reason);
     }
 }

@@ -8,6 +8,7 @@ import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.ChallengeRepository;
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.RankingRepository;
+import com.roboleague.repository.RoundRepository;
 import com.roboleague.repository.TeamRepository;
 import com.roboleague.scheduling.RoundSchedulerService;
 import com.roboleague.tournament.Team;
@@ -17,12 +18,13 @@ import com.roboleague.tournament.eligibility.EligibilitySpecification;
 import com.roboleague.tournament.eligibility.RobotSpecificationLimit;
 import com.roboleague.tournament.eligibility.TeamSizeSpecification;
 import com.roboleague.usecase.AddChallengeUseCase;
-import com.roboleague.usecase.CaptureAttemptResultUseCase;
 import com.roboleague.usecase.CreateEditionUseCase;
 import com.roboleague.usecase.FileAppealUseCase;
+import com.roboleague.usecase.GetAttemptBreakdownUseCase;
 import com.roboleague.usecase.GetChallengeUseCase;
 import com.roboleague.usecase.PublishOfficialRankingUseCase;
 import com.roboleague.usecase.PublishRulebookUseCase;
+import com.roboleague.usecase.ReceiveResultUseCase;
 import com.roboleague.usecase.RecalculateRankingUseCase;
 import com.roboleague.usecase.RegisterTeamUseCase;
 import com.roboleague.usecase.ResolveAppealUseCase;
@@ -91,13 +93,20 @@ class UseCaseConfig {
     }
 
     @Bean
-    ScheduleRoundUseCase scheduleRoundUseCase(EditionRepository editions, RoundSchedulerService scheduler) {
-        return new ScheduleRoundUseCase(editions, scheduler);
+    ScheduleRoundUseCase scheduleRoundUseCase(EditionRepository editions, RoundRepository rounds,
+                                              RoundSchedulerService scheduler) {
+        return new ScheduleRoundUseCase(editions, rounds, scheduler);
     }
 
     @Bean
-    CaptureAttemptResultUseCase captureAttemptResultUseCase(AttemptRepository attempts, ChallengeRepository challenges) {
-        return new CaptureAttemptResultUseCase(attempts, challenges);
+    GetAttemptBreakdownUseCase getAttemptBreakdownUseCase(AttemptRepository attempts, ChallengeRepository challenges) {
+        return new GetAttemptBreakdownUseCase(attempts, challenges);
+    }
+
+    @Bean
+    ReceiveResultUseCase receiveResultUseCase(AttemptRepository attempts, RoundRepository rounds,
+                                              ChallengeRepository challenges) {
+        return new ReceiveResultUseCase(attempts, rounds, challenges);
     }
 
     @Bean
