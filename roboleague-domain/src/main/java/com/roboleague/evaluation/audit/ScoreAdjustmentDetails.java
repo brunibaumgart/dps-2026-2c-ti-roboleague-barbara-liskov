@@ -1,11 +1,13 @@
 package com.roboleague.evaluation.audit;
 
+import com.roboleague.support.ActorId;
+
 import java.util.Objects;
 
 /**
  * Value object specifying revision number, motivation and author for a score adjustment.
  */
-public record ScoreAdjustmentDetails(int newRevisionNumber, String reason, String authorId) {
+public record ScoreAdjustmentDetails(int newRevisionNumber, String reason, ActorId authorId) {
     public ScoreAdjustmentDetails {
         Objects.requireNonNull(reason, "reason cannot be null");
         Objects.requireNonNull(authorId, "authorId cannot be null");
@@ -14,7 +16,7 @@ public record ScoreAdjustmentDetails(int newRevisionNumber, String reason, Strin
         }
     }
 
-    public static ScoreAdjustmentDetails of(int newRevisionNumber, String reason, String authorId) {
+    public static ScoreAdjustmentDetails of(int newRevisionNumber, String reason, ActorId authorId) {
         return new ScoreAdjustmentDetails(newRevisionNumber, reason, authorId);
     }
 }

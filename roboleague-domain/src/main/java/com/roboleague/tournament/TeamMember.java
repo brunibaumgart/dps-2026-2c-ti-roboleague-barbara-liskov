@@ -19,7 +19,7 @@ public record TeamMember(
         role = role != null ? role : "MEMBER";
     }
 
-    public String id() {
+    public ParticipantId id() {
         return profile.id();
     }
 
@@ -40,7 +40,7 @@ public record TeamMember(
         return new TeamMember(profile, birthDate, role);
     }
 
-    public static TeamMember of(String id, String fullName, LocalDate birthDate, String role, LocalDate referenceDate) {
+    public static TeamMember of(ParticipantId id, String fullName, LocalDate birthDate, String role, LocalDate referenceDate) {
         return of(new MemberProfile(id, fullName), birthDate, role, referenceDate);
     }
 }

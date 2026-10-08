@@ -1,12 +1,14 @@
 package com.roboleague.evaluation;
 
+import com.roboleague.scheduling.JudgeId;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 public record EvaluationFeedback(
         double resourceConsumption,
-        Map<String, Double> judgeSubjectiveScores,
+        Map<JudgeId, Double> judgeSubjectiveScores,
         Map<String, Double> customMetrics
 ) {
     public EvaluationFeedback {
@@ -32,7 +34,7 @@ public record EvaluationFeedback(
         return new EvaluationFeedback(0.0, Collections.emptyMap(), Collections.emptyMap());
     }
 
-    public static EvaluationFeedback of(double resourceConsumption, Map<String, Double> judgeScores, Map<String, Double> customMetrics) {
+    public static EvaluationFeedback of(double resourceConsumption, Map<JudgeId, Double> judgeScores, Map<String, Double> customMetrics) {
         return new EvaluationFeedback(resourceConsumption, judgeScores, customMetrics);
     }
 
@@ -40,7 +42,7 @@ public record EvaluationFeedback(
         return new EvaluationFeedback(0.0, Collections.emptyMap(), measurements);
     }
 
-    public static EvaluationFeedback withJudgeScores(Map<String, Double> judgeScores) {
+    public static EvaluationFeedback withJudgeScores(Map<JudgeId, Double> judgeScores) {
         return new EvaluationFeedback(0.0, judgeScores, Collections.emptyMap());
     }
 }

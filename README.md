@@ -18,6 +18,15 @@ reciben fechas y metadatos explícitos, y los tests pueden fijar esos valores.
 No cambiar a UTC la lectura de un historial existente: los timestamps almacenados
 no se reinterpretan al configurar la zona para nuevas operaciones.
 
+Las identidades del núcleo son tipos distintos (`TeamId`, `JudgeId`, `SlotId`,
+`RoundId`, `EditionId`, `CategoryId`, `AppealId`, `RankingId`, `ParticipantId`,
+`RobotId` y `TrackId`), además de los existentes `ChallengeId` y `AttemptId`.
+Controllers y mappers convierten explícitamente entre estos tipos y texto:
+los ids de JSON, paths, columnas y claves de mapas JSON siguen siendo strings.
+Los autores que pueden tener varios roles usan `ActorId`; no se identifican
+automáticamente como jueces. `AttemptId` contiene un `SlotId` y un número
+positivo, conserva `<slot>-<numero>` y parsea desde el último guion.
+
 ## Correr la demo
 
 Desde la raíz del repo:

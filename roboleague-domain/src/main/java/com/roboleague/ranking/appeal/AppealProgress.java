@@ -1,6 +1,7 @@
 package com.roboleague.ranking.appeal;
 
 import com.roboleague.evaluation.RawMetrics;
+import com.roboleague.support.ActorId;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -11,7 +12,7 @@ import java.util.Objects;
 public record AppealProgress(
         AppealState state,
         LocalDateTime submittedAt,
-        String reviewerId,
+        ActorId reviewerId,
         String resolutionNotes,
         RawMetrics revisedMetrics,
         LocalDateTime resolvedAt

@@ -1,6 +1,6 @@
 package com.roboleague.tournament;
 
-import static com.roboleague.support.TestValues.*;
+import com.roboleague.support.ActorId;
 import com.roboleague.tournament.eligibility.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDate;
 import java.util.Set;
 
+import static com.roboleague.support.TestValues.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class EligibilitySpecificationTest {
@@ -24,7 +25,7 @@ class EligibilitySpecificationTest {
                 AgeRange.of(14, 18),
                 RobotLimits.of(3000.0, 300.0, 300.0, 300.0)
         );
-        sumoCategory = new Category("cat-sumo", "RoboSumo Junior", restrictions);
+        sumoCategory = new Category(CategoryId.of("cat-sumo"), "RoboSumo Junior", restrictions);
     }
 
     private Team createValidTeam() {
@@ -33,16 +34,16 @@ class EligibilitySpecificationTest {
                 new Dimensions(200.0, 200.0, 250.0),
                 new RobotHardware(2, Set.of("ULTRASONIC", "INFRARED"))
         );
-        Robot robot = new Robot("rob-1", "Titan", spec);
-        Team team = new Team(new TeamProfile("team-1", "Los Titanes", "Escuela Técnica N1"), sumoCategory, robot, DATE);
+        Robot robot = new Robot(RobotId.of("rob-1"), "Titan", spec);
+        Team team = new Team(new TeamProfile(TeamId.of("team-1"), "Los Titanes", "Escuela Técnica N1"), sumoCategory, robot, DATE);
 
         // Members: 15 and 17 years old at tournamentDate
-        team.addMember(TeamMember.of("m-1", "Lucas Vega", LocalDate.of(2011, 5, 10), "CAPTAIN", DATE));
-        team.addMember(TeamMember.of("m-2", "Sofia Gomez", LocalDate.of(2009, 3, 20), "PROGRAMMER", DATE));
+        team.addMember(TeamMember.of(ParticipantId.of("m-1"), "Lucas Vega", LocalDate.of(2011, 5, 10), "CAPTAIN", DATE));
+        team.addMember(TeamMember.of(ParticipantId.of("m-2"), "Sofia Gomez", LocalDate.of(2009, 3, 20), "PROGRAMMER", DATE));
 
         team.getDocumentation().addDocument("CONSENT", "consent_lucas.pdf");
         team.getDocumentation().addDocument("TECHNICAL_SHEET", "sheet_titan.pdf");
-        team.getDocumentation().verify("Official Inspector 01", TIME);
+        team.getDocumentation().verify(ActorId.of("Official Inspector 01"), TIME);
 
         return team;
     }
@@ -68,7 +69,7 @@ class EligibilitySpecificationTest {
     void rejectsWhenMemberTooYoung() {
         Team team = createValidTeam();
         // Add a 10-year-old member (min is 14)
-        team.addMember(TeamMember.of("m-3", "Nene Pro", LocalDate.of(2016, 1, 1), "TESTER", DATE));
+        team.addMember(TeamMember.of(ParticipantId.of("m-3"), "Nene Pro", LocalDate.of(2016, 1, 1), "TESTER", DATE));
 
         AgeLimitSpecification spec = new AgeLimitSpecification(tournamentDate);
         EligibilityResult result = spec.isSatisfiedBy(team);
@@ -85,11 +86,11 @@ class EligibilitySpecificationTest {
                 new Dimensions(150.0, 150.0, 150.0),
                 new RobotHardware(2, Set.of())
         );
-        Robot robot = new Robot("rob-2", "Mini", robotSpec);
-        Team team = new Team(new TeamProfile("team-2", "SoloBot", "ITBA"), sumoCategory, robot, DATE);
+        Robot robot = new Robot(RobotId.of("rob-2"), "Mini", robotSpec);
+        Team team = new Team(new TeamProfile(TeamId.of("team-2"), "SoloBot", "ITBA"), sumoCategory, robot, DATE);
 
         // Only 1 member (min is 2)
-        team.addMember(TeamMember.of("m-1", "Solo Dev", LocalDate.of(2010, 1, 1), "SOLO", DATE));
+        team.addMember(TeamMember.of(ParticipantId.of("m-1"), "Solo Dev", LocalDate.of(2010, 1, 1), "SOLO", DATE));
 
         TeamSizeSpecification spec = new TeamSizeSpecification();
         EligibilityResult result = spec.isSatisfiedBy(team);
@@ -98,10 +99,10 @@ class EligibilitySpecificationTest {
         assertThat(result.reasons()).anyMatch(r -> r.contains("fewer members than required"));
 
         // Now add 4 more members (total 5, max is 4)
-        team.addMember(TeamMember.of("m-2", "Dev 2", LocalDate.of(2010, 1, 1), "M", DATE));
-        team.addMember(TeamMember.of("m-3", "Dev 3", LocalDate.of(2010, 1, 1), "M", DATE));
-        team.addMember(TeamMember.of("m-4", "Dev 4", LocalDate.of(2010, 1, 1), "M", DATE));
-        team.addMember(TeamMember.of("m-5", "Dev 5", LocalDate.of(2010, 1, 1), "M", DATE));
+        team.addMember(TeamMember.of(ParticipantId.of("m-2"), "Dev 2", LocalDate.of(2010, 1, 1), "M", DATE));
+        team.addMember(TeamMember.of(ParticipantId.of("m-3"), "Dev 3", LocalDate.of(2010, 1, 1), "M", DATE));
+        team.addMember(TeamMember.of(ParticipantId.of("m-4"), "Dev 4", LocalDate.of(2010, 1, 1), "M", DATE));
+        team.addMember(TeamMember.of(ParticipantId.of("m-5"), "Dev 5", LocalDate.of(2010, 1, 1), "M", DATE));
 
         EligibilityResult resultExceeded = spec.isSatisfiedBy(team);
         assertThat(resultExceeded.isEligible()).isFalse();
@@ -117,8 +118,8 @@ class EligibilitySpecificationTest {
                 new Dimensions(200.0, 200.0, 350.0),
                 new RobotHardware(4, Set.of())
         );
-        Robot robot = new Robot("rob-heavy", "Behemoth", overweight);
-        Team team = new Team(new TeamProfile("team-heavy", "HeavyWeights", "Lab"), sumoCategory, robot, DATE);
+        Robot robot = new Robot(RobotId.of("rob-heavy"), "Behemoth", overweight);
+        Team team = new Team(new TeamProfile(TeamId.of("team-heavy"), "HeavyWeights", "Lab"), sumoCategory, robot, DATE);
 
         RobotSpecificationLimit spec = new RobotSpecificationLimit();
         EligibilityResult result = spec.isSatisfiedBy(team);

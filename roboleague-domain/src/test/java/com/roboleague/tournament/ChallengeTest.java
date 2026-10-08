@@ -26,7 +26,7 @@ class ChallengeTest {
     private final RankingScheme allRounds = new RankingScheme(new AllRounds(), List.of(new HigherTotal()));
 
     private Challenge mazeWithBase(double basePoints) {
-        return Challenge.draft(ChallengeId.of("ch-maze"), "ed-2026", "Laberinto")
+        return Challenge.draft(ChallengeId.of("ch-maze"), EditionId.of("ed-2026"), "Laberinto")
                 .publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(basePoints)), List.of()), allRounds);
     }
 
@@ -78,7 +78,7 @@ class ChallengeTest {
     @Test
     @DisplayName("Un reglamento sin reglas no se puede publicar")
     void givenNoRulesThenTheRulebookIsRejected() {
-        Challenge.Draft draft = Challenge.draft(ChallengeId.of("ch-maze"), "ed-2026", "Laberinto");
+        Challenge.Draft draft = Challenge.draft(ChallengeId.of("ch-maze"), EditionId.of("ed-2026"), "Laberinto");
 
         assertThatThrownBy(() -> draft.publish(ScoringScheme.withoutBonuses(List.of(), List.of()), allRounds))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -105,7 +105,7 @@ class ChallengeTest {
     void givenStoredVersionsThatSkipOneThenRestoringFails() {
         Challenge original = mazeWithBase(100.0);
         Rulebook v2 = original.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(150.0)), List.of()), allRounds);
-        Challenge.Draft draft = Challenge.draft(ChallengeId.of("ch-maze"), "ed-2026", "Laberinto");
+        Challenge.Draft draft = Challenge.draft(ChallengeId.of("ch-maze"), EditionId.of("ed-2026"), "Laberinto");
 
         assertThatThrownBy(() -> Challenge.restore(draft, List.of(v2))).isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> Challenge.restore(draft, List.of())).isInstanceOf(IllegalStateException.class);
@@ -116,7 +116,7 @@ class ChallengeTest {
     void givenAPublishedRulebookThenItExposesItsRankingScheme() {
         RankingScheme bestTwoOfThree = new RankingScheme(new BestNOfM(2, 3), List.of(new HigherTotal()));
 
-        Challenge maze = Challenge.draft(ChallengeId.of("ch-maze"), "ed-2026", "Laberinto")
+        Challenge maze = Challenge.draft(ChallengeId.of("ch-maze"), EditionId.of("ed-2026"), "Laberinto")
                 .publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(100.0)), List.of()), bestTwoOfThree);
 
         assertThat(maze.currentRulebook().rankingScheme()).isSameAs(bestTwoOfThree);
@@ -140,7 +140,7 @@ class ChallengeTest {
     @CsvSource({"'  ', Laberinto, edition id cannot be blank", "ed-2026, '  ', challenge name cannot be blank"})
     @DisplayName("Un desafío no acepta edición ni nombre en blanco")
     void givenABlankEditionOrNameThenTheDraftIsRejected(String editionId, String name, String problem) {
-        assertThatThrownBy(() -> Challenge.draft(ChallengeId.of("ch-maze"), editionId, name))
+        assertThatThrownBy(() -> Challenge.draft(ChallengeId.of("ch-maze"), EditionId.of(editionId), name))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage(problem);
     }

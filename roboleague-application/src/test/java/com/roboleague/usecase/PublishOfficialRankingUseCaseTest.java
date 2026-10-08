@@ -1,6 +1,5 @@
 package com.roboleague.usecase;
 
-import static com.roboleague.support.TestValues.*;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.AttemptIdentity;
@@ -18,18 +17,29 @@ import com.roboleague.evaluation.scheme.RankingScheme;
 import com.roboleague.ranking.PerformanceSummary;
 import com.roboleague.ranking.Ranking;
 import com.roboleague.ranking.RankingEntry;
+import com.roboleague.ranking.RankingId;
 import com.roboleague.ranking.TeamScore;
 import com.roboleague.ranking.appeal.Appeal;
+import com.roboleague.ranking.appeal.AppealId;
 import com.roboleague.repository.memory.InMemoryAppealRepository;
 import com.roboleague.repository.memory.InMemoryAttemptRepository;
 import com.roboleague.repository.memory.InMemoryRankingRepository;
+import com.roboleague.scheduling.JudgeId;
+import com.roboleague.scheduling.RoundId;
+import com.roboleague.scheduling.SlotId;
+import com.roboleague.tournament.CategoryId;
+import com.roboleague.tournament.ChallengeId;
+import com.roboleague.tournament.EditionId;
+import com.roboleague.tournament.TeamId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
+import static com.roboleague.support.TestValues.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -52,24 +62,24 @@ class PublishOfficialRankingUseCaseTest {
         useCase = new PublishOfficialRankingUseCase(rankingRepo, appealRepo, attemptRepo, CLOCK);
 
         PerformanceSummary perf = PerformanceSummary.of(100, 30, 0, 9.0);
-        TeamScore score = TeamScore.of("t-1", "Team", "cat-1", "ed-1", perf, List.of());
-        rankingRepo.save(Ranking.of("rank-1", "ed-1", "cat-1", "r-1", List.of(RankingEntry.of(1, score, false, "")), TIME));
+        TeamScore score = TeamScore.of(TeamId.of("t-1"), "Team", CategoryId.of("cat-1"), EditionId.of("ed-1"), perf, List.of());
+        rankingRepo.save(Ranking.of(RankingId.of("rank-1"), EditionId.of("ed-1"), CategoryId.of("cat-1"), Optional.of(RoundId.of("r-1")), List.of(RankingEntry.of(1, score, false, "")), TIME));
     }
 
     private void saveAppealedAttempt(String slotId, String teamId, String roundId) {
-        AttemptId attemptId = AttemptId.of(slotId, 1);
-        Attempt attempt = Attempt.of(new AttemptIdentity(attemptId, roundId, teamId), RulebookReference.of("ch-1", RULEBOOK));
-        attempt.receive(new SourceDelivery(new Measurements(new TrackPerformance(30.0, 1, 0), 0.0, Map.of()), "judge-1"),
+        AttemptId attemptId = AttemptId.of(SlotId.of(slotId), 1);
+        Attempt attempt = Attempt.of(new AttemptIdentity(attemptId, RoundId.of(roundId), TeamId.of(teamId)), RulebookReference.of(ChallengeId.of("ch-1"), RULEBOOK));
+        attempt.receive(new SourceDelivery(new Measurements(new TrackPerformance(30.0, 1, 0), 0.0, Map.of()), JudgeId.of("judge-1")),
                 RULEBOOK, audit());
         attempt.markUnderAppeal();
         attemptRepo.save(attempt);
-        appealRepo.save(Appeal.of("app-" + slotId, attemptId.value(), teamId, "Revision", "", TIME));
+        appealRepo.save(Appeal.of(AppealId.of("app-" + slotId), attemptId, TeamId.of(teamId), "Revision", "", TIME));
     }
 
     @Test
     @DisplayName("Successfully publishes official ranking when no pending appeals exist")
     void publishesOfficialWhenNoAppeals() {
-        Ranking published = useCase.execute("rank-1", "Cierre oficial validado");
+        Ranking published = useCase.execute(RankingId.of("rank-1"), "Cierre oficial validado");
 
         assertThat(published.isOfficial()).isTrue();
         assertThat(published.getPublishedAt()).isNotNull();
@@ -81,7 +91,7 @@ class PublishOfficialRankingUseCaseTest {
     void blocksPublishingWhenPendingAppealExists() {
         saveAppealedAttempt("slot-1", "t-1", "r-1");
 
-        assertThatThrownBy(() -> useCase.execute("rank-1", "Cierre"))
+        assertThatThrownBy(() -> useCase.execute(RankingId.of("rank-1"), "Cierre"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("appeal(s) remain unresolved");
     }
@@ -91,7 +101,7 @@ class PublishOfficialRankingUseCaseTest {
     void ignoresAppealsFromOtherRounds() {
         saveAppealedAttempt("slot-other", "t-1", "r-2");
 
-        Ranking published = useCase.execute("rank-1", "Cierre de ronda 1");
+        Ranking published = useCase.execute(RankingId.of("rank-1"), "Cierre de ronda 1");
 
         assertThat(published.isOfficial()).isTrue();
     }
@@ -99,9 +109,9 @@ class PublishOfficialRankingUseCaseTest {
     @Test
     @DisplayName("An official ranking cannot be published twice")
     void rejectsRepublishing() {
-        useCase.execute("rank-1", "Cierre");
+        useCase.execute(RankingId.of("rank-1"), "Cierre");
 
-        assertThatThrownBy(() -> useCase.execute("rank-1", "Otra vez"))
+        assertThatThrownBy(() -> useCase.execute(RankingId.of("rank-1"), "Otra vez"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("already official");
     }

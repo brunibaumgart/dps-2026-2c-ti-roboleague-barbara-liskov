@@ -29,7 +29,12 @@ constructor de valor permite rehidratar sin consultar el calendario actual.
   frente a modificaciones externas.
 - `Challenge` conserva reglamentos publicados, inmutables y consecutivos desde
   v1. Una modificación publica otra versión, sin reemplazar las anteriores.
-- `AttemptId` deriva de slot y número de intento. `RulebookReference` fija el
+- Las identidades de equipos, participantes, robots, categorías y ediciones
+  viven en tournament; las de jueces, pistas, rondas y slots en scheduling;
+  RankingId y AppealId en sus contextos. Todas conservan el texto y rechazan
+  null/blanco. `Ranking` expresa el filtro de ronda con `Optional<RoundId>`:
+  vacío significa todas las rondas; no construir un RoundId vacío.
+- `AttemptId` contiene `SlotId` y número de intento. `RulebookReference` fija el
   desafío y versión usados: capturas posteriores y correcciones deben conservarlos.
 - `Attempt.receive` valida la fuente y las métricas antes de aceptar la captura;
   una captura rechazada no cambia el agregado. No puntuar hasta recibir todas

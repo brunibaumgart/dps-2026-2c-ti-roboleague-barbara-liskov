@@ -3,6 +3,7 @@ package com.roboleague.usecase;
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.TeamRepository;
 import com.roboleague.tournament.Edition;
+import com.roboleague.tournament.EditionId;
 import com.roboleague.tournament.Team;
 import com.roboleague.tournament.eligibility.EligibilityResult;
 import com.roboleague.tournament.eligibility.EligibilitySpecification;
@@ -25,7 +26,7 @@ public class RegisterTeamUseCase {
         this.eligibilitySpecification = Objects.requireNonNull(eligibilitySpecification, "eligibilitySpecification cannot be null");
     }
 
-    public Team execute(String editionId, Team team) {
+    public Team execute(EditionId editionId, Team team) {
         Objects.requireNonNull(team, "team cannot be null");
         Edition edition = editionRepository.findById(editionId)
                 .orElseThrow(() -> new IllegalArgumentException("Edition not found: " + editionId));

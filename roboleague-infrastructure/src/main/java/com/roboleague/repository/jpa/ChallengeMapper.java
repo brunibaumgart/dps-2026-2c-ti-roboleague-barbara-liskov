@@ -23,6 +23,7 @@ import com.roboleague.repository.jpa.ChallengeJpaEntity.ScoringJson;
 import com.roboleague.repository.jpa.ChallengeJpaEntity.StrategyJson;
 import com.roboleague.tournament.Challenge;
 import com.roboleague.tournament.ChallengeId;
+import com.roboleague.tournament.EditionId;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -43,7 +44,7 @@ final class ChallengeMapper {
     ChallengeJpaEntity toEntity(Challenge challenge) {
         ChallengeJpaEntity entity = new ChallengeJpaEntity();
         entity.id = challenge.getId().value();
-        entity.editionId = challenge.getEditionId();
+        entity.editionId = challenge.getEditionId().value();
         entity.name = challenge.getName();
         List<RulebookJson> versions = new ArrayList<>();
         for (Rulebook rulebook : challenge.rulebooks()) {
@@ -58,7 +59,7 @@ final class ChallengeMapper {
         for (RulebookJson json : entity.rulebooks.versions()) {
             rulebooks.add(toRulebook(entity.id, json));
         }
-        return Challenge.restore(Challenge.draft(ChallengeId.of(entity.id), entity.editionId, entity.name), rulebooks);
+        return Challenge.restore(Challenge.draft(ChallengeId.of(entity.id), EditionId.of(entity.editionId), entity.name), rulebooks);
     }
 
     private Rulebook toRulebook(String challengeId, RulebookJson json) {

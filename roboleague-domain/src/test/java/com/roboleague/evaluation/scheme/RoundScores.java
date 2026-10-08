@@ -6,6 +6,8 @@ import com.roboleague.evaluation.ScoreBreakdown;
 import com.roboleague.evaluation.ScoreItem;
 import com.roboleague.evaluation.audit.EvaluationSnapshot;
 import com.roboleague.evaluation.rules.ScoreRule.RuleEvaluation;
+import com.roboleague.scheduling.JudgeId;
+import com.roboleague.scheduling.RoundId;
 
 import java.util.List;
 import java.util.Map;
@@ -27,13 +29,13 @@ final class RoundScores {
      * A round that scored {@code total} after its deductions took away {@code deducted} points.
      */
     static RoundScore withJudges(String roundId, double total, double seconds, double deducted,
-                                 Map<String, Double> judgeScores) {
+                                 Map<JudgeId, Double> judgeScores) {
         ScoreBreakdown breakdown = new ScoreBreakdown(
                 RuleEvaluation.of(ScoreItem.of("Puntaje", "-", "-", total + deducted)),
                 RuleEvaluation.empty(),
                 RuleEvaluation.of(ScoreItem.of("Descuentos", "-", "-", -deducted)));
         RawMetrics metrics = RawMetrics.of(seconds, 0, 0, judgeScores);
-        return new RoundScore(roundId, new EvaluationSnapshot(RulebookVersion.first(), metrics, breakdown));
+        return new RoundScore(RoundId.of(roundId), new EvaluationSnapshot(RulebookVersion.first(), metrics, breakdown));
     }
 
     static ChallengeScore allOf(RoundScore... rounds) {

@@ -1,11 +1,12 @@
 package com.roboleague.usecase;
 
-import com.roboleague.support.IdGenerator;
-import com.roboleague.scheduling.*;
-import com.roboleague.tournament.Edition;
-import com.roboleague.tournament.Team;
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.RoundRepository;
+import com.roboleague.scheduling.*;
+import com.roboleague.support.IdGenerator;
+import com.roboleague.tournament.Edition;
+import com.roboleague.tournament.Team;
+import com.roboleague.tournament.TeamId;
 
 import java.util.List;
 import java.util.Objects;
@@ -33,7 +34,7 @@ public class ScheduleRoundUseCase {
         Edition edition = editionRepository.findById(command.editionId())
                 .orElseThrow(() -> new IllegalArgumentException("Edition not found: " + command.editionId()));
 
-        List<String> teamIds = edition.getTeamsByCategory(command.categoryId()).stream()
+        List<TeamId> teamIds = edition.getTeamsByCategory(command.categoryId()).stream()
                 .map(Team::getId)
                 .toList();
 
@@ -42,7 +43,7 @@ public class ScheduleRoundUseCase {
                     + " in edition " + command.editionId());
         }
 
-        String roundId = ids.nextId();
+        RoundId roundId = RoundId.of(ids.nextId());
         RoundScope scope = RoundScope.of(command.editionId(), command.categoryId(), command.roundNumber());
         RoundInfo info = RoundInfo.of(roundId, command.roundName(), scope);
         RoundResources resources = RoundResources.of(command.tracks(), command.judges());

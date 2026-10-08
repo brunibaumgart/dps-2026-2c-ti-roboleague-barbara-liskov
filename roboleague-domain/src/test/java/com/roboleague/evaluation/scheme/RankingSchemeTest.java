@@ -17,6 +17,8 @@ import com.roboleague.evaluation.rules.CountedFaultRule;
 import com.roboleague.evaluation.rules.FaultTariff;
 import com.roboleague.evaluation.rules.PrecisionRule;
 import com.roboleague.evaluation.rules.TimeBasedRule;
+import com.roboleague.scheduling.JudgeId;
+import com.roboleague.scheduling.RoundId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -59,8 +61,8 @@ class RankingSchemeTest {
                 Arguments.of("Menor descuento por penalizaciones", allOf(round("r1", 200.0, 45.0, 10.0)),
                         allOf(round("r1", 200.0, 45.0, 30.0))),
                 Arguments.of("Mayor nota de jueces",
-                        allOf(withJudges("r1", 200.0, 45.0, 10.0, Map.of("j1", 9.0))),
-                        allOf(withJudges("r1", 200.0, 45.0, 10.0, Map.of("j1", 7.0))))
+                        allOf(withJudges("r1", 200.0, 45.0, 10.0, Map.of(JudgeId.of("j1"), 9.0))),
+                        allOf(withJudges("r1", 200.0, 45.0, 10.0, Map.of(JudgeId.of("j1"), 7.0))))
         );
     }
 
@@ -91,7 +93,7 @@ class RankingSchemeTest {
     @Test
     @DisplayName("Un equipo sin rondas queda detrás en tiempo, en descuento y en nota de jueces")
     void givenATeamWithoutRoundsThenItGoesAfterOneWithRounds() {
-        ChallengeScore withRound = allOf(withJudges("r1", 0.0, 50.0, 0.0, Map.of("j1", 5.0)));
+        ChallengeScore withRound = allOf(withJudges("r1", 0.0, 50.0, 0.0, Map.of(JudgeId.of("j1"), 5.0)));
         ChallengeScore withoutRounds = allOf();
         RankingScheme timeThenJudges = new RankingScheme(new AllRounds(),
                 List.of(new HigherTotal(), new LowerTime(), new HigherJudgeScore()));
@@ -130,14 +132,14 @@ class RankingSchemeTest {
     private static RoundScore scoredRound(ScoringScheme scoring, double seconds, Map<String, Double> measurements) {
         RawMetrics run = new RawMetrics(new TrackPerformance(seconds, 0, 0),
                 EvaluationFeedback.withMeasurements(measurements));
-        return new RoundScore("r1", new EvaluationSnapshot(RulebookVersion.first(), run, scoring.evaluate(run)));
+        return new RoundScore(RoundId.of("r1"), new EvaluationSnapshot(RulebookVersion.first(), run, scoring.evaluate(run)));
     }
 
     @Test
     @DisplayName("Rondas sin panel de jueces no cuentan como nota cero")
     void givenRoundsWithoutJudgesThenTheTeamHasNoJudgeScoreAndGoesAfterOneThatHasIt() {
         ChallengeScore withoutJudges = allOf(round("r1", 200.0));
-        ChallengeScore withLowJudgeScore = allOf(withJudges("r1", 200.0, 60.0, 0.0, Map.of("j1", 0.5)));
+        ChallengeScore withLowJudgeScore = allOf(withJudges("r1", 200.0, 60.0, 0.0, Map.of(JudgeId.of("j1"), 0.5)));
 
         assertThat(withoutJudges.judgeScore()).isEmpty();
         assertThat(new HigherJudgeScore().compare(withLowJudgeScore, withoutJudges)).isNegative();

@@ -9,6 +9,7 @@ import com.roboleague.evaluation.scheme.RankingScheme;
 import com.roboleague.repository.ChallengeRepository;
 import com.roboleague.tournament.Challenge;
 import com.roboleague.tournament.ChallengeId;
+import com.roboleague.tournament.EditionId;
 import com.roboleague.usecase.ResolveAppealUseCase;
 import com.roboleague.usecase.SaveThenFailUseCase;
 import org.junit.jupiter.api.DisplayName;
@@ -49,7 +50,7 @@ class TransactionalUseCasesTest {
     @Test
     @DisplayName("Si un caso de uso falla después de guardar, no queda nada guardado")
     void givenAUseCaseThatFailsAfterSavingThenNothingIsSaved() {
-        Challenge maze = Challenge.draft(ChallengeId.of("tx-ch-1"), "ed-tx", "Laberinto").publish(
+        Challenge maze = Challenge.draft(ChallengeId.of("tx-ch-1"), EditionId.of("ed-tx"), "Laberinto").publish(
                 ScoringScheme.withoutBonuses(List.of(TimeBasedRule.standard(100.0, 60.0)), List.of()),
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
 

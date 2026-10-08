@@ -15,8 +15,8 @@ record AttemptDto(String id, String slotId, String roundId, String teamId, Strin
                   String status, List<ResultSource> received, Double score) {
 
     static AttemptDto from(Attempt attempt) {
-        return new AttemptDto(attempt.getId().value(), attempt.getSlotId(), attempt.getRoundId(), attempt.getTeamId(),
-                attempt.getRulebookReference().challengeId(), attempt.getRulebookReference().version().number(),
+        return new AttemptDto(attempt.getId().value(), attempt.getSlotId().value(), attempt.getRoundId().value(), attempt.getTeamId().value(),
+                attempt.getRulebookReference().challengeId().value(), attempt.getRulebookReference().version().number(),
                 attempt.getStatus().name(),
                 attempt.getDeliveries().stream().map(SourceDelivery::source).toList(),
                 attempt.countableScore().map(ScoreBreakdown::totalScore).orElse(null));

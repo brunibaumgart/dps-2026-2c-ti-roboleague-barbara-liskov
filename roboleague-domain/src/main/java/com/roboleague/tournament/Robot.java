@@ -6,17 +6,17 @@ import java.util.Objects;
  * Robot entity representing the hardware competing for a team.
  */
 public class Robot {
-    private final String id;
+    private final RobotId id;
     private final String name;
     private RobotSpecification specification;
 
-    public Robot(String id, String name, RobotSpecification specification) {
+    public Robot(RobotId id, String name, RobotSpecification specification) {
         this.id = Objects.requireNonNull(id, "id cannot be null");
         this.name = Objects.requireNonNull(name, "name cannot be null");
         this.specification = Objects.requireNonNull(specification, "specification cannot be null");
     }
 
-    public String getId() {
+    public RobotId getId() {
         return id;
     }
 

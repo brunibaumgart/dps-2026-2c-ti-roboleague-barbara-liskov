@@ -5,13 +5,10 @@ import java.util.Objects;
 /**
  * Value object representing edition identification details.
  */
-public record EditionHeader(String id, String name, int editionNumber) {
+public record EditionHeader(EditionId id, String name, int editionNumber) {
     public EditionHeader {
         Objects.requireNonNull(id, "id cannot be null");
         Objects.requireNonNull(name, "name cannot be null");
-        if (id.isBlank()) {
-            throw new IllegalArgumentException("edition id cannot be blank");
-        }
         if (name.isBlank()) {
             throw new IllegalArgumentException("edition name cannot be blank");
         }
@@ -20,7 +17,7 @@ public record EditionHeader(String id, String name, int editionNumber) {
         }
     }
 
-    public static EditionHeader of(String id, String name, int editionNumber) {
+    public static EditionHeader of(EditionId id, String name, int editionNumber) {
         return new EditionHeader(id, name, editionNumber);
     }
 }

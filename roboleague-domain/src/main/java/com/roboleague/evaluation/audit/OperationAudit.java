@@ -1,5 +1,7 @@
 package com.roboleague.evaluation.audit;
 
+import com.roboleague.evaluation.AttemptId;
+
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -14,11 +16,11 @@ public record OperationAudit(LocalDateTime timestamp, String firstEventId, Strin
         }
     }
 
-    public EventMetadata firstEvent(String attemptId) {
+    public EventMetadata firstEvent(AttemptId attemptId) {
         return EventMetadata.of(firstEventId, attemptId, timestamp);
     }
 
-    public EventMetadata secondEvent(String attemptId) {
+    public EventMetadata secondEvent(AttemptId attemptId) {
         return EventMetadata.of(secondEventId, attemptId, timestamp);
     }
 }

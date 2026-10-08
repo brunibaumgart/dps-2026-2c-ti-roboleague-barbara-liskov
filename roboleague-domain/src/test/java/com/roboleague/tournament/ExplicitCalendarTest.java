@@ -1,5 +1,6 @@
 package com.roboleague.tournament;
 
+import com.roboleague.support.ActorId;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -12,7 +13,7 @@ class ExplicitCalendarTest {
     @Test
     void newParticipantChecksBirthAgainstTheProvidedCalendarAndRestoreDoesNotUseToday() {
         LocalDate reference = LocalDate.of(2020, 1, 1);
-        MemberProfile profile = MemberProfile.of("m-1", "Participante");
+        MemberProfile profile = MemberProfile.of(ParticipantId.of("m-1"), "Participante");
         assertThatThrownBy(() -> TeamMember.of(profile, reference.plusDays(1), "MEMBER", reference))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("future");
         assertThat(TeamMember.of(profile, reference, "MEMBER", reference).birthDate()).isEqualTo(reference);
@@ -26,8 +27,8 @@ class ExplicitCalendarTest {
     void documentationKeepsTheVerificationTimeSuppliedByTheCaller() {
         Documentation documentation = new Documentation();
         LocalDateTime verifiedAt = LocalDateTime.of(2020, 1, 1, 9, 0);
-        documentation.verify("inspector", verifiedAt);
+        documentation.verify(ActorId.of("inspector"), verifiedAt);
         assertThat(documentation.getVerifiedAt()).isEqualTo(verifiedAt);
-        assertThat(documentation.getVerifiedBy()).isEqualTo("inspector");
+        assertThat(documentation.getVerifiedBy()).isEqualTo(ActorId.of("inspector"));
     }
 }

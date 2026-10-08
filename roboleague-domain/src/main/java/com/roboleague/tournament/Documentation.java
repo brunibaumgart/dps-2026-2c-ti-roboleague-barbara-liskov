@@ -1,5 +1,7 @@
 package com.roboleague.tournament;
 
+import com.roboleague.support.ActorId;
+
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashMap;
@@ -12,7 +14,7 @@ import java.util.Objects;
 public class Documentation {
     private boolean verified;
     private LocalDateTime verifiedAt;
-    private String verifiedBy;
+    private ActorId verifiedBy;
     private String revocationReason;
     private final Map<String, String> documents;
 
@@ -27,7 +29,7 @@ public class Documentation {
         this.documents.put(documentType, fileReference);
     }
 
-    public void verify(String verifiedBy, LocalDateTime verifiedAt) {
+    public void verify(ActorId verifiedBy, LocalDateTime verifiedAt) {
         Objects.requireNonNull(verifiedAt, "verifiedAt cannot be null");
         Objects.requireNonNull(verifiedBy, "verifiedBy cannot be null");
         this.verified = true;
@@ -51,7 +53,7 @@ public class Documentation {
         return verifiedAt;
     }
 
-    public String getVerifiedBy() {
+    public ActorId getVerifiedBy() {
         return verifiedBy;
     }
 

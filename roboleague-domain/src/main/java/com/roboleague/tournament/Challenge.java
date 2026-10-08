@@ -17,7 +17,7 @@ import java.util.Optional;
  */
 public class Challenge {
     private final ChallengeId id;
-    private final String editionId;
+    private final EditionId editionId;
     private final String name;
     private final List<Rulebook> rulebooks;
 
@@ -28,7 +28,7 @@ public class Challenge {
         this.rulebooks = new ArrayList<>(List.of(first));
     }
 
-    public static Draft draft(ChallengeId id, String editionId, String name) {
+    public static Draft draft(ChallengeId id, EditionId editionId, String name) {
         return new Draft(id, editionId, name);
     }
 
@@ -54,14 +54,11 @@ public class Challenge {
     /**
      * A challenge that has not published its first rulebook yet, so it cannot score anything.
      */
-    public record Draft(ChallengeId id, String editionId, String name) {
+    public record Draft(ChallengeId id, EditionId editionId, String name) {
         public Draft {
             Objects.requireNonNull(id, "id cannot be null");
             Objects.requireNonNull(editionId, "editionId cannot be null");
             Objects.requireNonNull(name, "name cannot be null");
-            if (editionId.isBlank()) {
-                throw new IllegalArgumentException("edition id cannot be blank");
-            }
             if (name.isBlank()) {
                 throw new IllegalArgumentException("challenge name cannot be blank");
             }
@@ -76,7 +73,7 @@ public class Challenge {
         return id;
     }
 
-    public String getEditionId() {
+    public EditionId getEditionId() {
         return editionId;
     }
 

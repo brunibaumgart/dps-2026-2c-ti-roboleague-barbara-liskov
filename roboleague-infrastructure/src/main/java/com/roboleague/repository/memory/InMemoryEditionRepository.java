@@ -2,12 +2,13 @@ package com.roboleague.repository.memory;
 
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.tournament.Edition;
+import com.roboleague.tournament.EditionId;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class InMemoryEditionRepository implements EditionRepository {
-    private final Map<String, Edition> storage = new ConcurrentHashMap<>();
+    private final Map<EditionId, Edition> storage = new ConcurrentHashMap<>();
 
     @Override
     public void save(Edition edition) {
@@ -16,7 +17,7 @@ public class InMemoryEditionRepository implements EditionRepository {
     }
 
     @Override
-    public Optional<Edition> findById(String id) {
+    public Optional<Edition> findById(EditionId id) {
         return Optional.ofNullable(storage.get(id));
     }
 

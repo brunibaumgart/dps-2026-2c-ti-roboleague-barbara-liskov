@@ -1,5 +1,6 @@
 package com.roboleague.evaluation.scheme;
 
+import com.roboleague.scheduling.RoundId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -29,7 +30,7 @@ class BestNOfMTest {
 
         ChallengeScore score = new BestNOfM(n, m).select(rounds);
 
-        assertThat(score.considered()).extracting(RoundScore::roundId).containsExactlyElementsOf(considered);
+        assertThat(score.considered()).extracting(RoundScore::roundId).containsExactlyElementsOf(considered.stream().map(RoundId::of).toList());
         assertThat(score.considered().size() + score.discarded().size()).isEqualTo(rounds.size());
         assertThat(score.total()).isEqualTo(expectedTotal);
         assertThat(score.selectionRule()).isEqualTo("mejores " + n + " de " + m + " rondas");

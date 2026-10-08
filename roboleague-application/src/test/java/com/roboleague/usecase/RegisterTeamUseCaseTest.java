@@ -1,6 +1,5 @@
 package com.roboleague.usecase;
 
-import static com.roboleague.support.TestValues.*;
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.TeamRepository;
 import com.roboleague.tournament.*;
@@ -17,6 +16,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.roboleague.support.TestValues.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -40,19 +40,19 @@ class RegisterTeamUseCaseTest {
     @Test
     @DisplayName("Registers team and saves when team meets all eligibility specifications")
     void registersTeamSuccessfullyWhenEligible() {
-        Category category = Category.of("cat-1", "Sumo", 2, 4, 15, 20, 2500);
+        Category category = Category.of(CategoryId.of("cat-1"), "Sumo", 2, 4, 15, 20, 2500);
         Edition edition = mock(Edition.class);
-        when(editionRepository.findById("ed-1")).thenReturn(Optional.of(edition));
+        when(editionRepository.findById(EditionId.of("ed-1"))).thenReturn(Optional.of(edition));
 
-        Robot robot = new Robot("r-1", "Bot", RobotSpecification.of(2000, 100, 100, 100, 2, Set.of()));
-        Team team = Team.of("t-1", "RoboDevs", "ITBA", category, robot, DATE);
+        Robot robot = new Robot(RobotId.of("r-1"), "Bot", RobotSpecification.of(2000, 100, 100, 100, 2, Set.of()));
+        Team team = Team.of(TeamId.of("t-1"), "RoboDevs", "ITBA", category, robot, DATE);
 
         when(eligibilitySpecification.isSatisfiedBy(team)).thenReturn(EligibilityResult.eligible());
 
-        Team result = registerTeamUseCase.execute("ed-1", team);
+        Team result = registerTeamUseCase.execute(EditionId.of("ed-1"), team);
 
         assertThat(result).isNotNull();
-        assertThat(result.getId()).isEqualTo("t-1");
+        assertThat(result.getId()).isEqualTo(TeamId.of("t-1"));
         verify(edition).registerTeam(team);
         verify(teamRepository).save(team);
         verify(editionRepository).save(edition);
@@ -61,17 +61,17 @@ class RegisterTeamUseCaseTest {
     @Test
     @DisplayName("Throws TeamIneligibleException and does not save when eligibility fails")
     void throwsExceptionWhenIneligible() {
-        Category category = Category.of("cat-1", "Sumo", 2, 4, 15, 20, 2500);
+        Category category = Category.of(CategoryId.of("cat-1"), "Sumo", 2, 4, 15, 20, 2500);
         Edition edition = mock(Edition.class);
-        when(editionRepository.findById("ed-1")).thenReturn(Optional.of(edition));
+        when(editionRepository.findById(EditionId.of("ed-1"))).thenReturn(Optional.of(edition));
 
-        Robot robot = new Robot("r-1", "Bot", RobotSpecification.of(2000, 100, 100, 100, 2, Set.of()));
-        Team team = Team.of("t-1", "RoboDevs", "ITBA", category, robot, DATE);
+        Robot robot = new Robot(RobotId.of("r-1"), "Bot", RobotSpecification.of(2000, 100, 100, 100, 2, Set.of()));
+        Team team = Team.of(TeamId.of("t-1"), "RoboDevs", "ITBA", category, robot, DATE);
 
         when(eligibilitySpecification.isSatisfiedBy(team))
                 .thenReturn(EligibilityResult.ineligible(List.of("Robot exceeds maximum weight limit")));
 
-        assertThatThrownBy(() -> registerTeamUseCase.execute("ed-1", team))
+        assertThatThrownBy(() -> registerTeamUseCase.execute(EditionId.of("ed-1"), team))
                 .isInstanceOf(TeamIneligibleException.class)
                 .hasMessageContaining("Robot exceeds maximum weight limit");
 

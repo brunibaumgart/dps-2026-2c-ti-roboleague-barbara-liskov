@@ -1,5 +1,6 @@
 package com.roboleague.evaluation;
 
+import com.roboleague.scheduling.SlotId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -11,7 +12,7 @@ class AttemptIdTest {
 
     @Test
     void givenASlotAndANumberThenTheIdIsTheSlotDashTheNumber() {
-        assertThat(AttemptId.of("slot-7", 2).value()).isEqualTo("slot-7-2");
+        assertThat(AttemptId.of(SlotId.of("slot-7"), 2).value()).isEqualTo("slot-7-2");
     }
 
     @ParameterizedTest
@@ -24,7 +25,7 @@ class AttemptIdTest {
     void givenAnIdWithADashedSlotThenTheNumberIsWhatFollowsTheLastDash() {
         AttemptId id = AttemptId.parse("3f2a9c1e-5b7d-1");
 
-        assertThat(id.slotId()).isEqualTo("3f2a9c1e-5b7d");
+        assertThat(id.slotId()).isEqualTo(SlotId.of("3f2a9c1e-5b7d"));
         assertThat(id.number()).isEqualTo(1);
     }
 
@@ -38,14 +39,14 @@ class AttemptIdTest {
     @ParameterizedTest
     @ValueSource(ints = {0, -1})
     void givenANumberBelowOneThenItIsRejected(int number) {
-        assertThatThrownBy(() -> AttemptId.of("slot-7", number))
+        assertThatThrownBy(() -> AttemptId.of(SlotId.of("slot-7"), number))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("positive");
     }
 
     @Test
     void givenABlankSlotThenItIsRejected() {
-        assertThatThrownBy(() -> AttemptId.of(" ", 1))
+        assertThatThrownBy(() -> AttemptId.of(SlotId.of(" "), 1))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("slotId");
     }

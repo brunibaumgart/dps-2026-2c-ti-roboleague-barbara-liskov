@@ -1,6 +1,9 @@
 package com.roboleague.ranking.appeal;
 
+import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.RawMetrics;
+import com.roboleague.support.ActorId;
+import com.roboleague.tournament.TeamId;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -15,7 +18,7 @@ public class Appeal {
     private final LocalDateTime submittedAt;
 
     private AppealState state;
-    private String reviewerId;
+    private ActorId reviewerId;
     private String resolutionNotes;
     private RawMetrics revisedMetrics;
     private LocalDateTime resolvedAt;
@@ -50,15 +53,15 @@ public class Appeal {
         return claim;
     }
 
-    public String getAppealId() {
+    public AppealId getAppealId() {
         return target.appealId();
     }
 
-    public String getAttemptId() {
+    public AttemptId getAttemptId() {
         return target.attemptId();
     }
 
-    public String getTeamId() {
+    public TeamId getTeamId() {
         return target.teamId();
     }
 
@@ -82,11 +85,11 @@ public class Appeal {
         return state.getStateName();
     }
 
-    public String getReviewerId() {
+    public ActorId getReviewerId() {
         return reviewerId;
     }
 
-    public void setReviewerId(String reviewerId) {
+    public void setReviewerId(ActorId reviewerId) {
         this.reviewerId = reviewerId;
     }
 
@@ -110,22 +113,22 @@ public class Appeal {
         this.state = Objects.requireNonNull(newState, "newState cannot be null");
     }
 
-    void setResolution(String resolutionNotes, RawMetrics revisedMetrics, String reviewerId) {
+    void setResolution(String resolutionNotes, RawMetrics revisedMetrics, ActorId reviewerId) {
         this.resolutionNotes = resolutionNotes;
         this.revisedMetrics = revisedMetrics;
         this.reviewerId = reviewerId;
     }
 
-    public void beginReview(String reviewerId) {
+    public void beginReview(ActorId reviewerId) {
         state.beginReview(this, reviewerId);
     }
 
-    public void accept(String resolutionNotes, RawMetrics revisedMetrics, String reviewerId, LocalDateTime resolvedAt) {
+    public void accept(String resolutionNotes, RawMetrics revisedMetrics, ActorId reviewerId, LocalDateTime resolvedAt) {
         Objects.requireNonNull(resolvedAt, "resolvedAt cannot be null");
         state.accept(this, resolutionNotes, revisedMetrics, reviewerId, resolvedAt);
     }
 
-    public void reject(String resolutionNotes, String reviewerId, LocalDateTime resolvedAt) {
+    public void reject(String resolutionNotes, ActorId reviewerId, LocalDateTime resolvedAt) {
         Objects.requireNonNull(resolvedAt, "resolvedAt cannot be null");
         state.reject(this, resolutionNotes, reviewerId, resolvedAt);
     }
@@ -158,7 +161,7 @@ public class Appeal {
         return new Appeal(target, claim, submittedAt);
     }
 
-    public static Appeal of(String appealId, String attemptId, String teamId, String reason, String evidenceDescription, LocalDateTime submittedAt) {
+    public static Appeal of(AppealId appealId, AttemptId attemptId, TeamId teamId, String reason, String evidenceDescription, LocalDateTime submittedAt) {
         return new Appeal(
                 new AppealTarget(appealId, attemptId, teamId),
                 new AppealClaim(reason, evidenceDescription),

@@ -8,7 +8,7 @@ import com.roboleague.tournament.Challenge;
 record ChallengeDto(String id, String editionId, String name, RulebookDto currentRulebook) {
 
     static ChallengeDto from(Challenge challenge) {
-        return new ChallengeDto(challenge.getId().value(), challenge.getEditionId(), challenge.getName(),
+        return new ChallengeDto(challenge.getId().value(), challenge.getEditionId().value(), challenge.getName(),
                 RulebookDto.from(challenge.currentRulebook()));
     }
 }

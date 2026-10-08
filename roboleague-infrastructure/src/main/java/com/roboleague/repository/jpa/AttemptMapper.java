@@ -1,7 +1,7 @@
 package com.roboleague.repository.jpa;
 
-import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.Attempt.AttemptStatus;
+import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.AttemptIdentity;
 import com.roboleague.evaluation.AttemptProgress;
@@ -35,6 +35,7 @@ import com.roboleague.evaluation.audit.SnapshotMetadata;
 import com.roboleague.evaluation.audit.SourceReceivedEvent;
 import com.roboleague.evaluation.audit.TeamJudgeBinding;
 import com.roboleague.evaluation.rules.ScoreRule.RuleEvaluation;
+import com.roboleague.ranking.appeal.AppealId;
 import com.roboleague.repository.jpa.AttemptJpaEntity.BreakdownJson;
 import com.roboleague.repository.jpa.AttemptJpaEntity.DeliveryJson;
 import com.roboleague.repository.jpa.AttemptJpaEntity.EvaluationJson;
@@ -43,6 +44,12 @@ import com.roboleague.repository.jpa.AttemptJpaEntity.HistoryJson;
 import com.roboleague.repository.jpa.AttemptJpaEntity.ItemJson;
 import com.roboleague.repository.jpa.AttemptJpaEntity.RevisionJson;
 import com.roboleague.repository.jpa.AttemptJpaEntity.SectionJson;
+import com.roboleague.scheduling.JudgeId;
+import com.roboleague.scheduling.RoundId;
+import com.roboleague.scheduling.SlotId;
+import com.roboleague.support.ActorId;
+import com.roboleague.tournament.ChallengeId;
+import com.roboleague.tournament.TeamId;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -59,11 +66,11 @@ final class AttemptMapper {
     static AttemptJpaEntity toEntity(Attempt attempt) {
         AttemptJpaEntity entity = new AttemptJpaEntity();
         entity.id = attempt.getId().value();
-        entity.slotId = attempt.getId().slotId();
+        entity.slotId = attempt.getId().slotId().value();
         entity.attemptNumber = attempt.getId().number();
-        entity.roundId = attempt.getRoundId();
-        entity.teamId = attempt.getTeamId();
-        entity.challengeId = attempt.getRulebookReference().challengeId();
+        entity.roundId = attempt.getRoundId().value();
+        entity.teamId = attempt.getTeamId().value();
+        entity.challengeId = attempt.getRulebookReference().challengeId().value();
         entity.rulebookVersion = attempt.getRulebookReference().version().number();
         AttemptStage stage = attempt.getStage();
         entity.status = stage.status().name();
@@ -77,9 +84,9 @@ final class AttemptMapper {
     }
 
     static Attempt toDomain(AttemptJpaEntity entity) {
-        AttemptIdentity identity = new AttemptIdentity(AttemptId.of(entity.slotId, entity.attemptNumber),
-                entity.roundId, entity.teamId);
-        RulebookReference rulebook = new RulebookReference(entity.challengeId,
+        AttemptIdentity identity = new AttemptIdentity(AttemptId.of(SlotId.of(entity.slotId), entity.attemptNumber),
+                RoundId.of(entity.roundId), TeamId.of(entity.teamId));
+        RulebookReference rulebook = new RulebookReference(ChallengeId.of(entity.challengeId),
                 new RulebookVersion(entity.rulebookVersion));
         AttemptStage stage = new AttemptStage(AttemptStatus.valueOf(entity.status), entity.openAppeals,
                 entity.settledStatus == null ? null : AttemptStatus.valueOf(entity.settledStatus));
@@ -92,7 +99,7 @@ final class AttemptMapper {
 
     private static DeliveryJson toJson(SourceDelivery delivery) {
         RawMetrics sent = delivery.report().addTo(RawMetrics.nothingMeasured());
-        return new DeliveryJson(delivery.source().name(), delivery.judgeId(), MetricsJson.of(sent));
+        return new DeliveryJson(delivery.source().name(), delivery.judgeId().value(), MetricsJson.of(sent));
     }
 
     private static SourceDelivery toDelivery(DeliveryJson json) {
@@ -101,19 +108,19 @@ final class AttemptMapper {
             case AUTOMATIC_MEASUREMENTS -> new Measurements(
                     new TrackPerformance(sent.timeTakenSeconds(), sent.objectivesCompleted(), sent.penaltiesCount()),
                     sent.resourceConsumption(), sent.customMetrics());
-            case JUDGE_PANEL -> new JudgeScores(sent.judgeSubjectiveScores(), sent.customMetrics());
-        }, json.judgeId());
+            case JUDGE_PANEL -> new JudgeScores(sent.typedJudgeScores(), sent.customMetrics());
+        }, JudgeId.of(json.judgeId()));
     }
 
     private static RevisionJson toJson(AttemptScoreSnapshot revision) {
-        return new RevisionJson(revision.revisionNumber(), revision.snapshotId(), revision.authorOrJudgeId(),
+        return new RevisionJson(revision.revisionNumber(), revision.snapshotId(), revision.authorOrJudgeId().value(),
                 revision.timestamp().toString(), revision.reason(), toJson(revision.evaluation()));
     }
 
     private static AttemptScoreSnapshot toRevision(RevisionJson json) {
         return new AttemptScoreSnapshot(
                 new SnapshotMetadata(new SnapshotIdentity(json.snapshotId(), json.number()),
-                        new AuditAuthor(json.authorId(), LocalDateTime.parse(json.timestamp()))),
+                        new AuditAuthor(ActorId.of(json.authorId()), LocalDateTime.parse(json.timestamp()))),
                 toEvaluation(json.evaluation()), json.reason());
     }
 
@@ -148,35 +155,35 @@ final class AttemptMapper {
         String id = event.eventId();
         String at = event.timestamp().toString();
         return switch (event) {
-            case SourceReceivedEvent received -> new EventJson(type, id, at, received.judgeId(),
+            case SourceReceivedEvent received -> new EventJson(type, id, at, received.judgeId().value(),
                     received.source().name(), null, null, null, null, null);
-            case ResultRegisteredEvent registered -> new EventJson(type, id, at, registered.judgeId(), null, null,
-                    null, null, registered.teamId(), toJson(registered.evaluation()));
-            case PenaltyAppliedEvent penalty -> new EventJson(type, id, at, penalty.judgeId(), null, penalty.reason(),
+            case ResultRegisteredEvent registered -> new EventJson(type, id, at, registered.judgeId().value(), null, null,
+                    null, null, registered.teamId().value(), toJson(registered.evaluation()));
+            case PenaltyAppliedEvent penalty -> new EventJson(type, id, at, penalty.authorId().value(), null, penalty.reason(),
                     penalty.additionalPenalties(), null, null, null);
-            case ScoreAdjustedEvent adjusted -> new EventJson(type, id, at, adjusted.authorId(), null,
+            case ScoreAdjustedEvent adjusted -> new EventJson(type, id, at, adjusted.authorId().value(), null,
                     adjusted.reason(), adjusted.newRevisionNumber(), null, null, toJson(adjusted.evaluation()));
-            case AppealAcceptedEvent accepted -> new EventJson(type, id, at, accepted.reviewerId(), null,
-                    accepted.resolutionNotes(), null, accepted.appealId(), null, null);
-            case AttemptDisqualifiedEvent disqualified -> new EventJson(type, id, at, disqualified.judgeId(), null,
+            case AppealAcceptedEvent accepted -> new EventJson(type, id, at, accepted.reviewerId().value(), null,
+                    accepted.resolutionNotes(), null, accepted.appealId().value(), null, null);
+            case AttemptDisqualifiedEvent disqualified -> new EventJson(type, id, at, disqualified.judgeId().value(), null,
                     disqualified.reason(), null, null, null, null);
         };
     }
 
     private static AttemptEvent toEvent(String attemptId, EventJson json) {
-        EventMetadata metadata = new EventMetadata(json.eventId(), attemptId, LocalDateTime.parse(json.timestamp()));
+        EventMetadata metadata = new EventMetadata(json.eventId(), AttemptId.parse(attemptId), LocalDateTime.parse(json.timestamp()));
         return switch (json.type()) {
             case "SOURCE_RECEIVED" ->
-                    new SourceReceivedEvent(metadata, ResultSource.valueOf(json.source()), json.actorId());
+                    new SourceReceivedEvent(metadata, ResultSource.valueOf(json.source()), JudgeId.of(json.actorId()));
             case "RESULT_REGISTERED" -> new ResultRegisteredEvent(metadata, toEvaluation(json.evaluation()),
-                    new TeamJudgeBinding(json.teamId(), json.actorId()));
+                    new TeamJudgeBinding(TeamId.of(json.teamId()), JudgeId.of(json.actorId())));
             case "PENALTY_APPLIED" ->
-                    new PenaltyAppliedEvent(metadata, new PenaltyDetail(json.number(), json.reason()), json.actorId());
+                    new PenaltyAppliedEvent(metadata, new PenaltyDetail(json.number(), json.reason()), ActorId.of(json.actorId()));
             case "SCORE_ADJUSTED" -> new ScoreAdjustedEvent(metadata, toEvaluation(json.evaluation()),
-                    new ScoreAdjustmentDetails(json.number(), json.reason(), json.actorId()));
+                    new ScoreAdjustmentDetails(json.number(), json.reason(), ActorId.of(json.actorId())));
             case "APPEAL_ACCEPTED" -> new AppealAcceptedEvent(metadata,
-                    new AppealResolution(json.appealId(), json.reason()), json.actorId());
-            case "ATTEMPT_DISQUALIFIED" -> new AttemptDisqualifiedEvent(metadata, json.reason(), json.actorId());
+                    new AppealResolution(AppealId.of(json.appealId()), json.reason()), ActorId.of(json.actorId()));
+            case "ATTEMPT_DISQUALIFIED" -> new AttemptDisqualifiedEvent(metadata, json.reason(), JudgeId.of(json.actorId()));
             default -> throw new IllegalStateException("Unknown stored attempt event: " + json.type());
         };
     }

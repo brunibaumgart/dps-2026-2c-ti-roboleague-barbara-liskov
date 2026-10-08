@@ -79,6 +79,11 @@ no exigir una interfaz para cada clase ni patrones sin una necesidad del cambio.
   Documentar las instrucciones compartidas en español.
 - Ubicar invariantes y cálculos en el dominio; coordinar repositorios desde los
   casos de uso y traducir entrada/salida en los adaptadores.
+- Usar identidades tipadas del dominio en entidades, commands, referencias, mapas
+  y puertos. Convertir texto explícitamente en controllers/mappers; conservar
+  strings en HTTP y persistencia. No agregar overloads String al núcleo para
+  eludir los tipos. Autores de roles diversos usan `ActorId`; jueces usan
+  `JudgeId`, con conversión explícita `asActorId()` para auditoría.
 - Seguir las fábricas, records, resultados `sealed` y estados existentes cuando
   correspondan al problema. No agregar setters o anotaciones de framework a
   agregados para facilitar serialización o persistencia.

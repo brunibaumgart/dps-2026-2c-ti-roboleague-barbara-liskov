@@ -1,5 +1,7 @@
 package com.roboleague.scheduling;
 
+import com.roboleague.tournament.TeamId;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,15 +39,15 @@ public class Slot {
         return identity;
     }
 
-    public String getSlotId() {
+    public SlotId getSlotId() {
         return identity.slotId();
     }
 
-    public String getRoundId() {
+    public RoundId getRoundId() {
         return identity.roundId();
     }
 
-    public String getTeamId() {
+    public TeamId getTeamId() {
         return identity.teamId();
     }
 
@@ -69,7 +71,7 @@ public class Slot {
         return Collections.unmodifiableList(assignedJudges);
     }
 
-    public boolean isJudgedBy(String judgeId) {
+    public boolean isJudgedBy(JudgeId judgeId) {
         return assignedJudges.stream().anyMatch(judge -> judge.id().equals(judgeId));
     }
 

@@ -1,24 +1,26 @@
 package com.roboleague.usecase;
 
-import com.roboleague.support.Clock;
-import com.roboleague.support.IdGenerator;
-import com.roboleague.evaluation.audit.OperationAudit;
 import com.roboleague.evaluation.AppealRevision;
 import com.roboleague.evaluation.Attempt;
-import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookReference;
 import com.roboleague.evaluation.audit.AuditNote;
-import com.roboleague.ranking.Ranking;
+import com.roboleague.evaluation.audit.OperationAudit;
 import com.roboleague.ranking.appeal.Appeal;
+import com.roboleague.ranking.appeal.AppealId;
 import com.roboleague.repository.AppealRepository;
 import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.ChallengeRepository;
+import com.roboleague.scheduling.RoundId;
+import com.roboleague.support.ActorId;
+import com.roboleague.support.Clock;
+import com.roboleague.support.IdGenerator;
+import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.Challenge;
-import com.roboleague.tournament.ChallengeId;
 
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Use case to formally resolve an appeal (Accept or Reject).
@@ -49,16 +51,16 @@ public class ResolveAppealUseCase {
     /**
      * Accepts the appeal and rescores the attempt with its own rulebook version: the caller does not choose the rules.
      */
-    public Appeal acceptAppeal(String appealId, String categoryId, String roundId,
-                               String resolutionNotes, RawMetrics revisedMetrics, String reviewerId) {
+    public Appeal acceptAppeal(AppealId appealId, CategoryId categoryId, Optional<RoundId> roundId,
+                               String resolutionNotes, RawMetrics revisedMetrics, ActorId reviewerId) {
         Appeal appeal = appealRepository.findById(appealId)
                 .orElseThrow(() -> new IllegalArgumentException("Appeal not found: " + appealId));
 
-        Attempt attempt = attemptRepository.findById(AttemptId.parse(appeal.getAttemptId()))
+        Attempt attempt = attemptRepository.findById(appeal.getAttemptId())
                 .orElseThrow(() -> new IllegalArgumentException("Attempt not found: " + appeal.getAttemptId()));
 
         RulebookReference scoredWith = attempt.getRulebookReference();
-        Challenge challenge = challengeRepository.findById(ChallengeId.of(scoredWith.challengeId()))
+        Challenge challenge = challengeRepository.findById(scoredWith.challengeId())
                 .orElseThrow(() -> new IllegalStateException("Challenge of attempt " + attempt.getId()
                         + " not found: " + scoredWith.challengeId()));
         Rulebook rulebook = challenge.rulebook(scoredWith.version())
@@ -81,11 +83,11 @@ public class ResolveAppealUseCase {
         return appeal;
     }
 
-    public Appeal rejectAppeal(String appealId, String resolutionNotes, String reviewerId) {
+    public Appeal rejectAppeal(AppealId appealId, String resolutionNotes, ActorId reviewerId) {
         Appeal appeal = appealRepository.findById(appealId)
                 .orElseThrow(() -> new IllegalArgumentException("Appeal not found: " + appealId));
 
-        Attempt attempt = attemptRepository.findById(AttemptId.parse(appeal.getAttemptId()))
+        Attempt attempt = attemptRepository.findById(appeal.getAttemptId())
                 .orElseThrow(() -> new IllegalArgumentException("Attempt not found: " + appeal.getAttemptId()));
 
         appeal.reject(resolutionNotes, reviewerId, clock.now());

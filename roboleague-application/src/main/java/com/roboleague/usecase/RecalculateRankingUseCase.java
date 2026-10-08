@@ -1,15 +1,20 @@
 package com.roboleague.usecase;
 
-import com.roboleague.support.Clock;
-import com.roboleague.support.IdGenerator;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.ranking.Ranking;
 import com.roboleague.ranking.RankingCalculatorService;
+import com.roboleague.ranking.RankingId;
 import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.RankingRepository;
+import com.roboleague.scheduling.RoundId;
+import com.roboleague.support.Clock;
+import com.roboleague.support.IdGenerator;
+import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.Edition;
+import com.roboleague.tournament.EditionId;
 import com.roboleague.tournament.Team;
+import com.roboleague.tournament.TeamId;
 
 import java.util.*;
 
@@ -38,24 +43,24 @@ public class RecalculateRankingUseCase {
         this.rankingCalculatorService = Objects.requireNonNull(rankingCalculatorService, "rankingCalculatorService cannot be null");
     }
 
-    public Ranking execute(String editionId, String categoryId, String roundId) {
+    public Ranking execute(EditionId editionId, CategoryId categoryId, Optional<RoundId> roundId) {
         Edition edition = editionRepository.findById(editionId)
                 .orElseThrow(() -> new IllegalArgumentException("Edition not found: " + editionId));
 
         List<Team> teams = edition.getTeamsByCategory(categoryId);
-        Map<String, List<Attempt>> attemptsByTeam = new HashMap<>();
+        Map<TeamId, List<Attempt>> attemptsByTeam = new HashMap<>();
 
         for (Team team : teams) {
             List<Attempt> teamAttempts = attemptRepository.findByTeamId(team.getId());
-            if (roundId != null && !roundId.isEmpty()) {
+            if (roundId.isPresent()) {
                 teamAttempts = teamAttempts.stream()
-                        .filter(a -> a.getRoundId().equals(roundId))
+                        .filter(a -> a.getRoundId().equals(roundId.orElseThrow()))
                         .toList();
             }
             attemptsByTeam.put(team.getId(), teamAttempts);
         }
 
-        String rankingId = ids.nextId();
+        RankingId rankingId = RankingId.of(ids.nextId());
         Ranking ranking = rankingCalculatorService.calculateProvisionalRanking(
                 rankingId, editionId, categoryId, roundId, teams, attemptsByTeam, clock.now()
         );

@@ -27,7 +27,7 @@ public class Edition {
         return context;
     }
 
-    public String getId() {
+    public EditionId getId() {
         return context.header().id();
     }
 
@@ -82,7 +82,7 @@ public class Edition {
         registeredTeams.add(team);
     }
 
-    public List<Team> getTeamsByCategory(String categoryId) {
+    public List<Team> getTeamsByCategory(CategoryId categoryId) {
         return registeredTeams.stream()
                 .filter(t -> t.getCategory().id().equals(categoryId))
                 .toList();
@@ -92,7 +92,7 @@ public class Edition {
         return new Edition(context, dates);
     }
 
-    public static Edition of(String id, Tournament tournament, int editionNumber, String name,
+    public static Edition of(EditionId id, Tournament tournament, int editionNumber, String name,
                               LocalDate startDate, LocalDate endDate, List<Category> categories) {
         Edition edition = new Edition(
                 new EditionContext(tournament, new EditionHeader(id, name, editionNumber)),

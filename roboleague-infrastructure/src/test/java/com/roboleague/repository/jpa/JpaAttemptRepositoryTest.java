@@ -1,10 +1,9 @@
 package com.roboleague.repository.jpa;
 
-import static com.roboleague.support.TestValues.*;
 import com.roboleague.PostgresContainer;
 import com.roboleague.evaluation.AppealRevision;
-import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.Attempt.AttemptStatus;
+import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.AttemptIdentity;
 import com.roboleague.evaluation.AttemptStage;
@@ -33,6 +32,13 @@ import com.roboleague.evaluation.rules.VictimsRule;
 import com.roboleague.evaluation.scheme.AllRounds;
 import com.roboleague.evaluation.scheme.HigherTotal;
 import com.roboleague.evaluation.scheme.RankingScheme;
+import com.roboleague.ranking.appeal.AppealId;
+import com.roboleague.scheduling.JudgeId;
+import com.roboleague.scheduling.RoundId;
+import com.roboleague.scheduling.SlotId;
+import com.roboleague.support.ActorId;
+import com.roboleague.tournament.ChallengeId;
+import com.roboleague.tournament.TeamId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +53,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.util.List;
 import java.util.Map;
 
+import static com.roboleague.support.TestValues.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -64,12 +71,15 @@ class JpaAttemptRepositoryTest {
                     List.of(new PenaltyRule("Faltas", 10.0))),
             new CappedAt(10.0)), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
     private static final SourceDelivery SENSORS = new SourceDelivery(
-            new Measurements(new TrackPerformance(90.0, 4, 1), 12.5, Map.of()), "j-1");
+            new Measurements(new TrackPerformance(90.0, 4, 1), 12.5, Map.of()), JudgeId.of("j-1"));
     private static final SourceDelivery PANEL = new SourceDelivery(
-            new JudgeScores(Map.of("j-1", 8.0, "j-2", 6.0), Map.of(RESCUED.name(), 2.0)), "j-2");
+            new JudgeScores(Map.of(JudgeId.of("j-1"), 8.0, JudgeId.of("j-2"), 6.0), Map.of(RESCUED.name(), 2.0)), JudgeId.of("j-2"));
 
     @Autowired
     private JpaAttemptRepository repository;
+
+    @Autowired
+    private jakarta.persistence.EntityManager entityManager;
 
     @Autowired
     private PlatformTransactionManager transactionManager;
@@ -115,7 +125,7 @@ class JpaAttemptRepositoryTest {
     void givenSavesInsideTransactionsThenTheRememberedVersionStaysCurrent() {
         TransactionTemplate useCase = new TransactionTemplate(transactionManager);
         repository.save(attempt("slot-race-4", "r-race", "t-race"));
-        Attempt loaded = repository.findById(AttemptId.of("slot-race-4", 1)).orElseThrow();
+        Attempt loaded = repository.findById(AttemptId.of(SlotId.of("slot-race-4"), 1)).orElseThrow();
 
         useCase.executeWithoutResult(status -> {
             loaded.receive(SENSORS, RESCUE, audit());
@@ -154,7 +164,7 @@ class JpaAttemptRepositoryTest {
 
         assertThat(stored.getStatus()).isEqualTo(AttemptStatus.AWAITING_SOURCES);
         assertThat(stored.getDeliveries()).containsExactly(SENSORS);
-        assertThat(stored.getRulebookReference()).isEqualTo(new RulebookReference("ch-rescue", RulebookVersion.first()));
+        assertThat(stored.getRulebookReference()).isEqualTo(new RulebookReference(ChallengeId.of("ch-rescue"), RulebookVersion.first()));
         stored.receive(PANEL, RESCUE, audit());
         // 4 zones => 60; 2 victims => 50; judges 7 * 5 => 35; bonus 20 capped at 10; 1 fault => -10
         assertThat(stored.getFinalScore()).isEqualTo(145.0);
@@ -166,11 +176,11 @@ class JpaAttemptRepositoryTest {
         Attempt attempt = attempt("slot-2", "r-1", "t-1");
         attempt.receive(SENSORS, RESCUE, audit());
         attempt.receive(PANEL, RESCUE, audit());
-        attempt.applyPenaltyAdjustment(1, new AuditNote("j-2", "Falta vista en video"), RESCUE, audit());
+        attempt.applyPenaltyAdjustment(1, new AuditNote(ActorId.of("j-2"), "Falta vista en video"), RESCUE, audit());
         attempt.markUnderAppeal();
         attempt.markUnderAppeal();
-        attempt.adjustAfterAppeal(new AppealRevision("app-1", attempt.getLatestMetrics().withPenalties(0),
-                new AuditNote("arb-1", "Las faltas no existieron")), RESCUE, audit());
+        attempt.adjustAfterAppeal(new AppealRevision(AppealId.of("app-1"), attempt.getLatestMetrics().withPenalties(0),
+                new AuditNote(ActorId.of("arb-1"), "Las faltas no existieron")), RESCUE, audit());
 
         repository.save(attempt);
         Attempt stored = repository.findById(attempt.getId()).orElseThrow();
@@ -191,7 +201,7 @@ class JpaAttemptRepositoryTest {
         Attempt attempt = attempt("slot-3", "r-1", "t-1");
         attempt.receive(SENSORS, RESCUE, audit());
         attempt.receive(PANEL, RESCUE, audit());
-        attempt.disqualify("Robot fuera de pista", "j-1", audit());
+        attempt.disqualify("Robot fuera de pista", JudgeId.of("j-1"), audit());
 
         repository.save(attempt);
         Attempt stored = repository.findById(attempt.getId()).orElseThrow();
@@ -209,15 +219,48 @@ class JpaAttemptRepositoryTest {
         repository.save(attempt("slot-5", "r-find-1", "t-find-b"));
         repository.save(attempt("slot-6", "r-find-2", "t-find-a"));
 
-        assertThat(repository.findByTeamId("t-find-a")).extracting(stored -> stored.getId().slotId())
+        assertThat(repository.findByTeamId(TeamId.of("t-find-a"))).extracting(stored -> stored.getId().slotId().value())
                 .containsExactlyInAnyOrder("slot-4", "slot-6");
-        assertThat(repository.findByRoundId("r-find-1")).extracting(stored -> stored.getId().slotId())
+        assertThat(repository.findByRoundId(RoundId.of("r-find-1"))).extracting(stored -> stored.getId().slotId().value())
                 .containsExactlyInAnyOrder("slot-4", "slot-5");
-        assertThat(repository.findById(AttemptId.of("slot-unknown", 1))).isEmpty();
+        assertThat(repository.findById(AttemptId.of(SlotId.of("slot-unknown"), 1))).isEmpty();
+    }
+
+    @Test
+    void readsHistoricalTextualIdsAndWritesTheSameKeys() {
+        entityManager.createNativeQuery("""
+                INSERT INTO attempts (id, slot_id, attempt_number, round_id, team_id, challenge_id,
+                                      rulebook_version, status, open_appeals, history, version)
+                VALUES ('legacy-slot-with-dashes-2', 'legacy-slot-with-dashes', 2, 'Legacy Round',
+                        'Legacy Team', 'Legacy Challenge', 1, 'SCHEDULED', 0,
+                        '{"deliveries":[],"revisions":[],"events":[]}', 0)
+                """).executeUpdate();
+        entityManager.clear();
+
+        AttemptId id = AttemptId.parse("legacy-slot-with-dashes-2");
+        Attempt historical = repository.findById(id).orElseThrow();
+        assertThat(historical.getSlotId()).isEqualTo(SlotId.of("legacy-slot-with-dashes"));
+        assertThat(historical.getRoundId()).isEqualTo(RoundId.of("Legacy Round"));
+        assertThat(historical.getTeamId()).isEqualTo(TeamId.of("Legacy Team"));
+        assertThat(historical.getRulebookReference().challengeId()).isEqualTo(ChallengeId.of("Legacy Challenge"));
+        assertThat(repository.findByTeamId(TeamId.of("Legacy Team"))).extracting(Attempt::getId).containsExactly(id);
+        assertThat(repository.findByRoundId(RoundId.of("Legacy Round"))).extracting(Attempt::getId).containsExactly(id);
+
+        historical.receive(SENSORS, RESCUE, audit());
+        repository.save(historical);
+        entityManager.clear();
+        Object[] stored = (Object[]) entityManager.createNativeQuery("""
+                SELECT id, slot_id, round_id, team_id, challenge_id,
+                       history -> 'deliveries' -> 0 ->> 'judgeId'
+                  FROM attempts WHERE id = 'legacy-slot-with-dashes-2'
+                """).getSingleResult();
+        assertThat(stored).containsExactly("legacy-slot-with-dashes-2", "legacy-slot-with-dashes",
+                "Legacy Round", "Legacy Team", "Legacy Challenge", "j-1");
+        assertThat(repository.findById(id).orElseThrow().getDeliveries()).containsExactly(SENSORS);
     }
 
     private static Attempt attempt(String slotId, String roundId, String teamId) {
-        return Attempt.of(new AttemptIdentity(AttemptId.of(slotId, 1), roundId, teamId),
-                RulebookReference.of("ch-rescue", RESCUE));
+        return Attempt.of(new AttemptIdentity(AttemptId.of(SlotId.of(slotId), 1), RoundId.of(roundId), TeamId.of(teamId)),
+                RulebookReference.of(ChallengeId.of("ch-rescue"), RESCUE));
     }
 }

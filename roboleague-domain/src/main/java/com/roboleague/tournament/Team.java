@@ -30,7 +30,7 @@ public class Team {
         return profile;
     }
 
-    public String getId() {
+    public TeamId getId() {
         return profile.id();
     }
 
@@ -70,7 +70,7 @@ public class Team {
         members.add(member);
     }
 
-    public void removeMember(String memberId) {
+    public void removeMember(ParticipantId memberId) {
         members.removeIf(m -> m.id().equals(memberId));
     }
 
@@ -86,11 +86,11 @@ public class Team {
         return new Team(profile, category, robot, registrationDate);
     }
 
-    public static Team of(String id, String name, Category category, Robot robot, LocalDate registrationDate) {
+    public static Team of(TeamId id, String name, Category category, Robot robot, LocalDate registrationDate) {
         return new Team(new TeamProfile(id, name, ""), category, robot, registrationDate);
     }
 
-    public static Team of(String id, String name, String institution, Category category, Robot robot, LocalDate registrationDate) {
+    public static Team of(TeamId id, String name, String institution, Category category, Robot robot, LocalDate registrationDate) {
         return new Team(new TeamProfile(id, name, institution != null ? institution : ""), category, robot, registrationDate);
     }
 

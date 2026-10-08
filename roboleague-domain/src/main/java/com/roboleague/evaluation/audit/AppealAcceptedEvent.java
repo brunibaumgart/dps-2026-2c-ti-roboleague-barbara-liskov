@@ -1,5 +1,9 @@
 package com.roboleague.evaluation.audit;
 
+import com.roboleague.evaluation.AttemptId;
+import com.roboleague.ranking.appeal.AppealId;
+import com.roboleague.support.ActorId;
+
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -9,7 +13,7 @@ import java.util.Objects;
 public record AppealAcceptedEvent(
         EventMetadata metadata,
         AppealResolution resolution,
-        String reviewerId
+        ActorId reviewerId
 ) implements AttemptEvent {
 
     public AppealAcceptedEvent {
@@ -24,7 +28,7 @@ public record AppealAcceptedEvent(
     }
 
     @Override
-    public String attemptId() {
+    public AttemptId attemptId() {
         return metadata.attemptId();
     }
 
@@ -33,7 +37,7 @@ public record AppealAcceptedEvent(
         return metadata.timestamp();
     }
 
-    public String appealId() {
+    public AppealId appealId() {
         return resolution.appealId();
     }
 
@@ -51,7 +55,7 @@ public record AppealAcceptedEvent(
         return "Appeal " + appealId() + " accepted by " + reviewerId + ": " + resolutionNotes();
     }
 
-    public static AppealAcceptedEvent create(EventMetadata metadata, String appealId, String resolutionNotes, String reviewerId) {
+    public static AppealAcceptedEvent create(EventMetadata metadata, AppealId appealId, String resolutionNotes, ActorId reviewerId) {
         return new AppealAcceptedEvent(
                 metadata,
                 AppealResolution.of(appealId, resolutionNotes),

@@ -1,12 +1,14 @@
 package com.roboleague.usecase;
 
-import com.roboleague.support.Clock;
-import com.roboleague.support.IdGenerator;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.ranking.appeal.Appeal;
+import com.roboleague.ranking.appeal.AppealId;
 import com.roboleague.repository.AppealRepository;
 import com.roboleague.repository.AttemptRepository;
+import com.roboleague.support.Clock;
+import com.roboleague.support.IdGenerator;
+import com.roboleague.tournament.TeamId;
 
 import java.util.Objects;
 
@@ -27,16 +29,16 @@ public class FileAppealUseCase {
         this.appealRepository = Objects.requireNonNull(appealRepository, "appealRepository cannot be null");
     }
 
-    public Appeal execute(String attemptId, String teamId, String reason, String evidenceDescription) {
-        Attempt attempt = attemptRepository.findById(AttemptId.parse(attemptId))
+    public Appeal execute(AttemptId attemptId, TeamId teamId, String reason, String evidenceDescription) {
+        Attempt attempt = attemptRepository.findById(attemptId)
                 .orElseThrow(() -> new IllegalArgumentException("Attempt not found: " + attemptId));
 
         if (!attempt.getTeamId().equals(teamId)) {
             throw new IllegalArgumentException("Team " + teamId + " does not own attempt " + attemptId);
         }
 
-        String appealId = ids.nextId();
-        Appeal appeal = Appeal.of(appealId, attempt.getId().value(), teamId, reason, evidenceDescription, clock.now());
+        AppealId appealId = AppealId.of(ids.nextId());
+        Appeal appeal = Appeal.of(appealId, attempt.getId(), teamId, reason, evidenceDescription, clock.now());
 
         attempt.markUnderAppeal();
         attemptRepository.save(attempt);

@@ -1,14 +1,15 @@
 package com.roboleague.usecase;
 
-import com.roboleague.support.Clock;
 import com.roboleague.evaluation.Attempt;
-import com.roboleague.evaluation.AttemptId;
 import com.roboleague.ranking.Ranking;
 import com.roboleague.ranking.RankingEntry;
+import com.roboleague.ranking.RankingId;
 import com.roboleague.ranking.appeal.Appeal;
 import com.roboleague.repository.AppealRepository;
 import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.RankingRepository;
+import com.roboleague.support.Clock;
+import com.roboleague.tournament.TeamId;
 
 import java.util.List;
 import java.util.Objects;
@@ -37,7 +38,7 @@ public class PublishOfficialRankingUseCase {
         this.attemptRepository = Objects.requireNonNull(attemptRepository, "attemptRepository cannot be null");
     }
 
-    public Ranking execute(String rankingId, String officialNotes) {
+    public Ranking execute(RankingId rankingId, String officialNotes) {
         Ranking ranking = rankingRepository.findById(rankingId)
                 .orElseThrow(() -> new IllegalArgumentException("Ranking not found: " + rankingId));
 
@@ -60,18 +61,18 @@ public class PublishOfficialRankingUseCase {
     }
 
     private boolean affectsRanking(Appeal appeal, Ranking ranking) {
-        Set<String> rankedTeamIds = ranking.getEntries().stream()
+        Set<TeamId> rankedTeamIds = ranking.getEntries().stream()
                 .map(RankingEntry::teamScore)
                 .map(score -> score.teamId())
                 .collect(Collectors.toSet());
 
-        return attemptRepository.findById(AttemptId.parse(appeal.getAttemptId()))
+        return attemptRepository.findById(appeal.getAttemptId())
                 .filter(attempt -> rankedTeamIds.contains(attempt.getTeamId()))
                 .filter(attempt -> belongsToRound(attempt, ranking))
                 .isPresent();
     }
 
     private boolean belongsToRound(Attempt attempt, Ranking ranking) {
-        return ranking.getRoundId().isEmpty() || ranking.getRoundId().equals(attempt.getRoundId());
+        return ranking.getRoundId().isEmpty() || ranking.getRoundId().orElseThrow().equals(attempt.getRoundId());
     }
 }

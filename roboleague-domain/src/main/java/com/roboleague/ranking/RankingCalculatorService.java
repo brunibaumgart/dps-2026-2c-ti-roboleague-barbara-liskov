@@ -1,14 +1,19 @@
 package com.roboleague.ranking;
 
-import java.time.LocalDateTime;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.ranking.tiebreakers.TieBreakerChain;
+import com.roboleague.scheduling.RoundId;
+import com.roboleague.tournament.CategoryId;
+import com.roboleague.tournament.EditionId;
 import com.roboleague.tournament.Team;
+import com.roboleague.tournament.TeamId;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Domain service calculating leaderboards and ranking positions for a category in an edition.
@@ -25,7 +30,7 @@ public class RankingCalculatorService {
         this(TieBreakerChain.defaultRules());
     }
 
-    public Ranking calculateProvisionalRanking(RankingScope scope, String roundId, RankingCalculationData data, LocalDateTime generatedAt) {
+    public Ranking calculateProvisionalRanking(RankingScope scope, Optional<RoundId> roundId, RankingCalculationData data, LocalDateTime generatedAt) {
         Objects.requireNonNull(scope, "scope cannot be null");
         Objects.requireNonNull(data, "data cannot be null");
 
@@ -68,8 +73,8 @@ public class RankingCalculatorService {
         return new Ranking(scope, roundId, entries, generatedAt);
     }
 
-    public Ranking calculateProvisionalRanking(String rankingId, String editionId, String categoryId, String roundId,
-                                              List<Team> teams, Map<String, List<Attempt>> attemptsByTeamId, LocalDateTime generatedAt) {
+    public Ranking calculateProvisionalRanking(RankingId rankingId, EditionId editionId, CategoryId categoryId, Optional<RoundId> roundId,
+                                              List<Team> teams, Map<TeamId, List<Attempt>> attemptsByTeamId, LocalDateTime generatedAt) {
         RankingScope scope = RankingScope.of(rankingId, editionId, categoryId);
         RankingCalculationData data = RankingCalculationData.of(teams, attemptsByTeamId);
         return calculateProvisionalRanking(scope, roundId, data, generatedAt);

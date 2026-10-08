@@ -6,7 +6,7 @@ import java.util.Objects;
  * Technical competition category with defined constraints and limits.
  */
 public record Category(
-        String id,
+        CategoryId id,
         String name,
         CategoryRestrictions restrictions
 ) {
@@ -14,9 +14,6 @@ public record Category(
         Objects.requireNonNull(id, "id cannot be null");
         Objects.requireNonNull(name, "name cannot be null");
         Objects.requireNonNull(restrictions, "restrictions cannot be null");
-        if (id.isBlank()) {
-            throw new IllegalArgumentException("category id cannot be blank");
-        }
         if (name.isBlank()) {
             throw new IllegalArgumentException("category name cannot be blank");
         }
@@ -66,15 +63,15 @@ public record Category(
         return restrictions.robotLimits().allows(spec);
     }
 
-    public static Category of(String id, String name, CategoryRestrictions restrictions) {
+    public static Category of(CategoryId id, String name, CategoryRestrictions restrictions) {
         return new Category(id, name, restrictions);
     }
 
-    public static Category of(String id, String name, int minMembers, int maxMembers, int minAge, int maxAge, double maxWeightGrams) {
+    public static Category of(CategoryId id, String name, int minMembers, int maxMembers, int minAge, int maxAge, double maxWeightGrams) {
         return of(id, name, minMembers, maxMembers, minAge, maxAge, maxWeightGrams, 1000.0, 1000.0, 1000.0);
     }
 
-    public static Category of(String id, String name, int minMembers, int maxMembers, int minAge, int maxAge,
+    public static Category of(CategoryId id, String name, int minMembers, int maxMembers, int minAge, int maxAge,
                               double maxWeightGrams, double maxLenMm, double maxWidMm, double maxHgtMm) {
         return new Category(
                 id,

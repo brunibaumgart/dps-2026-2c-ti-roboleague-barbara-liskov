@@ -4,6 +4,7 @@ import com.roboleague.api.ErrorDto;
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.tournament.Challenge;
 import com.roboleague.tournament.ChallengeId;
+import com.roboleague.tournament.EditionId;
 import com.roboleague.usecase.AddChallengeCommand;
 import com.roboleague.usecase.AddChallengeUseCase;
 import com.roboleague.usecase.GetChallengeUseCase;
@@ -43,7 +44,7 @@ class ChallengeController {
             throw new IllegalArgumentException("a challenge needs id, name and rulebook");
         }
         AddChallengeCommand command = new AddChallengeCommand(
-                Challenge.draft(ChallengeId.of(request.id()), editionId, request.name()),
+                Challenge.draft(ChallengeId.of(request.id()), EditionId.of(editionId), request.name()),
                 request.rulebook().toDefinition());
         return switch (addChallenge.execute(command)) {
             case Publication.Published<Challenge> published ->

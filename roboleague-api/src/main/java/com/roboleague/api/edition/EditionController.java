@@ -1,10 +1,12 @@
 package com.roboleague.api.edition;
 
 import com.roboleague.tournament.Category;
+import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.DateRange;
 import com.roboleague.tournament.Edition;
 import com.roboleague.tournament.EditionContext;
 import com.roboleague.tournament.EditionHeader;
+import com.roboleague.tournament.EditionId;
 import com.roboleague.tournament.Season;
 import com.roboleague.tournament.Tournament;
 import com.roboleague.usecase.CreateEditionCommand;
@@ -52,7 +54,7 @@ class EditionController {
                 parsed.add(category.toCategory());
             }
             return new CreateEditionCommand(
-                    new EditionContext(tournament.toTournament(), new EditionHeader(id, name, editionNumber)),
+                    new EditionContext(tournament.toTournament(), new EditionHeader(EditionId.of(id), name, editionNumber)),
                     new DateRange(startDate, endDate), parsed);
         }
     }
@@ -84,15 +86,15 @@ class EditionController {
             if (id == null || name == null) {
                 throw new IllegalArgumentException("a category needs id and name");
             }
-            return Category.of(id, name, minMembers, maxMembers, minAge, maxAge, maxWeightGrams);
+            return Category.of(CategoryId.of(id), name, minMembers, maxMembers, minAge, maxAge, maxWeightGrams);
         }
     }
 
     record EditionDto(String id, String name, LocalDate startDate, LocalDate endDate, List<String> categories) {
 
         static EditionDto from(Edition edition) {
-            return new EditionDto(edition.getId(), edition.getName(), edition.getStartDate(), edition.getEndDate(),
-                    edition.getCategories().stream().map(Category::id).toList());
+            return new EditionDto(edition.getId().value(), edition.getName(), edition.getStartDate(), edition.getEndDate(),
+                    edition.getCategories().stream().map(category -> category.id().value()).toList());
         }
     }
 }

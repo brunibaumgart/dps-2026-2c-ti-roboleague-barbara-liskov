@@ -1,7 +1,9 @@
 package com.roboleague.ranking.appeal;
 
-import java.time.LocalDateTime;
 import com.roboleague.evaluation.RawMetrics;
+import com.roboleague.support.ActorId;
+
+import java.time.LocalDateTime;
 
 /**
  * Initial state of an appeal. Awaiting evaluation by the arbitration committee.
@@ -14,18 +16,18 @@ public class PendingAppealState implements AppealState {
     }
 
     @Override
-    public void beginReview(Appeal appeal, String reviewerId) {
+    public void beginReview(Appeal appeal, ActorId reviewerId) {
         appeal.setReviewerId(reviewerId);
         appeal.transitionToState(new UnderReviewAppealState());
     }
 
     @Override
-    public void accept(Appeal appeal, String resolutionNotes, RawMetrics revisedMetrics, String reviewerId, LocalDateTime resolvedAt) {
+    public void accept(Appeal appeal, String resolutionNotes, RawMetrics revisedMetrics, ActorId reviewerId, LocalDateTime resolvedAt) {
         throw new IllegalStateException("Appeal must be placed under review before being accepted");
     }
 
     @Override
-    public void reject(Appeal appeal, String resolutionNotes, String reviewerId, LocalDateTime resolvedAt) {
+    public void reject(Appeal appeal, String resolutionNotes, ActorId reviewerId, LocalDateTime resolvedAt) {
         throw new IllegalStateException("Appeal must be placed under review before being rejected");
     }
 

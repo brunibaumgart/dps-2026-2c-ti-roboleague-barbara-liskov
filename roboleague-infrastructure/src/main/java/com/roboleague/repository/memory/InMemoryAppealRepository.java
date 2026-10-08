@@ -1,13 +1,15 @@
 package com.roboleague.repository.memory;
 
+import com.roboleague.evaluation.AttemptId;
 import com.roboleague.ranking.appeal.Appeal;
+import com.roboleague.ranking.appeal.AppealId;
 import com.roboleague.repository.AppealRepository;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class InMemoryAppealRepository implements AppealRepository {
-    private final Map<String, Appeal> storage = new ConcurrentHashMap<>();
+    private final Map<AppealId, Appeal> storage = new ConcurrentHashMap<>();
 
     @Override
     public void save(Appeal appeal) {
@@ -16,12 +18,12 @@ public class InMemoryAppealRepository implements AppealRepository {
     }
 
     @Override
-    public Optional<Appeal> findById(String appealId) {
+    public Optional<Appeal> findById(AppealId appealId) {
         return Optional.ofNullable(storage.get(appealId));
     }
 
     @Override
-    public List<Appeal> findByAttemptId(String attemptId) {
+    public List<Appeal> findByAttemptId(AttemptId attemptId) {
         return storage.values().stream()
                 .filter(a -> a.getAttemptId().equals(attemptId))
                 .toList();

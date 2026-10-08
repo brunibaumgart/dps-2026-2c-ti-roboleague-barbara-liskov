@@ -537,12 +537,14 @@ mientras `Edition` contiene equipos. No se impone una política universal de ids
 - **Dos fuentes al mismo tiempo**: en F3 las mediciones y el panel pueden llegar casi juntos. Postgres guarda el intento con bloqueo optimista (`@Version`, migración `V4`): `JpaAttemptRepository` recuerda con qué versión cargó cada intento y la manda al guardar, así que si otro pedido lo guardó en el medio el segundo se rechaza con 409 y se reintenta, en lugar de pisar la fuente que ya llegó. La versión es un detalle del adaptador: el agregado no la conoce.
 - **Deuda que decidimos no resolver en este paso**:
   - `challengeId` viaja en el cuerpo de la captura hasta que la ronda conozca su desafío (frente 3); entonces sale de la ronda.
-  - `RoundRepository` es mínimo y en memoria; el frente 3 lo completa y lo persiste.
+  - `RoundRepository` es mínimo y en memoria; el frente 3 lo extiende y el
+    frente 5 coordina su persistencia.
   - No se valida el horario del turno ni su estado (`Slot.status`), y del panel de jueces solo se valida al juez que carga, no a cada juez que puntúa.
   - Descalificar solo se acepta sobre un intento puntuado, como el diagrama de estados.
   - La tabla sigue armándose con el mejor intento (`TeamScore`) y `TieBreakerChain`; cuando use `RankingScheme` (frente 4), cada `RoundScore` sale de `countableScore()` y su snapshot.
   - Las rutas de apelación (`POST /attempts/{id}/appeals`, aceptación y rechazo) son del frente 4; los casos de uso ya usan el intento nuevo.
-  - Los eventos siguen tomando `now()` y `UUID` (frente 3: `Clock` e `IdGenerator`).
+  - La dependencia estática de reloj/UUID se resolvió en la sección 2.20; los
+    ids de referencias se tiparon en la sección 2.21.
 
 ---
 
@@ -552,7 +554,9 @@ mientras `Edition` contiene equipos. No se impone una política universal de ids
   - *Alternativas descartadas*: `@Transactional` en los casos de uso (mete Spring en la aplicación); un puerto `Transactions` inyectado en cada caso de uso (cambia constructores de varios frentes para el mismo efecto); transacciones en los controllers (la demo, que llama a los casos de uso directo, quedaría afuera).
 - **JSON estricto (issue #14)**: un campo desconocido es 400 con el nombre del campo y los esperados, en lugar de ignorarse (`"penalties"` en vez de `"deductions"` perdía la penalización). El reglamento acepta y descarta `version` y `requiredSources`, que trae cuando se lo lee con `GET`, para poder mandarlo de vuelta tal cual.
 - **Demo con fechas fijas**: la edición es del 10 al 12/11/2026 y las rondas arrancan desde las 9:00 del primer día, una por hora, así cada corrida termina igual.
-- **Deuda**: la elegibilidad todavía mide la edad con la fecha de hoy (`UseCaseConfig`) y los ids de ronda y apelación son UUID; se resuelven con los puertos de reloj e ids y la inscripción (frente 3).
+- **Deuda vigente**: la elegibilidad todavía mide la edad con la fecha de hoy
+  (`UseCaseConfig`); cambiarla a la fecha de edición corresponde a inscripción
+  (spec 03). Reloj y generación de ids ya se inyectan como puertos (2.20).
 
 ---
 
@@ -586,6 +590,44 @@ mientras `Edition` contiene equipos. No se impone una política universal de ids
   prueba de cambio de fecha por zona y pruebas de rehidratación/JPA y JSON de API.
   Los escenarios que consultan el ranking más reciente avanzan explícitamente
   su reloj entre cálculos; un reloj fijo no garantiza orden entre timestamps iguales.
+
+### 2.21 Identidades tipadas y contratos externos textuales
+
+- **Problema**: Los ids String de equipos, jueces, slots y otros conceptos podían
+  intercambiarse sin que el compilador detectara el error, incluso en puertos y
+  mapas internos. ChallengeId y AttemptId ya expresaban parte de esta intención.
+- **Decisión**: Records distintos por concepto, sin jerarquía universal ni
+  dependencias de frameworks. TeamId, EditionId, CategoryId, ParticipantId y
+  RobotId viven en tournament; JudgeId, SlotId, RoundId y TrackId en scheduling;
+  RankingId y AppealId en sus contextos. Se reutilizan ChallengeId y AttemptId,
+  que ahora contiene SlotId y número positivo. Los valores rechazan null/blanco,
+  conservan espacios y mayúsculas de valores válidos y no exigen UUID.
+- **Alcance**: Entidades, profiles, scopes, commands, repositorios y claves de
+  mapas de equipos y jueces usan los tipos. IdGenerator sigue entregando texto;
+  quien genera un slot, ronda, ranking o apelación lo envuelve inmediatamente.
+  El desempate final conserva el orden textual mediante Comparable<TeamId>.
+  El filtro de ronda de Ranking y recálculo usa Optional<RoundId>: ausencia
+  significa todas las rondas, evitando una identidad vacía ficticia.
+- **Autores**: Capturas y descalificaciones inequívocamente realizadas por jueces
+  usan JudgeId. Auditoría, ajustes, revisión de apelaciones y verificación de
+  documentación usan ActorId, porque el responsable puede tener distintos roles.
+  JudgeId.asActorId() expresa conscientemente al juez como autor; no se convierte
+  automáticamente un actor genérico en juez.
+- **Bordes**: DTOs HTTP, entidades JPA y records JSONB mantienen campos String.
+  Controllers y mappers convierten mediante of/parse/value; las claves del panel
+  de jueces también se convierten explícitamente. No se anotan los records del
+  núcleo con Jackson/JPA ni se deja su serialización automática definir la API.
+  Columnas, claves primarias, formato de AttemptId e historial conservan sus
+  representaciones; no hace falta una migración SQL por este cambio de tipos Java.
+- **Trade-off**: Cambian las firmas internas y los fixtures necesitan valores
+  tipados. Se gana detección de referencias intercambiadas al compilar, a costa
+  de conversiones explícitas en los adaptadores. No se tipa cada etiqueta:
+  nombres, motivos, métricas nombradas y los ids internos de eventos/snapshots
+  conservan sus contratos actuales, fuera del alcance de esta migración.
+- **Verificación**: El compilador rechaza un JudgeId donde SlotIdentity exige
+  TeamId. Tests cubren valores inválidos, conservación de texto histórico,
+  parsing con guiones, rehidratación desde una fila textual preexistente,
+  búsquedas y escritura con las mismas claves, además de contratos HTTP de ids.
 
 ## 3. Matriz Comparativa Exhaustiva de Trade-offs
 

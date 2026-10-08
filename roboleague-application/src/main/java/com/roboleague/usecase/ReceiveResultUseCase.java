@@ -1,19 +1,20 @@
 package com.roboleague.usecase;
 
-import com.roboleague.support.Clock;
-import com.roboleague.support.IdGenerator;
-import com.roboleague.evaluation.audit.OperationAudit;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.AttemptIdentity;
 import com.roboleague.evaluation.MeasurementCheck;
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookReference;
+import com.roboleague.evaluation.audit.OperationAudit;
 import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.ChallengeRepository;
 import com.roboleague.repository.RoundRepository;
+import com.roboleague.scheduling.JudgeId;
 import com.roboleague.scheduling.Round;
 import com.roboleague.scheduling.Slot;
+import com.roboleague.support.Clock;
+import com.roboleague.support.IdGenerator;
 import com.roboleague.tournament.Challenge;
 
 import java.util.List;
@@ -49,16 +50,16 @@ public class ReceiveResultUseCase {
         Round round = roundRepository.findBySlotId(attemptId.slotId())
                 .orElseThrow(() -> new IllegalArgumentException("Slot not found: " + attemptId.slotId()));
         Slot slot = round.slot(attemptId.slotId()).orElseThrow();
-        String judgeId = command.delivery().judgeId();
+        JudgeId judgeId = command.delivery().judgeId();
         if (!slot.isJudgedBy(judgeId)) {
             return new Reception.Rejected(List.of("judge " + judgeId + " is not assigned to slot " + slot.getSlotId()));
         }
 
         Attempt attempt = attemptRepository.findById(attemptId).orElseGet(() -> Attempt.of(
                 new AttemptIdentity(attemptId, round.getId(), slot.getTeamId()),
-                RulebookReference.of(challenge.getId().value(), challenge.currentRulebook())));
+                RulebookReference.of(challenge.getId(), challenge.currentRulebook())));
         RulebookReference scoredWith = attempt.getRulebookReference();
-        if (!scoredWith.challengeId().equals(challenge.getId().value())) {
+        if (!scoredWith.challengeId().equals(challenge.getId())) {
             throw new IllegalStateException("Attempt " + attemptId + " belongs to challenge " + scoredWith.challengeId()
                     + ", not " + challenge.getId());
         }

@@ -1,7 +1,10 @@
 package com.roboleague.evaluation.audit;
 
+import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ScoreBreakdown;
+import com.roboleague.scheduling.JudgeId;
+import com.roboleague.tournament.TeamId;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -27,7 +30,7 @@ public record ResultRegisteredEvent(
     }
 
     @Override
-    public String attemptId() {
+    public AttemptId attemptId() {
         return metadata.attemptId();
     }
 
@@ -36,11 +39,11 @@ public record ResultRegisteredEvent(
         return metadata.timestamp();
     }
 
-    public String teamId() {
+    public TeamId teamId() {
         return binding.teamId();
     }
 
-    public String judgeId() {
+    public JudgeId judgeId() {
         return binding.judgeId();
     }
 
@@ -62,7 +65,7 @@ public record ResultRegisteredEvent(
         return "Initial result registered by judge " + judgeId() + " with score " + scoreBreakdown().totalScore();
     }
 
-    public static ResultRegisteredEvent create(EventMetadata metadata, String teamId, EvaluationSnapshot evaluation, String judgeId) {
+    public static ResultRegisteredEvent create(EventMetadata metadata, TeamId teamId, EvaluationSnapshot evaluation, JudgeId judgeId) {
         return new ResultRegisteredEvent(
                 metadata,
                 evaluation,

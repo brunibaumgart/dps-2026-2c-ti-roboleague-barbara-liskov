@@ -1,7 +1,7 @@
 # 02 — Identidades tipadas en el núcleo
 
-Estado: pendiente. Depende de 01. Cambia contratos compartidos; integrar como
-una migración coherente, sin dejar el reactor entre dos modelos.
+Estado: implementada y verificada. Depende de 01. La migración integra los
+contratos compartidos y sus consumidores en los cuatro módulos.
 
 ## Problema y alcance
 
@@ -58,3 +58,25 @@ JSON, parsing y generación de ids derivados.
 
 Renombrar todos los VOs, revisar todo el diseño de constructores, crear una
 jerarquía universal de identidades o cambiar ids ya persistidos.
+
+## Implementación y verificación
+
+- Agregados, referencias, commands, puertos y mapas internos usan identidades
+  distintas. ParticipantId identifica TeamMember; RobotId y TrackId identifican
+  los recursos respectivos. Se reutilizan ChallengeId y AttemptId, ahora con
+  SlotId. JudgeId.asActorId() convierte explícitamente al juez en autor de
+  auditoría; ajustes y revisores de apelaciones conservan ActorId sin asumir rol.
+- Ranking y recálculo usan Optional<RoundId> para representar todas las rondas
+  sin inventar un id vacío. Controllers, DTOs, mappers JPA/JSONB y demo están
+  adaptados; ids externos y claves JSON del panel siguen siendo texto.
+- No se modificaron migraciones SQL ni claves persistidas. Se comprobó lectura
+  de una fila histórica textual, búsquedas por TeamId/RoundId, actualización y
+  conservación de sus claves y metadatos JSONB.
+- `mvn -B -o verify`: aprobado con JDK 25 y PostgreSQL/Testcontainers; 416 pruebas
+  (321 domain, 18 infrastructure, 28 application y 49 API), sin fallos, errores
+  ni omisiones. Incluye una prueba de compilación que rechaza JudgeId en lugar
+  de TeamId, validación de identidades, parsing de AttemptId, contratos HTTP,
+  errores de captura, concurrencia, transacciones y flujo de demo.
+- Documentación actualizada en README, DESIGN y AGENTS de raíz/domain. Las
+  specs 03–06 continúan pendientes; esta migración no implementa inscripción,
+  programación paralela ni nueva persistencia.

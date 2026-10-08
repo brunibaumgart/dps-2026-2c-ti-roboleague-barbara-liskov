@@ -1,5 +1,8 @@
 package com.roboleague.scheduling;
 
+import com.roboleague.tournament.CategoryId;
+import com.roboleague.tournament.EditionId;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -31,7 +34,7 @@ public class Round {
         return info;
     }
 
-    public String getId() {
+    public RoundId getId() {
         return info.id();
     }
 
@@ -39,11 +42,11 @@ public class Round {
         return info.name();
     }
 
-    public String getEditionId() {
+    public EditionId getEditionId() {
         return info.scope().editionId();
     }
 
-    public String getCategoryId() {
+    public CategoryId getCategoryId() {
         return info.scope().categoryId();
     }
 
@@ -59,7 +62,7 @@ public class Round {
         return Collections.unmodifiableList(slots);
     }
 
-    public Optional<Slot> slot(String slotId) {
+    public Optional<Slot> slot(SlotId slotId) {
         return slots.stream()
                 .filter(slot -> slot.getSlotId().equals(slotId))
                 .findFirst();
