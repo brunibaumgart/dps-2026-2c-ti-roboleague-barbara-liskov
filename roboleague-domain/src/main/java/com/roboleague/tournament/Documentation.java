@@ -27,10 +27,12 @@ public class Documentation {
         this.documents.put(documentType, fileReference);
     }
 
-    public void verify(String verifiedBy) {
+    public void verify(String verifiedBy, LocalDateTime verifiedAt) {
+        Objects.requireNonNull(verifiedAt, "verifiedAt cannot be null");
+        Objects.requireNonNull(verifiedBy, "verifiedBy cannot be null");
         this.verified = true;
-        this.verifiedAt = LocalDateTime.now();
-        this.verifiedBy = Objects.requireNonNull(verifiedBy, "verifiedBy cannot be null");
+        this.verifiedAt = verifiedAt;
+        this.verifiedBy = verifiedBy;
         this.revocationReason = null;
     }
 

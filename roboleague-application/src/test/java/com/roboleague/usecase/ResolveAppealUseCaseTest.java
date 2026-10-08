@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import static com.roboleague.support.TestValues.*;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.AttemptIdentity;
@@ -47,9 +48,9 @@ class ResolveAppealUseCaseTest {
         InMemoryAppealRepository appealRepository = new InMemoryAppealRepository();
         InMemoryEditionRepository editionRepository = new InMemoryEditionRepository();
         RecalculateRankingUseCase recalculate = new RecalculateRankingUseCase(
-                editionRepository, attemptRepository, new InMemoryRankingRepository(), new RankingCalculatorService()
-        );
-        ResolveAppealUseCase useCase = new ResolveAppealUseCase(appealRepository, attemptRepository, new InMemoryChallengeRepository(), recalculate);
+                editionRepository, attemptRepository, new InMemoryRankingRepository(), new RankingCalculatorService(),
+        CLOCK, ids());
+        ResolveAppealUseCase useCase = new ResolveAppealUseCase(appealRepository, attemptRepository, new InMemoryChallengeRepository(), recalculate, CLOCK, ids());
 
         Rulebook rulebook = new Rulebook(RulebookVersion.first(), ScoringScheme.withoutBonuses(
                 List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0)),
@@ -57,10 +58,10 @@ class ResolveAppealUseCaseTest {
         ), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
         AttemptId attemptId = AttemptId.of("slot-1", 1);
         Attempt attempt = Attempt.of(new AttemptIdentity(attemptId, "r-1", "t-1"), RulebookReference.of("ch-1", rulebook));
-        attempt.receive(sensors(40.0, 2, 3, "judge-1"), rulebook);
+        attempt.receive(sensors(40.0, 2, 3, "judge-1"), rulebook, audit());
         attemptRepository.save(attempt);
 
-        Appeal appeal = new FileAppealUseCase(attemptRepository, appealRepository)
+        Appeal appeal = new FileAppealUseCase(attemptRepository, appealRepository, CLOCK, ids())
                 .execute(attemptId.value(), "t-1", "Faltas mal contadas", "Video");
         new ReviewAppealUseCase(appealRepository).execute(appeal.getAppealId(), "arb-1");
 
@@ -89,15 +90,15 @@ class ResolveAppealUseCaseTest {
         challengeRepository.save(challenge);
         ResolveAppealUseCase useCase = new ResolveAppealUseCase(appealRepository, attemptRepository, challengeRepository,
                 new RecalculateRankingUseCase(editionRepository, attemptRepository, new InMemoryRankingRepository(),
-                        new RankingCalculatorService()));
+                        new RankingCalculatorService(), CLOCK, ids()), CLOCK, ids());
 
         AttemptId attemptId = AttemptId.of("slot-1", 1);
         Rulebook first = challenge.currentRulebook();
         Attempt attempt = Attempt.of(new AttemptIdentity(attemptId, "r-1", "t-1"), RulebookReference.of("ch-1", first));
-        attempt.receive(sensors(40.0, 2, 3, "judge-1"), first);
+        attempt.receive(sensors(40.0, 2, 3, "judge-1"), first, audit());
         attemptRepository.save(attempt);
         challenge.publish(scoringWithFaultsWorth(100.0), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
-        Appeal appeal = new FileAppealUseCase(attemptRepository, appealRepository)
+        Appeal appeal = new FileAppealUseCase(attemptRepository, appealRepository, CLOCK, ids())
                 .execute(attemptId.value(), "t-1", "Faltas mal contadas", "Video");
         new ReviewAppealUseCase(appealRepository).execute(appeal.getAppealId(), "arb-1");
 
@@ -117,14 +118,14 @@ class ResolveAppealUseCaseTest {
         InMemoryAppealRepository appealRepository = new InMemoryAppealRepository();
         ResolveAppealUseCase useCase = new ResolveAppealUseCase(appealRepository, attemptRepository,
                 new InMemoryChallengeRepository(), new RecalculateRankingUseCase(new InMemoryEditionRepository(),
-                attemptRepository, new InMemoryRankingRepository(), new RankingCalculatorService()));
+                attemptRepository, new InMemoryRankingRepository(), new RankingCalculatorService(), CLOCK, ids()), CLOCK, ids());
         Rulebook rulebook = new Rulebook(RulebookVersion.first(), scoringWithFaultsWorth(10.0),
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
         AttemptId attemptId = AttemptId.of("slot-1", 1);
         Attempt attempt = Attempt.of(new AttemptIdentity(attemptId, "r-1", "t-1"), RulebookReference.of("ch-1", rulebook));
-        attempt.receive(sensors(55.0, 4, 0, "j-1"), rulebook);
+        attempt.receive(sensors(55.0, 4, 0, "j-1"), rulebook, audit());
         attemptRepository.save(attempt);
-        FileAppealUseCase fileAppeal = new FileAppealUseCase(attemptRepository, appealRepository);
+        FileAppealUseCase fileAppeal = new FileAppealUseCase(attemptRepository, appealRepository, CLOCK, ids());
         Appeal first = fileAppeal.execute(attemptId.value(), "t-1", "tiempo", "video");
         Appeal second = fileAppeal.execute(attemptId.value(), "t-1", "objetivos", "video");
         new ReviewAppealUseCase(appealRepository).execute(first.getAppealId(), "arbitro");

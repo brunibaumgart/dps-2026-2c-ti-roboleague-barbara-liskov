@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import static com.roboleague.support.TestValues.*;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.AttemptIdentity;
@@ -48,21 +49,21 @@ class PublishOfficialRankingUseCaseTest {
         rankingRepo = new InMemoryRankingRepository();
         appealRepo = new InMemoryAppealRepository();
         attemptRepo = new InMemoryAttemptRepository();
-        useCase = new PublishOfficialRankingUseCase(rankingRepo, appealRepo, attemptRepo);
+        useCase = new PublishOfficialRankingUseCase(rankingRepo, appealRepo, attemptRepo, CLOCK);
 
         PerformanceSummary perf = PerformanceSummary.of(100, 30, 0, 9.0);
         TeamScore score = TeamScore.of("t-1", "Team", "cat-1", "ed-1", perf, List.of());
-        rankingRepo.save(Ranking.of("rank-1", "ed-1", "cat-1", "r-1", List.of(RankingEntry.of(1, score, false, ""))));
+        rankingRepo.save(Ranking.of("rank-1", "ed-1", "cat-1", "r-1", List.of(RankingEntry.of(1, score, false, "")), TIME));
     }
 
     private void saveAppealedAttempt(String slotId, String teamId, String roundId) {
         AttemptId attemptId = AttemptId.of(slotId, 1);
         Attempt attempt = Attempt.of(new AttemptIdentity(attemptId, roundId, teamId), RulebookReference.of("ch-1", RULEBOOK));
         attempt.receive(new SourceDelivery(new Measurements(new TrackPerformance(30.0, 1, 0), 0.0, Map.of()), "judge-1"),
-                RULEBOOK);
+                RULEBOOK, audit());
         attempt.markUnderAppeal();
         attemptRepo.save(attempt);
-        appealRepo.save(Appeal.of("app-" + slotId, attemptId.value(), teamId, "Revision", ""));
+        appealRepo.save(Appeal.of("app-" + slotId, attemptId.value(), teamId, "Revision", "", TIME));
     }
 
     @Test

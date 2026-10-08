@@ -1,5 +1,6 @@
 package com.roboleague.ranking;
 
+import java.time.LocalDateTime;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.ranking.tiebreakers.TieBreakerChain;
 import com.roboleague.tournament.Team;
@@ -24,7 +25,7 @@ public class RankingCalculatorService {
         this(TieBreakerChain.defaultRules());
     }
 
-    public Ranking calculateProvisionalRanking(RankingScope scope, String roundId, RankingCalculationData data) {
+    public Ranking calculateProvisionalRanking(RankingScope scope, String roundId, RankingCalculationData data, LocalDateTime generatedAt) {
         Objects.requireNonNull(scope, "scope cannot be null");
         Objects.requireNonNull(data, "data cannot be null");
 
@@ -64,13 +65,13 @@ public class RankingCalculatorService {
             entries.add(RankingEntry.of(currentRank, current, tiedWithPrev, explanation));
         }
 
-        return new Ranking(scope, roundId, entries);
+        return new Ranking(scope, roundId, entries, generatedAt);
     }
 
     public Ranking calculateProvisionalRanking(String rankingId, String editionId, String categoryId, String roundId,
-                                              List<Team> teams, Map<String, List<Attempt>> attemptsByTeamId) {
+                                              List<Team> teams, Map<String, List<Attempt>> attemptsByTeamId, LocalDateTime generatedAt) {
         RankingScope scope = RankingScope.of(rankingId, editionId, categoryId);
         RankingCalculationData data = RankingCalculationData.of(teams, attemptsByTeamId);
-        return calculateProvisionalRanking(scope, roundId, data);
+        return calculateProvisionalRanking(scope, roundId, data, generatedAt);
     }
 }

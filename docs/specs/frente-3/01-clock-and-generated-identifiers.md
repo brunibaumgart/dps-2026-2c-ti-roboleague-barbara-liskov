@@ -1,6 +1,6 @@
 # 01 — Tiempo e identificadores generados controlables
 
-Estado: pendiente. Dependencias: ninguna spec previa. Alcance: higiene compartida
+Estado: implementada. Dependencias: ninguna spec previa. Alcance: higiene compartida
 del frente 3; tocar otros frentes únicamente para inyectar tiempo/ids.
 
 ## Problema actual
@@ -70,3 +70,24 @@ Documentar zona, comportamiento y configuración local.
 Versionar tablas, corregir estados de apelaciones de otro frente, introducir
 event sourcing, cambiar formato de timestamps o eliminar VOs sin relación con
 este cambio. No alterar la identidad de intentos ni recalcular puntajes históricos.
+
+## Implementación y verificación
+
+- Puertos en `com.roboleague.support`: Clock e IdGenerator. Adaptadores
+  SystemClock/UuidGenerator en infrastructure y beans en UseCaseConfig.
+- `ROBOLEAGUE_TIME_ZONE` configura la zona; default
+  `America/Argentina/Buenos_Aires`. Se conservaron formatos, columnas e ids existentes.
+- Agregados reciben fechas y OperationAudit; las fábricas de eventos reciben
+  EventMetadata explícito. OperationAudit prepara dos ids, de los que una
+  transición que agrega un solo evento usa únicamente el primero.
+- TeamMember.of valida con fecha explícita; el constructor de valor permite
+  rehidratación sin consultar el reloj. Mappers de intentos/apelaciones conservan
+  tiempos e historial sin usar puertos.
+- Fixtures y consumidores migrados. El flujo de competencia prueba secuencias
+  locales de ids y avance controlado del reloj; API verifica timestamp de revisión
+  con un reloj fijo; SystemClockTest comprueba cambio de fecha por zona.
+- Verificación realizada: `mvn -B -o verify`, con Docker/Testcontainers:
+  **399 tests**, cero fallos, errores o tests omitidos. También se verificaron
+  referencias Markdown y `git diff --check`.
+- La fecha de elegibilidad sigue siendo la del reloj suministrado al ensamblado
+  actual; cambiarla a fecha de edición y sostener la elegibilidad corresponde a 03.

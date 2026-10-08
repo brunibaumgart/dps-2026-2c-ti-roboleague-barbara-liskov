@@ -1,5 +1,6 @@
 package com.roboleague.api.appeal;
 
+import static com.roboleague.support.TestValues.*;
 import com.roboleague.api.ApiTest;
 import com.roboleague.ranking.appeal.Appeal;
 import com.roboleague.repository.AppealRepository;
@@ -19,7 +20,7 @@ class AppealControllerTest extends ApiTest {
 
     @Test
     void reviewMovesTheAppealUnderReview() throws Exception {
-        appeals.save(Appeal.of("api-app-1", "att-1", "team-1", "Penalizacion inexistente", "Video"));
+        appeals.save(Appeal.of("api-app-1", "att-1", "team-1", "Penalizacion inexistente", "Video", TIME));
 
         mvc.perform(review("api-app-1", "arb-1"))
                 .andExpect(status().isOk())
@@ -30,7 +31,7 @@ class AppealControllerTest extends ApiTest {
 
     @Test
     void reviewingTwiceIsAConflict() throws Exception {
-        appeals.save(Appeal.of("api-app-2", "att-2", "team-2", "Penalizacion inexistente", "Video"));
+        appeals.save(Appeal.of("api-app-2", "att-2", "team-2", "Penalizacion inexistente", "Video", TIME));
         mvc.perform(review("api-app-2", "arb-1")).andExpect(status().isOk());
 
         mvc.perform(review("api-app-2", "arb-2"))

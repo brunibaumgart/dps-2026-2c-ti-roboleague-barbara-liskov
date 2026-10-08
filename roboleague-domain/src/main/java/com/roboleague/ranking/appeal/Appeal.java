@@ -20,11 +20,7 @@ public class Appeal {
     private RawMetrics revisedMetrics;
     private LocalDateTime resolvedAt;
 
-    public Appeal(AppealTarget target, AppealClaim claim) {
-        this(target, claim, LocalDateTime.now());
-    }
-
-    private Appeal(AppealTarget target, AppealClaim claim, LocalDateTime submittedAt) {
+    public Appeal(AppealTarget target, AppealClaim claim, LocalDateTime submittedAt) {
         this.target = Objects.requireNonNull(target, "target cannot be null");
         this.claim = Objects.requireNonNull(claim, "claim cannot be null");
         this.submittedAt = Objects.requireNonNull(submittedAt, "submittedAt cannot be null");
@@ -124,12 +120,14 @@ public class Appeal {
         state.beginReview(this, reviewerId);
     }
 
-    public void accept(String resolutionNotes, RawMetrics revisedMetrics, String reviewerId) {
-        state.accept(this, resolutionNotes, revisedMetrics, reviewerId);
+    public void accept(String resolutionNotes, RawMetrics revisedMetrics, String reviewerId, LocalDateTime resolvedAt) {
+        Objects.requireNonNull(resolvedAt, "resolvedAt cannot be null");
+        state.accept(this, resolutionNotes, revisedMetrics, reviewerId, resolvedAt);
     }
 
-    public void reject(String resolutionNotes, String reviewerId) {
-        state.reject(this, resolutionNotes, reviewerId);
+    public void reject(String resolutionNotes, String reviewerId, LocalDateTime resolvedAt) {
+        Objects.requireNonNull(resolvedAt, "resolvedAt cannot be null");
+        state.reject(this, resolutionNotes, reviewerId, resolvedAt);
     }
 
     public boolean isPending() {
@@ -156,14 +154,15 @@ public class Appeal {
         return state.canPublishOfficialRanking();
     }
 
-    public static Appeal of(AppealTarget target, AppealClaim claim) {
-        return new Appeal(target, claim);
+    public static Appeal of(AppealTarget target, AppealClaim claim, LocalDateTime submittedAt) {
+        return new Appeal(target, claim, submittedAt);
     }
 
-    public static Appeal of(String appealId, String attemptId, String teamId, String reason, String evidenceDescription) {
+    public static Appeal of(String appealId, String attemptId, String teamId, String reason, String evidenceDescription, LocalDateTime submittedAt) {
         return new Appeal(
                 new AppealTarget(appealId, attemptId, teamId),
-                new AppealClaim(reason, evidenceDescription)
+                new AppealClaim(reason, evidenceDescription),
+                submittedAt
         );
     }
 }

@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import static com.roboleague.support.TestValues.*;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.Attempt.AttemptStatus;
 import com.roboleague.evaluation.AttemptId;
@@ -82,7 +83,7 @@ class ReceiveResultUseCaseTest {
                         List.of(Judge.of("judge-1", "Juez Uno", "General"), Judge.of("judge-2", "Juez Dos", "General"))),
                 new TimeWindow(START, START.plusMinutes(10))));
         rounds.save(round);
-        receive = new ReceiveResultUseCase(attempts, rounds, challenges);
+        receive = new ReceiveResultUseCase(attempts, rounds, challenges, CLOCK, ids());
     }
 
     @Test

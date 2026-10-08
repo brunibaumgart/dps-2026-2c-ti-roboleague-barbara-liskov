@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import com.roboleague.support.IdGenerator;
 import com.roboleague.scheduling.*;
 import com.roboleague.tournament.Edition;
 import com.roboleague.tournament.Team;
@@ -8,18 +9,20 @@ import com.roboleague.repository.RoundRepository;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 
 /**
  * Use case to schedule a competition round and assign slots, tracks, and judges.
  */
 public class ScheduleRoundUseCase {
+    private final IdGenerator ids;
+
     private final EditionRepository editionRepository;
     private final RoundRepository roundRepository;
     private final RoundSchedulerService schedulerService;
 
     public ScheduleRoundUseCase(EditionRepository editionRepository, RoundRepository roundRepository,
-                                RoundSchedulerService schedulerService) {
+                                RoundSchedulerService schedulerService, IdGenerator ids) {
+        this.ids = Objects.requireNonNull(ids, "ids cannot be null");
         this.editionRepository = Objects.requireNonNull(editionRepository, "editionRepository cannot be null");
         this.roundRepository = Objects.requireNonNull(roundRepository, "roundRepository cannot be null");
         this.schedulerService = Objects.requireNonNull(schedulerService, "schedulerService cannot be null");
@@ -39,7 +42,7 @@ public class ScheduleRoundUseCase {
                     + " in edition " + command.editionId());
         }
 
-        String roundId = UUID.randomUUID().toString();
+        String roundId = ids.nextId();
         RoundScope scope = RoundScope.of(command.editionId(), command.categoryId(), command.roundNumber());
         RoundInfo info = RoundInfo.of(roundId, command.roundName(), scope);
         RoundResources resources = RoundResources.of(command.tracks(), command.judges());

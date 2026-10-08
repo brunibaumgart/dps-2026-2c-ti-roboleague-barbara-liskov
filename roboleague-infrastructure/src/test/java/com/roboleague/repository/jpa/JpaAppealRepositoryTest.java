@@ -1,5 +1,6 @@
 package com.roboleague.repository.jpa;
 
+import static com.roboleague.support.TestValues.*;
 import com.roboleague.PostgresContainer;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.ranking.appeal.Appeal;
@@ -27,7 +28,7 @@ class JpaAppealRepositoryTest {
     @Test
     @DisplayName("A pending appeal comes back from Postgres with its claim and state")
     void pendingAppealRoundTrip() {
-        Appeal appeal = Appeal.of("app-1", "att-1", "team-1", "Error en medicion de tiempo", "Video de camara 2");
+        Appeal appeal = Appeal.of("app-1", "att-1", "team-1", "Error en medicion de tiempo", "Video de camara 2", TIME);
 
         repository.save(appeal);
         Appeal stored = repository.findById("app-1").orElseThrow();
@@ -44,10 +45,10 @@ class JpaAppealRepositoryTest {
     @Test
     @DisplayName("An accepted appeal keeps its revised metrics and resolution")
     void acceptedAppealRoundTrip() {
-        Appeal appeal = Appeal.of("app-2", "att-2", "team-2", "Penalizacion inexistente", "Video pista");
+        Appeal appeal = Appeal.of("app-2", "att-2", "team-2", "Penalizacion inexistente", "Video pista", TIME);
         appeal.beginReview("arb-1");
         RawMetrics revised = RawMetrics.of(45.0, 5, 0, Map.of("diseño", 8.5));
-        appeal.accept("Penalizaciones corregidas", revised, "arb-1");
+        appeal.accept("Penalizaciones corregidas", revised, "arb-1", TIME);
 
         repository.save(appeal);
         Appeal stored = repository.findById("app-2").orElseThrow();
@@ -62,12 +63,12 @@ class JpaAppealRepositoryTest {
     @Test
     @DisplayName("A restored appeal keeps enforcing its state machine")
     void restoredAppealKeepsItsBehaviour() {
-        Appeal appeal = Appeal.of("app-3", "att-3", "team-3", "Falta no cometida", "");
+        Appeal appeal = Appeal.of("app-3", "att-3", "team-3", "Falta no cometida", "", TIME);
         appeal.beginReview("arb-1");
         repository.save(appeal);
 
         Appeal stored = repository.findById("app-3").orElseThrow();
-        stored.reject("Las grabaciones confirman la falta", "arb-1");
+        stored.reject("Las grabaciones confirman la falta", "arb-1", TIME);
         repository.save(stored);
 
         assertThat(repository.findById("app-3").orElseThrow().isRejected()).isTrue();
@@ -76,8 +77,8 @@ class JpaAppealRepositoryTest {
     @Test
     @DisplayName("Appeals can be found by attempt and by pending state")
     void queries() {
-        Appeal pending = Appeal.of("app-4", "att-4", "team-4", "Motivo", "");
-        Appeal underReview = Appeal.of("app-5", "att-4", "team-4", "Otro motivo", "");
+        Appeal pending = Appeal.of("app-4", "att-4", "team-4", "Motivo", "", TIME);
+        Appeal underReview = Appeal.of("app-5", "att-4", "team-4", "Otro motivo", "", TIME);
         underReview.beginReview("arb-1");
         repository.save(pending);
         repository.save(underReview);

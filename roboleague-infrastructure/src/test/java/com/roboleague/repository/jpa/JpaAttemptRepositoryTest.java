@@ -1,5 +1,6 @@
 package com.roboleague.repository.jpa;
 
+import static com.roboleague.support.TestValues.*;
 import com.roboleague.PostgresContainer;
 import com.roboleague.evaluation.AppealRevision;
 import com.roboleague.evaluation.Attempt;
@@ -78,14 +79,14 @@ class JpaAttemptRepositoryTest {
     @DisplayName("Two sources saved over the same stored attempt: the second save is refused instead of losing the first")
     void givenTwoCopiesOfTheSameAttemptThenTheSecondSaveIsRefused() {
         Attempt awaiting = attempt("slot-race-1", "r-race", "t-race");
-        awaiting.receive(SENSORS, RESCUE);
+        awaiting.receive(SENSORS, RESCUE, audit());
         repository.save(awaiting);
         Attempt first = repository.findById(awaiting.getId()).orElseThrow();
         Attempt second = repository.findById(awaiting.getId()).orElseThrow();
 
-        first.receive(PANEL, RESCUE);
+        first.receive(PANEL, RESCUE, audit());
         repository.save(first);
-        second.receive(PANEL, RESCUE);
+        second.receive(PANEL, RESCUE, audit());
 
         assertThatThrownBy(() -> repository.save(second))
                 .isInstanceOf(IllegalStateException.class)
@@ -98,9 +99,9 @@ class JpaAttemptRepositoryTest {
     @DisplayName("Two first sources creating the same attempt: the second one is refused instead of overwriting it")
     void givenTwoNewAttemptsForTheSameTurnThenTheSecondSaveIsRefused() {
         Attempt bySensors = attempt("slot-race-2", "r-race", "t-race");
-        bySensors.receive(SENSORS, RESCUE);
+        bySensors.receive(SENSORS, RESCUE, audit());
         Attempt byPanel = attempt("slot-race-2", "r-race", "t-race");
-        byPanel.receive(PANEL, RESCUE);
+        byPanel.receive(PANEL, RESCUE, audit());
 
         repository.save(bySensors);
 
@@ -117,11 +118,11 @@ class JpaAttemptRepositoryTest {
         Attempt loaded = repository.findById(AttemptId.of("slot-race-4", 1)).orElseThrow();
 
         useCase.executeWithoutResult(status -> {
-            loaded.receive(SENSORS, RESCUE);
+            loaded.receive(SENSORS, RESCUE, audit());
             repository.save(loaded);
         });
         useCase.executeWithoutResult(status -> {
-            loaded.receive(PANEL, RESCUE);
+            loaded.receive(PANEL, RESCUE, audit());
             repository.save(loaded);
         });
 
@@ -133,10 +134,10 @@ class JpaAttemptRepositoryTest {
     @DisplayName("The same loaded attempt can be saved again after each change")
     void givenOneCopyThenItCanBeSavedAfterEachChange() {
         Attempt attempt = attempt("slot-race-3", "r-race", "t-race");
-        attempt.receive(SENSORS, RESCUE);
+        attempt.receive(SENSORS, RESCUE, audit());
         repository.save(attempt);
 
-        attempt.receive(PANEL, RESCUE);
+        attempt.receive(PANEL, RESCUE, audit());
         repository.save(attempt);
 
         assertThat(repository.findById(attempt.getId()).orElseThrow().getStatus()).isEqualTo(AttemptStatus.EVALUATED);
@@ -146,7 +147,7 @@ class JpaAttemptRepositoryTest {
     @DisplayName("An attempt awaiting the judge panel comes back with what the sensors sent and still takes the panel")
     void awaitingAttemptRoundTrip() {
         Attempt attempt = attempt("slot-1", "r-1", "t-1");
-        attempt.receive(SENSORS, RESCUE);
+        attempt.receive(SENSORS, RESCUE, audit());
 
         repository.save(attempt);
         Attempt stored = repository.findById(attempt.getId()).orElseThrow();
@@ -154,7 +155,7 @@ class JpaAttemptRepositoryTest {
         assertThat(stored.getStatus()).isEqualTo(AttemptStatus.AWAITING_SOURCES);
         assertThat(stored.getDeliveries()).containsExactly(SENSORS);
         assertThat(stored.getRulebookReference()).isEqualTo(new RulebookReference("ch-rescue", RulebookVersion.first()));
-        stored.receive(PANEL, RESCUE);
+        stored.receive(PANEL, RESCUE, audit());
         // 4 zones => 60; 2 victims => 50; judges 7 * 5 => 35; bonus 20 capped at 10; 1 fault => -10
         assertThat(stored.getFinalScore()).isEqualTo(145.0);
     }
@@ -163,13 +164,13 @@ class JpaAttemptRepositoryTest {
     @DisplayName("An adjusted attempt with appeals open keeps every revision, event and the appeals it counts")
     void appealedAttemptRoundTrip() {
         Attempt attempt = attempt("slot-2", "r-1", "t-1");
-        attempt.receive(SENSORS, RESCUE);
-        attempt.receive(PANEL, RESCUE);
-        attempt.applyPenaltyAdjustment(1, new AuditNote("j-2", "Falta vista en video"), RESCUE);
+        attempt.receive(SENSORS, RESCUE, audit());
+        attempt.receive(PANEL, RESCUE, audit());
+        attempt.applyPenaltyAdjustment(1, new AuditNote("j-2", "Falta vista en video"), RESCUE, audit());
         attempt.markUnderAppeal();
         attempt.markUnderAppeal();
         attempt.adjustAfterAppeal(new AppealRevision("app-1", attempt.getLatestMetrics().withPenalties(0),
-                new AuditNote("arb-1", "Las faltas no existieron")), RESCUE);
+                new AuditNote("arb-1", "Las faltas no existieron")), RESCUE, audit());
 
         repository.save(attempt);
         Attempt stored = repository.findById(attempt.getId()).orElseThrow();
@@ -188,9 +189,9 @@ class JpaAttemptRepositoryTest {
     @DisplayName("A disqualified attempt comes back disqualified, with no score that counts")
     void disqualifiedAttemptRoundTrip() {
         Attempt attempt = attempt("slot-3", "r-1", "t-1");
-        attempt.receive(SENSORS, RESCUE);
-        attempt.receive(PANEL, RESCUE);
-        attempt.disqualify("Robot fuera de pista", "j-1");
+        attempt.receive(SENSORS, RESCUE, audit());
+        attempt.receive(PANEL, RESCUE, audit());
+        attempt.disqualify("Robot fuera de pista", "j-1", audit());
 
         repository.save(attempt);
         Attempt stored = repository.findById(attempt.getId()).orElseThrow();

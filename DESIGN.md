@@ -556,6 +556,37 @@ mientras `Edition` contiene equipos. No se impone una política universal de ids
 
 ---
 
+### 2.20 Tiempo e identidades generadas como dependencias explícitas
+
+- **Problema**: Las llamadas al reloj del sistema y a UUID en el núcleo hacían
+  depender fixtures, auditoría y fechas del host y del momento de ejecución.
+- **Solución**: Los puertos `com.roboleague.support.Clock` e `IdGenerator` viven
+  en domain. `SystemClock` y `UuidGenerator` viven en infrastructure y se ensamblan
+  en `UseCaseConfig`. La propiedad `roboleague.time-zone`, configurable con
+  `ROBOLEAGUE_TIME_ZONE`, usa `America/Argentina/Buenos_Aires` por defecto.
+  El núcleo no consulta estáticamente el reloj ni genera UUID por su cuenta.
+- **Valores en los agregados**: Team, Documentation, Appeal y Ranking reciben
+  fechas/horas explícitas; las transiciones de Attempt reciben `OperationAudit`
+  con hora y dos ids de evento preparados por el caller (una transición genera
+  como máximo dos eventos). Revisiones y eventos de una misma operación comparten
+  hora; los ids de snapshots siguen derivados de intento y número de revisión.
+  Una captura parcial o una descalificación usa solo el primer id, dejando el
+  segundo sin uso; consumir un id no implica que haya un evento persistido.
+- **Rehidratación y calendario**: Mappers conservan tiempos, ids y versiones
+  existentes sin recurrir a puertos. `TeamMember.of` valida nacimiento contra
+  una fecha explícita; su constructor de valor conserva datos estructurales al
+  rehidratar. La referencia de elegibilidad por inscripción sigue pendiente de
+  cambiar a fecha de edición en la spec 03; esta implementación solo vuelve
+  explícito el reloj del ensamblado existente.
+- **Trade-off**: Las firmas del núcleo exigen más valores explícitos y los
+  callers/fixtures deben suministrarlos. Se conserva el formato LocalDateTime
+  sin offset, las columnas y el JSON histórico; configurar otra zona afecta
+  nuevas operaciones y no convierte timestamps anteriores.
+- **Verificación**: Reloj fijo y secuencia local de ids en el flujo de competencia,
+  prueba de cambio de fecha por zona y pruebas de rehidratación/JPA y JSON de API.
+  Los escenarios que consultan el ranking más reciente avanzan explícitamente
+  su reloj entre cálculos; un reloj fijo no garantiza orden entre timestamps iguales.
+
 ## 3. Matriz Comparativa Exhaustiva de Trade-offs
 
 | Decisión Arquitectónica | Pros Clave | Contras y Costos Asociados | Alternativa Considerada y Rechazada |

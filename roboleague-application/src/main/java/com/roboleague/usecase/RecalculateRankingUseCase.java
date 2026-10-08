@@ -1,5 +1,7 @@
 package com.roboleague.usecase;
 
+import com.roboleague.support.Clock;
+import com.roboleague.support.IdGenerator;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.ranking.Ranking;
 import com.roboleague.ranking.RankingCalculatorService;
@@ -16,6 +18,9 @@ import java.util.*;
  * leveraging the latest audited attempt snapshots and deterministic tie-breaking.
  */
 public class RecalculateRankingUseCase {
+    private final Clock clock;
+    private final IdGenerator ids;
+
     private final EditionRepository editionRepository;
     private final AttemptRepository attemptRepository;
     private final RankingRepository rankingRepository;
@@ -24,7 +29,9 @@ public class RecalculateRankingUseCase {
     public RecalculateRankingUseCase(EditionRepository editionRepository,
                                     AttemptRepository attemptRepository,
                                     RankingRepository rankingRepository,
-                                    RankingCalculatorService rankingCalculatorService) {
+                                    RankingCalculatorService rankingCalculatorService, Clock clock, IdGenerator ids) {
+        this.clock = Objects.requireNonNull(clock, "clock cannot be null");
+        this.ids = Objects.requireNonNull(ids, "ids cannot be null");
         this.editionRepository = Objects.requireNonNull(editionRepository, "editionRepository cannot be null");
         this.attemptRepository = Objects.requireNonNull(attemptRepository, "attemptRepository cannot be null");
         this.rankingRepository = Objects.requireNonNull(rankingRepository, "rankingRepository cannot be null");
@@ -48,9 +55,9 @@ public class RecalculateRankingUseCase {
             attemptsByTeam.put(team.getId(), teamAttempts);
         }
 
-        String rankingId = UUID.randomUUID().toString();
+        String rankingId = ids.nextId();
         Ranking ranking = rankingCalculatorService.calculateProvisionalRanking(
-                rankingId, editionId, categoryId, roundId, teams, attemptsByTeam
+                rankingId, editionId, categoryId, roundId, teams, attemptsByTeam, clock.now()
         );
 
         rankingRepository.save(ranking);

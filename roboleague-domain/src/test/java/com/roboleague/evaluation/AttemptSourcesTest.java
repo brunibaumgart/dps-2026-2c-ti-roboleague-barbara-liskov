@@ -1,5 +1,6 @@
 package com.roboleague.evaluation;
 
+import static com.roboleague.support.TestValues.*;
 import com.roboleague.evaluation.Attempt.AttemptStatus;
 import com.roboleague.evaluation.audit.AttemptEvent;
 import com.roboleague.evaluation.rules.JudgeSubjectiveRule;
@@ -47,7 +48,7 @@ class AttemptSourcesTest {
     void givenOnlyOneSourceThenTheAttemptAwaitsTheOtherWithoutAScore() {
         Attempt attempt = rescueAttempt();
 
-        assertThat(attempt.receive(SENSORS, RESCUE)).isEqualTo(new MeasurementCheck.Accepted());
+        assertThat(attempt.receive(SENSORS, RESCUE, audit())).isEqualTo(new MeasurementCheck.Accepted());
 
         assertThat(attempt.getStatus()).isEqualTo(AttemptStatus.AWAITING_SOURCES);
         assertThat(attempt.getRevisionHistory()).isEmpty();
@@ -59,9 +60,9 @@ class AttemptSourcesTest {
     @DisplayName("F3: cuando llega la última fuente el intento se puntúa con las dos")
     void givenBothSourcesThenTheAttemptIsScoredWithBoth() {
         Attempt attempt = rescueAttempt();
-        attempt.receive(SENSORS, RESCUE);
+        attempt.receive(SENSORS, RESCUE, audit());
 
-        attempt.receive(PANEL, RESCUE);
+        attempt.receive(PANEL, RESCUE, audit());
 
         assertThat(attempt.getStatus()).isEqualTo(AttemptStatus.EVALUATED);
         assertThat(attempt.getFinalScore()).isEqualTo(130.0);
@@ -77,7 +78,7 @@ class AttemptSourcesTest {
         assertThat(attempt.awaitedSources(RESCUE))
                 .containsExactlyInAnyOrder(ResultSource.AUTOMATIC_MEASUREMENTS, ResultSource.JUDGE_PANEL);
 
-        attempt.receive(SENSORS, RESCUE);
+        attempt.receive(SENSORS, RESCUE, audit());
 
         assertThat(attempt.awaitedSources(RESCUE)).containsExactly(ResultSource.JUDGE_PANEL);
         assertThat(attempt.contributionsBySource(RESCUE)).isEmpty();
@@ -87,8 +88,8 @@ class AttemptSourcesTest {
     @DisplayName("F3: la explicación separa lo que aportó cada fuente")
     void givenAScoredMixedAttemptThenEachSourceExplainsItsShare() {
         Attempt attempt = rescueAttempt();
-        attempt.receive(SENSORS, RESCUE);
-        attempt.receive(PANEL, RESCUE);
+        attempt.receive(SENSORS, RESCUE, audit());
+        attempt.receive(PANEL, RESCUE, audit());
 
         assertThat(attempt.awaitedSources(RESCUE)).isEmpty();
         assertThat(attempt.contributionsBySource(RESCUE))
@@ -99,9 +100,9 @@ class AttemptSourcesTest {
     @Test
     void givenTheJudgePanelFirstThenTheScoreIsTheSame() {
         Attempt attempt = rescueAttempt();
-        attempt.receive(PANEL, RESCUE);
+        attempt.receive(PANEL, RESCUE, audit());
 
-        attempt.receive(SENSORS, RESCUE);
+        attempt.receive(SENSORS, RESCUE, audit());
 
         assertThat(attempt.getFinalScore()).isEqualTo(130.0);
         assertThat(attempt.getLatestMetrics().timeTakenSeconds()).isEqualTo(90.0);
@@ -112,7 +113,7 @@ class AttemptSourcesTest {
     void givenARulebookThatOnlyNeedsSensorsThenTheirMeasurementsScoreTheAttempt() {
         Attempt attempt = Attempt.of(identity(), RulebookReference.of("ch-maze", MAZE));
 
-        attempt.receive(new SourceDelivery(new Measurements(new TrackPerformance(50.0, 0, 0), 0.0, Map.of()), "j-1"), MAZE);
+        attempt.receive(new SourceDelivery(new Measurements(new TrackPerformance(50.0, 0, 0), 0.0, Map.of()), "j-1"), MAZE, audit());
 
         assertThat(attempt.getStatus()).isEqualTo(AttemptStatus.EVALUATED);
         assertThat(attempt.getFinalScore()).isEqualTo(110.0);
@@ -122,10 +123,10 @@ class AttemptSourcesTest {
     @DisplayName("F3: la misma fuente dos veces no pisa la primera")
     void givenTheSameSourceTwiceThenTheSecondIsRefusedAndTheFirstStays() {
         Attempt attempt = rescueAttempt();
-        attempt.receive(SENSORS, RESCUE);
+        attempt.receive(SENSORS, RESCUE, audit());
         SourceDelivery again = new SourceDelivery(new Measurements(new TrackPerformance(40.0, 4, 0), 0.0, Map.of()), "j-3");
 
-        assertThatThrownBy(() -> attempt.receive(again, RESCUE))
+        assertThatThrownBy(() -> attempt.receive(again, RESCUE, audit()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageStartingWith("AUTOMATIC_MEASUREMENTS already arrived for attempt slot-1-1");
         assertThat(attempt.getDeliveries()).containsExactly(SENSORS);
@@ -134,10 +135,10 @@ class AttemptSourcesTest {
     @Test
     void givenAScoredAttemptThenNoMoreResultsAreTaken() {
         Attempt attempt = rescueAttempt();
-        attempt.receive(SENSORS, RESCUE);
-        attempt.receive(PANEL, RESCUE);
+        attempt.receive(SENSORS, RESCUE, audit());
+        attempt.receive(PANEL, RESCUE, audit());
 
-        assertThatThrownBy(() -> attempt.receive(PANEL, RESCUE))
+        assertThatThrownBy(() -> attempt.receive(PANEL, RESCUE, audit()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("attempt is evaluated: it cannot receive results; "
                         + "corrections go through a fault adjustment or an appeal");
@@ -148,7 +149,7 @@ class AttemptSourcesTest {
         Attempt attempt = rescueAttempt();
         SourceDelivery tooMany = new SourceDelivery(new JudgeScores(Map.of("j-1", 8.0), Map.of(RESCUED.name(), 7.0)), "j-2");
 
-        MeasurementCheck check = attempt.receive(tooMany, RESCUE);
+        MeasurementCheck check = attempt.receive(tooMany, RESCUE, audit());
 
         assertThat(check).isEqualTo(new MeasurementCheck.Rejected(
                 List.of("measurement 'victimas_rescatadas' must be between 0.0 and 4.0: 7.0")));
@@ -161,7 +162,7 @@ class AttemptSourcesTest {
     void givenASourceTheRulebookDoesNotTakeThenItIsRejected() {
         Attempt attempt = Attempt.of(identity(), RulebookReference.of("ch-maze", MAZE));
 
-        MeasurementCheck check = attempt.receive(PANEL, MAZE);
+        MeasurementCheck check = attempt.receive(PANEL, MAZE, audit());
 
         assertThat(check).isEqualTo(new MeasurementCheck.Rejected(List.of("ch-maze v1 takes no results from JUDGE_PANEL")));
         assertThat(attempt.getStatus()).isEqualTo(AttemptStatus.SCHEDULED);

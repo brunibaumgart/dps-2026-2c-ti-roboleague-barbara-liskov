@@ -1,5 +1,6 @@
 package com.roboleague.ranking;
 
+import static com.roboleague.support.TestValues.*;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.AttemptIdentity;
@@ -34,7 +35,7 @@ class TeamScoreTest {
     @DisplayName("Hallazgo 3: un equipo cuyo único intento está descalificado no suma puntos")
     void givenOnlyADisqualifiedAttemptThenTheTeamScoresNothing() {
         Attempt disqualified = scored("slot-1", 55.0, 4);
-        disqualified.disqualify("robot fuera de pista", "j-1");
+        disqualified.disqualify("robot fuera de pista", "j-1", audit());
 
         TeamScore score = TeamScore.fromBestAttempt("t-alpha", "Alpha", "cat-1", "ed-1", List.of(disqualified));
 
@@ -44,7 +45,7 @@ class TeamScoreTest {
     @Test
     void givenADisqualifiedAttemptWithAHigherScoreThenTheTeamScoresWithTheOneThatCounts() {
         Attempt disqualified = scored("slot-1", 55.0, 4);
-        disqualified.disqualify("robot fuera de pista", "j-1");
+        disqualified.disqualify("robot fuera de pista", "j-1", audit());
         Attempt counted = scored("slot-2", 60.0, 1);
 
         TeamScore score = TeamScore.fromBestAttempt("t-alpha", "Alpha", "cat-1", "ed-1", List.of(disqualified, counted));
@@ -57,7 +58,7 @@ class TeamScoreTest {
         Attempt attempt = Attempt.of(new AttemptIdentity(AttemptId.of(slotId, 1), "r-1", "t-alpha"),
                 RulebookReference.of("ch-maze", MAZE));
         attempt.receive(new SourceDelivery(new Measurements(new TrackPerformance(seconds, objectives, 0), 0.0, Map.of()),
-                "j-1"), MAZE);
+                "j-1"), MAZE, audit());
         return attempt;
     }
 }

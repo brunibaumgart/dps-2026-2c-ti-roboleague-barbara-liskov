@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import com.roboleague.support.Clock;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.ranking.Ranking;
@@ -21,13 +22,16 @@ import java.util.stream.Collectors;
  * rounds or categories do not block the publication.
  */
 public class PublishOfficialRankingUseCase {
+    private final Clock clock;
+
     private final RankingRepository rankingRepository;
     private final AppealRepository appealRepository;
     private final AttemptRepository attemptRepository;
 
     public PublishOfficialRankingUseCase(RankingRepository rankingRepository,
                                          AppealRepository appealRepository,
-                                         AttemptRepository attemptRepository) {
+                                         AttemptRepository attemptRepository, Clock clock) {
+        this.clock = Objects.requireNonNull(clock, "clock cannot be null");
         this.rankingRepository = Objects.requireNonNull(rankingRepository, "rankingRepository cannot be null");
         this.appealRepository = Objects.requireNonNull(appealRepository, "appealRepository cannot be null");
         this.attemptRepository = Objects.requireNonNull(attemptRepository, "attemptRepository cannot be null");
@@ -50,7 +54,7 @@ public class PublishOfficialRankingUseCase {
             throw new IllegalStateException("Cannot publish official ranking while " + blockingAppeals.size() + " appeal(s) remain unresolved");
         }
 
-        ranking.publishOfficial(officialNotes);
+        ranking.publishOfficial(officialNotes, clock.now());
         rankingRepository.save(ranking);
         return ranking;
     }

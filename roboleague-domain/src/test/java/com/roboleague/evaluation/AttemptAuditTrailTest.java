@@ -1,5 +1,6 @@
 package com.roboleague.evaluation;
 
+import static com.roboleague.support.TestValues.*;
 import com.roboleague.evaluation.audit.AttemptScoreSnapshot;
 import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.evaluation.rules.JudgeSubjectiveRule;
@@ -40,7 +41,7 @@ class AttemptAuditTrailTest {
         Attempt attempt = newAttempt();
 
         // Initial result: 50s, 0 objectives, 0 penalties => Score: 100 + 10 = 110.0
-        attempt.receive(sensors(50.0, 0, 0, "judge-alfa"), standardPolicy);
+        attempt.receive(sensors(50.0, 0, 0, "judge-alfa"), standardPolicy, audit());
 
         assertThat(attempt.getRevisionHistory()).hasSize(1);
         assertThat(attempt.getEventHistory()).hasSize(2); // SourceReceived + ResultRegistered
@@ -49,7 +50,7 @@ class AttemptAuditTrailTest {
 
         // Later, video review identifies 2 track infractions (penalties)
         attempt.applyPenaltyAdjustment(2, new AuditNote("judge-beta", "Toque de bordes verificado en camara lenta"),
-                standardPolicy);
+                standardPolicy, audit());
 
         // Verify history has grown, not overwritten
         assertThat(attempt.getRevisionHistory()).hasSize(2);
@@ -86,10 +87,10 @@ class AttemptAuditTrailTest {
                 new Unlimited()), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
         Attempt attempt = newAttempt();
         attempt.receive(new SourceDelivery(new Measurements(new TrackPerformance(50.0, 2, 0), 12.5,
-                Map.of("precision", 0.9)), "judge-1"), mixed);
-        attempt.receive(new SourceDelivery(new JudgeScores(Map.of("judge-1", 8.0), Map.of()), "judge-1"), mixed);
+                Map.of("precision", 0.9)), "judge-1"), mixed, audit());
+        attempt.receive(new SourceDelivery(new JudgeScores(Map.of("judge-1", 8.0), Map.of()), "judge-1"), mixed, audit());
 
-        attempt.applyPenaltyAdjustment(1, new AuditNote("judge-2", "Falta vista en video"), mixed);
+        attempt.applyPenaltyAdjustment(1, new AuditNote("judge-2", "Falta vista en video"), mixed, audit());
 
         RawMetrics adjusted = attempt.getLatestMetrics();
         assertThat(adjusted.penaltiesCount()).isEqualTo(1);
@@ -104,9 +105,9 @@ class AttemptAuditTrailTest {
     @DisplayName("A scored attempt takes no second result: corrections are audited adjustments")
     void cannotReceiveTheResultTwice() {
         Attempt attempt = newAttempt();
-        attempt.receive(sensors(50.0, 0, 0, "judge-1"), standardPolicy);
+        attempt.receive(sensors(50.0, 0, 0, "judge-1"), standardPolicy, audit());
 
-        assertThatThrownBy(() -> attempt.receive(sensors(40.0, 0, 3, "judge-2"), standardPolicy))
+        assertThatThrownBy(() -> attempt.receive(sensors(40.0, 0, 3, "judge-2"), standardPolicy, audit()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("cannot receive results");
         assertThat(attempt.getFinalScore()).isEqualTo(110.0);
@@ -116,7 +117,7 @@ class AttemptAuditTrailTest {
     @DisplayName("Disqualification is audited and a rejected appeal restores the previous status")
     void disqualificationAndRejectedAppealAreTracked() {
         Attempt attempt = newAttempt();
-        attempt.receive(sensors(50.0, 3, 1, "judge-1"), standardPolicy);
+        attempt.receive(sensors(50.0, 3, 1, "judge-1"), standardPolicy, audit());
 
         attempt.markUnderAppeal();
         assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.UNDER_APPEAL);
@@ -125,7 +126,7 @@ class AttemptAuditTrailTest {
         assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.EVALUATED);
         assertThat(attempt.getRevisionHistory()).hasSize(1);
 
-        attempt.disqualify("Robot abandono la pista", "judge-2");
+        attempt.disqualify("Robot abandono la pista", "judge-2", audit());
         assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.DISQUALIFIED);
         assertThat(attempt.getEventHistory())
                 .last()

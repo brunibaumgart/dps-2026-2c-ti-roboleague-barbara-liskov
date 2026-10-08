@@ -33,7 +33,12 @@ import com.roboleague.usecase.ScheduleRoundUseCase;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.time.LocalDate;
+import com.roboleague.support.Clock;
+import com.roboleague.support.IdGenerator;
+import com.roboleague.support.SystemClock;
+import com.roboleague.support.UuidGenerator;
+import org.springframework.beans.factory.annotation.Value;
+import java.time.ZoneId;
 
 /**
  * Builds the domain services and use cases. They carry no Spring annotation: if Spring goes away,
@@ -43,8 +48,18 @@ import java.time.LocalDate;
 class UseCaseConfig {
 
     @Bean
-    EligibilitySpecification<Team> eligibilitySpecification() {
-        return new AgeLimitSpecification(LocalDate.now())
+    Clock clock(@Value("${roboleague.time-zone}") String zone) {
+        return new SystemClock(ZoneId.of(zone));
+    }
+
+    @Bean
+    IdGenerator idGenerator() {
+        return new UuidGenerator();
+    }
+
+    @Bean
+    EligibilitySpecification<Team> eligibilitySpecification(Clock clock) {
+        return new AgeLimitSpecification(clock.today())
                 .and(new TeamSizeSpecification())
                 .and(new RobotSpecificationLimit())
                 .and(new DocumentationVerifiedSpecification());
@@ -77,8 +92,8 @@ class UseCaseConfig {
     }
 
     @Bean
-    RoundSchedulerService roundSchedulerService() {
-        return new RoundSchedulerService();
+    RoundSchedulerService roundSchedulerService(IdGenerator ids) {
+        return new RoundSchedulerService(ids);
     }
 
     @Bean
@@ -94,8 +109,8 @@ class UseCaseConfig {
 
     @Bean
     ScheduleRoundUseCase scheduleRoundUseCase(EditionRepository editions, RoundRepository rounds,
-                                              RoundSchedulerService scheduler) {
-        return new ScheduleRoundUseCase(editions, rounds, scheduler);
+                                              RoundSchedulerService scheduler, IdGenerator ids) {
+        return new ScheduleRoundUseCase(editions, rounds, scheduler, ids);
     }
 
     @Bean
@@ -105,19 +120,19 @@ class UseCaseConfig {
 
     @Bean
     ReceiveResultUseCase receiveResultUseCase(AttemptRepository attempts, RoundRepository rounds,
-                                              ChallengeRepository challenges) {
-        return new ReceiveResultUseCase(attempts, rounds, challenges);
+                                              ChallengeRepository challenges, Clock clock, IdGenerator ids) {
+        return new ReceiveResultUseCase(attempts, rounds, challenges, clock, ids);
     }
 
     @Bean
     RecalculateRankingUseCase recalculateRankingUseCase(EditionRepository editions, AttemptRepository attempts,
-                                                        RankingRepository rankings, RankingCalculatorService calculator) {
-        return new RecalculateRankingUseCase(editions, attempts, rankings, calculator);
+                                                        RankingRepository rankings, RankingCalculatorService calculator, Clock clock, IdGenerator ids) {
+        return new RecalculateRankingUseCase(editions, attempts, rankings, calculator, clock, ids);
     }
 
     @Bean
-    FileAppealUseCase fileAppealUseCase(AttemptRepository attempts, AppealRepository appeals) {
-        return new FileAppealUseCase(attempts, appeals);
+    FileAppealUseCase fileAppealUseCase(AttemptRepository attempts, AppealRepository appeals, Clock clock, IdGenerator ids) {
+        return new FileAppealUseCase(attempts, appeals, clock, ids);
     }
 
     @Bean
@@ -127,13 +142,13 @@ class UseCaseConfig {
 
     @Bean
     ResolveAppealUseCase resolveAppealUseCase(AppealRepository appeals, AttemptRepository attempts,
-                                              ChallengeRepository challenges, RecalculateRankingUseCase recalculate) {
-        return new ResolveAppealUseCase(appeals, attempts, challenges, recalculate);
+                                              ChallengeRepository challenges, RecalculateRankingUseCase recalculate, Clock clock, IdGenerator ids) {
+        return new ResolveAppealUseCase(appeals, attempts, challenges, recalculate, clock, ids);
     }
 
     @Bean
     PublishOfficialRankingUseCase publishOfficialRankingUseCase(RankingRepository rankings, AppealRepository appeals,
-                                                                AttemptRepository attempts) {
-        return new PublishOfficialRankingUseCase(rankings, appeals, attempts);
+                                                                AttemptRepository attempts, Clock clock) {
+        return new PublishOfficialRankingUseCase(rankings, appeals, attempts, clock);
     }
 }

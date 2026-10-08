@@ -1,5 +1,8 @@
 package com.roboleague.usecase;
 
+import com.roboleague.support.Clock;
+import com.roboleague.support.IdGenerator;
+import com.roboleague.evaluation.audit.OperationAudit;
 import com.roboleague.evaluation.AppealRevision;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
@@ -23,6 +26,9 @@ import java.util.Objects;
  * triggers ranking recalculation.
  */
 public class ResolveAppealUseCase {
+    private final Clock clock;
+    private final IdGenerator ids;
+
     private final AppealRepository appealRepository;
     private final AttemptRepository attemptRepository;
     private final ChallengeRepository challengeRepository;
@@ -31,7 +37,9 @@ public class ResolveAppealUseCase {
     public ResolveAppealUseCase(AppealRepository appealRepository,
                                 AttemptRepository attemptRepository,
                                 ChallengeRepository challengeRepository,
-                                RecalculateRankingUseCase recalculateRankingUseCase) {
+                                RecalculateRankingUseCase recalculateRankingUseCase, Clock clock, IdGenerator ids) {
+        this.clock = Objects.requireNonNull(clock, "clock cannot be null");
+        this.ids = Objects.requireNonNull(ids, "ids cannot be null");
         this.appealRepository = Objects.requireNonNull(appealRepository, "appealRepository cannot be null");
         this.attemptRepository = Objects.requireNonNull(attemptRepository, "attemptRepository cannot be null");
         this.challengeRepository = Objects.requireNonNull(challengeRepository, "challengeRepository cannot be null");
@@ -57,11 +65,12 @@ public class ResolveAppealUseCase {
                 .orElseThrow(() -> new IllegalStateException("Rulebook " + scoredWith + " not found"));
 
         // Transition appeal state to ACCEPTED
-        appeal.accept(resolutionNotes, revisedMetrics, reviewerId);
+        var audit = new OperationAudit(clock.now(), ids.nextId(), ids.nextId());
+        appeal.accept(resolutionNotes, revisedMetrics, reviewerId, audit.timestamp());
 
         // Adjust attempt audit trail
         attempt.adjustAfterAppeal(new AppealRevision(appealId, revisedMetrics, new AuditNote(reviewerId, resolutionNotes)),
-                rulebook);
+                rulebook, audit);
 
         attemptRepository.save(attempt);
         appealRepository.save(appeal);
@@ -79,7 +88,7 @@ public class ResolveAppealUseCase {
         Attempt attempt = attemptRepository.findById(AttemptId.parse(appeal.getAttemptId()))
                 .orElseThrow(() -> new IllegalArgumentException("Attempt not found: " + appeal.getAttemptId()));
 
-        appeal.reject(resolutionNotes, reviewerId);
+        appeal.reject(resolutionNotes, reviewerId, clock.now());
         attempt.restoreAfterRejectedAppeal();
 
         attemptRepository.save(attempt);

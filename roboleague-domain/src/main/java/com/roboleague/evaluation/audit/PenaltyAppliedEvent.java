@@ -51,9 +51,9 @@ public record PenaltyAppliedEvent(
         return "Penalty of " + additionalPenalties() + " fouls applied by " + judgeId + ": " + reason();
     }
 
-    public static PenaltyAppliedEvent create(String attemptId, int additionalPenalties, String reason, String judgeId) {
+    public static PenaltyAppliedEvent create(EventMetadata metadata, int additionalPenalties, String reason, String judgeId) {
         return new PenaltyAppliedEvent(
-                EventMetadata.create(attemptId),
+                metadata,
                 PenaltyDetail.of(additionalPenalties, reason),
                 judgeId
         );

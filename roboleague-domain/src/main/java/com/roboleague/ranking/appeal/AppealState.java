@@ -1,5 +1,6 @@
 package com.roboleague.ranking.appeal;
 
+import java.time.LocalDateTime;
 import com.roboleague.evaluation.RawMetrics;
 
 /**
@@ -10,9 +11,9 @@ public interface AppealState {
 
     void beginReview(Appeal appeal, String reviewerId);
 
-    void accept(Appeal appeal, String resolutionNotes, RawMetrics revisedMetrics, String reviewerId);
+    void accept(Appeal appeal, String resolutionNotes, RawMetrics revisedMetrics, String reviewerId, LocalDateTime resolvedAt);
 
-    void reject(Appeal appeal, String resolutionNotes, String reviewerId);
+    void reject(Appeal appeal, String resolutionNotes, String reviewerId, LocalDateTime resolvedAt);
 
     boolean isPending();
 

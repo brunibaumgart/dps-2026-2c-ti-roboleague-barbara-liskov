@@ -150,7 +150,8 @@ public class Attempt {
      * fit, nothing changes and the problems come back. The attempt is scored when the last source its rulebook
      * needs arrives; until then it awaits the others.
      */
-    public MeasurementCheck receive(SourceDelivery delivery, Rulebook rulebook) {
+    public MeasurementCheck receive(SourceDelivery delivery, Rulebook rulebook, OperationAudit audit) {
+        Objects.requireNonNull(audit, "audit cannot be null");
         Objects.requireNonNull(delivery, "delivery cannot be null");
         this.rulebook.requireMatch(rulebook);
         ResultSource source = delivery.source();
@@ -172,11 +173,11 @@ public class Attempt {
         }
 
         received.put(source, delivery);
-        eventHistory.add(SourceReceivedEvent.create(getId().value(), source, delivery.judgeId()));
+        eventHistory.add(SourceReceivedEvent.create(audit.firstEvent(getId().value()), source, delivery.judgeId()));
         if (missing.isEmpty()) {
             EvaluationSnapshot evaluation = scored(everythingReceived(), rulebook);
-            addRevision(evaluation, delivery.judgeId(), "Every source arrived");
-            eventHistory.add(ResultRegisteredEvent.create(getId().value(), getTeamId(), evaluation, delivery.judgeId()));
+            addRevision(evaluation, delivery.judgeId(), "Every source arrived", audit);
+            eventHistory.add(ResultRegisteredEvent.create(audit.secondEvent(getId().value()), getTeamId(), evaluation, delivery.judgeId()));
         }
         this.state = next;
         return check;
@@ -213,7 +214,8 @@ public class Attempt {
         return metrics;
     }
 
-    public void applyPenaltyAdjustment(int additionalPenalties, AuditNote note, Rulebook rulebook) {
+    public void applyPenaltyAdjustment(int additionalPenalties, AuditNote note, Rulebook rulebook, OperationAudit audit) {
+        Objects.requireNonNull(audit, "audit cannot be null");
         AttemptState next = state.faultsAdjusted();
         String reason = note.reason();
         String judgeId = note.authorId();
@@ -222,9 +224,9 @@ public class Attempt {
 
         EvaluationSnapshot evaluation = scored(updatedMetrics, rulebook);
 
-        int revision = addRevision(evaluation, judgeId, "Penalty applied: " + reason);
-        eventHistory.add(PenaltyAppliedEvent.create(getId().value(), additionalPenalties, reason, judgeId));
-        eventHistory.add(ScoreAdjustedEvent.create(getId().value(), revision, evaluation, note));
+        int revision = addRevision(evaluation, judgeId, "Penalty applied: " + reason, audit);
+        eventHistory.add(PenaltyAppliedEvent.create(audit.firstEvent(getId().value()), additionalPenalties, reason, judgeId));
+        eventHistory.add(ScoreAdjustedEvent.create(audit.secondEvent(getId().value()), revision, evaluation, note));
         this.state = next;
     }
 
@@ -242,24 +244,26 @@ public class Attempt {
     /**
      * Adds a revision with the metrics an accepted appeal corrected, scored with the rulebook.
      */
-    public void adjustAfterAppeal(AppealRevision revision, Rulebook rulebook) {
+    public void adjustAfterAppeal(AppealRevision revision, Rulebook rulebook, OperationAudit audit) {
+        Objects.requireNonNull(audit, "audit cannot be null");
         AttemptState next = state.appealAccepted();
         String appealId = revision.appealId();
         AuditNote note = revision.note();
         EvaluationSnapshot evaluation = scored(revision.metrics(), rulebook);
 
         int number = addRevision(evaluation, note.authorId(),
-                "Revision due to accepted appeal " + appealId + ": " + note.reason());
-        eventHistory.add(AppealAcceptedEvent.create(getId().value(), appealId, note.reason(), note.authorId()));
-        eventHistory.add(ScoreAdjustedEvent.create(getId().value(), number, evaluation, note));
+                "Revision due to accepted appeal " + appealId + ": " + note.reason(), audit);
+        eventHistory.add(AppealAcceptedEvent.create(audit.firstEvent(getId().value()), appealId, note.reason(), note.authorId()));
+        eventHistory.add(ScoreAdjustedEvent.create(audit.secondEvent(getId().value()), number, evaluation, note));
         this.state = next;
     }
 
-    public void disqualify(String reason, String judgeId) {
+    public void disqualify(String reason, String judgeId, OperationAudit audit) {
+        Objects.requireNonNull(audit, "audit cannot be null");
         Objects.requireNonNull(reason, "reason cannot be null");
         Objects.requireNonNull(judgeId, "judgeId cannot be null");
         AttemptState next = state.disqualified();
-        eventHistory.add(AttemptDisqualifiedEvent.create(getId().value(), reason, judgeId));
+        eventHistory.add(AttemptDisqualifiedEvent.create(audit.firstEvent(getId().value()), reason, judgeId));
         this.state = next;
     }
 
@@ -271,9 +275,9 @@ public class Attempt {
         return EvaluationSnapshot.scoring(metrics, rulebook);
     }
 
-    private int addRevision(EvaluationSnapshot evaluation, String authorId, String reason) {
+    private int addRevision(EvaluationSnapshot evaluation, String authorId, String reason, OperationAudit audit) {
         int number = revisionHistory.size() + 1;
-        SnapshotMetadata metadata = SnapshotMetadata.of(getId().value() + "-r" + number, number, authorId);
+        SnapshotMetadata metadata = SnapshotMetadata.of(getId().value() + "-r" + number, number, authorId, audit.timestamp());
         revisionHistory.add(AttemptScoreSnapshot.of(metadata, evaluation, reason));
         return number;
     }

@@ -8,6 +8,16 @@ Plataforma para competencias de robótica: torneos, elegibilidad de equipos, pro
 - Maven 3.6.3 o superior
 - Docker (Postgres con `docker compose`; los tests de repositorio y de API lo usan vía Testcontainers)
 
+El reloj de la aplicación usa `America/Argentina/Buenos_Aires` por defecto.
+Se configura con `ROBOLEAGUE_TIME_ZONE` (un identificador válido de `ZoneId`, por
+ejemplo `UTC`); no toma la zona implícita de la máquina. Los timestamps siguen
+siendo fechas/horas locales sin offset en los contratos existentes.
+Los casos de uso reciben los puertos `Clock` e `IdGenerator`; infrastructure
+provee `SystemClock` y `UuidGenerator`. Las fábricas/transiciones del dominio
+reciben fechas y metadatos explícitos, y los tests pueden fijar esos valores.
+No cambiar a UTC la lectura de un historial existente: los timestamps almacenados
+no se reinterpretan al configurar la zona para nuevas operaciones.
+
 ## Correr la demo
 
 Desde la raíz del repo:

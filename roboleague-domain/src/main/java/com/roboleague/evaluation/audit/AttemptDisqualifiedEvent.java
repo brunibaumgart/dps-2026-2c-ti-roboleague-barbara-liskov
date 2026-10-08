@@ -43,7 +43,7 @@ public record AttemptDisqualifiedEvent(
         return "Attempt disqualified by " + judgeId + ": " + reason;
     }
 
-    public static AttemptDisqualifiedEvent create(String attemptId, String reason, String judgeId) {
-        return new AttemptDisqualifiedEvent(EventMetadata.create(attemptId), reason, judgeId);
+    public static AttemptDisqualifiedEvent create(EventMetadata metadata, String reason, String judgeId) {
+        return new AttemptDisqualifiedEvent(metadata, reason, judgeId);
     }
 }

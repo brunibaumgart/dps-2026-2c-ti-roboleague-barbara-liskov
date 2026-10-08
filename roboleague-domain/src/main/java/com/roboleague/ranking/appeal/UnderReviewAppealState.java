@@ -20,19 +20,19 @@ public class UnderReviewAppealState implements AppealState {
     }
 
     @Override
-    public void accept(Appeal appeal, String resolutionNotes, RawMetrics revisedMetrics, String reviewerId) {
+    public void accept(Appeal appeal, String resolutionNotes, RawMetrics revisedMetrics, String reviewerId, LocalDateTime resolvedAt) {
         if (revisedMetrics == null) {
             throw new IllegalArgumentException("Revised metrics are mandatory when accepting an appeal");
         }
         appeal.setResolution(resolutionNotes, revisedMetrics, reviewerId);
-        appeal.setResolvedAt(LocalDateTime.now());
+        appeal.setResolvedAt(resolvedAt);
         appeal.transitionToState(new AcceptedAppealState());
     }
 
     @Override
-    public void reject(Appeal appeal, String resolutionNotes, String reviewerId) {
+    public void reject(Appeal appeal, String resolutionNotes, String reviewerId, LocalDateTime resolvedAt) {
         appeal.setResolution(resolutionNotes, null, reviewerId);
-        appeal.setResolvedAt(LocalDateTime.now());
+        appeal.setResolvedAt(resolvedAt);
         appeal.transitionToState(new RejectedAppealState());
     }
 

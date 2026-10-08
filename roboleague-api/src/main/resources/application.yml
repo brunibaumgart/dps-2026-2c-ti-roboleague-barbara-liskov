@@ -14,3 +14,6 @@ spring:
     hibernate:
       # Flyway owns the schema; Hibernate only checks that the entities match it.
       ddl-auto: validate
+
+roboleague:
+  time-zone: ${ROBOLEAGUE_TIME_ZONE:America/Argentina/Buenos_Aires}

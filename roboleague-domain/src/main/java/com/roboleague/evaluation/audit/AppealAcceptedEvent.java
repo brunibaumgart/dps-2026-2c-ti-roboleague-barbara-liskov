@@ -51,9 +51,9 @@ public record AppealAcceptedEvent(
         return "Appeal " + appealId() + " accepted by " + reviewerId + ": " + resolutionNotes();
     }
 
-    public static AppealAcceptedEvent create(String attemptId, String appealId, String resolutionNotes, String reviewerId) {
+    public static AppealAcceptedEvent create(EventMetadata metadata, String appealId, String resolutionNotes, String reviewerId) {
         return new AppealAcceptedEvent(
-                EventMetadata.create(attemptId),
+                metadata,
                 AppealResolution.of(appealId, resolutionNotes),
                 reviewerId
         );

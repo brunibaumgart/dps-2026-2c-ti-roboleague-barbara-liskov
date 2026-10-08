@@ -31,6 +31,10 @@ controllers, DTOs, config y demo bajo `src/main/java/com/roboleague/api`.
 
 - Registrar casos de uso y servicios en `config/UseCaseConfig` sin agregar Spring
   a domain/application.
+- Ensamblar Clock/IdGenerator en esa configuración. `roboleague.time-zone`
+  usa `ROBOLEAGUE_TIME_ZONE`, con default `America/Argentina/Buenos_Aires`.
+  Pasar valores explícitos al dominio también desde fixtures de demo; no
+  incorporar un reloj global ni usar la zona implícita del host.
 - `TransactionalUseCases` intercepta beans del paquete exacto
   `com.roboleague.usecase` mediante proxies de clase. Preservar interceptación
   de los métodos y rollback sobre Postgres; comprobarla si cambia el wiring.

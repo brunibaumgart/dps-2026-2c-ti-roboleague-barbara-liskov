@@ -1,5 +1,6 @@
 package com.roboleague.evaluation;
 
+import static com.roboleague.support.TestValues.*;
 import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.TimeBasedRule;
@@ -47,11 +48,11 @@ class AttemptReviewFindingsTest {
         Attempt attempt = Attempt.of(new AttemptIdentity(AttemptId.of("slot-1", 1), "r-1", "t-1"),
                 RulebookReference.of("ch-maze", RULEBOOK));
         attempt.receive(new SourceDelivery(new Measurements(new TrackPerformance(50.0, 0, 4), 0.0, Map.of()), "judge-1"),
-                RULEBOOK);
+                RULEBOOK, audit());
         attempt.markUnderAppeal();
 
         attempt.adjustAfterAppeal(new AppealRevision("app-1", RawMetrics.of(50.0, 0, 0),
-                new AuditNote("arb-1", "Las faltas no existieron")), RULEBOOK);
+                new AuditNote("arb-1", "Las faltas no existieron")), RULEBOOK, audit());
 
         assertThat(attempt.getOriginalSnapshot().breakdown().totalScore()).isEqualTo(70.0);
         assertThat(attempt.getFinalScore()).isEqualTo(110.0);
@@ -62,7 +63,7 @@ class AttemptReviewFindingsTest {
     @DisplayName("Hallazgo 2: el intento y cada revisión guardan la versión del reglamento con que se puntuaron")
     void givenAScoredAttemptThenItAndEachRevisionKnowTheRulebookVersion() {
         Attempt attempt = scoredAttempt();
-        attempt.applyPenaltyAdjustment(1, new AuditNote("judge-2", "Falta vista en video"), RULEBOOK);
+        attempt.applyPenaltyAdjustment(1, new AuditNote("judge-2", "Falta vista en video"), RULEBOOK, audit());
 
         assertThat(attempt.getRulebookReference()).isEqualTo(new RulebookReference("ch-maze", RulebookVersion.first()));
         assertThat(attempt.getRevisionHistory())
@@ -81,7 +82,7 @@ class AttemptReviewFindingsTest {
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
 
         assertThatThrownBy(() -> attempt.adjustAfterAppeal(new AppealRevision("app-1", RawMetrics.of(50.0, 0, 1),
-                new AuditNote("arb-1", "Una sola falta")), harsher))
+                new AuditNote("arb-1", "Una sola falta")), harsher, audit()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("the attempt is scored with ch-maze v1, not with v2");
         assertThat(attempt.getRevisionHistory()).hasSize(1);
@@ -91,10 +92,10 @@ class AttemptReviewFindingsTest {
     @DisplayName("Hallazgo 3: un intento descalificado y sin apelación no se ajusta a ningún puntaje")
     void givenADisqualifiedAttemptThenAnAppealCannotAdjustIt() {
         Attempt attempt = scoredAttempt();
-        attempt.disqualify("robot fuera de pista", "j-1");
+        attempt.disqualify("robot fuera de pista", "j-1", audit());
 
         assertThatThrownBy(() -> attempt.adjustAfterAppeal(new AppealRevision("no-existe", RawMetrics.of(1.0, 5, 0),
-                new AuditNote("cualquiera", "sin apelación")), RULEBOOK))
+                new AuditNote("cualquiera", "sin apelación")), RULEBOOK, audit()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("attempt is disqualified: it cannot close an appeal: it has none open");
         assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.DISQUALIFIED);
@@ -121,7 +122,7 @@ class AttemptReviewFindingsTest {
         Attempt attempt = scoredAttempt();
         assertThat(attempt.countableScore()).hasValueSatisfying(score -> assertThat(score.totalScore()).isEqualTo(70.0));
 
-        attempt.disqualify("robot fuera de pista", "j-1");
+        attempt.disqualify("robot fuera de pista", "j-1", audit());
 
         assertThat(attempt.countableScore()).isEmpty();
     }
@@ -138,7 +139,7 @@ class AttemptReviewFindingsTest {
         Attempt attempt = Attempt.of(new AttemptIdentity(AttemptId.of("slot-1", 1), "r-1", "t-1"),
                 RulebookReference.of("ch-maze", RULEBOOK));
         attempt.receive(new SourceDelivery(new Measurements(new TrackPerformance(50.0, 0, 4), 0.0, Map.of()), "judge-1"),
-                RULEBOOK);
+                RULEBOOK, audit());
         return attempt;
     }
 }

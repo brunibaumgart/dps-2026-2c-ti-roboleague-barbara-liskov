@@ -41,7 +41,7 @@ public record SourceReceivedEvent(EventMetadata metadata, ResultSource source, S
         return source.label() + " loaded by " + judgeId;
     }
 
-    public static SourceReceivedEvent create(String attemptId, ResultSource source, String judgeId) {
-        return new SourceReceivedEvent(EventMetadata.create(attemptId), source, judgeId);
+    public static SourceReceivedEvent create(EventMetadata metadata, ResultSource source, String judgeId) {
+        return new SourceReceivedEvent(metadata, source, judgeId);
     }
 }

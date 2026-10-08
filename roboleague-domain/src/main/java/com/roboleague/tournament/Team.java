@@ -17,13 +17,13 @@ public class Team {
     private final Documentation documentation;
     private final LocalDate registrationDate;
 
-    public Team(TeamProfile profile, Category category, Robot robot) {
+    public Team(TeamProfile profile, Category category, Robot robot, LocalDate registrationDate) {
         this.profile = Objects.requireNonNull(profile, "profile cannot be null");
         this.category = Objects.requireNonNull(category, "category cannot be null");
         this.robot = Objects.requireNonNull(robot, "robot cannot be null");
         this.members = new ArrayList<>();
         this.documentation = new Documentation();
-        this.registrationDate = LocalDate.now();
+        this.registrationDate = Objects.requireNonNull(registrationDate, "registrationDate cannot be null");
     }
 
     public TeamProfile getProfile() {
@@ -82,16 +82,16 @@ public class Team {
         return registrationDate;
     }
 
-    public static Team of(TeamProfile profile, Category category, Robot robot) {
-        return new Team(profile, category, robot);
+    public static Team of(TeamProfile profile, Category category, Robot robot, LocalDate registrationDate) {
+        return new Team(profile, category, robot, registrationDate);
     }
 
-    public static Team of(String id, String name, Category category, Robot robot) {
-        return new Team(new TeamProfile(id, name, ""), category, robot);
+    public static Team of(String id, String name, Category category, Robot robot, LocalDate registrationDate) {
+        return new Team(new TeamProfile(id, name, ""), category, robot, registrationDate);
     }
 
-    public static Team of(String id, String name, String institution, Category category, Robot robot) {
-        return new Team(new TeamProfile(id, name, institution != null ? institution : ""), category, robot);
+    public static Team of(String id, String name, String institution, Category category, Robot robot, LocalDate registrationDate) {
+        return new Team(new TeamProfile(id, name, institution != null ? institution : ""), category, robot, registrationDate);
     }
 
     @Override

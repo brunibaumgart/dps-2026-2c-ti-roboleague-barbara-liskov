@@ -16,7 +16,4 @@ public record AuditAuthor(String authorOrJudgeId, LocalDateTime timestamp) {
         return new AuditAuthor(authorOrJudgeId, timestamp);
     }
 
-    public static AuditAuthor now(String authorOrJudgeId) {
-        return new AuditAuthor(authorOrJudgeId, LocalDateTime.now());
-    }
 }

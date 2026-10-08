@@ -25,12 +25,12 @@ public class Ranking {
     private String publicationNotes;
     private final List<RankingEntry> entries;
 
-    public Ranking(RankingScope scope, String roundId, List<RankingEntry> entries) {
+    public Ranking(RankingScope scope, String roundId, List<RankingEntry> entries, LocalDateTime generatedAt) {
         this.scope = Objects.requireNonNull(scope, "scope cannot be null");
         this.roundId = roundId != null ? roundId : "";
         this.entries = entries != null ? List.copyOf(entries) : List.of();
         this.status = RankingStatus.PROVISIONAL;
-        this.generatedAt = LocalDateTime.now();
+        this.generatedAt = Objects.requireNonNull(generatedAt, "generatedAt cannot be null");
     }
 
     public RankingScope getScope() {
@@ -81,17 +81,18 @@ public class Ranking {
         return entries.stream().filter(e -> e.teamScore().teamId().equals(teamId)).findFirst();
     }
 
-    public void publishOfficial(String notes) {
+    public void publishOfficial(String notes, LocalDateTime publishedAt) {
+        Objects.requireNonNull(publishedAt, "publishedAt cannot be null");
         this.status = RankingStatus.OFFICIAL;
-        this.publishedAt = LocalDateTime.now();
+        this.publishedAt = publishedAt;
         this.publicationNotes = notes != null ? notes : "Official ranking published.";
     }
 
-    public static Ranking of(RankingScope scope, String roundId, List<RankingEntry> entries) {
-        return new Ranking(scope, roundId, entries);
+    public static Ranking of(RankingScope scope, String roundId, List<RankingEntry> entries, LocalDateTime generatedAt) {
+        return new Ranking(scope, roundId, entries, generatedAt);
     }
 
-    public static Ranking of(String rankingId, String editionId, String categoryId, String roundId, List<RankingEntry> entries) {
-        return new Ranking(new RankingScope(rankingId, editionId, categoryId), roundId, entries);
+    public static Ranking of(String rankingId, String editionId, String categoryId, String roundId, List<RankingEntry> entries, LocalDateTime generatedAt) {
+        return new Ranking(new RankingScope(rankingId, editionId, categoryId), roundId, entries, generatedAt);
     }
 }

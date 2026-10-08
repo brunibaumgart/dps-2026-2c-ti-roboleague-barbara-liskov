@@ -47,6 +47,12 @@ Persistencia actual: `Attempt`, `Challenge` y `Appeal` tienen adaptadores JPA.
 `InMemoryRepositoryConfig`. No asumir persistencia completa ni rollback de los
 repositorios en memoria. Flyway administra el esquema y Hibernate lo valida.
 
+`support.Clock` e `support.IdGenerator` son puertos del dominio. Infrastructure
+provee `SystemClock` y `UuidGenerator`, ensamblados en API. No usar reloj del
+sistema ni UUID aleatorios desde domain/application: los casos de uso obtienen
+valores por los puertos y pasan fechas/metadatos a los agregados. Conservar ids
+derivados y tiempos persistidos durante la rehidratación.
+
 ## Criterios SOLID
 
 - **SRP:** separar traducción HTTP, coordinación de casos de uso, reglas de

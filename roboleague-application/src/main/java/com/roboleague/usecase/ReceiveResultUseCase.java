@@ -1,5 +1,8 @@
 package com.roboleague.usecase;
 
+import com.roboleague.support.Clock;
+import com.roboleague.support.IdGenerator;
+import com.roboleague.evaluation.audit.OperationAudit;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.AttemptIdentity;
@@ -22,12 +25,17 @@ import java.util.Objects;
  * the attempt with the challenge's current rulebook, and every later one is scored with that same version.
  */
 public class ReceiveResultUseCase {
+    private final Clock clock;
+    private final IdGenerator ids;
+
     private final AttemptRepository attemptRepository;
     private final RoundRepository roundRepository;
     private final ChallengeRepository challengeRepository;
 
     public ReceiveResultUseCase(AttemptRepository attemptRepository, RoundRepository roundRepository,
-                                ChallengeRepository challengeRepository) {
+                                ChallengeRepository challengeRepository, Clock clock, IdGenerator ids) {
+        this.clock = Objects.requireNonNull(clock, "clock cannot be null");
+        this.ids = Objects.requireNonNull(ids, "ids cannot be null");
         this.attemptRepository = Objects.requireNonNull(attemptRepository, "attemptRepository cannot be null");
         this.roundRepository = Objects.requireNonNull(roundRepository, "roundRepository cannot be null");
         this.challengeRepository = Objects.requireNonNull(challengeRepository, "challengeRepository cannot be null");
@@ -57,7 +65,7 @@ public class ReceiveResultUseCase {
         Rulebook rulebook = challenge.rulebook(scoredWith.version())
                 .orElseThrow(() -> new IllegalStateException("Rulebook " + scoredWith + " not found"));
 
-        return switch (attempt.receive(command.delivery(), rulebook)) {
+        return switch (attempt.receive(command.delivery(), rulebook, new OperationAudit(clock.now(), ids.nextId(), ids.nextId()))) {
             case MeasurementCheck.Rejected rejected -> new Reception.Rejected(rejected.problems());
             case MeasurementCheck.Accepted accepted -> {
                 attemptRepository.save(attempt);

@@ -1,5 +1,7 @@
 package com.roboleague.usecase;
 
+import com.roboleague.support.Clock;
+import com.roboleague.support.IdGenerator;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.ranking.appeal.Appeal;
@@ -7,16 +9,20 @@ import com.roboleague.repository.AppealRepository;
 import com.roboleague.repository.AttemptRepository;
 
 import java.util.Objects;
-import java.util.UUID;
 
 /**
  * Use case to file an appeal against an attempt result.
  */
 public class FileAppealUseCase {
+    private final Clock clock;
+    private final IdGenerator ids;
+
     private final AttemptRepository attemptRepository;
     private final AppealRepository appealRepository;
 
-    public FileAppealUseCase(AttemptRepository attemptRepository, AppealRepository appealRepository) {
+    public FileAppealUseCase(AttemptRepository attemptRepository, AppealRepository appealRepository, Clock clock, IdGenerator ids) {
+        this.clock = Objects.requireNonNull(clock, "clock cannot be null");
+        this.ids = Objects.requireNonNull(ids, "ids cannot be null");
         this.attemptRepository = Objects.requireNonNull(attemptRepository, "attemptRepository cannot be null");
         this.appealRepository = Objects.requireNonNull(appealRepository, "appealRepository cannot be null");
     }
@@ -29,8 +35,8 @@ public class FileAppealUseCase {
             throw new IllegalArgumentException("Team " + teamId + " does not own attempt " + attemptId);
         }
 
-        String appealId = UUID.randomUUID().toString();
-        Appeal appeal = Appeal.of(appealId, attempt.getId().value(), teamId, reason, evidenceDescription);
+        String appealId = ids.nextId();
+        Appeal appeal = Appeal.of(appealId, attempt.getId().value(), teamId, reason, evidenceDescription, clock.now());
 
         attempt.markUnderAppeal();
         attemptRepository.save(attempt);

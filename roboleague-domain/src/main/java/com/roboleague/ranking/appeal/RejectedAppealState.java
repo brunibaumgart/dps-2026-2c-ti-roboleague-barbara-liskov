@@ -1,5 +1,6 @@
 package com.roboleague.ranking.appeal;
 
+import java.time.LocalDateTime;
 import com.roboleague.evaluation.RawMetrics;
 
 /**
@@ -18,12 +19,12 @@ public class RejectedAppealState implements AppealState {
     }
 
     @Override
-    public void accept(Appeal appeal, String resolutionNotes, RawMetrics revisedMetrics, String reviewerId) {
+    public void accept(Appeal appeal, String resolutionNotes, RawMetrics revisedMetrics, String reviewerId, LocalDateTime resolvedAt) {
         throw new IllegalStateException("Cannot accept an already rejected appeal");
     }
 
     @Override
-    public void reject(Appeal appeal, String resolutionNotes, String reviewerId) {
+    public void reject(Appeal appeal, String resolutionNotes, String reviewerId, LocalDateTime resolvedAt) {
         throw new IllegalStateException("Appeal has already been rejected");
     }
 

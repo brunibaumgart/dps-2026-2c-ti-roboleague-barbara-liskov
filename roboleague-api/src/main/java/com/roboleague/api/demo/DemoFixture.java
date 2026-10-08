@@ -50,6 +50,7 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 
 import java.time.Duration;
+import com.roboleague.support.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -64,6 +65,7 @@ import java.util.Set;
  * awaits the panel.
  */
 class DemoFixture implements ApplicationRunner {
+    private final Clock clock;
 
     private static final Logger log = LoggerFactory.getLogger(DemoFixture.class);
     /** Fixed dates, so every run of the demo ends in the same state whatever day it starts. */
@@ -74,7 +76,8 @@ class DemoFixture implements ApplicationRunner {
     private final RankingRepository rankings;
     private final DemoUseCases useCases;
 
-    DemoFixture(RankingRepository rankings, DemoUseCases useCases) {
+    DemoFixture(RankingRepository rankings, DemoUseCases useCases, Clock clock) {
+        this.clock = clock;
         this.rankings = rankings;
         this.useCases = useCases;
     }
@@ -102,11 +105,11 @@ class DemoFixture implements ApplicationRunner {
         published(useCases.publishRulebook().execute(ChallengeId.of("ch-line"), DemoRulebooks.lineFollower(30.0)));
 
         Team cyber = team("t-a", "CyberTeam", junior, new Robot("r-a", "CyberBot", robotSpec()),
-                TeamMember.of("m-1", "Alice Leader", LocalDate.of(2004, 1, 1), "LEADER"),
-                TeamMember.of("m-2", "Bob Builder", LocalDate.of(2004, 2, 2), "DEV"));
+                TeamMember.of("m-1", "Alice Leader", LocalDate.of(2004, 1, 1), "LEADER", clock.today()),
+                TeamMember.of("m-2", "Bob Builder", LocalDate.of(2004, 2, 2), "DEV", clock.today()));
         Team titan = team("t-b", "TitanTeam", junior, new Robot("r-b", "TitanBot", robotSpec()),
-                TeamMember.of("m-3", "Charlie Cap", LocalDate.of(2003, 3, 3), "LEADER"),
-                TeamMember.of("m-4", "Dave Dev", LocalDate.of(2003, 4, 4), "DEV"));
+                TeamMember.of("m-3", "Charlie Cap", LocalDate.of(2003, 3, 3), "LEADER", clock.today()),
+                TeamMember.of("m-4", "Dave Dev", LocalDate.of(2003, 4, 4), "DEV", clock.today()));
         useCases.registerTeam().execute(edition.getId(), cyber);
         useCases.registerTeam().execute(edition.getId(), titan);
 
@@ -194,13 +197,13 @@ class DemoFixture implements ApplicationRunner {
                 Map.of(DemoRulebooks.RESCUED.name(), (double) rescued, DemoRulebooks.FULL_RESCUE.name(), 0.0));
     }
 
-    private static Team team(String id, String name, Category category, Robot robot, TeamMember... members) {
-        Team team = Team.of(id, name, "ITBA", category, robot);
+    private Team team(String id, String name, Category category, Robot robot, TeamMember... members) {
+        Team team = Team.of(id, name, "ITBA", category, robot, clock.today());
         for (TeamMember member : members) {
             team.addMember(member);
         }
         team.getDocumentation().addDocument("DOC", "doc.pdf");
-        team.getDocumentation().verify("Official Inspector");
+        team.getDocumentation().verify("Official Inspector", clock.now());
         return team;
     }
 

@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import static com.roboleague.support.TestValues.*;
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.TeamRepository;
 import com.roboleague.tournament.*;
@@ -44,7 +45,7 @@ class RegisterTeamUseCaseTest {
         when(editionRepository.findById("ed-1")).thenReturn(Optional.of(edition));
 
         Robot robot = new Robot("r-1", "Bot", RobotSpecification.of(2000, 100, 100, 100, 2, Set.of()));
-        Team team = Team.of("t-1", "RoboDevs", "ITBA", category, robot);
+        Team team = Team.of("t-1", "RoboDevs", "ITBA", category, robot, DATE);
 
         when(eligibilitySpecification.isSatisfiedBy(team)).thenReturn(EligibilityResult.eligible());
 
@@ -65,7 +66,7 @@ class RegisterTeamUseCaseTest {
         when(editionRepository.findById("ed-1")).thenReturn(Optional.of(edition));
 
         Robot robot = new Robot("r-1", "Bot", RobotSpecification.of(2000, 100, 100, 100, 2, Set.of()));
-        Team team = Team.of("t-1", "RoboDevs", "ITBA", category, robot);
+        Team team = Team.of("t-1", "RoboDevs", "ITBA", category, robot, DATE);
 
         when(eligibilitySpecification.isSatisfiedBy(team))
                 .thenReturn(EligibilityResult.ineligible(List.of("Robot exceeds maximum weight limit")));

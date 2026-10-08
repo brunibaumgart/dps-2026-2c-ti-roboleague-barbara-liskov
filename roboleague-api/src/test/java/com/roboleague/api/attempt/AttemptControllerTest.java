@@ -142,7 +142,8 @@ class AttemptControllerTest extends ApiTest {
                 .andExpect(jsonPath("$.bySource[1].source").value("JUDGE_PANEL"))
                 .andExpect(jsonPath("$.bySource[1].subtotal").value(85.0))
                 .andExpect(jsonPath("$.revisions[0].rulebookVersion").value(1))
-                .andExpect(jsonPath("$.revisions[0].authorId").value("api-j-2"));
+                .andExpect(jsonPath("$.revisions[0].authorId").value("api-j-2"))
+                .andExpect(jsonPath("$.revisions[0].timestamp").value("2026-10-08T12:00:00"));
     }
 
     @Test

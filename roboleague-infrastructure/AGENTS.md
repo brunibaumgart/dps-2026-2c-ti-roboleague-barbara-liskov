@@ -4,6 +4,11 @@ Leer también `../AGENTS.md`. Adaptadores en
 `src/main/java/com/roboleague/repository/{jpa,memory}`; puertos en domain.
 No depender de application o API.
 
+Los adaptadores de soporte `SystemClock` y `UuidGenerator` viven en
+`com.roboleague.support`. El primero requiere zona explícita; ambos implementan
+puertos de domain y se registran en la configuración API, sin acoplar el núcleo
+a sus implementaciones.
+
 ## Estado actual y convenciones
 
 - Postgres persiste `Appeal`, `Challenge` y `Attempt`; hay adaptadores en memoria

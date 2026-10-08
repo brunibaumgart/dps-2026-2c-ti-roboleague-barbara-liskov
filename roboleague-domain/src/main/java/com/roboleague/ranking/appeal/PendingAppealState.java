@@ -1,5 +1,6 @@
 package com.roboleague.ranking.appeal;
 
+import java.time.LocalDateTime;
 import com.roboleague.evaluation.RawMetrics;
 
 /**
@@ -19,12 +20,12 @@ public class PendingAppealState implements AppealState {
     }
 
     @Override
-    public void accept(Appeal appeal, String resolutionNotes, RawMetrics revisedMetrics, String reviewerId) {
+    public void accept(Appeal appeal, String resolutionNotes, RawMetrics revisedMetrics, String reviewerId, LocalDateTime resolvedAt) {
         throw new IllegalStateException("Appeal must be placed under review before being accepted");
     }
 
     @Override
-    public void reject(Appeal appeal, String resolutionNotes, String reviewerId) {
+    public void reject(Appeal appeal, String resolutionNotes, String reviewerId, LocalDateTime resolvedAt) {
         throw new IllegalStateException("Appeal must be placed under review before being rejected");
     }
 

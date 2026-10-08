@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import static com.roboleague.support.TestValues.*;
 import com.roboleague.repository.memory.InMemoryEditionRepository;
 import com.roboleague.repository.memory.InMemoryRoundRepository;
 import com.roboleague.scheduling.Judge;
@@ -25,9 +26,9 @@ class ScheduleRoundUseCaseTest {
     @DisplayName("Schedules round creating slots for all registered teams and assigning judges and tracks")
     void schedulesRoundSuccessfully() {
         InMemoryEditionRepository editionRepo = new InMemoryEditionRepository();
-        RoundSchedulerService schedulerService = new RoundSchedulerService();
+        RoundSchedulerService schedulerService = new RoundSchedulerService(ids());
         InMemoryRoundRepository rounds = new InMemoryRoundRepository();
-        ScheduleRoundUseCase useCase = new ScheduleRoundUseCase(editionRepo, rounds, schedulerService);
+        ScheduleRoundUseCase useCase = new ScheduleRoundUseCase(editionRepo, rounds, schedulerService, ids());
 
         Category category = Category.of("cat-sumo", "Sumo", 2, 4, 15, 20, 2500);
         Season season = new Season("s-1", 2026, "2026");
@@ -36,8 +37,8 @@ class ScheduleRoundUseCaseTest {
                 LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 2), List.of(category));
 
         Robot robot = new Robot("r-1", "Bot", RobotSpecification.of(2000, 100, 100, 100, 2, Set.of()));
-        Team t1 = Team.of("t-1", "Alpha", "ITBA", category, robot);
-        Team t2 = Team.of("t-2", "Beta", "ITBA", category, robot);
+        Team t1 = Team.of("t-1", "Alpha", "ITBA", category, robot, DATE);
+        Team t2 = Team.of("t-2", "Beta", "ITBA", category, robot, DATE);
         edition.registerTeam(t1);
         edition.registerTeam(t2);
         editionRepo.save(edition);
@@ -47,7 +48,7 @@ class ScheduleRoundUseCaseTest {
 
         Round round = useCase.execute(ScheduleRoundCommand.of(
                 "ed-1", "cat-sumo", 1, "Ronda 1", tracks, judges,
-                LocalDateTime.now(), Duration.ofMinutes(10), Duration.ofMinutes(2)
+                TIME, Duration.ofMinutes(10), Duration.ofMinutes(2)
         ));
 
         assertThat(round).isNotNull();
@@ -63,7 +64,7 @@ class ScheduleRoundUseCaseTest {
     void failsWhenNoTeamsRegistered() {
         InMemoryEditionRepository editionRepo = new InMemoryEditionRepository();
         ScheduleRoundUseCase useCase = new ScheduleRoundUseCase(editionRepo, new InMemoryRoundRepository(),
-                new RoundSchedulerService());
+                new RoundSchedulerService(ids()), ids());
 
         Category category = Category.of("cat-sumo", "Sumo", 2, 4, 15, 20, 2500);
         Season season = new Season("s-1", 2026, "2026");
@@ -77,7 +78,7 @@ class ScheduleRoundUseCaseTest {
 
         assertThatThrownBy(() -> useCase.execute(ScheduleRoundCommand.of(
                 "ed-1", "cat-sumo", 1, "Ronda 1", tracks, judges,
-                LocalDateTime.now(), Duration.ofMinutes(10), Duration.ofMinutes(2)
+                TIME, Duration.ofMinutes(10), Duration.ofMinutes(2)
         )))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("No teams registered");

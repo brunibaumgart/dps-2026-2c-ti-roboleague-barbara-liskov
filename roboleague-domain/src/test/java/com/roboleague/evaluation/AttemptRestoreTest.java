@@ -1,5 +1,6 @@
 package com.roboleague.evaluation;
 
+import static com.roboleague.support.TestValues.*;
 import com.roboleague.evaluation.Attempt.AttemptStatus;
 import com.roboleague.evaluation.audit.AuditTrail;
 import com.roboleague.evaluation.rules.TimeBasedRule;
@@ -63,7 +64,7 @@ class AttemptRestoreTest {
     private static Attempt scored() {
         Attempt attempt = Attempt.of(IDENTITY, REFERENCE);
         attempt.receive(new SourceDelivery(new Measurements(new TrackPerformance(50.0, 0, 0), 0.0, Map.of()), "j-1"),
-                MAZE);
+                MAZE, audit());
         return attempt;
     }
 }

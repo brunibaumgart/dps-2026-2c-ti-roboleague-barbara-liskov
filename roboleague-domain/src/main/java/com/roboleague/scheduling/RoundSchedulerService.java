@@ -1,15 +1,20 @@
 package com.roboleague.scheduling;
 
+import com.roboleague.support.IdGenerator;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 
 /**
  * Domain service to schedule a round and create slots for teams across available tracks and judges.
  */
 public class RoundSchedulerService {
+    private final IdGenerator ids;
+
+    public RoundSchedulerService(IdGenerator ids) {
+        this.ids = Objects.requireNonNull(ids, "ids cannot be null");
+    }
 
     public Round scheduleRound(RoundScheduleRequest request, List<String> teamIds) {
         Objects.requireNonNull(request, "request cannot be null");
@@ -33,7 +38,7 @@ public class RoundSchedulerService {
                 slotJudges.add(judges.get((judgeIndex + 1) % judges.size()));
             }
 
-            SlotIdentity identity = new SlotIdentity(UUID.randomUUID().toString(), round.getId(), teamId);
+            SlotIdentity identity = new SlotIdentity(ids.nextId(), round.getId(), teamId);
             SlotAssignment assignment = new SlotAssignment(track, slotJudges);
             TimeWindow timeWindow = new TimeWindow(currentStart, currentEnd);
 

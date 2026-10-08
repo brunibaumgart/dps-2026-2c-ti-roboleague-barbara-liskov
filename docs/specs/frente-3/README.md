@@ -1,6 +1,6 @@
 # Frente 3: inscripción, programación y front
 
-Estado: especificaciones redactadas; implementación pendiente.
+Estado: spec 01 implementada y verificada; specs 02–06 pendientes.
 
 Fuente: **Hoja de ruta RoboLeague.html**, sección «Frente 3», hallazgos #6 y #7,
 higiene de reloj/ids y flujo «RoboLeague en seis pasos». Se contrastó con el
@@ -13,12 +13,12 @@ no se toman como fechas de este plan.
 
 | Orden | Spec | Resultado |
 | --- | --- | --- |
-| 1 | [01-reloj-e-identificadores-generados.md](01-reloj-e-identificadores-generados.md) | Tiempo y generación de ids controlables en pruebas |
-| 2 | [02-identidades-tipadas.md](02-identidades-tipadas.md) | Identidades distintas para conceptos distintos, sin cambiar el JSON existente |
-| 3 | [03-inscripcion-y-elegibilidad.md](03-inscripcion-y-elegibilidad.md) | Registration y cambios de equipo que preservan elegibilidad |
-| 4 | [04-rondas-y-programacion-paralela.md](04-rondas-y-programacion-paralela.md) | Rondas por desafío y turnos sin conflictos de recursos |
-| 5 | [05-api-de-inscripcion-y-programacion.md](05-api-de-inscripcion-y-programacion.md) | Contratos HTTP y consultas necesarios para operar estos flujos |
-| 6 | [06-front-web-e-integracion.md](06-front-web-e-integracion.md) | Front visual de los flujos y comprobación de integración |
+| 1 | [01-clock-and-generated-identifiers.md](01-clock-and-generated-identifiers.md) | Tiempo y generación de ids controlables en pruebas |
+| 2 | [02-typed-identities.md](02-typed-identities.md) | Identidades distintas para conceptos distintos, sin cambiar el JSON existente |
+| 3 | [03-registration-and-eligibility.md](03-registration-and-eligibility.md) | Registration y cambios de equipo que preservan elegibilidad |
+| 4 | [04-rounds-and-parallel-scheduling.md](04-rounds-and-parallel-scheduling.md) | Rondas por desafío y turnos sin conflictos de recursos |
+| 5 | [05-registration-and-scheduling-api.md](05-registration-and-scheduling-api.md) | Contratos HTTP y consultas necesarios para operar estos flujos |
+| 6 | [06-web-frontend-and-integration.md](06-web-frontend-and-integration.md) | Front visual de los flujos y comprobación de integración |
 
 Cada spec define comportamiento, límites y criterios de aceptación. Implementar
 una por pedido, incluyendo sus pruebas, adaptación de consumidores y documentación.

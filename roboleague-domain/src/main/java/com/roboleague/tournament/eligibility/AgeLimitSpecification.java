@@ -19,10 +19,6 @@ public class AgeLimitSpecification implements EligibilitySpecification<Team> {
         this.referenceDate = Objects.requireNonNull(referenceDate, "referenceDate cannot be null");
     }
 
-    public AgeLimitSpecification() {
-        this(LocalDate.now());
-    }
-
     @Override
     public EligibilityResult isSatisfiedBy(Team team) {
         Category category = team.getCategory();

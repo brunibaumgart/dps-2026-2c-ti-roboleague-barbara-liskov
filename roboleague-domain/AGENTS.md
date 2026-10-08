@@ -4,6 +4,12 @@ Leer también `../AGENTS.md`. Código en `src/main/java/com/roboleague/`:
 `tournament`, `scheduling`, `evaluation`, `ranking` y puertos en `repository`.
 Es Java plano: no introducir dependencias de application/infrastructure/API.
 
+Creación y transiciones reciben fechas o `OperationAudit` explícitos. Los
+agregados no almacenan Clock/IdGenerator; los servicios que generan identidades
+(como RoundSchedulerService) reciben el puerto por constructor. Usar
+`TeamMember.of(..., referenceDate)` al crear participantes de negocio; su
+constructor de valor permite rehidratar sin consultar el calendario actual.
+
 ## Invariantes y extensión
 
 - Modificar estado mediante operaciones del agregado que protejan invariantes,
