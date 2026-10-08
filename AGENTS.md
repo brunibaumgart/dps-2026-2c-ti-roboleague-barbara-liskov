@@ -53,6 +53,14 @@ sistema ni UUID aleatorios desde domain/application: los casos de uso obtienen
 valores por los puertos y pasan fechas/metadatos a los agregados. Conservar ids
 derivados y tiempos persistidos durante la rehidratación.
 
+`Team`, `Robot`, `Documentation` y `Edition` son inmutables. Edition contiene
+Registration por edición/equipo, con CategoryId, fecha de inicio como referencia
+y momento explícito de inscripción; no contiene Team. Resolver sus TeamIds
+contra TeamRepository, que conserva el estado canónico. Los cambios de equipo
+se guardan mediante UpdateTeamUseCase, validando todas sus inscripciones; cambiar
+categoría usa ChangeRegistrationCategoryUseCase para una edición concreta.
+No reintroducir mutadores o una categoría/fecha global de inscripción en Team.
+
 ## Criterios SOLID
 
 - **SRP:** separar traducción HTTP, coordinación de casos de uso, reglas de

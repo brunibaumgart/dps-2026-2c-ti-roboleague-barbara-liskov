@@ -1,7 +1,6 @@
 package com.roboleague.repository.memory;
 
 import com.roboleague.repository.TeamRepository;
-import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.Team;
 import com.roboleague.tournament.TeamId;
 
@@ -27,10 +26,4 @@ public class InMemoryTeamRepository implements TeamRepository {
         return new ArrayList<>(storage.values());
     }
 
-    @Override
-    public List<Team> findByCategory(CategoryId categoryId) {
-        return storage.values().stream()
-                .filter(t -> t.getCategory().id().equals(categoryId))
-                .toList();
-    }
 }

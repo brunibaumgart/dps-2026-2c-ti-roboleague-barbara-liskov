@@ -212,6 +212,35 @@ Cada fuente llega por separado (F3). El reglamento dice qué fuentes exige: si t
 
 `GET /attempts/{id}/breakdown` → 200 con lo que el intento todavía espera (`awaiting`), su puntaje, cada ítem de la última revisión (tope y piso incluidos), lo que aportó cada fuente (`bySource`) y cada revisión con su versión de reglamento, autor y motivo.
 
+## Inscripción y cambios de equipo (casos de uso)
+
+La edición contiene `Registration`, identificada por edición/equipo, con la
+categoría, la fecha de inicio de edición para calcular edades y `registeredAt`
+obtenido del reloj. Un equipo puede competir en categorías distintas en otras
+ediciones. `TeamRepository` es su fuente canónica; la edición conserva TeamId,
+sin referencias mutables al equipo.
+
+`RegisterTeamUseCase.execute(editionId, categoryId, team)` crea una inscripción
+para un equipo nuevo. Para un equipo existente, usar la variante con TeamId;
+enviar otro Team con su mismo id se rechaza para impedir sobrescrituras.
+Se comprueban categoría ofrecida, edades, cantidad de miembros, robot y
+documentación; una reinscripción en la misma edición es conflicto.
+
+Team, Robot, Documentation y Edition son inmutables. Construir el candidato
+completo y guardar cambios mediante `UpdateTeamUseCase.execute(teamId, candidate)`:
+valida todas sus inscripciones antes de reemplazar el equipo. Para cambiar
+categoría, usar `ChangeRegistrationCategoryUseCase.execute(editionId, teamId,
+categoryId)`, que afecta esa edición y conserva sus tiempos. Cambiar un documento
+con `withDocument` invalida la verificación del candidato; `verify` devuelve
+otro valor con autor y hora explícitos. Conservar siempre los valores devueltos.
+
+Programación revalida participantes; programación y rankings resuelven el
+estado actual desde TeamRepository. Rechazos de validación no dejan cambios
+parciales en memoria. Team/Edition/Registration todavía no tienen persistencia
+Postgres: sus datos se pierden al reiniciar y no hay rollback en memoria ante
+fallos técnicos entre escrituras. Su JPA corresponde al frente 5; los endpoints
+HTTP de estos flujos se implementan en la spec 05.
+
 ## Cómo sumar lo tuyo
 
 **Un endpoint.** Controller en `roboleague-api/src/main/java/com/roboleague/api/<contexto>/`, con su DTO. Si el caso de uso es nuevo, su `@Bean` va en `UseCaseConfig`. El test extiende `ApiTest` y usa ids propios (el contexto y la base se comparten entre clases de test).

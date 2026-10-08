@@ -5,10 +5,10 @@ import java.util.Objects;
 /**
  * Robot entity representing the hardware competing for a team.
  */
-public class Robot {
+public final class Robot {
     private final RobotId id;
     private final String name;
-    private RobotSpecification specification;
+    private final RobotSpecification specification;
 
     public Robot(RobotId id, String name, RobotSpecification specification) {
         this.id = Objects.requireNonNull(id, "id cannot be null");
@@ -28,8 +28,8 @@ public class Robot {
         return specification;
     }
 
-    public void updateSpecification(RobotSpecification specification) {
-        this.specification = Objects.requireNonNull(specification, "specification cannot be null");
+    public Robot withSpecification(RobotSpecification specification) {
+        return new Robot(id, name, specification);
     }
 
     @Override

@@ -10,8 +10,11 @@ import com.roboleague.repository.ChallengeRepository;
 import com.roboleague.tournament.Challenge;
 import com.roboleague.tournament.ChallengeId;
 import com.roboleague.tournament.EditionId;
+import com.roboleague.usecase.ChangeRegistrationCategoryUseCase;
+import com.roboleague.usecase.RegisterTeamUseCase;
 import com.roboleague.usecase.ResolveAppealUseCase;
 import com.roboleague.usecase.SaveThenFailUseCase;
+import com.roboleague.usecase.UpdateTeamUseCase;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.aop.support.AopUtils;
@@ -45,6 +48,15 @@ class TransactionalUseCasesTest {
     private ResolveAppealUseCase resolveAppeal;
 
     @Autowired
+    private RegisterTeamUseCase registerTeam;
+
+    @Autowired
+    private UpdateTeamUseCase updateTeam;
+
+    @Autowired
+    private ChangeRegistrationCategoryUseCase changeCategory;
+
+    @Autowired
     private ChallengeRepository challenges;
 
     @Test
@@ -63,5 +75,8 @@ class TransactionalUseCasesTest {
     @DisplayName("Los casos de uso de la aplicación corren dentro de una transacción")
     void givenTheApplicationThenItsUseCasesAreTransactional() {
         assertThat(AopUtils.isAopProxy(resolveAppeal)).isTrue();
+        assertThat(AopUtils.isAopProxy(registerTeam)).isTrue();
+        assertThat(AopUtils.isAopProxy(updateTeam)).isTrue();
+        assertThat(AopUtils.isAopProxy(changeCategory)).isTrue();
     }
 }

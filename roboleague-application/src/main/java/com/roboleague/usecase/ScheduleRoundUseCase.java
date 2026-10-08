@@ -2,6 +2,7 @@ package com.roboleague.usecase;
 
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.RoundRepository;
+import com.roboleague.repository.TeamRepository;
 import com.roboleague.scheduling.*;
 import com.roboleague.support.IdGenerator;
 import com.roboleague.tournament.Edition;
@@ -18,11 +19,13 @@ public class ScheduleRoundUseCase {
     private final IdGenerator ids;
 
     private final EditionRepository editionRepository;
+    private final TeamRepository teamRepository;
     private final RoundRepository roundRepository;
     private final RoundSchedulerService schedulerService;
 
-    public ScheduleRoundUseCase(EditionRepository editionRepository, RoundRepository roundRepository,
+    public ScheduleRoundUseCase(EditionRepository editionRepository, TeamRepository teamRepository, RoundRepository roundRepository,
                                 RoundSchedulerService schedulerService, IdGenerator ids) {
+        this.teamRepository = Objects.requireNonNull(teamRepository, "teamRepository cannot be null");
         this.ids = Objects.requireNonNull(ids, "ids cannot be null");
         this.editionRepository = Objects.requireNonNull(editionRepository, "editionRepository cannot be null");
         this.roundRepository = Objects.requireNonNull(roundRepository, "roundRepository cannot be null");
@@ -34,8 +37,13 @@ public class ScheduleRoundUseCase {
         Edition edition = editionRepository.findById(command.editionId())
                 .orElseThrow(() -> new IllegalArgumentException("Edition not found: " + command.editionId()));
 
-        List<TeamId> teamIds = edition.getTeamsByCategory(command.categoryId()).stream()
-                .map(Team::getId)
+        List<TeamId> teamIds = edition.getRegistrationsByCategory(command.categoryId()).stream()
+                .map(registration -> {
+                    Team team = teamRepository.findById(registration.teamId())
+                            .orElseThrow(() -> new IllegalStateException("Registered team not found: " + registration.teamId()));
+                    edition.requireEligible(team);
+                    return team.getId();
+                })
                 .toList();
 
         if (teamIds.isEmpty()) {

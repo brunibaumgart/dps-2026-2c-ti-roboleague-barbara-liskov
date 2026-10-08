@@ -33,6 +33,21 @@ a sus implementaciones.
   `saveAndFlush` con control optimista. Preservar rechazo de escrituras obsoletas
   y creaciones concurrentes del mismo intento; no convertirlas en sobrescrituras.
 
+## Team, Edition y Registration (memoria)
+
+TeamRepository es canónico y ya no consulta categoría: pertenece a Registration.
+EditionRepository.findByTeamId busca ediciones con esa relación; guardar una
+nueva versión inmutable reemplaza el snapshot del mismo id. Un getter no permite
+modificar el objeto guardado. Esto evita aliases y cambios parciales por
+validación, sin agregar garantías transaccionales ni de concurrencia.
+
+Para los futuros mappers de frente 5: Edition.restore recibe context, fechas,
+categorías e inscripciones completas; conservar TeamId/EditionId/CategoryId,
+referenceDate y registeredAt. La clave de inscripción es edición/equipo. Team
+se reconstruye con profile, robot, members y documentation; no lleva categoría
+ni fecha de inscripción. Documentation.restore conserva documentos y metadatos
+sin repetir verify. No replay de inscripción ni consulta del reloj al leer.
+
 ## Esquema y selección de adaptadores
 
 Flyway usa `src/main/resources/db/migration/V<n>__<descripcion>.sql`.

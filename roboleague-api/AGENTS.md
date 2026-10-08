@@ -38,6 +38,10 @@ controllers, DTOs, config y demo bajo `src/main/java/com/roboleague/api`.
 - `TransactionalUseCases` intercepta beans del paquete exacto
   `com.roboleague.usecase` mediante proxies de clase. Preservar interceptación
   de los métodos y rollback sobre Postgres; comprobarla si cambia el wiring.
+- RegisterTeamUseCase, UpdateTeamUseCase y ChangeRegistrationCategoryUseCase
+  están ensamblados en UseCaseConfig y reciben proxies transaccionales. Team y
+  Edition siguen en memoria; los endpoints de inscripción/cambios/programación
+  están pendientes de la spec 05. No serializar sus agregados para adelantarlos.
 - `InMemoryRepositoryConfig` registra teams, editions, rankings y rounds;
   attempts, challenges y appeals usan JPA. Al persistir otro agregado, quitar
   su bean en memoria. No prometer rollback ni durabilidad de todos los agregados.

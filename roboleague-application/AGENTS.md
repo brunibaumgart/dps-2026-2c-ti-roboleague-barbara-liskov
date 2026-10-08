@@ -19,6 +19,22 @@ Leer también `../AGENTS.md`. Producción en
   inválidos/ids inexistentes, `IllegalStateException` para conflictos y rechazos
   detallados de negocio. La API realiza su traducción HTTP.
 
+## Inscripción y actualización
+
+- RegisterTeamUseCase recibe edición/categoría y un Team nuevo, o un TeamId
+  canónico. Un TeamId existente no se sobrescribe enviando otro Team en un alta.
+  El resultado es Registration; el reloj aporta registeredAt, nunca la fecha
+  usada para calcular edad.
+- UpdateTeamUseCase recibe TeamId y candidato completo inmutable. Validar todas
+  las ediciones devueltas por EditionRepository.findByTeamId antes de guardar;
+  reunir motivos por edición. Cambiar categoría usa
+  ChangeRegistrationCategoryUseCase y conserva fecha/hora de la inscripción.
+- Programación revalida equipos canónicos antes de generar ids/guardar rondas.
+  Ranking resuelve los TeamIds de las registrations contra TeamRepository.
+  No conservar listas paralelas de Team dentro de Edition.
+- Los rechazos de validación no escriben ni mutan referencias ya guardadas.
+  Esto no acredita rollback ante un fallo técnico entre escrituras en memoria.
+
 ## Flujos que requieren cuidado
 
 - `ReceiveResultUseCase` busca el slot, valida el juez asignado y toma el equipo

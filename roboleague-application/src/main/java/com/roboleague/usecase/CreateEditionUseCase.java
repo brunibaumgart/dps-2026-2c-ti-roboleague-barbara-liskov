@@ -25,7 +25,7 @@ public class CreateEditionUseCase {
         }
         Edition edition = Edition.of(command.context(), command.dates());
         for (Category category : command.categories()) {
-            edition.addCategory(category);
+            edition = edition.addCategory(category);
         }
         editionRepository.save(edition);
         return edition;

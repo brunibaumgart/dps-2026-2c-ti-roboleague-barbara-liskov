@@ -27,7 +27,7 @@ class ExplicitCalendarTest {
     void documentationKeepsTheVerificationTimeSuppliedByTheCaller() {
         Documentation documentation = new Documentation();
         LocalDateTime verifiedAt = LocalDateTime.of(2020, 1, 1, 9, 0);
-        documentation.verify(ActorId.of("inspector"), verifiedAt);
+        documentation = documentation.verify(ActorId.of("inspector"), verifiedAt);
         assertThat(documentation.getVerifiedAt()).isEqualTo(verifiedAt);
         assertThat(documentation.getVerifiedBy()).isEqualTo(ActorId.of("inspector"));
     }

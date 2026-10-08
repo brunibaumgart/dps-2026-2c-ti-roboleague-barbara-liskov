@@ -79,21 +79,15 @@ class AppealAndRecalculateIntegrationTest {
         rankingRepository = new InMemoryRankingRepository();
         appealRepository = new InMemoryAppealRepository();
 
-        // Eligibility specification
-        EligibilitySpecification<Team> eligibilitySpec = new AgeLimitSpecification(LocalDate.of(2026, 11, 1))
-                .and(new TeamSizeSpecification())
-                .and(new RobotSpecificationLimit())
-                .and(new DocumentationVerifiedSpecification());
-
-        registerTeamUseCase = new RegisterTeamUseCase(teamRepository, editionRepository, eligibilitySpec);
+        registerTeamUseCase = new RegisterTeamUseCase(teamRepository, editionRepository, clock);
         InMemoryRoundRepository roundRepository = new InMemoryRoundRepository();
-        scheduleRoundUseCase = new ScheduleRoundUseCase(editionRepository, roundRepository,
+        scheduleRoundUseCase = new ScheduleRoundUseCase(editionRepository, teamRepository, roundRepository,
                 new RoundSchedulerService(ids), ids);
         receiveResultUseCase = new ReceiveResultUseCase(attemptRepository, roundRepository, challengeRepository, clock, ids);
 
         RankingCalculatorService rankingService = new RankingCalculatorService(TieBreakerChain.defaultRules());
         recalculateRankingUseCase = new RecalculateRankingUseCase(
-                editionRepository, attemptRepository, rankingRepository, rankingService,
+                editionRepository, teamRepository, attemptRepository, rankingRepository, rankingService,
                 clock, ids);
 
         fileAppealUseCase = new FileAppealUseCase(attemptRepository, appealRepository, clock, ids);
@@ -133,14 +127,11 @@ class AppealAndRecalculateIntegrationTest {
     private Team createTeam(String id, String name) {
         RobotSpecification spec = RobotSpecification.of(1500.0, 200.0, 200.0, 150.0, 2, Set.of("LIDAR"));
         Robot robot = new Robot(RobotId.of("rob-" + id), name + "-Bot", spec);
-        Team team = Team.of(TeamId.of(id), name, "ITBA", mazeCategory, robot, DATE);
-
-        team.addMember(TeamMember.of(ParticipantId.of("m1-" + id), name + " Alpha", LocalDate.of(2005, 5, 1), "LEADER", DATE));
-        team.addMember(TeamMember.of(ParticipantId.of("m2-" + id), name + " Beta", LocalDate.of(2004, 8, 12), "DEV", DATE));
-
-        team.getDocumentation().addDocument("CONSENT", "consent.pdf");
-        team.getDocumentation().verify(ActorId.of("Inspector Juez"), TIME);
-        return team;
+        Documentation documentation = new Documentation().withDocument("CONSENT", "consent.pdf")
+                .verify(ActorId.of("Inspector Juez"), TIME);
+        return Team.of(TeamId.of(id), name, "ITBA", robot, List.of(
+                TeamMember.of(ParticipantId.of("m1-" + id), name + " Alpha", LocalDate.of(2005, 5, 1), "LEADER", DATE),
+                TeamMember.of(ParticipantId.of("m2-" + id), name + " Beta", LocalDate.of(2004, 8, 12), "DEV", DATE)), documentation);
     }
 
     private static AttemptId firstAttemptIn(Round round, int slotIndex) {
@@ -158,10 +149,13 @@ class AppealAndRecalculateIntegrationTest {
     @DisplayName("Complete end-to-end integration flow: Registration -> Scheduling -> Scoring -> Appeal -> Recalculate -> Publish")
     void fullCompetitionLifecycleWithAppealAndRecalculation() {
         // 1. Register Teams
-        Team teamAlpha = registerTeamUseCase.execute(edition2026.getId(), createTeam("t-alpha", "Team Alpha"));
-        Team teamBeta = registerTeamUseCase.execute(edition2026.getId(), createTeam("t-beta", "Team Beta"));
+        Team teamAlpha = createTeam("t-alpha", "Team Alpha");
+        registerTeamUseCase.execute(edition2026.getId(), mazeCategory.id(), teamAlpha);
+        Team teamBeta = createTeam("t-beta", "Team Beta");
+        Registration betaRegistration = registerTeamUseCase.execute(edition2026.getId(), mazeCategory.id(), teamBeta);
 
-        assertThat(teamBeta.getRegistrationDate()).isEqualTo(DATE);
+        assertThat(betaRegistration.registeredAt()).isEqualTo(TIME);
+        assertThat(betaRegistration.referenceDate()).isEqualTo(edition2026.getStartDate());
 
         assertThat(teamRepository.findAll()).hasSize(2);
 

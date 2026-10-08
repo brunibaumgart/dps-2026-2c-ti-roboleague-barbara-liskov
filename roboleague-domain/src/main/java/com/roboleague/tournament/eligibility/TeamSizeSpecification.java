@@ -6,11 +6,12 @@ import com.roboleague.tournament.Team;
 /**
  * Validates that the team composition matches the minimum and maximum members allowed in the category.
  */
-public class TeamSizeSpecification implements EligibilitySpecification<Team> {
+public class TeamSizeSpecification implements EligibilitySpecification<EligibilityCandidate> {
 
     @Override
-    public EligibilityResult isSatisfiedBy(Team team) {
-        Category category = team.getCategory();
+    public EligibilityResult isSatisfiedBy(EligibilityCandidate candidate) {
+        Team team = candidate.team();
+        Category category = candidate.category();
         int size = team.getMembers().size();
 
         if (size < category.minTeamMembers()) {

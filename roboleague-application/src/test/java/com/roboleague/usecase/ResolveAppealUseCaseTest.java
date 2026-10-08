@@ -23,6 +23,7 @@ import com.roboleague.repository.memory.InMemoryAttemptRepository;
 import com.roboleague.repository.memory.InMemoryChallengeRepository;
 import com.roboleague.repository.memory.InMemoryEditionRepository;
 import com.roboleague.repository.memory.InMemoryRankingRepository;
+import com.roboleague.repository.memory.InMemoryTeamRepository;
 import com.roboleague.scheduling.JudgeId;
 import com.roboleague.scheduling.RoundId;
 import com.roboleague.scheduling.SlotId;
@@ -56,7 +57,7 @@ class ResolveAppealUseCaseTest {
         InMemoryAppealRepository appealRepository = new InMemoryAppealRepository();
         InMemoryEditionRepository editionRepository = new InMemoryEditionRepository();
         RecalculateRankingUseCase recalculate = new RecalculateRankingUseCase(
-                editionRepository, attemptRepository, new InMemoryRankingRepository(), new RankingCalculatorService(),
+                editionRepository, new InMemoryTeamRepository(), attemptRepository, new InMemoryRankingRepository(), new RankingCalculatorService(),
         CLOCK, ids());
         ResolveAppealUseCase useCase = new ResolveAppealUseCase(appealRepository, attemptRepository, new InMemoryChallengeRepository(), recalculate, CLOCK, ids());
 
@@ -97,7 +98,7 @@ class ResolveAppealUseCaseTest {
                 .publish(scoringWithFaultsWorth(10.0), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
         challengeRepository.save(challenge);
         ResolveAppealUseCase useCase = new ResolveAppealUseCase(appealRepository, attemptRepository, challengeRepository,
-                new RecalculateRankingUseCase(editionRepository, attemptRepository, new InMemoryRankingRepository(),
+                new RecalculateRankingUseCase(editionRepository, new InMemoryTeamRepository(), attemptRepository, new InMemoryRankingRepository(),
                         new RankingCalculatorService(), CLOCK, ids()), CLOCK, ids());
 
         AttemptId attemptId = AttemptId.of(SlotId.of("slot-1"), 1);
@@ -125,7 +126,7 @@ class ResolveAppealUseCaseTest {
         InMemoryAttemptRepository attemptRepository = new InMemoryAttemptRepository();
         InMemoryAppealRepository appealRepository = new InMemoryAppealRepository();
         ResolveAppealUseCase useCase = new ResolveAppealUseCase(appealRepository, attemptRepository,
-                new InMemoryChallengeRepository(), new RecalculateRankingUseCase(new InMemoryEditionRepository(),
+                new InMemoryChallengeRepository(), new RecalculateRankingUseCase(new InMemoryEditionRepository(), new InMemoryTeamRepository(),
                 attemptRepository, new InMemoryRankingRepository(), new RankingCalculatorService(), CLOCK, ids()), CLOCK, ids());
         Rulebook rulebook = new Rulebook(RulebookVersion.first(), scoringWithFaultsWorth(10.0),
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal())));

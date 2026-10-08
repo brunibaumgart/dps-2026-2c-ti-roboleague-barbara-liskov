@@ -1,8 +1,8 @@
 # 03 — Registration y elegibilidad sostenida
 
-Estado: pendiente. Depende de 01 y 02. Cierra hallazgo #6.
+Estado: implementada y verificada. Depende de 01 y 02. Cierra hallazgo #6.
 
-## Estado actual
+## Situación previa a la implementación
 
 `RegisterTeamUseCase` valida una especificación configurada con fecha del sistema,
 guarda Team y agrega el mismo objeto mutable a Edition. Team permite cambiar
@@ -86,3 +86,28 @@ Cierre de inscripción, bajas/cancelaciones, autenticación de organizadores,
 upload de documentos, historial versionado de equipos y modificación de fechas
 o restricciones de una edición ya utilizada. Si otro frente permite esta última,
 coordinar revalidación antes de aceptar el cambio.
+
+## Implementación y verificación
+
+- Edition contiene Registration inmutable con identidad edición/equipo,
+  CategoryId, fecha de inicio como referencia y registeredAt explícito. Team ya
+  no lleva categoría ni fecha global de inscripción. TeamRepository es canónico.
+- Team, Robot, Documentation y Edition son inmutables y copian colecciones.
+  with... construye candidatos; las operaciones de Edition retornan otra edición.
+  Un documento modificado requiere verificar otra vez el candidato.
+- EligibilityCandidate y RegistrationEligibility mantienen las especificaciones
+  compuestas, con motivos completos. Se agregaron UpdateTeamUseCase y
+  ChangeRegistrationCategoryUseCase. Inscribir un Team nuevo con un id existente
+  es conflicto; la variante TeamId inscribe el equipo canónico en otra edición.
+- EditionRepository.findByTeamId soporta validación de todas las inscripciones.
+  Programación revalida antes de generar ids, y rankings resuelven participantes
+  contra TeamRepository. Demo, fixtures, configuration y proxies están adaptados.
+- `mvn -B -o verify`: aprobado, 439 pruebas (327 domain, 18 infrastructure,
+  45 application y 49 API), sin fallos, errores ni omisiones. Se cubren calendario,
+  límites y motivos, duplicados, rechazos sin cambios parciales, dos ediciones,
+  cambios de categoría y estado canónico, inmutabilidad, rehidratación,
+  revalidación al programar, rankings, transacciones y demo.
+- Team/Edition/Registration siguen en memoria, sin rollback ni persistencia
+  Postgres. Edition.restore y Documentation.restore preservan relaciones y
+  metadatos para los futuros mappers del frente 5. No se agregaron endpoints;
+  HTTP continúa reservado a la spec 05. Las specs 04–06 siguen pendientes.

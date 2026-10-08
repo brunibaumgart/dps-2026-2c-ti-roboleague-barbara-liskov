@@ -9,15 +9,16 @@ import java.util.List;
 /**
  * Validates that the team's robot meets weight and dimensional limits for the category.
  */
-public class RobotSpecificationLimit implements EligibilitySpecification<Team> {
+public class RobotSpecificationLimit implements EligibilitySpecification<EligibilityCandidate> {
 
     @Override
-    public EligibilityResult isSatisfiedBy(Team team) {
+    public EligibilityResult isSatisfiedBy(EligibilityCandidate candidate) {
+        Team team = candidate.team();
         if (team.getRobot() == null) {
             return EligibilityResult.ineligible("Team does not have an assigned robot");
         }
 
-        Category category = team.getCategory();
+        Category category = candidate.category();
         RobotSpecification spec = team.getRobot().getSpecification();
 
         List<String> violations = category.restrictions().robotLimits().checkViolations(spec);

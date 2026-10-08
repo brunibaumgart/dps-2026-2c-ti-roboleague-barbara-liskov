@@ -3,6 +3,7 @@ package com.roboleague.repository.memory;
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.tournament.Edition;
 import com.roboleague.tournament.EditionId;
+import com.roboleague.tournament.TeamId;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,6 +20,11 @@ public class InMemoryEditionRepository implements EditionRepository {
     @Override
     public Optional<Edition> findById(EditionId id) {
         return Optional.ofNullable(storage.get(id));
+    }
+
+    @Override
+    public List<Edition> findByTeamId(TeamId teamId) {
+        return storage.values().stream().filter(e -> e.registration(teamId).isPresent()).toList();
     }
 
     @Override

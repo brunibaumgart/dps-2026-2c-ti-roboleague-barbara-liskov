@@ -7,6 +7,7 @@ import com.roboleague.ranking.RankingId;
 import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.RankingRepository;
+import com.roboleague.repository.TeamRepository;
 import com.roboleague.scheduling.RoundId;
 import com.roboleague.support.Clock;
 import com.roboleague.support.IdGenerator;
@@ -27,14 +28,16 @@ public class RecalculateRankingUseCase {
     private final IdGenerator ids;
 
     private final EditionRepository editionRepository;
+    private final TeamRepository teamRepository;
     private final AttemptRepository attemptRepository;
     private final RankingRepository rankingRepository;
     private final RankingCalculatorService rankingCalculatorService;
 
-    public RecalculateRankingUseCase(EditionRepository editionRepository,
+    public RecalculateRankingUseCase(EditionRepository editionRepository, TeamRepository teamRepository,
                                     AttemptRepository attemptRepository,
                                     RankingRepository rankingRepository,
                                     RankingCalculatorService rankingCalculatorService, Clock clock, IdGenerator ids) {
+        this.teamRepository = Objects.requireNonNull(teamRepository, "teamRepository cannot be null");
         this.clock = Objects.requireNonNull(clock, "clock cannot be null");
         this.ids = Objects.requireNonNull(ids, "ids cannot be null");
         this.editionRepository = Objects.requireNonNull(editionRepository, "editionRepository cannot be null");
@@ -47,7 +50,10 @@ public class RecalculateRankingUseCase {
         Edition edition = editionRepository.findById(editionId)
                 .orElseThrow(() -> new IllegalArgumentException("Edition not found: " + editionId));
 
-        List<Team> teams = edition.getTeamsByCategory(categoryId);
+        List<Team> teams = edition.getRegistrationsByCategory(categoryId).stream()
+                .map(registration -> teamRepository.findById(registration.teamId())
+                        .orElseThrow(() -> new IllegalStateException("Registered team not found: " + registration.teamId())))
+                .toList();
         Map<TeamId, List<Attempt>> attemptsByTeam = new HashMap<>();
 
         for (Team team : teams) {

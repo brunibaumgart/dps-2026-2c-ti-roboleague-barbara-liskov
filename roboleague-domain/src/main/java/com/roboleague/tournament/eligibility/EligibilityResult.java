@@ -11,7 +11,7 @@ public record EligibilityResult(
         List<String> reasons
 ) {
     public EligibilityResult {
-        reasons = reasons != null ? Collections.unmodifiableList(reasons) : Collections.emptyList();
+        reasons = reasons != null ? List.copyOf(reasons) : Collections.emptyList();
     }
 
     public static EligibilityResult eligible() {

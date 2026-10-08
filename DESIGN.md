@@ -78,7 +78,7 @@ Las invariantes se protegen mediante operaciones del agregado y construcción de
 objetos de valor, incluso sin HTTP. API valida el transporte y application los
 requisitos de coordinación. Las referencias entre agregados requieren revisar
 identidad, ciclo de vida y consistencia: `Challenge` referencia edición por id,
-mientras `Edition` contiene equipos. No se impone una política universal de ids.
+mientras `Edition` contiene Registration y referencia equipos canónicos por TeamId. No se impone una política universal de ids.
 
 ---
 
@@ -240,6 +240,10 @@ mientras `Edition` contiene equipos. No se impone una política universal de ids
 
 - **Solución Implementada**:  
   - Se implementó el patrón **Specification** componible mediante la interfaz genérica `EligibilitySpecification<T>`.
+  - Las reglas evalúan EligibilityCandidate (Team, Category y fecha explícita).
+    RegistrationEligibility reúne la política estándar, reutilizada en inscripción,
+    actualización, cambio de categoría y programación; la referencia es el inicio
+    de la edición.
   - Operaciones booleanas combinatorias de primer orden: `and()`, `or()`, `not()`.
   - Especificaciones atómicas de dominio:
     - `AgeLimitSpecification`: Comprueba el rango etario de los integrantes calculando la edad exacta a la fecha del torneo.
@@ -426,7 +430,7 @@ mientras `Edition` contiene equipos. No se impone una política universal de ids
 - **Solución Implementada**: tabla `challenges` (migración `V2`) con id, edición, nombre y una columna JSONB con todas las versiones del reglamento como definiciones. `ChallengeMapper` (capa anticorrupción, como `AppealMapper`) guarda `rulebook.definition()` y, al leer, reconstruye cada versión con `RuleCatalog` y el agregado con `Challenge.restore`, que exige versiones consecutivas desde 1. Si una versión guardada no se puede reconstruir es un dato corrupto: `IllegalStateException`.
 - **Por qué una columna JSON y no tablas por regla**: un reglamento es un árbol (reglas compuestas, bonificaciones, estrategias) que se lee y se escribe entero y nunca se consulta por partes. Las versiones viejas no cambian. La forma del JSON la fijan records propios de infraestructura, no las clases del dominio.
 - **Sin clave foránea a `editions`**: son agregados distintos y se referencian por id; la edición todavía no está en Postgres.
-- **Deuda**: `Edition` sigue en memoria porque persistirla arrastra a los equipos inscriptos, que se van a modelar como inscripción (`Registration`). El perfil `demo` recarga todo en cada arranque, así que la demo no lo nota, pero sin ese perfil un desafío guardado puede quedar apuntando a una edición que ya no está en memoria.
+- **Deuda**: `Edition` y Team siguen en memoria; la spec 03 ya separó su relación mediante Registration. Sus adaptadores JPA corresponden al frente 5. El perfil `demo` recarga todo en cada arranque, así que la demo no lo nota, pero sin ese perfil un desafío guardado puede quedar apuntando a una edición que ya no está en memoria.
 - **Deuda: concurrencia.** Alta y publicación leen y después guardan sin bloqueo optimista: dos altas simultáneas con el mismo id, o dos publicaciones simultáneas, pueden pisarse en vez de dar 409. Se resuelve con `@Version` en la entidad cuando haga falta.
 - **Deuda: dato corrupto.** Un reglamento guardado que no se puede reconstruir lanza `IllegalStateException`, que la convención de la API traduce a 409; un error propio de dato corrupto (500) queda pendiente.
 
@@ -554,9 +558,8 @@ mientras `Edition` contiene equipos. No se impone una política universal de ids
   - *Alternativas descartadas*: `@Transactional` en los casos de uso (mete Spring en la aplicación); un puerto `Transactions` inyectado en cada caso de uso (cambia constructores de varios frentes para el mismo efecto); transacciones en los controllers (la demo, que llama a los casos de uso directo, quedaría afuera).
 - **JSON estricto (issue #14)**: un campo desconocido es 400 con el nombre del campo y los esperados, en lugar de ignorarse (`"penalties"` en vez de `"deductions"` perdía la penalización). El reglamento acepta y descarta `version` y `requiredSources`, que trae cuando se lo lee con `GET`, para poder mandarlo de vuelta tal cual.
 - **Demo con fechas fijas**: la edición es del 10 al 12/11/2026 y las rondas arrancan desde las 9:00 del primer día, una por hora, así cada corrida termina igual.
-- **Deuda vigente**: la elegibilidad todavía mide la edad con la fecha de hoy
-  (`UseCaseConfig`); cambiarla a la fecha de edición corresponde a inscripción
-  (spec 03). Reloj y generación de ids ya se inyectan como puertos (2.20).
+- **Actualización**: reloj e ids se inyectan como puertos (2.20). La spec 03
+  resolvió el calendario de elegibilidad usando el inicio de cada edición (2.22).
 
 ---
 
@@ -569,7 +572,7 @@ mientras `Edition` contiene equipos. No se impone una política universal de ids
   en `UseCaseConfig`. La propiedad `roboleague.time-zone`, configurable con
   `ROBOLEAGUE_TIME_ZONE`, usa `America/Argentina/Buenos_Aires` por defecto.
   El núcleo no consulta estáticamente el reloj ni genera UUID por su cuenta.
-- **Valores en los agregados**: Team, Documentation, Appeal y Ranking reciben
+- **Valores en los agregados**: Registration, Documentation, Appeal y Ranking reciben
   fechas/horas explícitas; las transiciones de Attempt reciben `OperationAudit`
   con hora y dos ids de evento preparados por el caller (una transición genera
   como máximo dos eventos). Revisiones y eventos de una misma operación comparten
@@ -579,9 +582,8 @@ mientras `Edition` contiene equipos. No se impone una política universal de ids
 - **Rehidratación y calendario**: Mappers conservan tiempos, ids y versiones
   existentes sin recurrir a puertos. `TeamMember.of` valida nacimiento contra
   una fecha explícita; su constructor de valor conserva datos estructurales al
-  rehidratar. La referencia de elegibilidad por inscripción sigue pendiente de
-  cambiar a fecha de edición en la spec 03; esta implementación solo vuelve
-  explícito el reloj del ensamblado existente.
+  rehidratar. La spec 03 fijó la referencia de elegibilidad al inicio de cada
+  edición y conservó el momento de inscripción separado de esa fecha (2.22).
 - **Trade-off**: Las firmas del núcleo exigen más valores explícitos y los
   callers/fixtures deben suministrarlos. Se conserva el formato LocalDateTime
   sin offset, las columnas y el JSON histórico; configurar otra zona afecta
@@ -628,6 +630,53 @@ mientras `Edition` contiene equipos. No se impone una política universal de ids
   TeamId. Tests cubren valores inválidos, conservación de texto histórico,
   parsing con guiones, rehidratación desde una fila textual preexistente,
   búsquedas y escritura con las mismas claves, además de contratos HTTP de ids.
+
+### 2.22 Registration y elegibilidad sostenida (spec 03)
+
+- **Problema**: Edition retenía Team mutable y este llevaba una categoría global.
+  Cambiar integrantes, robot o documentación podía invalidar una inscripción sin
+  control, y el calendario de elegibilidad se fijaba al iniciar Spring.
+- **Modelo**: Registration es una entidad inmutable dentro de Edition, con
+  identidad compuesta EditionId/TeamId, CategoryId, referenceDate y registeredAt.
+  La referencia es Edition.startDate; el momento de inscripción viene del Clock.
+  Categoría y fecha salen de Team. TeamRepository guarda su estado canónico;
+  Edition contiene relaciones y nunca una segunda lista de equipos.
+- **Protección del estado**: Team, Robot, Documentation y Edition son inmutables;
+  sus constructores copian colecciones. Métodos with... y operaciones de edición
+  devuelven nuevos valores. Cambiar documentos invalida su verificación porque
+  esta correspondía al conjunto anterior; verificar el candidato suministra autor
+  y hora explícitos. Ningún cambio del candidato modifica el equipo ya guardado.
+- **Política de dominio**: Las especificaciones componen EligibilityCandidate
+  (equipo, categoría y fecha), reuniendo causas de edad, tamaño, robot y
+  documentación. RegistrationEligibility se usa desde Edition en altas, cambios
+  de categoría y revalidación. TeamIneligibleException vive en domain, conservando
+  su traducción HTTP a 422 en API.
+- **Coordinación**: RegisterTeamUseCase distingue Team nuevo de TeamId existente
+  y rechaza sobrescribir estado canónico mediante un alta. Duplicados en una
+  edición son conflictos. UpdateTeamUseCase consulta EditionRepository.findByTeamId,
+  valida el candidato contra todas las relaciones y reúne motivos por edición
+  antes de guardar. ChangeRegistrationCategoryUseCase modifica una relación y
+  conserva sus tiempos. Programación revalida antes de generar ids; rankings
+  resuelven los participantes actuales sin cambiar cálculos del frente 4.
+- **Rehidratación**: Edition.restore valida pertenencia, categorías, fecha de
+  referencia y unicidad, conservando los tiempos sin reevaluar equipos. Team
+  admite construcción completa de su estado; Documentation.restore conserva
+  documentos y verificación sin replay. Para frente 5, la restricción única de
+  Registration es edición/equipo, y los mappers deben preservar estos valores.
+- **Alternativas**: No se agregó un cierre de inscripción, pues no existe ese
+  ciclo de vida. Copias defensivas de un Team mutable habrían conservado múltiples
+  fuentes de estado; bloquear todos los cambios impediría actualizaciones válidas.
+  Se eligieron snapshots inmutables con validación coordinada de inscripciones.
+- **Límites**: Team y Edition siguen en memoria. Validar antes de escribir evita
+  cambios parciales por rechazo, pero no rollback ante fallos técnicos ni control
+  de concurrencia entre varios escritores. Repositorios/restore son mecanismos
+  confiables de persistencia, no entradas de negocio. JPA, restricciones únicas
+  y coordinación de escrituras concurrentes corresponden al frente 5. Endpoints
+  de inscripción/cambios/programación corresponden a la spec 05.
+- **Verificación**: Calendario con edades que cambian elegibilidad al iniciar la
+  edición, rechazos sin escrituras, duplicados, relaciones independientes,
+  actualizaciones válidas e inválidas contra dos categorías, inmutabilidad y
+  rehidratación, revalidación al programar, rankings canónicos, proxies y demo.
 
 ## 3. Matriz Comparativa Exhaustiva de Trade-offs
 

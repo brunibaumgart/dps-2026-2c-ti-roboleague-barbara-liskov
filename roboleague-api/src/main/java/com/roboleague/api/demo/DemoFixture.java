@@ -23,6 +23,7 @@ import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.Challenge;
 import com.roboleague.tournament.ChallengeId;
 import com.roboleague.tournament.DateRange;
+import com.roboleague.tournament.Documentation;
 import com.roboleague.tournament.Edition;
 import com.roboleague.tournament.EditionContext;
 import com.roboleague.tournament.EditionHeader;
@@ -119,8 +120,8 @@ class DemoFixture implements ApplicationRunner {
         Team titan = team("t-b", "TitanTeam", junior, new Robot(RobotId.of("r-b"), "TitanBot", robotSpec()),
                 TeamMember.of(ParticipantId.of("m-3"), "Charlie Cap", LocalDate.of(2003, 3, 3), "LEADER", clock.today()),
                 TeamMember.of(ParticipantId.of("m-4"), "Dave Dev", LocalDate.of(2003, 4, 4), "DEV", clock.today()));
-        useCases.registerTeam().execute(edition.getId(), cyber);
-        useCases.registerTeam().execute(edition.getId(), titan);
+        useCases.registerTeam().execute(edition.getId(), junior.id(), cyber);
+        useCases.registerTeam().execute(edition.getId(), junior.id(), titan);
 
         Round round = scheduleRound(edition, 1, "Ronda Clasificatoria", Track.active(TrackId.of("trk-1"), "Laberinto 1", "Madera"));
 
@@ -207,13 +208,9 @@ class DemoFixture implements ApplicationRunner {
     }
 
     private Team team(String id, String name, Category category, Robot robot, TeamMember... members) {
-        Team team = Team.of(TeamId.of(id), name, "ITBA", category, robot, clock.today());
-        for (TeamMember member : members) {
-            team.addMember(member);
-        }
-        team.getDocumentation().addDocument("DOC", "doc.pdf");
-        team.getDocumentation().verify(ActorId.of("Official Inspector"), clock.now());
-        return team;
+        Documentation documentation = new Documentation().withDocument("DOC", "doc.pdf")
+                .verify(ActorId.of("Official Inspector"), clock.now());
+        return Team.of(TeamId.of(id), name, "ITBA", robot, List.of(members), documentation);
     }
 
     private static RobotSpecification robotSpec() {

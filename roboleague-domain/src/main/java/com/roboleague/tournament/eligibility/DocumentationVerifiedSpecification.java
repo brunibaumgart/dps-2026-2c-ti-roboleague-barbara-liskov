@@ -5,10 +5,11 @@ import com.roboleague.tournament.Team;
 /**
  * Validates that team documentation has been submitted and formally verified.
  */
-public class DocumentationVerifiedSpecification implements EligibilitySpecification<Team> {
+public class DocumentationVerifiedSpecification implements EligibilitySpecification<EligibilityCandidate> {
 
     @Override
-    public EligibilityResult isSatisfiedBy(Team team) {
+    public EligibilityResult isSatisfiedBy(EligibilityCandidate candidate) {
+        Team team = candidate.team();
         if (team.getDocumentation() != null && team.getDocumentation().isVerified()) {
             return EligibilityResult.eligible();
         }

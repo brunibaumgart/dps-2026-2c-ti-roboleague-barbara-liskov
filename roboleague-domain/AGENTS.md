@@ -10,6 +10,26 @@ agregados no almacenan Clock/IdGenerator; los servicios que generan identidades
 `TeamMember.of(..., referenceDate)` al crear participantes de negocio; su
 constructor de valor permite rehidratar sin consultar el calendario actual.
 
+## Inscripción y estado canónico
+
+- Team/Robot/Documentation/Edition son inmutables. Métodos `with...`, verify,
+  revokeVerification, addCategory y registerTeam devuelven candidatos o nuevas
+  ediciones: conservar el valor devuelto; nunca asumir mutación del original.
+- Registration se identifica por EditionId/TeamId. Su categoría y su fecha de
+  referencia pertenecen a la edición; la fecha es Edition.startDate. No agregar
+  categoría ni fecha de inscripción globales a Team.
+- RegistrationEligibility compone reglas sobre EligibilityCandidate (Team,
+  Category, fecha explícita). Inscripción, cambio de categoría, actualización y
+  programación usan el mismo control. Los rechazos de elegibilidad conservan
+  todos los motivos en tournament.eligibility.TeamIneligibleException.
+- Cambiar documentos con withDocument invalida su verificación en el candidato;
+  verify devuelve otro valor con autor y hora explícitos. Los getters y los
+  constructores no deben conservar aliases de listas, mapas o sensores mutables.
+- Edition.restore conserva inscripciones y tiempos sin reevaluar equipos ni
+  consultar el reloj; valida ids de edición, categorías, fecha y duplicados.
+  Team se rehidrata con su constructor completo; Documentation.restore conserva
+  documentos y metadatos de verificación. Estas vías son para adaptadores.
+
 ## Invariantes y extensión
 
 - Modificar estado mediante operaciones del agregado que protejan invariantes,
@@ -19,7 +39,7 @@ constructor de valor permite rehidratar sin consultar el calendario actual.
   comodidad de acceso a los datos.
 - Justificar referencias entre agregados por identidad, ciclo de vida y límites
   de consistencia. `Challenge` referencia edición por id, mientras `Edition`
-  contiene equipos; no imponer referencias por id a todo el modelo ni convertir
+  contiene Registration con TeamId; no imponer referencias por id a todo el modelo ni convertir
   cada relación en pertenencia al mismo agregado. Cambiar un límite exige revisar
   operaciones, persistencia y pruebas que dependan de él.
 - `Edition` organiza el evento; `Challenge` identifica un desafío con reglamento

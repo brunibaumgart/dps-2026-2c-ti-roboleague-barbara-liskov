@@ -1,4 +1,4 @@
-package com.roboleague.usecase;
+package com.roboleague.tournament.eligibility;
 
 import java.util.List;
 
