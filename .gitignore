@@ -8,5 +8,6 @@ target/
 .classpath
 *.log
 .DS_Store
-.agents/
+.agents/*
+!.agents/skills/
 .DS_Store/
