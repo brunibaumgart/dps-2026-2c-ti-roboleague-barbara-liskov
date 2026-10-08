@@ -9,6 +9,10 @@ controllers, DTOs, config y demo bajo `src/main/java/com/roboleague/api`.
   `/editions/{id}/registrations` y `/appeals/{id}/acceptance`.
 - Recibir records de request y devolver DTOs mediante `XxxDto.from(...)`.
   No serializar directamente agregados, estados o entidades JPA.
+- Validar presencia y formato del transporte y convertirlos a commands/valores
+  del núcleo. Invocar casos de uso para operaciones de negocio; no acceder desde
+  controllers a repositorios JPA para evitar ese flujo. Las invariantes permanecen
+  en domain y la coordinación en application, aunque la API traduzca sus errores.
 - Mantener `ErrorDto {error, details}` y `ApiExceptionHandler`: datos inválidos
   e ids inexistentes → 400; conflictos/transiciones no permitidas → 409;
   equipos inelegibles → 422 con motivos. Conflictos de persistencia → 409.

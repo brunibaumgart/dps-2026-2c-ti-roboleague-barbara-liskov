@@ -9,6 +9,10 @@ Leer también `../AGENTS.md`. Producción en
   en domain; no usar clases concretas JPA/memory desde producción.
 - El caso de uso carga agregados, invoca comportamiento de dominio y guarda el
   resultado. Mantener scoring, elegibilidad y transiciones dentro del dominio.
+- Distinguir requisitos del flujo (cargar un slot y comprobar asignación del
+  juez) de invariantes propias del modelo. Las invariantes deben cumplirse también
+  al invocar el dominio sin HTTP; no confiar en validaciones del controller para
+  mantener válido un agregado. No incorporar aquí validaciones de formato JSON.
 - Usar commands/records y resultados `sealed` existentes cuando correspondan
   (`Reception`, `Publication`). No introducir DTOs HTTP ni códigos de respuesta.
 - Preservar la distinción actual entre `IllegalArgumentException` para datos

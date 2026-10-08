@@ -1,13 +1,42 @@
 # Documento de Decisiones de Diseño (DESIGN.md) - RoboLeague
 
-**Trabajo Integrador - Entrega 1: Módulo de Dominio**  
+**Trabajo Integrador - Diseño del dominio y evolución a aplicación REST**
+
 **Plataforma de Competencias de Robótica y Desafíos Técnicos**
 
 ---
 
-## 1. Arquitectura de Dominio y Contextos Delimitados (Bounded Contexts)
+## 1. Arquitectura y organización del dominio
 
-El dominio de **RoboLeague** se estructura en cuatro submódulos conceptuales altamente cohesivos y débilmente acoplados, reflejando el flujo natural de una competencia técnica:
+El documento se inició en la Entrega 1, centrada en el dominio, y conserva
+decisiones de esa etapa junto con su evolución. Actualmente RoboLeague es una
+aplicación Maven multimódulo con arquitectura **hexagonal (puertos y adaptadores)**,
+modelado inspirado en **DDD** y separación compatible con la regla de dependencias
+de **Clean Architecture**.
+
+| Módulo | Responsabilidad y dependencia de producción |
+| --- | --- |
+| `roboleague-domain` | Modelo, invariantes, servicios de dominio y puertos; Java sin frameworks |
+| `roboleague-application` | Casos de uso que coordinan el dominio; depende de domain |
+| `roboleague-infrastructure` | Adaptadores JPA/Postgres y en memoria; depende de domain |
+| `roboleague-api` | REST, DTOs, configuración Spring y ensamblado; depende de application e infrastructure |
+
+Application depende de infrastructure únicamente en tests. En ejecución, un
+controller llama al caso de uso, que utiliza el dominio y los puertos de
+repositorio. En el código, el adaptador de persistencia depende del contrato
+interno que implementa; el núcleo desconoce JPA y HTTP. Los métodos públicos de
+casos de uso constituyen la entrada al núcleo sin requerir una interfaz por clase.
+La configuración de Spring vive en API, incluyendo las transacciones.
+
+Esta separación permite probar el negocio con Java y repositorios en memoria,
+incorporar REST y persistencia por etapas y extender reglas de puntuación sin
+acoplarlas al transporte o al esquema de datos. Su costo es mantener mappers,
+contratos y configuración adicionales; las nuevas abstracciones deben responder
+a variaciones o límites concretos del negocio.
+
+DDD aparece en el lenguaje del modelo, objetos de valor, agregados con
+comportamiento, servicios, repositorios y especificaciones. El dominio se
+organiza en cuatro áreas que reflejan el flujo de una competencia técnica:
 
 ```text
 roboleague-domain/
@@ -17,13 +46,39 @@ roboleague-domain/
 └── ranking/             # Criterios de ordenamiento, Desempates, Publicación, Apelaciones
 ```
 
-### Responsabilidades por Contexto:
+Estas áreas comparten tipos y referencias. La división por paquetes no demuestra
+bounded contexts independientes: delimitar uno requiere establecer dónde es
+válido su modelo y cómo se integra con otros. Tampoco implica microservicios.
+
+### Responsabilidades por área:
 1. **`tournament`**: Modela el ciclo organizativo: definición de temporadas, torneos y ediciones cronológicas; categorización técnica con restricciones físicas y etarias; registro de equipos, participantes y especificaciones de robots; y evaluación compuesta de elegibilidad.
 2. **`scheduling`**: Modela la logística operativa de campo: gestión de pistas o arenas de prueba, designación y perfiles de jueces evaluadores, planificación de rondas y asignación determinista de turnos (slots) con ventanas temporales y pausas intermedias.
 3. **`evaluation`**: Corazón computacional del sistema. Modela los intentos en pista (`Attempt`), la captura estructurada de métricas observadas (`RawMetrics`), el motor de puntuación explicable y versionado (`Rulebook`, `ScoreRule`, `ScoreBreakdown`), y el rastro de auditoría append-only con snapshots inmutables y eventos de dominio.
 4. **`ranking`**: Consolida los puntajes agregados por equipo (`TeamScore`), resuelve empates jerárquicamente mediante cadenas desacopladas (`TieBreakerChain`), administra la publicación oficial o provisional de tablas (`Ranking`), y gobierna el ciclo de apelaciones (`Appeal`) mediante una máquina de estados polimórfica.
 
 **Cardinalidad del evento:** una `Edition` es el evento y tiene varios `Challenge` (Laberinto, Seguidor de línea, Rescate). Cada desafío publica su propio reglamento versionado (`Rulebook`). `Category` es elegibilidad, no un desafío. Ver 2.8.
+
+### Criterios SOLID y límites del modelo
+
+- **SRP:** controllers traducen HTTP, casos de uso coordinan, dominio mantiene
+  invariantes y cálculos, y mappers convierten representaciones persistidas.
+  Separar responsabilidades por sus razones para cambiar.
+- **OCP:** Strategy, Composite y Specification permiten extender comportamiento
+  mediante composición. Agregar una regla y registrarla en `RuleCatalog` es una
+  extensión válida; no exige mantener intacto todo archivo de configuración.
+- **LSP:** implementaciones de reglas y puertos deben respetar sus contratos
+  observables. Los adaptadores en memoria y JPA no son equivalentes en durabilidad,
+  concurrencia o rollback; sus diferencias deben ser explícitas.
+- **ISP:** mantener contratos enfocados en sus consumidores; no obligar a un
+  adaptador a simular operaciones ajenas o rechazar métodos prometidos por su interfaz.
+- **DIP:** application depende de puertos del núcleo y recibe implementaciones
+  por constructor; el contenedor Spring ensambla, pero no define por sí solo esta inversión.
+
+Las invariantes se protegen mediante operaciones del agregado y construcción de
+objetos de valor, incluso sin HTTP. API valida el transporte y application los
+requisitos de coordinación. Las referencias entre agregados requieren revisar
+identidad, ciclo de vida y consistencia: `Challenge` referencia edición por id,
+mientras `Edition` contiene equipos. No se impone una política universal de ids.
 
 ---
 
@@ -203,24 +258,26 @@ roboleague-domain/
 
 ---
 
-### 2.7 Inversión de Control, Aislamiento del Dominio y Composition Root (`Main`)
+### 2.7 Inversión de Control, Aislamiento del Dominio y Composition Root
 
 - **Problema**:  
   Si los casos de uso o servicios de dominio crean internamente instancias concretas (`new InMemoryRepository()`, `new ConcreteService()`), quedan fuertemente acoplados a detalles de infraestructura. Del mismo modo, si el dominio importa herramientas de consola (`System.out`), frameworks de serialización (`Gson`) o clientes HTTP (`Unirest`), el negocio pierde pureza y portabilidad.
 
 - **Solución Implementada**:  
-  - **Dependencia Exclusiva de Interfaces**: El dominio solo conoce contratos (`TeamRepository`, `EditionRepository`, `AttemptRepository`, `RankingRepository`, `AppealRepository`).
-  - **Inyección por Constructor**: Todas las dependencias requeridas por casos de uso y servicios se reciben explícitamente en el constructor. No existe ningún `new` de implementaciones concretas dentro de las clases de negocio.
-  - **Composition Root Único ([`Main.java`](file:///c:/ITBA/2026/2026_Q2/Dps/tp/roboleague-domain/src/main/java/com/roboleague/Main.java))**: Es el único punto de ensamble donde se construyen las instancias de infraestructura en memoria, se configuran las cadenas de desempate y especificaciones de elegibilidad, se inyectan en los casos de uso y se orquesta la ejecución.
+  - **Puertos internos**: Los casos de uso conocen contratos de persistencia definidos en domain: `TeamRepository`, `EditionRepository`, `RoundRepository`, `ChallengeRepository`, `AttemptRepository`, `RankingRepository` y `AppealRepository`. No dependen de los adaptadores JPA o en memoria.
+  - **Inyección por Constructor**: Los casos de uso reciben puertos y servicios; construir objetos del modelo dentro del negocio es válido. Evitar la creación interna de adaptadores tecnológicos.
+  - **Composition Root actual**: [`UseCaseConfig`](roboleague-api/src/main/java/com/roboleague/api/config/UseCaseConfig.java) registra servicios y casos de uso. [`InMemoryRepositoryConfig`](roboleague-api/src/main/java/com/roboleague/api/config/InMemoryRepositoryConfig.java) registra los puertos que siguen en memoria; Spring descubre los adaptadores JPA. [`RoboLeagueApplication`](roboleague-api/src/main/java/com/roboleague/RoboLeagueApplication.java) inicia la aplicación. El ensamblado manual en `Main` corresponde a la Entrega 1 y ya no describe la ejecución actual.
+  - **Transacciones externas al núcleo**: [`TransactionalUseCases`](roboleague-api/src/main/java/com/roboleague/api/config/TransactionalUseCases.java) aplica proxies de clase a beans del paquete exacto `com.roboleague.usecase`. El rollback cubre escrituras Postgres, no cambios de repositorios en memoria.
   - **Higiene de Importaciones**: Cero uso e importación de `System.out`, `Scanner`, `Gson` o `Unirest` en todo el paquete de dominio.
 
 - **Pros**:
   - **Dominio 100% Puro y Portable**: El código de negocio puede ser reutilizado sin modificaciones en una aplicación Spring Boot, una API Quarkus, una CLI, o una arquitectura serverless.
-  - **Testeabilidad Absoluta**: Los tests unitarios e integrados reemplazan cualquier dependencia por implementaciones en memoria o mocks sin alterar una sola línea de código de dominio.
+  - **Pruebas del núcleo sin frameworks**: Los tests de dominio y casos de uso pueden usar objetos Java, adaptadores en memoria o mocks. Las garantías de JPA, concurrencia, transacciones y HTTP requieren sus pruebas de integración.
   - **Facilidad de Mantenimiento**: El grafo completo de dependencias de la aplicación se comprende de un solo vistazo inspeccionando el Composition Root.
 
 - **Contras**:
-  - **Wiring Manual**: Al no utilizar un contenedor de inyección automático (ej. Spring Framework o Google Guice) en esta etapa, el ensamblado de clases en `Main` y en los tests de integración debe realizarse de forma explícita.
+  - **Configuración de ensamblado**: Aunque Spring gestiona los beans, se mantienen registros explícitos de casos de uso y selección de adaptadores. Debe haber un único bean por puerto.
+  - **Restricciones de proxies**: La interceptación transaccional depende del paquete y de clases/métodos aptos para proxies. Cambiar esa estructura exige verificar el cableado.
 
 ---
 
@@ -511,7 +568,7 @@ roboleague-domain/
 | **Cadenas de Desempate con `Comparator Composition`** | Flexibilidad total para reordenar o añadir criterios de desempate; testeo aislado de cada regla. | Exige que todas las métricas de desempate se encuentren consolidadas en `PerformanceSummary`. | Algoritmo rígido hardcodeado con `if-else` anidados. Rechazada por fragilidad y dificultad de extensión. |
 | **Máquina de Estados Polimórfica (`AppealState`)** | Transiciones legalmente seguras; consultas polimórficas sin `if/switch`; cero strings de estado. | Proliferación de clases de estado; necesidad de mappers al momento de persistir en base de datos. | Campo `String` o `Enum` con bifurcaciones condicionales. Rechazada por riesgo de transiciones ilegales y código frágil. |
 | **Elegibilidad con `Composite Specification`** | Composabilidad declarativa (`and`, `or`, `not`); desacoplamiento de criterios; detalle de causales de fallo. | Evaluación sucesiva en memoria; requiere recorrer las listas de integrantes y características del robot. | Validaciones manuales procedurales dentro del caso de uso. Rechazada por violar SRP y no ser reutilizable. |
-| **Composition Root Único (`Main`)** | Dominio puro sin frameworks externos; inversión de dependencias estricta; máxima testeabilidad. | Requiere cableado manual explícito al no utilizar un framework de DI automático en el dominio. | Hacer `new` de implementaciones concretas adentro de servicios. Rechazada por acoplamiento indebido. |
+| **Composition Root en API (configuración Spring)** | Núcleo libre de frameworks; puertos internos y adaptadores seleccionados externamente. | Mantener registros de beans, selección de repositorios y restricciones de proxies transaccionales. | Crear adaptadores tecnológicos dentro del negocio. Rechazada por acoplamiento indebido. |
 | **`Challenge` como agregado con su `Rulebook`** | Varios desafíos por evento, cada uno con su reglamento versionado; F1, F2 y F3 viven en el reglamento del desafío. | Captura y apelación tienen que saber de qué desafío es el intento. | Una edición = una prueba (Entrega 1). Rechazada en la Entrega 2: la demo pide tres desafíos en un evento y reglas por desafío. |
 | **Recálculo = reordenar snapshots vigentes** | Cumple “reprocesar posiciones después de una corrección”; no reinterpreta la pista; barato y determinista. | No re-aplica las `ScoreRule` si el desafío publica una versión nueva después de evaluar; que el intento recuerde su versión queda pendiente (hallazgo 2). | Re-evaluar todos los `RawMetrics` en cada recálculo de tabla. Rechazada: con reglamentos inmutables el resultado no cambia; el gancho `recalculateWith` queda por si el negocio lo pide. |
 | **Tope de bonificaciones en el esquema de puntaje (`BonusLimit`)** | El tope va sobre la suma y queda explicado; ninguna regla de bonificación cambia. | Las bonificaciones se declaran aparte del resto de las reglas, y `Rulebook`/`Challenge.publish` pasaron a recibir un `ScoringScheme` en lugar de una lista de reglas. | Decorator que envuelve las bonificaciones como una regla más. Rechazada: el grupo mezcla fuentes y una regla declara una sola. |
@@ -546,16 +603,16 @@ roboleague-domain/
 9. **Enum de criterios de desempate con comparadores (como `TieBreakerChain.StandardCriterion`)**:
    - *Justificación del descarte*: no dice qué criterio decidió y agregar uno obliga a abrir el enum (OCP). Cada criterio es una clase con nombre.
 
-### Decisiones Técnicas Pospuestas (Justificación Arquitectónica):
+### Evolución de decisiones técnicas inicialmente pospuestas:
 1. **Framework de Persistencia Real (JPA / Hibernate / Spring Data)**:
-   - *Decisión*: No incorporar dependencias de bases de datos relacionales ni ORMs en esta etapa.
-   - *Justificación*: Conforme a los lineamientos de la consigna (*"Únicamente módulo del dominio; no se exige persistencia real ni API REST"*), diferir la persistencia mantiene el dominio desacoplado de esquemas relacionales, tablas o anotaciones de infraestructura.
+   - *Entrega 1*: Se difirió la persistencia real porque la consigna se centraba en el módulo de dominio.
+   - *Estado actual*: infrastructure incorpora Spring Data JPA, Hibernate, Postgres y migraciones Flyway para `Appeal`, `Challenge` y `Attempt`. `Edition`, `Team`, `Round` y `Ranking` siguen en memoria. Las entidades JPA y mappers son propios del adaptador; domain y application permanecen libres de anotaciones de persistencia. Flyway administra el esquema y Hibernate lo valida.
 2. **Contenedor de Inyección de Dependencias Automatizado (Spring / Guice / CDI)**:
-   - *Decisión*: Ensamble explícito manual en `Main` y en fixtures de test.
-   - *Justificación*: Evita la contaminación del modelo de dominio con anotaciones externas (`@Inject`, `@Autowired`, `@Component`), garantizando un artefacto de dominio puro en Java nativo estándar.
+   - *Entrega 1*: Se utilizó ensamblado manual en `Main` y fixtures de test.
+   - *Estado actual*: Spring Boot ensambla la aplicación desde API; `UseCaseConfig` registra casos de uso y servicios, y `TransactionalUseCases` aplica las transacciones. El núcleo conserva inyección por constructor y Java sin anotaciones Spring. La independencia del dominio se mantiene aunque el ensamblado externo use un framework.
 3. **Motor de Reglas Externo con DSL (Drools / Rete)**:
    - *Decisión*: Resolver el scoring mediante composición de objetos Java puros (`ScoreRule`).
-   - *Justificación*: El patrón Strategy + Composite ofrece tipado fuerte en tiempo de compilación, velocidad máxima de ejecución, cero overhead de parsing en runtime y máxima facilidad de depuración mediante pruebas unitarias nativas de JUnit 5.
+   - *Justificación*: Strategy + Composite permite componer y probar reglas Java sin un motor externo. Las definiciones configurables se validan y reconstruyen mediante `RuleCatalog`; eso incluye procesamiento en ejecución. No se presupone ausencia de parsing ni superioridad de rendimiento sin mediciones.
 
 ---
 

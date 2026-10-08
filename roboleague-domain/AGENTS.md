@@ -6,6 +6,16 @@ Es Java plano: no introducir dependencias de application/infrastructure/API.
 
 ## Invariantes y extensión
 
+- Modificar estado mediante operaciones del agregado que protejan invariantes,
+  sin exponer sus componentes mutables para que un consumidor saltee validaciones.
+  Un servicio de dominio puede coordinar una regla que no pertenece naturalmente
+  a una entidad; no trasladar comportamiento de negocio a un caso de uso por
+  comodidad de acceso a los datos.
+- Justificar referencias entre agregados por identidad, ciclo de vida y límites
+  de consistencia. `Challenge` referencia edición por id, mientras `Edition`
+  contiene equipos; no imponer referencias por id a todo el modelo ni convertir
+  cada relación en pertenencia al mismo agregado. Cambiar un límite exige revisar
+  operaciones, persistencia y pruebas que dependan de él.
 - `Edition` organiza el evento; `Challenge` identifica un desafío con reglamento
   propio; `Category` determina elegibilidad. Preservar esta distinción.
 - Modelar valores con los records/objetos de valor existentes y validar sus

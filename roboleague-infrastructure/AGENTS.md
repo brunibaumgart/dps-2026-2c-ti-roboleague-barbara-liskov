@@ -8,6 +8,12 @@ No depender de application o API.
 
 - Postgres persiste `Appeal`, `Challenge` y `Attempt`; hay adaptadores en memoria
   para los siete puertos. La API selecciona cuáles usar.
+- Respetar el contrato observable de cada puerto: identidad, resultado de
+  búsquedas, errores y efectos de guardar. Las consultas no deben efectuar
+  transiciones de negocio ni escrituras inesperadas. Documentar diferencias de
+  concurrencia, durabilidad y rollback frente al adaptador en memoria; no exigir
+  equivalencia transaccional que este no implementa. Cubrir los comportamientos
+  compartidos del contrato y las garantías particulares del adaptador.
 - Mantener entidad JPA propia, interfaz `SpringDataXxx`, mapper en ambos sentidos
   y `JpaXxxRepository implements XxxRepository`. Entidades y detalles de JSON
   quedan dentro del adaptador; no anotar agregados con JPA/Jackson.

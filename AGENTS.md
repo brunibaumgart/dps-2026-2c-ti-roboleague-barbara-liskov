@@ -19,6 +19,18 @@ reglas en los `AGENTS.md`, evitando duplicarlas en los archivos de entrada.
 Proyecto Maven multimódulo, Java 25 y Spring Boot (versión en `pom.xml`).
 Los paquetes siguen bajo `com.roboleague`, sin prefijos Java por módulo.
 
+La arquitectura es hexagonal (puertos y adaptadores), con modelado DDD y
+separación dominio/aplicación compatible con la regla de dependencias de Clean
+Architecture. El flujo de ejecución puede llegar a Postgres; las dependencias
+del código apuntan al núcleo: infrastructure implementa puertos definidos en
+domain. Los métodos de los casos de uso son la entrada al núcleo; no crear una
+interfaz por clase solamente para reproducir un diagrama arquitectónico.
+
+`tournament`, `scheduling`, `evaluation` y `ranking` son áreas del modelo que
+comparten tipos. Sus paquetes no establecen por sí solos bounded contexts
+independientes ni microservicios. Justificar nuevos límites por lenguaje,
+invariantes y necesidades del negocio, antes de separar módulos o servicios.
+
 | Módulo                      | Responsabilidad                                                | Dependencias de producción          |
 | --------------------------- | -------------------------------------------------------------- | ----------------------------------- |
 | `roboleague-domain`         | Agregados, objetos de valor, servicios y puertos `*Repository` | Java, sin frameworks                |
@@ -34,6 +46,25 @@ Persistencia actual: `Attempt`, `Challenge` y `Appeal` tienen adaptadores JPA.
 `Edition`, `Team`, `Round` y `Ranking` siguen en memoria, cableados por
 `InMemoryRepositoryConfig`. No asumir persistencia completa ni rollback de los
 repositorios en memoria. Flyway administra el esquema y Hibernate lo valida.
+
+## Criterios SOLID
+
+- **SRP:** separar traducción HTTP, coordinación de casos de uso, reglas de
+  negocio y conversión de persistencia según sus razones para cambiar.
+- **OCP:** extender reglas, criterios y especificaciones mediante los contratos
+  y composición existentes. Registrar un tipo en el catálogo es válido; evitar
+  agregar condicionales de fórmulas a controllers o a `Attempt`.
+- **LSP:** preservar resultados, errores y efectos observables del contrato al
+  agregar implementaciones. Documentar diferencias de durabilidad, concurrencia
+  y rollback entre adaptadores; una interfaz común no garantiza equivalencia.
+- **ISP:** definir puertos según necesidades de sus consumidores. Evitar
+  interfaces generales que obliguen a implementar operaciones ajenas o lanzar
+  `UnsupportedOperationException` para métodos que el contrato promete soportar.
+- **DIP:** el núcleo define los contratos que necesita y recibe adaptadores por
+  constructor. La inyección de Spring no reemplaza esta regla de dependencias.
+
+Agregar abstracciones cuando representen una variación o límite concreto;
+no exigir una interfaz para cada clase ni patrones sin una necesidad del cambio.
 
 ## Convenciones de trabajo
 
