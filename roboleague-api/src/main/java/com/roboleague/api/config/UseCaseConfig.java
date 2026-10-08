@@ -106,9 +106,9 @@ class UseCaseConfig {
     }
 
     @Bean
-    ScheduleRoundUseCase scheduleRoundUseCase(EditionRepository editions, TeamRepository teams, RoundRepository rounds,
+    ScheduleRoundUseCase scheduleRoundUseCase(ChallengeRepository challenges, EditionRepository editions, TeamRepository teams, RoundRepository rounds,
                                               RoundSchedulerService scheduler, IdGenerator ids) {
-        return new ScheduleRoundUseCase(editions, teams, rounds, scheduler, ids);
+        return new ScheduleRoundUseCase(challenges, editions, teams, rounds, scheduler, ids);
     }
 
     @Bean

@@ -81,7 +81,7 @@ class AppealAndRecalculateIntegrationTest {
 
         registerTeamUseCase = new RegisterTeamUseCase(teamRepository, editionRepository, clock);
         InMemoryRoundRepository roundRepository = new InMemoryRoundRepository();
-        scheduleRoundUseCase = new ScheduleRoundUseCase(editionRepository, teamRepository, roundRepository,
+        scheduleRoundUseCase = new ScheduleRoundUseCase(challengeRepository, editionRepository, teamRepository, roundRepository,
                 new RoundSchedulerService(ids), ids);
         receiveResultUseCase = new ReceiveResultUseCase(attemptRepository, roundRepository, challengeRepository, clock, ids);
 
@@ -164,7 +164,7 @@ class AppealAndRecalculateIntegrationTest {
         List<Judge> judges = List.of(Judge.of(JudgeId.of("j-1"), "Dr. Turing", "Autonomia"), Judge.of(JudgeId.of("j-2"), "Ing. Lovelace", "Control"));
 
         Round round1 = scheduleRoundUseCase.execute(ScheduleRoundCommand.of(
-                edition2026.getId(), mazeCategory.id(), 1, "Ronda Clasificatoria",
+                maze.getId(), edition2026.getId(), mazeCategory.id(), 1, "Ronda Clasificatoria",
                 tracks, judges, TIME, Duration.ofMinutes(15), Duration.ofMinutes(5)
         ));
         assertThat(round1.getSlots()).hasSize(2);
@@ -178,7 +178,7 @@ class AppealAndRecalculateIntegrationTest {
 
         // Team Beta: 50s (10s under target => 110), 5 objectives (all done: 100 + 25 = 125 pts),
         // BUT wrongly assigned 4 penalties (-60 pts) => Total: 110 + 125 - 60 = 175.0
-        Attempt attemptBeta = receive(firstAttemptIn(round1, 1), track(50.0, 5, 4), "j-2");
+        Attempt attemptBeta = receive(firstAttemptIn(round1, 1), track(50.0, 5, 4), "j-1");
 
         // 4. Initial Ranking Calculation (Provisional)
         Ranking provisionalRanking = recalculateRankingUseCase.execute(edition2026.getId(), mazeCategory.id(), Optional.of(round1.getId()));

@@ -48,6 +48,20 @@ se reconstruye con profile, robot, members y documentation; no lleva categoría
 ni fecha de inscripción. Documentation.restore conserva documentos y metadatos
 sin repetir verify. No replay de inscripción ni consulta del reloj al leer.
 
+## Round y Slot (memoria)
+
+RoundRepository guarda el agregado completo e incluye findById, findByScope,
+findByChallengeId, findAll y findBySlotId. InMemoryRoundRepository reemplaza el
+snapshot del mismo RoundId sin duplicar slots y rechaza scopes o SlotIds usados
+por otra ronda. Estas validaciones son secuenciales: ConcurrentHashMap no hace
+atómica una programación completa ni evita dos escritores concurrentes.
+
+Para frente 5: usar Round.restore y Slot.restore con scope, estados y slots
+completos. Conservar Slot.trackInterval además de ventana, pista y jueces: la
+pausa afecta ocupaciones de otras rondas. Definir restricciones únicas de scope
+(desafío/categoría/número) y SlotId global, y coordinación de recursos entre
+programaciones concurrentes. No crear un repositorio de Slot independiente.
+
 ## Esquema y selección de adaptadores
 
 Flyway usa `src/main/resources/db/migration/V<n>__<descripcion>.sql`.

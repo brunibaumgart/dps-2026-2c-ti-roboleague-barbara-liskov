@@ -37,8 +37,11 @@ Leer también `../AGENTS.md`. Producción en
 
 ## Flujos que requieren cuidado
 
-- `ReceiveResultUseCase` busca el slot, valida el juez asignado y toma el equipo
-  del slot. La primera captura abre el intento con el reglamento vigente;
+- `ScheduleRoundUseCase` carga desafío/edición, verifica scope único, ordena
+  inscripciones por registeredAt/TeamId y entrega las rondas guardadas al servicio
+  de dominio para evitar conflictos. No trasladar el algoritmo al caso de uso.
+- `ReceiveResultUseCase` busca el slot, exige que el challenge recibido coincida
+  con la ronda incluso en la primera captura, valida el juez y toma su equipo. La primera captura abre el intento con el reglamento vigente;
   las siguientes cargan la versión fijada en el intento. Guardar solo capturas
   aceptadas, conservando la identidad derivada de slot/número.
 - `ResolveAppealUseCase` acepta correcciones con el reglamento del intento,

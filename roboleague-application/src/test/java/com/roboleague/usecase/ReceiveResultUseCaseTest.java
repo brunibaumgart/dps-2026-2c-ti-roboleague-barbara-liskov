@@ -68,6 +68,7 @@ class ReceiveResultUseCaseTest {
     private static final SourceDelivery RESCUE_PANEL = new SourceDelivery(
             new JudgeScores(Map.of(JudgeId.of("judge-1"), 8.0, JudgeId.of("judge-2"), 6.0), Map.of(RESCUED.name(), 2.0)), JudgeId.of("judge-2"));
 
+    private InMemoryRoundRepository rounds;
     private InMemoryAttemptRepository attempts;
     private InMemoryChallengeRepository challenges;
     private ReceiveResultUseCase receive;
@@ -83,14 +84,26 @@ class ReceiveResultUseCaseTest {
                         new VictimsRule("Víctimas rescatadas", RESCUED, 25.0),
                         new JudgeSubjectiveRule("Panel técnico", 5.0)), List.of(), List.of()),
                 new Unlimited()), RANKING));
-        InMemoryRoundRepository rounds = new InMemoryRoundRepository();
-        Round round = Round.of(RoundInfo.of(RoundId.of("r-1"), "Ronda 1", RoundScope.of(EditionId.of("ed-1"), CategoryId.of("cat-1"), 1)));
-        round.addSlot(Slot.of(SlotIdentity.of(SlotId.of("slot-1"), RoundId.of("r-1"), TeamId.of("t-1")),
+        rounds = new InMemoryRoundRepository();
+        scheduleFor(MAZE);
+        receive = new ReceiveResultUseCase(attempts, rounds, challenges, CLOCK, ids());
+    }
+
+    private void scheduleFor(ChallengeId challengeId) {
+        Round round = Round.of(RoundInfo.of(RoundId.of("r-1"), "Ronda 1", RoundScope.of(challengeId, EditionId.of("ed-1"), CategoryId.of("cat-1"), 1)));
+        round = round.addSlot(Slot.of(SlotIdentity.of(SlotId.of("slot-1"), RoundId.of("r-1"), TeamId.of("t-1")),
                 SlotAssignment.of(Track.active(TrackId.of("trk-1"), "Pista 1", "Madera"),
                         List.of(Judge.of(JudgeId.of("judge-1"), "Juez Uno", "General"), Judge.of(JudgeId.of("judge-2"), "Juez Dos", "General"))),
                 new TimeWindow(START, START.plusMinutes(10))));
         rounds.save(round);
-        receive = new ReceiveResultUseCase(attempts, rounds, challenges, CLOCK, ids());
+    }
+
+    @Test
+    void firstCaptureCannotOpenAnAttemptForAnotherChallenge() {
+        assertThatThrownBy(() -> receive.execute(new ReceiveResultCommand(RESCUE, TURN, sensors(90, 3, 0, "judge-1"))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Round r-1 belongs to challenge ch-maze, not ch-rescue");
+        assertThat(attempts.findById(TURN)).isEmpty();
     }
 
     @Test
@@ -140,6 +153,7 @@ class ReceiveResultUseCaseTest {
     @Test
     @DisplayName("F3: en el desafío mixto el intento queda pendiente hasta que llega el panel de jueces")
     void givenTheMixedChallengeThenTheAttemptAwaitsTheJudgePanelAndThenScores() {
+        scheduleFor(RESCUE);
         receive.execute(new ReceiveResultCommand(RESCUE, TURN, sensors(90.0, 3, 0, "judge-1")));
         assertThat(attempts.findById(TURN).orElseThrow().getStatus()).isEqualTo(AttemptStatus.AWAITING_SOURCES);
 
@@ -153,6 +167,7 @@ class ReceiveResultUseCaseTest {
 
     @Test
     void givenMeasurementsTheRulebookRejectsThenNothingIsSavedAndTheProblemsComeBack() {
+        scheduleFor(RESCUE);
         Reception reception = receive.execute(new ReceiveResultCommand(RESCUE, TURN, new SourceDelivery(
                 new JudgeScores(Map.of(JudgeId.of("judge-1"), 8.0), Map.of()), JudgeId.of("judge-1"))));
 
@@ -162,16 +177,22 @@ class ReceiveResultUseCaseTest {
 
     @Test
     void givenAnAttemptOfAnotherChallengeThenItsResultsCannotArriveForThisOne() {
+        scheduleFor(RESCUE);
         receive.execute(new ReceiveResultCommand(RESCUE, TURN, sensors(90.0, 3, 0, "judge-1")));
 
         assertThatThrownBy(() -> receive.execute(new ReceiveResultCommand(MAZE, TURN, sensors(90.0, 3, 0, "judge-1"))))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessage("Attempt slot-1-1 belongs to challenge ch-rescue, not ch-maze");
+                .hasMessage("Round r-1 belongs to challenge ch-rescue, not ch-maze");
+        Attempt stored = attempts.findById(TURN).orElseThrow();
+        assertThat(stored.getRulebookReference().challengeId()).isEqualTo(RESCUE);
+        assertThat(stored.getEventHistory()).hasSize(1);
+        assertThat(stored.getStatus()).isEqualTo(AttemptStatus.AWAITING_SOURCES);
     }
 
     @Test
     @DisplayName("Hallazgo 2: la fuente que llega después de una versión nueva se puntúa con la versión del intento")
     void givenANewRulebookVersionThenAPendingAttemptIsStillScoredWithItsOwn() {
+        scheduleFor(RESCUE);
         receive.execute(new ReceiveResultCommand(RESCUE, TURN, sensors(90.0, 3, 0, "judge-1")));
         challenges.findById(RESCUE).orElseThrow().publish(mazeScoring(), RANKING);
 

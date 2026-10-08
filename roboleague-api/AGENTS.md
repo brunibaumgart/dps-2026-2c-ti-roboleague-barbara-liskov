@@ -42,6 +42,10 @@ controllers, DTOs, config y demo bajo `src/main/java/com/roboleague/api`.
   están ensamblados en UseCaseConfig y reciben proxies transaccionales. Team y
   Edition siguen en memoria; los endpoints de inscripción/cambios/programación
   están pendientes de la spec 05. No serializar sus agregados para adelantarlos.
+- ScheduleRoundUseCase recibe ChallengeRepository y tiene proxy transaccional;
+  las rondas siguen en memoria. Captura conserva challengeId en el request por
+  compatibilidad y rechaza desafío distinto al de la ronda con 409. El juez
+  asignado puede enviar ambas fuentes; las notas del panel no asignan jueces.
 - `InMemoryRepositoryConfig` registra teams, editions, rankings y rounds;
   attempts, challenges y appeals usan JPA. Al persistir otro agregado, quitar
   su bean en memoria. No prometer rollback ni durabilidad de todos los agregados.

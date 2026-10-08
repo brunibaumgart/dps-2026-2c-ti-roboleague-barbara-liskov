@@ -83,7 +83,7 @@ class AttemptControllerTest extends ApiTest {
 
     @Test
     void measurementsScoreAnAttemptOfTheSlotsTeam() throws Exception {
-        scheduleSlot("api-att-slot-1");
+        scheduleSlot("api-att-slot-1", MAZE);
 
         mvc.perform(measurements("api-att-slot-1-1", MAZE, "api-j-1", 50.0, 4, 1))
                 .andExpect(status().isOk())
@@ -100,7 +100,7 @@ class AttemptControllerTest extends ApiTest {
 
     @Test
     void theMixedChallengeAwaitsTheJudgePanelBeforeScoring() throws Exception {
-        scheduleSlot("api-att-slot-2");
+        scheduleSlot("api-att-slot-2", RESCUE);
 
         mvc.perform(measurements("api-att-slot-2-1", RESCUE, "api-j-1", 90.0, 3, 0))
                 .andExpect(status().isOk())
@@ -118,7 +118,7 @@ class AttemptControllerTest extends ApiTest {
 
     @Test
     void theBreakdownShowsWhatIsPendingUntilEverySourceArrives() throws Exception {
-        scheduleSlot("api-att-slot-8");
+        scheduleSlot("api-att-slot-8", RESCUE);
         mvc.perform(measurements("api-att-slot-8-1", RESCUE, "api-j-1", 90.0, 3, 0)).andExpect(status().isOk());
 
         mvc.perform(get("/attempts/{attemptId}/breakdown", "api-att-slot-8-1"))
@@ -132,7 +132,7 @@ class AttemptControllerTest extends ApiTest {
 
     @Test
     void theBreakdownExplainsEachSourceOnceTheAttemptIsScored() throws Exception {
-        scheduleSlot("api-att-slot-9");
+        scheduleSlot("api-att-slot-9", RESCUE);
         mvc.perform(measurements("api-att-slot-9-1", RESCUE, "api-j-1", 90.0, 3, 0)).andExpect(status().isOk());
         mvc.perform(judgeScores("api-att-slot-9-1", RESCUE, "api-j-2", """
                 {"api-j-1": 8, "api-j-2": 6}""", """
@@ -162,7 +162,7 @@ class AttemptControllerTest extends ApiTest {
 
     @Test
     void theSameSourceTwiceIsAConflict() throws Exception {
-        scheduleSlot("api-att-slot-3");
+        scheduleSlot("api-att-slot-3", MAZE);
         mvc.perform(measurements("api-att-slot-3-1", MAZE, "api-j-1", 50.0, 4, 1)).andExpect(status().isOk());
 
         mvc.perform(measurements("api-att-slot-3-1", MAZE, "api-j-2", 40.0, 5, 0))
@@ -173,7 +173,7 @@ class AttemptControllerTest extends ApiTest {
 
     @Test
     void measurementsThatDoNotFitTheRulebookAreUnprocessable() throws Exception {
-        scheduleSlot("api-att-slot-4");
+        scheduleSlot("api-att-slot-4", RESCUE);
 
         mvc.perform(judgeScores("api-att-slot-4-1", RESCUE, "api-j-2", """
                         {"api-j-1": 8}""", """
@@ -187,7 +187,7 @@ class AttemptControllerTest extends ApiTest {
 
     @Test
     void aJudgeNotAssignedToTheSlotIsUnprocessable() throws Exception {
-        scheduleSlot("api-att-slot-5");
+        scheduleSlot("api-att-slot-5", MAZE);
 
         mvc.perform(measurements("api-att-slot-5-1", MAZE, "api-j-9", 50.0, 4, 1))
                 .andExpect(status().isUnprocessableContent())
@@ -222,7 +222,7 @@ class AttemptControllerTest extends ApiTest {
 
     @Test
     void aNegativeTimeIsABadRequest() throws Exception {
-        scheduleSlot("api-att-slot-7");
+        scheduleSlot("api-att-slot-7", MAZE);
 
         mvc.perform(measurements("api-att-slot-7-1", MAZE, "api-j-1", -1.0, 4, 1))
                 .andExpect(status().isBadRequest())
@@ -231,7 +231,7 @@ class AttemptControllerTest extends ApiTest {
 
     @Test
     void aNullJudgeScoreRemainsABadRequestAfterTypingTheMapKeys() throws Exception {
-        scheduleSlot("api-att-slot-null-score");
+        scheduleSlot("api-att-slot-null-score", RESCUE);
 
         mvc.perform(judgeScores("api-att-slot-null-score-1", RESCUE, "api-j-1",
                         "{\"api-j-1\": null}", "{}"))
@@ -240,10 +240,23 @@ class AttemptControllerTest extends ApiTest {
                         "score of judge 'api-j-1' must be a finite, non-negative number: null"));
     }
 
-    private void scheduleSlot(String slotId) {
+    @Test
+    void aFirstCaptureForAnotherChallengeIsAConflictAndCreatesNoAttempt() throws Exception {
+        scheduleSlot("api-att-slot-wrong-challenge", MAZE);
+        mvc.perform(measurements("api-att-slot-wrong-challenge-1", RESCUE, "api-j-1", 90, 3, 0))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("Round round-api-att-slot-wrong-challenge belongs to challenge " + MAZE + ", not " + RESCUE));
+        mvc.perform(get("/attempts/{attemptId}/breakdown", "api-att-slot-wrong-challenge-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Attempt not found: api-att-slot-wrong-challenge-1"));
+    }
+
+    private static final java.util.concurrent.atomic.AtomicInteger ROUND_NUMBER = new java.util.concurrent.atomic.AtomicInteger();
+
+    private void scheduleSlot(String slotId, String challengeId) {
         String roundId = "round-" + slotId;
-        Round round = Round.of(RoundInfo.of(RoundId.of(roundId), "Ronda", RoundScope.of(EditionId.of("ed-api-att"), CategoryId.of("cat-junior"), 1)));
-        round.addSlot(Slot.of(SlotIdentity.of(SlotId.of(slotId), RoundId.of(roundId), TeamId.of("api-t-1")),
+        Round round = Round.of(RoundInfo.of(RoundId.of(roundId), "Ronda", RoundScope.of(ChallengeId.of(challengeId), EditionId.of("ed-api-att"), CategoryId.of("cat-junior"), ROUND_NUMBER.incrementAndGet())));
+        round = round.addSlot(Slot.of(SlotIdentity.of(SlotId.of(slotId), RoundId.of(roundId), TeamId.of("api-t-1")),
                 SlotAssignment.of(Track.active(TrackId.of("trk-1"), "Pista 1", "Madera"),
                         List.of(Judge.of(JudgeId.of("api-j-1"), "Juez Uno", "General"), Judge.of(JudgeId.of("api-j-2"), "Juez Dos", "General"))),
                 new TimeWindow(START, START.plusMinutes(10))));

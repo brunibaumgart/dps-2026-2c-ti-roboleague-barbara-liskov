@@ -177,7 +177,7 @@ Una métrica es `{"name", "source"}` con `source` = `AUTOMATIC_MEASUREMENTS` o `
 
 ### Cargar los resultados de un intento
 
-El id de un intento es su turno: el slot y el número de intento (`<slotId>-<n>`, por ejemplo `slot-7-1`). El turno tiene que estar en una ronda programada, el juez que carga tiene que estar asignado al slot y el equipo es el del slot. El primer resultado abre el intento con la versión vigente del reglamento del desafío; los siguientes se puntúan con esa misma versión aunque se publique otra.
+El id de un intento es su turno: el slot y el número de intento (`<slotId>-<n>`, por ejemplo `slot-7-1`). El turno tiene que estar en una ronda programada, el juez que carga tiene que estar asignado al slot y el equipo es el del slot. El `challengeId` enviado debe coincidir con el desafío de la ronda, incluso en la primera captura; un desafío diferente devuelve 409 sin crear ni modificar el intento. El primer resultado abre el intento con la versión vigente del reglamento del desafío; los siguientes se puntúan con esa misma versión aunque se publique otra.
 
 Cada fuente llega por separado (F3). El reglamento dice qué fuentes exige: si todas sus reglas leen sensores alcanza con las mediciones; el desafío mixto espera también al panel de jueces y queda `AWAITING_SOURCES`, sin puntaje, hasta que llega la última.
 
@@ -240,6 +240,34 @@ parciales en memoria. Team/Edition/Registration todavía no tienen persistencia
 Postgres: sus datos se pierden al reiniciar y no hay rollback en memoria ante
 fallos técnicos entre escrituras. Su JPA corresponde al frente 5; los endpoints
 HTTP de estos flujos se implementan en la spec 05.
+
+### Rondas por desafío y programación paralela
+
+`ScheduleRoundCommand` incluye ChallengeId y EditionId; el desafío debe pertenecer
+a esa edición y la categoría estar ofrecida. Se revalidan los equipos canónicos
+y se ordenan las inscripciones por registeredAt, con TeamId como desempate.
+El scope desafío/categoría/número es único. RoundRepository permite buscar por
+RoundId, scope, desafío y SlotId, además de consultar todas las rondas.
+
+El scheduler asigna un juez por turno y elige la combinación pista/juez con
+inicio libre más temprano, desempata por el orden de los recursos del command.
+No usa pistas inactivas y rechaza ids de recursos duplicados. Con dos pistas,
+dos jueces, duración de 5 minutos y pausa de pista de 1 minuto: A/B compiten
+10:00–10:05 y C/D 10:06–10:11. Con un juez, el segundo equipo usa la otra pista
+10:05–10:10. Se respetan ocupaciones guardadas por pista, juez y equipo; las
+ventanas son [inicio, fin), y la pausa pertenece solo a la pista.
+
+Round y Slot son inmutables. Las operaciones de Round devuelven el nuevo
+agregado y protegen sus slots: SCHEDULED → IN_PROGRESS → COMPLETED, con
+SCHEDULED → CANCELLED para turnos. Completar ronda requiere todos sus slots
+completados o cancelados. Cancelar libera recursos. Recibir fuentes de medición
+no cambia estos estados; el juez asignado puede cargar ambas fuentes de un
+intento mixto. Las notas individuales del panel siguen siendo datos de scoring.
+
+La spec 04 implementa dominio, casos de uso, adaptador memory y rehidratación.
+Rondas en memoria se pierden al reiniciar y no garantizan exclusión entre
+programaciones concurrentes. Su JPA/locking corresponde al frente 5; los
+endpoints de programación y consulta se implementan en la spec 05.
 
 ## Cómo sumar lo tuyo
 

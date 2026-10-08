@@ -14,6 +14,7 @@ import com.roboleague.usecase.ChangeRegistrationCategoryUseCase;
 import com.roboleague.usecase.RegisterTeamUseCase;
 import com.roboleague.usecase.ResolveAppealUseCase;
 import com.roboleague.usecase.SaveThenFailUseCase;
+import com.roboleague.usecase.ScheduleRoundUseCase;
 import com.roboleague.usecase.UpdateTeamUseCase;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -57,6 +58,9 @@ class TransactionalUseCasesTest {
     private ChangeRegistrationCategoryUseCase changeCategory;
 
     @Autowired
+    private ScheduleRoundUseCase scheduleRound;
+
+    @Autowired
     private ChallengeRepository challenges;
 
     @Test
@@ -78,5 +82,6 @@ class TransactionalUseCasesTest {
         assertThat(AopUtils.isAopProxy(registerTeam)).isTrue();
         assertThat(AopUtils.isAopProxy(updateTeam)).isTrue();
         assertThat(AopUtils.isAopProxy(changeCategory)).isTrue();
+        assertThat(AopUtils.isAopProxy(scheduleRound)).isTrue();
     }
 }

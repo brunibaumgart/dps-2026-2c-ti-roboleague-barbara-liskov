@@ -49,6 +49,10 @@ public class ReceiveResultUseCase {
         AttemptId attemptId = command.attemptId();
         Round round = roundRepository.findBySlotId(attemptId.slotId())
                 .orElseThrow(() -> new IllegalArgumentException("Slot not found: " + attemptId.slotId()));
+        if (!round.getChallengeId().equals(command.challengeId())) {
+            throw new IllegalStateException("Round " + round.getId() + " belongs to challenge " + round.getChallengeId()
+                    + ", not " + command.challengeId());
+        }
         Slot slot = round.slot(attemptId.slotId()).orElseThrow();
         JudgeId judgeId = command.delivery().judgeId();
         if (!slot.isJudgedBy(judgeId)) {

@@ -3,6 +3,7 @@ package com.roboleague.usecase;
 import com.roboleague.scheduling.Judge;
 import com.roboleague.scheduling.Track;
 import com.roboleague.tournament.CategoryId;
+import com.roboleague.tournament.ChallengeId;
 import com.roboleague.tournament.EditionId;
 
 import java.time.Duration;
@@ -14,6 +15,7 @@ import java.util.Objects;
  * Input command for scheduling a round with its resources and timing.
  */
 public record ScheduleRoundCommand(
+        ChallengeId challengeId,
         EditionId editionId,
         CategoryId categoryId,
         int roundNumber,
@@ -25,6 +27,7 @@ public record ScheduleRoundCommand(
         Duration interval
 ) {
     public ScheduleRoundCommand {
+        Objects.requireNonNull(challengeId, "challengeId cannot be null");
         Objects.requireNonNull(editionId, "editionId cannot be null");
         Objects.requireNonNull(categoryId, "categoryId cannot be null");
         Objects.requireNonNull(roundName, "roundName cannot be null");
@@ -35,10 +38,11 @@ public record ScheduleRoundCommand(
         Objects.requireNonNull(interval, "interval cannot be null");
     }
 
-    public static ScheduleRoundCommand of(EditionId editionId, CategoryId categoryId, int roundNumber, String roundName,
+    public static ScheduleRoundCommand of(ChallengeId challengeId, EditionId editionId, CategoryId categoryId, int roundNumber, String roundName,
                                           List<Track> tracks, List<Judge> judges, LocalDateTime startTime,
                                           Duration slotDuration, Duration interval) {
         return new ScheduleRoundCommand(
+                challengeId,
                 editionId,
                 categoryId,
                 roundNumber,

@@ -61,6 +61,13 @@ se guardan mediante UpdateTeamUseCase, validando todas sus inscripciones; cambia
 categoría usa ChangeRegistrationCategoryUseCase para una edición concreta.
 No reintroducir mutadores o una categoría/fecha global de inscripción en Team.
 
+`Round` y `Slot` son inmutables. Round controla adición y transiciones de sus
+slots: conservar el valor devuelto y guardar la ronda completa. Su scope incluye
+ChallengeId/EditionId/CategoryId/número. Programación asigna un juez por slot,
+respeta ocupaciones de otras rondas y conserva la pausa de pista en cada slot.
+RoundRepository sigue en memoria: no garantiza exclusión de programaciones
+concurrentes ni rollback. No crear un SlotRepository independiente.
+
 ## Criterios SOLID
 
 - **SRP:** separar traducción HTTP, coordinación de casos de uso, reglas de

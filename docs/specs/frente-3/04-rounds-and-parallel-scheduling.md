@@ -1,9 +1,9 @@
 # 04 — Rondas por desafío y programación de recursos
 
-Estado: pendiente. Depende de 01, 02 y 03. Cierra hallazgo #7; aporta contrato
+Estado: implementada y verificada. Depende de 01, 02 y 03. Cierra hallazgo #7; aporta contrato
 de ronda/slot para captura (frente 2) y clasificación (frente 4).
 
-## Estado actual
+## Estado previo a la implementación
 
 Round y RoundRepository ya existen; el puerto tiene `save` y `findBySlotId`.
 RoundScope identifica edición/categoría/número, sin desafío. El scheduler rota
@@ -82,3 +82,24 @@ restore y contrato para persistencia; no agrega JPA por fuera de ese acuerdo.
 6. Operaciones del agregado rechazan slots ajenos y transiciones inválidas.
 7. Consumidores de captura y ranking siguen compilando; no se implementa aquí
    agregación N de M, tablas versionadas ni guardas de publicación.
+
+## Implementación realizada
+
+- RoundScope y ScheduleRoundCommand incluyen ChallengeId. Programación verifica
+  pertenencia, categoría, scope único y equipos canónicos antes de generar ids.
+  Inscripciones se ordenan por registeredAt, luego TeamId.
+- Round/Slot son inmutables; conservar las rondas devueltas por sus operaciones.
+  Solo Round realiza transiciones de slots y protege pertenencia, duplicados,
+  solapamientos y estados. restore conserva el agregado completo sin replay.
+- RoundSchedulerService asigna un juez por turno, excluye pistas inactivas y
+  busca la combinación más temprana respetando ocupaciones guardadas por id.
+  Slot.trackInterval conserva la pausa de pista; ventanas semicerradas permiten
+  límites contiguos. CANCELLED libera recursos; COMPLETED conserva ocupación.
+- RoundRepository incluye findById/findByScope/findByChallengeId/findAll y
+  findBySlotId. Memory reemplaza snapshots y rechaza scopes o SlotIds de otra
+  ronda. No hay migración JPA ni garantía de concurrencia en memoria.
+- Captura exige desafío de ronda incluso al abrir un intento. Se adaptaron
+  cableado y demo sin cambiar scoring/rankings. Un juez asignado puede enviar
+  ambas fuentes; las notas del panel no son nuevas asignaciones de recursos.
+- Pruebas de dominio, coordinación, contrato memory y HTTP cubren los criterios;
+  verificación transversal: `mvn -B -o verify` con Postgres/Testcontainers.

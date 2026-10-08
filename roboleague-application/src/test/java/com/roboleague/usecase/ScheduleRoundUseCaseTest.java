@@ -24,6 +24,21 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ScheduleRoundUseCaseTest {
 
+    private static com.roboleague.repository.memory.InMemoryChallengeRepository challenges() {
+        var repository = new com.roboleague.repository.memory.InMemoryChallengeRepository();
+        repository.save(challenge("ch-maze", "ed-1"));
+        repository.save(challenge("ch-stale", "ed-stale"));
+        return repository;
+    }
+
+    private static Challenge challenge(String id, String edition) {
+        return Challenge.draft(ChallengeId.of(id), EditionId.of(edition), "Challenge").publish(
+                com.roboleague.evaluation.ScoringScheme.withoutBonuses(
+                        List.of(new com.roboleague.evaluation.rules.ObjectivesRule("Objectives", 1)), List.of()),
+                new com.roboleague.evaluation.scheme.RankingScheme(new com.roboleague.evaluation.scheme.AllRounds(),
+                        List.of(new com.roboleague.evaluation.scheme.HigherTotal())));
+    }
+
     @Test
     @DisplayName("Schedules round creating slots for all registered teams and assigning judges and tracks")
     void schedulesRoundSuccessfully() {
@@ -31,7 +46,7 @@ class ScheduleRoundUseCaseTest {
         InMemoryEditionRepository editionRepo = new InMemoryEditionRepository();
         RoundSchedulerService schedulerService = new RoundSchedulerService(ids());
         InMemoryRoundRepository rounds = new InMemoryRoundRepository();
-        ScheduleRoundUseCase useCase = new ScheduleRoundUseCase(editionRepo, teams, rounds, schedulerService, ids());
+        ScheduleRoundUseCase useCase = new ScheduleRoundUseCase(challenges(), editionRepo, teams, rounds, schedulerService, ids());
 
         Category category = Category.of(CategoryId.of("cat-sumo"), "Sumo", 2, 4, 15, 20, 2500);
         Season season = new Season("s-1", 2026, "2026");
@@ -51,7 +66,7 @@ class ScheduleRoundUseCaseTest {
         List<Judge> judges = List.of(Judge.of(JudgeId.of("j-1"), "Juez Uno", "General"), Judge.of(JudgeId.of("j-2"), "Juez Dos", "General"));
 
         Round round = useCase.execute(ScheduleRoundCommand.of(
-                EditionId.of("ed-1"), CategoryId.of("cat-sumo"), 1, "Ronda 1", tracks, judges,
+                ChallengeId.of("ch-maze"), EditionId.of("ed-1"), CategoryId.of("cat-sumo"), 1, "Ronda 1", tracks, judges,
                 TIME, Duration.ofMinutes(10), Duration.ofMinutes(2)
         ));
 
@@ -76,9 +91,9 @@ class ScheduleRoundUseCaseTest {
         teams.save(original.withMembers(List.of()));
         java.util.concurrent.atomic.AtomicInteger generated = new java.util.concurrent.atomic.AtomicInteger();
         com.roboleague.support.IdGenerator generator = () -> "generated-" + generated.incrementAndGet();
-        ScheduleRoundUseCase scheduler = new ScheduleRoundUseCase(editions, teams, rounds,
+        ScheduleRoundUseCase scheduler = new ScheduleRoundUseCase(challenges(), editions, teams, rounds,
                 new RoundSchedulerService(generator), generator);
-        ScheduleRoundCommand command = ScheduleRoundCommand.of(edition.getId(), category.id(), 1, "Round",
+        ScheduleRoundCommand command = ScheduleRoundCommand.of(ChallengeId.of("ch-stale"), edition.getId(), category.id(), 1, "Round",
                 List.of(Track.active(TrackId.of("track-stale"), "Track", "Wood")),
                 List.of(Judge.of(JudgeId.of("judge-stale"), "Judge", "General")),
                 TIME, Duration.ofMinutes(10), Duration.ZERO);
@@ -94,7 +109,7 @@ class ScheduleRoundUseCaseTest {
     void failsWhenNoTeamsRegistered() {
         InMemoryTeamRepository teams = new InMemoryTeamRepository();
         InMemoryEditionRepository editionRepo = new InMemoryEditionRepository();
-        ScheduleRoundUseCase useCase = new ScheduleRoundUseCase(editionRepo, teams, new InMemoryRoundRepository(),
+        ScheduleRoundUseCase useCase = new ScheduleRoundUseCase(challenges(), editionRepo, teams, new InMemoryRoundRepository(),
                 new RoundSchedulerService(ids()), ids());
 
         Category category = Category.of(CategoryId.of("cat-sumo"), "Sumo", 2, 4, 15, 20, 2500);
@@ -108,7 +123,7 @@ class ScheduleRoundUseCaseTest {
         List<Judge> judges = List.of(Judge.of(JudgeId.of("j-1"), "Juez Uno", "General"));
 
         assertThatThrownBy(() -> useCase.execute(ScheduleRoundCommand.of(
-                EditionId.of("ed-1"), CategoryId.of("cat-sumo"), 1, "Ronda 1", tracks, judges,
+                ChallengeId.of("ch-maze"), EditionId.of("ed-1"), CategoryId.of("cat-sumo"), 1, "Ronda 1", tracks, judges,
                 TIME, Duration.ofMinutes(10), Duration.ofMinutes(2)
         )))
                 .isInstanceOf(IllegalStateException.class)

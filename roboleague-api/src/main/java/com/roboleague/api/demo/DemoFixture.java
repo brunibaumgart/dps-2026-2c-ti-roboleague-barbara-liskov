@@ -123,11 +123,11 @@ class DemoFixture implements ApplicationRunner {
         useCases.registerTeam().execute(edition.getId(), junior.id(), cyber);
         useCases.registerTeam().execute(edition.getId(), junior.id(), titan);
 
-        Round round = scheduleRound(edition, 1, "Ronda Clasificatoria", Track.active(TrackId.of("trk-1"), "Laberinto 1", "Madera"));
+        Round round = scheduleRound(maze, edition, 1, "Ronda Clasificatoria", Track.active(TrackId.of("trk-1"), "Laberinto 1", "Madera"));
 
         receive(maze, firstAttempt(round, 0), new SourceDelivery(mazeRun(50.0, 4, 0, 70.0), JudgeId.of("j-1")));
         Attempt titanAttempt = receive(maze, firstAttempt(round, 1),
-                new SourceDelivery(mazeRun(45.0, 5, 4, 90.0), JudgeId.of("j-2")));
+                new SourceDelivery(mazeRun(45.0, 5, 4, 90.0), round.getSlots().get(1).getAssignedJudges().getFirst().id()));
 
         useCases.recalculateRanking().execute(edition.getId(), junior.id(), Optional.of(round.getId()));
 
@@ -141,20 +141,20 @@ class DemoFixture implements ApplicationRunner {
         Ranking latest = rankings.findLatestByEditionAndCategory(edition.getId(), junior.id()).orElseThrow();
         useCases.publishRanking().execute(latest.getRankingId(), "Publicacion definitiva post-arbitraje");
 
-        Round rescueRound = scheduleRound(edition, 2, "Ronda de Rescate", Track.active(TrackId.of("trk-2"), "Rescate 1", "Madera"));
+        Round rescueRound = scheduleRound(rescue, edition, 2, "Ronda de Rescate", Track.active(TrackId.of("trk-2"), "Rescate 1", "Madera"));
         receive(rescue, firstAttempt(rescueRound, 0), new SourceDelivery(rescueRun(120.0, 3), JudgeId.of("j-1")));
-        receive(rescue, firstAttempt(rescueRound, 0), new SourceDelivery(rescuePanel(8.0, 7.0, 3), JudgeId.of("j-2")));
+        receive(rescue, firstAttempt(rescueRound, 0), new SourceDelivery(rescuePanel(8.0, 7.0, 3), rescueRound.getSlots().get(0).getAssignedJudges().getFirst().id()));
         Attempt awaitingPanel = receive(rescue, firstAttempt(rescueRound, 1),
-                new SourceDelivery(rescueRun(110.0, 4), JudgeId.of("j-2")));
+                new SourceDelivery(rescueRun(110.0, 4), rescueRound.getSlots().get(1).getAssignedJudges().getFirst().id()));
 
         log.info("Demo loaded: edition {}, challenges ch-maze/ch-line/ch-rescue, round {}, appeal {}, official ranking {}, "
                         + "rescue attempt {} awaiting the judge panel",
                 edition.getId(), round.getId(), appeal.getAppealId(), latest.getRankingId(), awaitingPanel.getId());
     }
 
-    private Round scheduleRound(Edition edition, int number, String name, Track track) {
+    private Round scheduleRound(Challenge challenge, Edition edition, int number, String name, Track track) {
         return useCases.scheduleRound().execute(ScheduleRoundCommand.of(
-                edition.getId(), edition.getCategories().getFirst().id(), number, name, List.of(track),
+                challenge.getId(), edition.getId(), edition.getCategories().getFirst().id(), number, name, List.of(track),
                 List.of(Judge.of(JudgeId.of("j-1"), "Chief Judge", "Principal"), Judge.of(JudgeId.of("j-2"), "Field Judge", "Pista")),
                 ROUND_START.plusHours(number - 1L), Duration.ofMinutes(10), Duration.ofMinutes(2)));
     }

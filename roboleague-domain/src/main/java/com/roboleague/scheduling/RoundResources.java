@@ -1,7 +1,5 @@
 package com.roboleague.scheduling;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -10,16 +8,16 @@ import java.util.Objects;
  */
 public record RoundResources(List<Track> tracks, List<Judge> judges) {
     public RoundResources {
-        Objects.requireNonNull(tracks, "tracks cannot be null");
-        Objects.requireNonNull(judges, "judges cannot be null");
-        if (tracks.isEmpty()) {
-            throw new IllegalArgumentException("At least one track must be available");
+        tracks = List.copyOf(Objects.requireNonNull(tracks, "tracks cannot be null"));
+        judges = List.copyOf(Objects.requireNonNull(judges, "judges cannot be null"));
+        if (tracks.stream().map(Track::id).distinct().count() != tracks.size()
+                || judges.stream().map(Judge::id).distinct().count() != judges.size()) {
+            throw new IllegalArgumentException("Resource ids must be unique");
         }
-        if (judges.isEmpty()) {
-            throw new IllegalArgumentException("At least one judge must be available");
+        tracks = tracks.stream().filter(Track::isActive).toList();
+        if (tracks.isEmpty() || judges.isEmpty()) {
+            throw new IllegalArgumentException("At least one active track and one judge must be available");
         }
-        tracks = Collections.unmodifiableList(new ArrayList<>(tracks));
-        judges = Collections.unmodifiableList(new ArrayList<>(judges));
     }
 
     public static RoundResources of(List<Track> tracks, List<Judge> judges) {

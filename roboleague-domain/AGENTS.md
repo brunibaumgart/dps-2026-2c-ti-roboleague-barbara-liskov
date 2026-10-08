@@ -30,6 +30,26 @@ constructor de valor permite rehidratar sin consultar el calendario actual.
   Team se rehidrata con su constructor completo; Documentation.restore conserva
   documentos y metadatos de verificación. Estas vías son para adaptadores.
 
+## Rondas y recursos
+
+- Round/Slot son inmutables. addSlot, start, complete, startSlot, completeSlot y
+  cancelSlot devuelven otra Round; conservarla. Slot no tiene mutadores públicos.
+  Round protege pertenencia, ids/equipos únicos, recursos sin solapamientos y
+  transiciones; completar exige slots completados o cancelados.
+- RoundScope incluye desafío, edición, categoría y número positivo. El caso de
+  uso verifica pertenencia del desafío y categoría y revalida inscripciones.
+- RoundSchedulerService elige la primera combinación pista/juez libre más
+  temprana, desempata por orden de recursos y asigna un juez por slot. Recursos
+  se comparan por id. Pistas inactivas se excluyen; ids duplicados se rechazan.
+- Ventanas [inicio, fin): jueces/equipos se liberan al fin, pistas tras
+  Slot.trackInterval. Conservar esa pausa para comparar rondas distintas.
+  CANCELLED libera recursos; COMPLETED conserva la ocupación histórica.
+- Round.restore y Slot.restore preservan identidad, asignaciones, horarios,
+  pausa y estados sin repetir transiciones ni generar ids. Validan estructura;
+  no usarlos como entrada de negocio para saltear el ciclo de vida.
+- El lifecycle de ronda/slot es independiente de las fuentes recibidas y del
+  puntaje de Attempt. No completar turnos automáticamente al recibir mediciones.
+
 ## Invariantes y extensión
 
 - Modificar estado mediante operaciones del agregado que protejan invariantes,

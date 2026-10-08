@@ -520,7 +520,7 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
   - **Versión fijada (hallazgo 2)**: `RulebookReference(desafío, versión)` se guarda al abrir el intento y `EvaluationSnapshot` guarda la versión de cada revisión. Puntuar con otra versión falla. `ResolveAppealUseCase.acceptAppeal` ya no recibe el desafío: carga la versión del intento. `recalculateWith`, que puntuaba con cualquier reglamento, se borró.
   - **Estados (State, como `Appeal`)**: `AttemptState` con una clase por forma de comportarse: `WaitingAttemptState` (programado o esperando fuentes: solo toma resultados), `SettledAttemptState` (evaluado o ajustado: toma apelaciones, ajustes de faltas y la descalificación), `UnderAppealAttemptState` (cuenta las apelaciones abiertas y recuerda si vuelve a evaluado o ajustado) y `DisqualifiedAttemptState` (no toma nada). Lo que un estado no acepta lo rechaza un método por defecto que nombra el estado (409 en la API).
   - **Puntaje computable**: `countableScore()` es el desglose que cuenta, vacío antes de puntuar o si está descalificado (regla #24). `TeamScore` solo usa intentos que cuentan; un equipo sin ninguno no suma.
-  - **Validación contra la ronda**: `ScheduleRoundUseCase` guarda la ronda en un `RoundRepository` mínimo (`save`, `findBySlotId`); `Round.slot(id)` y `Slot.isJudgedBy(juez)`. `ReceiveResultUseCase` exige que el turno exista (400) y que el juez esté asignado (422), toma el equipo del slot y abre el intento con la versión vigente del desafío.
+  - **Validación contra la ronda**: `ScheduleRoundUseCase` guarda la ronda completa en `RoundRepository` (extendido en 2.23); `Round.slot(id)` y `Slot.isJudgedBy(juez)`. `ReceiveResultUseCase` exige que el turno exista (400), que el desafío coincida con la ronda (409) y que el juez esté asignado (422), toma el equipo del slot y abre el intento con la versión vigente del desafío.
   - **API**: `PUT /attempts/{id}/measurements`, `PUT /attempts/{id}/judge-scores` y `GET /attempts/{id}/breakdown`, que muestra lo pendiente y lo que aportó cada fuente (README, "Cargar los resultados de un intento").
   - **Persistencia**: migración V3 con el turno, la versión y la etapa en columnas, y las entregas, revisiones y eventos en JSONB. `Attempt.restore(identidad, referencia, AttemptProgress)` reconstruye sin repetir transiciones, como `Appeal.restore`; `AttemptStage` es el estado como dato y el único lugar que elige un estado por su nombre (regla #9). `AttemptEvent` pasa a ser sellado para que el mapper guarde cada tipo.
   - **Issue #5**: `RawMetrics.withPenalties` cambia solo las faltas.
@@ -540,9 +540,10 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
 - **Patrones no aplicados**: event sourcing (reconstruir el intento desde sus eventos; se guardan revisiones y eventos tal cual); Visitor para las fuentes (alcanza con `addTo` polimórfico).
 - **Dos fuentes al mismo tiempo**: en F3 las mediciones y el panel pueden llegar casi juntos. Postgres guarda el intento con bloqueo optimista (`@Version`, migración `V4`): `JpaAttemptRepository` recuerda con qué versión cargó cada intento y la manda al guardar, así que si otro pedido lo guardó en el medio el segundo se rechaza con 409 y se reintenta, en lugar de pisar la fuente que ya llegó. La versión es un detalle del adaptador: el agregado no la conoce.
 - **Deuda que decidimos no resolver en este paso**:
-  - `challengeId` viaja en el cuerpo de la captura hasta que la ronda conozca su desafío (frente 3); entonces sale de la ronda.
-  - `RoundRepository` es mínimo y en memoria; el frente 3 lo extiende y el
-    frente 5 coordina su persistencia.
+  - `challengeId` sigue en el cuerpo de captura por compatibilidad; desde 2.23
+    se valida contra la ronda.
+  - RoundRepository fue extendido en 2.23 y sigue en memoria; frente 5 coordina
+    persistencia y exclusión de programaciones concurrentes.
   - No se valida el horario del turno ni su estado (`Slot.status`), y del panel de jueces solo se valida al juez que carga, no a cada juez que puntúa.
   - Descalificar solo se acepta sobre un intento puntuado, como el diagrama de estados.
   - La tabla sigue armándose con el mejor intento (`TeamScore`) y `TieBreakerChain`; cuando use `RankingScheme` (frente 4), cada `RoundScore` sale de `countableScore()` y su snapshot.
@@ -677,6 +678,57 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
   edición, rechazos sin escrituras, duplicados, relaciones independientes,
   actualizaciones válidas e inválidas contra dos categorías, inmutabilidad y
   rehidratación, revalidación al programar, rankings canónicos, proxies y demo.
+
+### 2.23. Rondas por desafío y programación paralela (frente 3, spec 04)
+
+- **Problema**: El scheduler usaba un horario serial y asignaba dos jueces sin
+  comprobar disponibilidad. La ronda no conocía el desafío y cualquier consumidor
+  podía cambiar slots sin controles de pertenencia, solapamiento o lifecycle.
+- **Límite de agregado (DDD)**: Round contiene Slot y controla sus operaciones;
+  un SlotId sigue siendo global, pero no crea otro repositorio. RoundScope contiene
+  ChallengeId/EditionId/CategoryId/número positivo. El caso de uso consulta Challenge
+  y Edition para verificar pertenencia, categoría y elegibilidad antes de generar
+  ids. Las referencias por identidad evitan incorporar otros agregados al ciclo
+  de vida de la ronda.
+- **Estado protegido**: Round/Slot son snapshots inmutables; las operaciones
+  devuelven una nueva ronda. Se rechazan slots ajenos, ids/equipos duplicados y
+  solapamientos de pista o juez. Los intervalos son semicerrados. Round y Slot
+  pasan de SCHEDULED a IN_PROGRESS y COMPLETED; solo un slot SCHEDULED puede
+  cancelarse. La ronda termina con todos los slots completados o cancelados.
+  Las fuentes recibidas por Attempt no provocan estas transiciones.
+- **Servicio de dominio**: RoundSchedulerService recibe equipos ordenados por
+  registeredAt/TeamId y rondas guardadas. Evalúa combinaciones pista/juez en orden,
+  busca la ventana libre más temprana avanzando al fin de cada conflicto y asigna
+  un juez. SlotConflicts centraliza la regla compartida con el agregado. Se
+  comparan ids, no igualdad de perfiles. Pistas inactivas se excluyen y recursos
+  duplicados se rechazan. Las ventanas completas permiten respetar ocupaciones
+  futuras y aprovechar huecos anteriores.
+- **Pausa de pista**: Slot conserva trackInterval. Pista ocupada hasta fin +
+  pausa; juez/equipo hasta fin. También se considera la pausa del candidato para
+  no invadir un turno futuro. CANCELLED libera recursos; COMPLETED conserva la
+  ocupación histórica. No extender la pausa del juez ni deducirla del request de
+  otra ronda, porque cambiaría las restricciones del horario ya guardado.
+- **Puertos y adaptadores (DIP/hexagonal)**: RoundRepository incorpora findById,
+  findByScope, findByChallengeId y findAll, conservando findBySlotId. Memory guarda
+  la ronda completa, reemplaza por id y rechaza scope o SlotId usados por otra
+  ronda. Round.restore/Slot.restore conservan scope, estados, asignaciones,
+  horarios y pausa sin replay. Domain/application siguen sin frameworks.
+- **Captura y demo**: ReceiveResultUseCase verifica desafío de ronda antes de
+  abrir/cambiar Attempt, incluso en la primera captura (409). Se conserva el
+  request existente, scoring y auditoría. La demo indica desafío al programar y
+  usa al juez asignado para ambas fuentes; notas del panel no equivalen a
+  disponibilidad/asignación de sus miembros.
+- **Alternativas**: Mantener Slot mutable permitiría saltear Round por un getter.
+  Repositorios separados debilitarían el límite de consistencia. Clases State
+  por enum no aportan aquí comportamientos variables como en Attempt/Appeal;
+  alcanzan transiciones explícitas protegidas por Round. El algoritmo vive en
+  dominio y los casos de uso solo cargan, coordinan y guardan (SRP).
+- **Límites y verificación**: Memory no ofrece durabilidad, rollback ni exclusión
+  entre programaciones concurrentes. La validación secuencial no equivale a un
+  lock transaccional; JPA, restricciones y coordinación corresponden al frente 5.
+  Se prueban paralelismo, pausas, límites semicerrados, conflictos entre rondas,
+  recursos por identidad, rechazos sin guardado, lifecycle, restore, contrato
+  memory, captura, proxies y continuidad de la demo/rankings.
 
 ## 3. Matriz Comparativa Exhaustiva de Trade-offs
 

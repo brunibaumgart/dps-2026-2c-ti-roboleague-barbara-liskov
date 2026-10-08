@@ -1,7 +1,5 @@
 package com.roboleague.scheduling;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -11,7 +9,14 @@ import java.util.Objects;
 public record SlotAssignment(Track track, List<Judge> assignedJudges) {
     public SlotAssignment {
         Objects.requireNonNull(track, "track cannot be null");
-        assignedJudges = assignedJudges != null ? Collections.unmodifiableList(new ArrayList<>(assignedJudges)) : Collections.emptyList();
+        if (!track.isActive()) {
+            throw new IllegalArgumentException("Slot requires an active track");
+        }
+        assignedJudges = List.copyOf(Objects.requireNonNull(assignedJudges, "assignedJudges cannot be null"));
+        if (assignedJudges.isEmpty()
+                || assignedJudges.stream().map(Judge::id).distinct().count() != assignedJudges.size()) {
+            throw new IllegalArgumentException("Slot requires distinct assigned judges");
+        }
     }
 
     public static SlotAssignment of(Track track, List<Judge> assignedJudges) {
