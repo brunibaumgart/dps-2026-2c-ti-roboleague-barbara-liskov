@@ -21,6 +21,7 @@ import com.roboleague.usecase.CreateEditionUseCase;
 import com.roboleague.usecase.FileAppealUseCase;
 import com.roboleague.usecase.GetAttemptBreakdownUseCase;
 import com.roboleague.usecase.GetChallengeUseCase;
+import com.roboleague.usecase.GetRulebookUseCase;
 import com.roboleague.usecase.ListEditionChallengesUseCase;
 import com.roboleague.usecase.PublishOfficialRankingUseCase;
 import com.roboleague.usecase.PublishRulebookUseCase;
@@ -175,5 +176,9 @@ class UseCaseConfig {
     @Bean
     UpdateRegistrationUseCase updateRegistrationUseCase(EditionRepository editions, TeamRepository teams) {
         return new UpdateRegistrationUseCase(editions, teams);
+    }
+    @Bean
+    GetRulebookUseCase getRulebookUseCase(ChallengeRepository challenges) {
+        return new GetRulebookUseCase(challenges);
     }
 }

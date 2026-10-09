@@ -777,6 +777,43 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
   validación conjunta antes de escribir; ambos adaptadores de desafíos prueban
   filtro/orden por edición. La demo y las pruebas de proxies permanecen activas.
 
+### 2.25. Front web servido por API (frente 3, spec 06 parcial)
+
+- **Decisión**: HTML/CSS y módulos ES nativos en resources/static, con el mismo
+  jar/puerto que la API. Sin build Node, framework frontend, CDN ni autenticación
+  simulada. Es un adaptador de entrada; no agrega scoring/elegibilidad al browser.
+  Diseño sobrio, neutro, para escritorio, con selección visible de contexto y acciones
+  de competencia en navegación lateral.
+- **Responsabilidades (SRP/hexagonal)**: api.js concentra HTTP/ErrorDto; ui.js
+  construye nodos seguros y controla envíos; models.js traduce contratos, referencias
+  y presentación; registration/scheduling/results presentan flujos. app.js carga
+  estado del backend y coordina contexto/navegación, descartando respuestas tardías
+  tras un cambio de contexto. No mantiene otro modelo de dominio ni estado de
+  competencia durable en el browser.
+- **Contratos y referencias**: Formularios normales, sin JSON manual. Team/miembro/
+  robot/recurso nuevos reciben ids en el candidato; editar conserva identidades.
+  Auditoría de respuesta no se reenvía como request. Recursos conocidos entre
+  rondas/desafíos conservan ids. El servidor confirma cambios, horarios y puntajes.
+- **Captura histórica**: Se agregó GetRulebookUseCase y GET de versión publicada.
+  Un breakdown identifica la versión del intento y la web consulta sus métricas,
+  evitando usar la definición actual para una segunda fuente histórica. La consulta
+  es de solo lectura y usa ChallengeRepository; no reescribe reglamentos.
+- **Uso y errores**: Métricas se presentan por fuente, unidad y rango declarado.
+  El desglose usa ítems/fórmulas/topes/revisiones del backend y muestra ausencia
+  de puntaje como pendiente/sin puntaje computable. Los 422 conservan candidatos;
+  un 409 bloquea mutaciones hasta recargar, sin retries automáticos. La selección
+  de contexto se bloquea durante un envío. Renderizado por texto evita interpretar
+  nombres/motivos como HTML.
+- **Límites explícitos**: La API de frente 4 solo permite revisar una apelación
+  conocida. No hay listado/presentación/resolución ni tabla/versiones/recálculo/
+  publicación. Sus pantallas muestran integración pendiente sin mocks ni cálculos
+  locales. La spec 06 no se considera terminada. No se agregó JPA del frente 5.
+- **Verificación**: Tests JS de contratos/cliente HTTP sin dependencias npm,
+  añadidos a CI; Maven cubre assets, versión histórica, demo y contratos existentes.
+  El navegador de la sesión no estuvo disponible: no se acredita validación visual,
+  layout de escritorio, teclado o flujos desde navegador; quedan documentados en README.
+  La finalización requiere esa comprobación y conectar los contratos del frente 4.
+
 ## 3. Matriz Comparativa Exhaustiva de Trade-offs
 
 | Decisión Arquitectónica | Pros Clave | Contras y Costos Asociados | Alternativa Considerada y Rechazada |

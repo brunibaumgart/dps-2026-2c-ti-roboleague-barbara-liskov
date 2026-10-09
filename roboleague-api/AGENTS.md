@@ -49,6 +49,29 @@ controllers, DTOs, config y demo bajo `src/main/java/com/roboleague/api`.
   estado y recursos siguen en dominio. Rechazar elementos null de colecciones
   antes de construir valores, evitando NPE/500 ante JSON inválido.
 
+## Front estático (spec 06, parcial)
+
+- Front en src/main/resources/static, servido por el mismo jar/puerto, sin build
+  npm. index.html/styles.css y módulos JS separan HTTP, presentación, traducción
+  de contratos, inscripciones, programación y captura/desglose. Mantener estética
+  sobria, labels, teclado, foco visible y layout de escritorio. El frontend es
+  exclusivamente para escritorio; mantener ese alcance en futuras extensiones.
+- Consumir API real: no calcular scoring, elegibilidad ni publicación en JS. Los
+  recursos sugeridos de otras rondas conservan ids; nuevos ids se generan al crear
+  candidatos y no se cambian al editar. No presentar ids como nombres de recursos.
+- Renderizar entrada del usuario con nodos/textContent, nunca innerHTML. Conservar
+  todos los detalles de ErrorDto. Un 422 conserva el formulario; un 409 exige
+  recargar datos antes de otra mutación. No retry automático ni doble submit.
+- Resultados consultan breakdown y la versión fijada mediante GET
+  /challenges/{id}/rulebook/versions/{version} si difiere de la actual. No usar
+  métricas vigentes para una captura histórica. GetRulebookUseCase es de lectura.
+- Apelaciones/tabla muestran faltantes reales del frente 4. No marcar completada
+  spec 06 ni simular esos flujos mientras no haya contratos y verificación web.
+- Tests de módulos JS: node --experimental-default-type=module --test
+  roboleague-api/src/test/frontend/*.test.mjs (Node 20+, sin paquetes). Maven
+  comprueba entrega de assets y HTTP; no atribuir a estos tests validación visual
+  o de interacción de navegador. Registrar pendientes por separado.
+
 ## Cableado y ejecución
 
 - Registrar casos de uso y servicios en `config/UseCaseConfig` sin agregar Spring

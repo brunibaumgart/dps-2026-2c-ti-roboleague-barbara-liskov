@@ -1,6 +1,8 @@
 # 06 — Front web mínimo e integración de los flujos
 
-Estado: pendiente. Depende de 05 y de los contratos API de los frentes 1, 2 y 4.
+Estado: entrega parcial; flujos disponibles implementados y verificados por módulos/HTTP.
+Pendientes: integración de frente 4 y comprobación visual/interactiva en navegador.
+Depende de 05 y de los contratos API de los frentes 1, 2 y 4.
 Puede comenzar la estructura con 05; no se considera completo mientras las
 operaciones de los otros frentes no puedan ejecutarse contra la API real.
 
@@ -62,7 +64,7 @@ adjunto como sustituto de API. La hoja de ruta sirve de referencia funcional.
 ## Calidad de uso
 
 Labels asociados, navegación por teclado, foco visible, mensajes legibles y
-layout utilizable en escritorio y móvil. Estados de carga/vacío/error y botones
+layout utilizable en escritorio. Estados de carga/vacío/error y botones
 deshabilitados mientras un pedido está en curso para evitar doble envío accidental.
 Un 409 obliga a recargar datos actuales antes de reintentar; no hacer retry
 automático de mutaciones. Mostrar el ErrorDto sin perder details.
@@ -96,3 +98,26 @@ Documentar dependencias externas pendientes si se entrega solo una parte.
 Copiar el simulador, generar reglas de negocio en JS, cambiar el scoring para
 adaptarlo a la UI, implementar el frente 4 desde el frontend, login/roles reales,
 hosting externo y diseño visual elaborado que bloquee el flujo funcional.
+
+## Implementación realizada y límites de cierre
+
+- index.html/styles.css y módulos JS nativos servidos por el mismo jar/puerto.
+  Estética sobria y neutra, navegación de competencia, selección de contexto y
+  layout escritorio; sin editor de JSON ni build npm.
+- Inscribir/editar candidatos y elegir equipos existentes, restricciones,
+  documentación/verificación; programación y turnos por pista; captura por
+  fuente con métricas de reglamento; puntajes, aportes y revisiones disponibles.
+- Consulta GET /challenges/{id}/rulebook/versions/{version} y GetRulebookUseCase
+  agregado para mostrar el reglamento histórico fijado al abrir un intento.
+- Servidor como fuente de verdad. IDs conservados al editar/reusar recursos,
+  envíos bloqueados, 422 sin descartar formulario y 409 sin nuevos envíos hasta
+  recargar. Texto seguro, sin innerHTML ni scoring/elegibilidad local.
+- Apelaciones/tabla muestran operación no disponible por falta de sus APIs.
+  POST review existe, pero no hay listado/consulta para seleccionar apelaciones.
+  No se implementó frente 4 ni se simulan respuestas de producción.
+- Verificación automatizada: Maven con Postgres/Testcontainers para assets,
+  histórico y regresiones; Node para contratos/módulos HTTP, sin dependencias.
+  Pruebas visuales e interactivas no ejecutadas: navegador de la sesión no
+  disponible. README distingue cobertura automatizada de comprobaciones pendientes.
+- **No se satisface todavía el cierre de las seis operaciones**: faltan APIs
+  externas e interacción en navegador. Mantener este estado hasta verificarlas.

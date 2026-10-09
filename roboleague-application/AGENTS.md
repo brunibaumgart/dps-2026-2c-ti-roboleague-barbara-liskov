@@ -34,6 +34,9 @@ Leer también `../AGENTS.md`. Producción en
   Validar contra la categoría anterior rechazaría cambios conjuntos válidos.
   Comparte validateRegistrations con UpdateTeamUseCase; ninguna escritura sucede
   antes de validar. Esto no garantiza rollback técnico de dos escrituras memory.
+- GetRulebookUseCase lee una versión publicada por ChallengeId/RulebookVersion,
+  sin generar versiones ni cambiar historial; el front usa las métricas fijadas
+  de los intentos pendientes aunque se publique otro reglamento.
 - QueryEditions/QueryRegistrations/QueryRounds y ListEditionChallenges son entradas
   de lectura: validan padres/filtros, entregan datos actuales y no escriben.
   RegistrationView reúne relación y Team canónico sin incluir conceptos HTTP.

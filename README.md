@@ -43,9 +43,17 @@ El perfil `demo` vacía la base, aplica las migraciones y carga `DemoFixture` a 
 - Sobre Laberinto: dos equipos, una ronda, dos intentos (el desglose muestra el recorte del tope), un ranking provisional, una apelación aceptada con recálculo y la publicación oficial.
 - Sobre Rescate (F3): una ronda con un intento de CyberTeam que recibió las mediciones y el panel de jueces (147,5) y uno de TitanTeam que tiene las mediciones y espera el panel (`GET /attempts/{id}/breakdown` lo muestra pendiente).
 
-Programar rondas por desafío y ver la tabla con mejores N de M son de los otros frentes; hoy la demo los deja configurados.
+La web permite inscribir equipos, programar rondas por desafío, capturar fuentes y consultar desgloses. La tabla por desafío con mejores N de M sigue pendiente de los endpoints del frente 4.
 
-Sin el perfil `demo`, la app levanta en `http://localhost:8080` sobre la base tal como esté.
+Abrí **http://localhost:8080/** para usar el frontend. HTML/CSS y módulos
+JavaScript se sirven desde el mismo jar y puerto; no se requiere npm, servidor
+frontend separado, CDN ni configuración CORS. La interfaz usa colores neutros,
+formularios con labels, foco visible y layout para escritorio.
+
+Sin el perfil `demo`, la app levanta en `http://localhost:8080` sobre la base tal
+como esté. Si no hay ediciones, muestra un estado vacío; no carga ni borra datos
+al abrir la página. Para explorar los tres desafíos, usar el perfil demo solo
+sobre una base dedicada: **el inicio de demo limpia esa base**.
 
 Si el puerto 5432 ya está ocupado (otro Postgres local), elegí otro con `DB_PORT` en los dos comandos: `DB_PORT=5433 docker compose up -d --wait` y `DB_PORT=5433 java -jar ...`.
 
@@ -108,6 +116,7 @@ Los paquetes no cambiaron al separar módulos (`com.roboleague.usecase`, `com.ro
 | POST | `/editions/{id}/challenges` | hecho |
 | POST | `/challenges/{id}/rulebook/versions` | hecho |
 | GET | `/challenges/{id}` | hecho |
+| GET | `/challenges/{id}/rulebook/versions/{version}` | hecho |
 | GET | `/editions` · `/editions/{id}` | hecho |
 | GET | `/editions/{id}/challenges` | hecho |
 | POST · GET | `/editions/{id}/registrations` | hecho |
@@ -376,6 +385,72 @@ La spec 04 implementa dominio, casos de uso, adaptador memory y rehidratación.
 Rondas en memoria se pierden al reiniciar y no garantizan exclusión entre
 programaciones concurrentes. Su JPA/locking corresponde al frente 5; los
 endpoints de programación y consulta están implementados en la spec 05.
+
+## Front web: uso y estado de integración
+
+1. Elegí edición, desafío y categoría en la barra superior. Los nombres vienen
+   del servidor; la web conserva los ids como referencias.
+2. **Equipos** lista inscripciones, permite editar candidatos completos, agregar
+   integrantes/documentos y elegir equipos de otras ediciones. Muestra límites
+   de categoría. Un 422 conserva el formulario y todos los motivos del servidor;
+   solo un cambio confirmado actualiza la lista.
+3. **Rondas y turnos** presenta columnas por pista con horarios, equipo y jueces.
+   Permite programar con duración/pausa en segundos y recursos existentes o
+   nuevos. Los recursos sugeridos conservan sus ids entre desafíos/categorías;
+   no se calcula el horario en JavaScript. Seleccionar un turno abre resultados.
+4. **Cargar resultados** deriva `<slotId>-<numero>` con número positivo y permite
+   elegir el juez asignado y una fuente pendiente. Los campos de métricas se
+   generan a partir del reglamento, incluyendo fuente/unidad/rango. Las notas
+   del panel se cargan por juez con nombres de recursos conocidos; no es un
+   editor de JSON. Ambas fuentes se envían a los endpoints existentes.
+5. **Desglose e historial** consulta puntaje, fuentes pendientes/recibidas, ítems,
+   fórmulas, subtotales, notas, aportes y revisiones disponibles. Un puntaje
+   pendiente/descalificado no se representa como cero. Los desgloses y totales
+   son los del servidor, sin recalcular scoring en el navegador.
+
+Si el intento fue abierto con un reglamento anterior, la web consulta
+`GET /challenges/{id}/rulebook/versions/{version}` (200 con RulebookDto, 400 si
+no existe desafío/versión o si el número es inválido) para presentar las métricas
+históricas. Esa consulta no publica una versión ni modifica las existentes.
+Una primera captura usa el reglamento vigente consultado al servidor.
+
+Los envíos bloquean sus formularios y selección de contexto para evitar doble
+captura accidental. Un **409** bloquea nuevas mutaciones hasta usar **Recargar
+datos**; nunca se reintenta una mutación automáticamente. Los nombres, motivos y
+mensajes se renderizan como texto, sin HTML suministrado por usuarios. No hay
+login ni seguridad por roles simulada; la API conserva sus responsabilidades.
+
+**Entrega parcial de la spec 06:** Apelaciones y Tabla muestran su integración
+pendiente. La API solo tiene POST /appeals/{id}/review, sin listado para elegir
+apelaciones ni presentación/resolución. También faltan consultas de tabla,
+versiones, recálculo y publicación. No hay mocks en producción, endpoints
+inventados ni reglas del frente 4 implementadas en JS. El cierre de la spec
+requiere esos contratos reales y sus pruebas de navegador. Equipos/ediciones/
+rondas siguen en memoria; la UI no los presenta como durables.
+
+### Verificación del frontend
+
+Desde la raíz:
+
+```bash
+mvn -B verify
+node --experimental-default-type=module --test roboleague-api/src/test/frontend/*.test.mjs
+```
+
+Node 20+ se usa **solo para tests**, sin instalar paquetes ni compilar assets.
+La CI ejecuta también esos tests. Maven prueba entrega de HTML/CSS/módulos por
+Spring, consulta de reglamentos históricos y regresiones de la demo/API. Los
+tests de JS cubren contratos, auditoría de solo lectura, métricas por fuente,
+recursos por identidad, horarios paralelos y errores sin retry. Son pruebas de
+módulos, **no una corrida de navegador**.
+
+En esta implementación no se pudo ejecutar la verificación visual/interactiva:
+el navegador de la sesión no estuvo disponible. Sigue pendiente comprobar
+escritorio, teclado y flujos reales de inscripción válida/inelegible,
+edición rechazada sin pérdida, dos pistas paralelas, captura mixta y desglose
+con tope desde la web. Apelación, recálculo y publicación requieren además el
+frente 4. Las pruebas HTTP existentes cubren los contratos del backend, sin
+acreditar por sí solas esa comprobación de UI.
 
 ## Cómo sumar lo tuyo
 
