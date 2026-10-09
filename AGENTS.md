@@ -59,7 +59,10 @@ y momento explícito de inscripción; no contiene Team. Resolver sus TeamIds
 contra TeamRepository, que conserva el estado canónico. Los cambios de equipo
 se guardan mediante UpdateTeamUseCase, validando todas sus inscripciones; cambiar
 categoría usa ChangeRegistrationCategoryUseCase para una edición concreta.
-No reintroducir mutadores o una categoría/fecha global de inscripción en Team.
+Para cambiar equipo y categoría juntos por HTTP, UpdateRegistrationUseCase
+valida el candidato contra la categoría nueva y todas las otras inscripciones
+antes de escribir. No encadenar dos mutaciones que puedan dejar un cambio parcial
+por rechazo. No reintroducir mutadores o categoría/fecha global en Team.
 
 `Round` y `Slot` son inmutables. Round controla adición y transiciones de sus
 slots: conservar el valor devuelto y guardar la ronda completa. Su scope incluye

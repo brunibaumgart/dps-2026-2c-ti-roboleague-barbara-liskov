@@ -24,6 +24,10 @@ a sus implementaciones.
   quedan dentro del adaptador; no anotar agregados con JPA/Jackson.
 - Rehidratar con `restore(...)`. Conservar estado, ids, tiempos, métricas,
   entregas, revisiones y eventos originales sin recrear acciones de negocio.
+- ChallengeRepository.findByEditionId filtra por edición y ordena por ChallengeId
+  tanto en memory como en JPA. SpringDataChallenges hace la consulta por edition_id;
+  el mapper preserva todos los reglamentos, igual que en findById. Consultar una
+  edición inexistente es validación de application, no del adaptador.
 - `ChallengeMapper` guarda definiciones y reconstruye con `RuleCatalog`.
   Un reglamento persistido inválido es un error; no omitirlo ni sustituirlo por
   un reglamento por defecto. Preservar todas sus versiones.

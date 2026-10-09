@@ -8,6 +8,7 @@ import com.roboleague.tournament.EditionId;
 import com.roboleague.usecase.AddChallengeCommand;
 import com.roboleague.usecase.AddChallengeUseCase;
 import com.roboleague.usecase.GetChallengeUseCase;
+import com.roboleague.usecase.ListEditionChallengesUseCase;
 import com.roboleague.usecase.Publication;
 import com.roboleague.usecase.PublishRulebookUseCase;
 import org.springframework.http.HttpStatus;
@@ -31,11 +32,19 @@ class ChallengeController {
     private final PublishRulebookUseCase publishRulebook;
     private final GetChallengeUseCase getChallenge;
 
+    private final ListEditionChallengesUseCase listChallenges;
+
     ChallengeController(AddChallengeUseCase addChallenge, PublishRulebookUseCase publishRulebook,
-                        GetChallengeUseCase getChallenge) {
+                        GetChallengeUseCase getChallenge, ListEditionChallengesUseCase listChallenges) {
+        this.listChallenges = listChallenges;
         this.addChallenge = addChallenge;
         this.publishRulebook = publishRulebook;
         this.getChallenge = getChallenge;
+    }
+
+    @GetMapping("/editions/{editionId}/challenges")
+    List<ChallengeDto> list(@PathVariable String editionId) {
+        return listChallenges.execute(EditionId.of(editionId)).stream().map(ChallengeDto::from).toList();
     }
 
     @PostMapping("/editions/{editionId}/challenges")

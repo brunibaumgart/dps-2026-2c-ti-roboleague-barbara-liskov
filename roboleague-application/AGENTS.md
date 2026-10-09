@@ -29,6 +29,14 @@ Leer también `../AGENTS.md`. Producción en
   las ediciones devueltas por EditionRepository.findByTeamId antes de guardar;
   reunir motivos por edición. Cambiar categoría usa
   ChangeRegistrationCategoryUseCase y conserva fecha/hora de la inscripción.
+- UpdateRegistrationUseCase coordina el candidato de equipo y categoría juntos:
+  sustituye la edición destino por su candidata al validar todas las inscripciones.
+  Validar contra la categoría anterior rechazaría cambios conjuntos válidos.
+  Comparte validateRegistrations con UpdateTeamUseCase; ninguna escritura sucede
+  antes de validar. Esto no garantiza rollback técnico de dos escrituras memory.
+- QueryEditions/QueryRegistrations/QueryRounds y ListEditionChallenges son entradas
+  de lectura: validan padres/filtros, entregan datos actuales y no escriben.
+  RegistrationView reúne relación y Team canónico sin incluir conceptos HTTP.
 - Programación revalida equipos canónicos antes de generar ids/guardar rondas.
   Ranking resuelve los TeamIds de las registrations contra TeamRepository.
   No conservar listas paralelas de Team dentro de Edition.

@@ -64,6 +64,8 @@ constructor de valor permite rehidratar sin consultar el calendario actual.
   operaciones, persistencia y pruebas que dependan de él.
 - `Edition` organiza el evento; `Challenge` identifica un desafío con reglamento
   propio; `Category` determina elegibilidad. Preservar esta distinción.
+- Weight y Dimensions rechazan valores no finitos además de no positivos; no
+  aceptar NaN/infinito como cantidades físicas o límites de categoría.
 - Modelar valores con los records/objetos de valor existentes y validar sus
   invariantes en construcción. Mantener las colecciones expuestas protegidas
   frente a modificaciones externas.

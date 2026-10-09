@@ -50,6 +50,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Import({PostgresContainer.class, JpaChallengeRepository.class, JpaChallengeRepositoryTest.Catalog.class})
 class JpaChallengeRepositoryTest {
 
+    @Test
+    void listsOnlyChallengesOfTheRequestedEditionInStableOrder() {
+        for (String id : List.of("ch-filter-b", "ch-filter-a")) {
+            repository.save(Challenge.draft(ChallengeId.of(id), EditionId.of("ed-filter"), id)
+                    .publish(mazeScoring(40), BEST_THREE_OF_FIVE));
+        }
+        repository.save(mazeWithTwoVersions("ch-filter-foreign"));
+        assertThat(repository.findByEditionId(EditionId.of("ed-filter")))
+                .extracting(challenge -> challenge.getId().value()).containsExactly("ch-filter-a", "ch-filter-b");
+        assertThat(repository.findByEditionId(EditionId.of("ed-filter-empty"))).isEmpty();
+    }
+
     @TestConfiguration(proxyBeanMethods = false)
     static class Catalog {
         @Bean

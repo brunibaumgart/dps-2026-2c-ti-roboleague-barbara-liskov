@@ -96,7 +96,7 @@ Los paquetes no cambiaron al separar módulos (`com.roboleague.usecase`, `com.ro
   | Otro pedido guardó lo mismo a la vez (versión vieja o id repetido al confirmar) | 409, para volver a cargar y reintentar |
 
   Un caso de uso que devuelva un resultado `sealed` se traduce en su controller con un `switch` (por ejemplo `Published → 200`, `Rejected → 409`).
-- Cada caso de uso corre en una transacción: si falla a mitad de camino no queda nada guardado (`TransactionalUseCases`).
+- Cada caso de uso corre en una transacción (`TransactionalUseCases`) que cubre Postgres. Los repositorios en memoria no ofrecen rollback ante fallos técnicos entre escrituras; los rechazos de validación se comprueban antes de guardar.
 - Referencia: `AppealController` y `AppealControllerTest`.
 
 ### Contratos
@@ -108,8 +108,12 @@ Los paquetes no cambiaron al separar módulos (`com.roboleague.usecase`, `com.ro
 | POST | `/editions/{id}/challenges` | hecho |
 | POST | `/challenges/{id}/rulebook/versions` | hecho |
 | GET | `/challenges/{id}` | hecho |
-| POST | `/editions/{id}/registrations` | pendiente |
-| POST | `/challenges/{id}/rounds` | pendiente |
+| GET | `/editions` · `/editions/{id}` | hecho |
+| GET | `/editions/{id}/challenges` | hecho |
+| POST · GET | `/editions/{id}/registrations` | hecho |
+| GET · PUT | `/editions/{id}/registrations/{teamId}` | hecho |
+| POST · GET | `/challenges/{id}/rounds` | hecho |
+| GET | `/rounds/{id}` | hecho |
 | PUT | `/attempts/{id}/measurements` | hecho |
 | PUT | `/attempts/{id}/judge-scores` | hecho |
 | GET | `/attempts/{id}/breakdown` | hecho |
@@ -175,6 +179,110 @@ Un tipo en la lista de otra sección es 422 y dice a cuál pertenece (`"rule 'Fa
 
 Una métrica es `{"name", "source"}` con `source` = `AUTOMATIC_MEASUREMENTS` o `JUDGE_PANEL`. Toda métrica que lee una regla tiene que estar declarada en `metrics` con la misma fuente, una unidad (`COUNT`, `SECONDS`, `METERS`, `RATIO` o `POINTS`; `COUNT` solo acepta enteros) y un rango (`min` y, si tiene tope, `max`). Una métrica no declarada o de otra fuente, un rango invertido o una métrica declarada dos veces: 422. Una unidad desconocida: 400. Tiempo, objetivos, faltas, consumo y notas de jueces son campos fijos y no se declaran. Límite de bonificaciones: `capped` (`maximum`) o `unlimited`. Selección de rondas: `best-n-of-m` (`considered`, `outOf`) o `all-rounds`. Criterios: `higher-total`, `lower-time`, `lower-deductions` (menos puntos descontados por las deducciones), `higher-judge-score`. El primero es siempre `higher-total` (se ordena por puntaje) y ninguno se repite; los demás desempatan en el orden declarado.
 
+### Inscribir y actualizar equipos
+
+`GET /editions` devuelve una lista; `GET /editions/{editionId}` devuelve el detalle.
+Ambos usan `{id, name, startDate, endDate, categories, categoryDetails}`.
+`categories` conserva los ids del contrato original; `categoryDetails` contiene
+`{id, name, minMembers, maxMembers, minAge, maxAge, maxWeightGrams, maxLengthMm,
+maxWidthMm, maxHeightMm}`. En `POST /editions`, las tres dimensiones máximas son
+opcionales: cada una omitida/null conserva el default de **1000 mm**. Peso y
+restricciones de integrantes/edad son obligatorios; peso/dimensiones deben ser
+positivos y finitos. `GET /editions/{editionId}/challenges` devuelve desafíos de
+esa edición con el mismo DTO de `GET /challenges/{id}`, ordenados por id.
+
+`POST /editions/{editionId}/registrations` → **201**:
+
+```json
+{"categoryId": "cat-junior", "team": {
+  "id": "team-a", "name": "Team A", "institution": "Universidad",
+  "members": [{"id": "participant-a", "fullName": "Ana Pérez",
+               "birthDate": "2010-01-01", "role": "LEADER"},
+              {"id": "participant-b", "fullName": "Bruno Díaz",
+               "birthDate": "2010-02-01", "role": "DEV"}],
+  "robot": {"id": "robot-a", "name": "Bot A", "weightGrams": 1500,
+            "lengthMm": 200, "widthMm": 200, "heightMm": 150,
+            "actuatorCount": 2, "sensors": ["LIDAR"]},
+  "documentation": {"documents": {"consent": "consent.pdf"}, "verifiedBy": "inspector-a"}
+}}
+```
+
+Los datos completos del equipo son obligatorios, incluidas listas de miembros,
+sensores y mapa de documentos. `institution` puede estar vacío; nombres, roles,
+ids, sensores y referencias documentales no pueden estar vacíos. Un equipo sin
+integrantes o sin verificación se evalúa por elegibilidad y devuelve **422** si
+la categoría lo rechaza. `verifiedBy` omitido/null significa sin verificación;
+si se informa, el servidor verifica el conjunto recibido con ese ActorId y su
+Clock. Este flujo no incorpora autenticación ni upload. Peso en gramos,
+dimensiones en milímetros, fechas de nacimiento ISO `YYYY-MM-DD`.
+
+Para inscribir el estado canónico existente, enviar **exactamente una** alternativa:
+
+```json
+{"categoryId": "cat-junior", "teamId": "team-a"}
+```
+
+Enviar `team` y `teamId` juntos, ninguno, o un dato requerido faltante → **400**.
+Un objeto `team` cuyo id ya existe no sobrescribe el equipo → **409**, al igual
+que una inscripción duplicada. Referencias inexistentes → **400**. Elegibilidad
+rechazada → **422** con motivos en `ErrorDto.details`.
+
+La respuesta de inscripción es `{editionId, teamId, categoryId, registeredAt,
+referenceDate, team}`. `team` contiene id/nombre/institución, miembros y robot
+con los mismos campos del request; documentación se representa con
+`{documents, verified, verifiedAt, verifiedBy, revocationReason}`. registeredAt
+lo fija el servidor; referenceDate es la fecha de inicio de la edición. Los
+requests no aceptan registeredAt/referenceDate/verifiedAt ni otros metadatos de
+respuesta: propiedades desconocidas devuelven **400**.
+
+`GET /editions/{editionId}/registrations` devuelve esas vistas, ordenadas por
+registeredAt y TeamId; `GET /editions/{editionId}/registrations/{teamId}` devuelve
+una. Siempre muestran el equipo canónico actual, también si fue actualizado
+desde otra edición. No se guardan equipos duplicados dentro de Edition.
+
+`PUT /editions/{editionId}/registrations/{teamId}` → **200**, con body
+`{categoryId, team}` y **candidato completo**, incluso si solo cambia la categoría.
+El id de team debe coincidir con el path y la inscripción debe existir. Se valida
+el equipo contra la nueva categoría en esa edición y contra las categorías
+actuales de todas sus otras inscripciones **antes de guardar ambos cambios**.
+Una validación rechazada conserva el equipo y todas las relaciones anteriores.
+registeredAt/referenceDate permanecen iguales; la verificación del conjunto
+recibido vuelve a usar la hora del servidor.
+
+### Programar y consultar rondas por HTTP
+
+`POST /challenges/{challengeId}/rounds` → **201**:
+
+```json
+{"categoryId": "cat-junior", "roundNumber": 1, "roundName": "Clasificatoria",
+ "startTime": "2026-11-10T10:00:00", "slotDurationSeconds": 300, "intervalSeconds": 60,
+ "tracks": [{"id": "track-1", "name": "Pista 1", "surfaceType": "Madera", "isActive": true}],
+ "judges": [{"id": "judge-1", "fullName": "Juez Uno", "specialty": "General"}]}
+```
+
+Todos los campos son obligatorios. La edición se deriva del desafío; enviar
+editionId en el body devuelve **400**. Tiempo local ISO, sin offset, en la zona
+configurada del servidor. Duración en segundos positivos; pausa de pista en
+segundos no negativos. Número de ronda positivo. Los recursos se suministran
+por request, sin crear catálogos persistidos. Pistas inactivas se excluyen;
+recursos duplicados, ausencia de pista activa/juez y categoría ajena → **400**;
+scope duplicado → **409**; equipos canónicos inelegibles → **422**.
+
+Respuesta: `{roundId, challengeId, editionId, categoryId, roundNumber, name,
+status, slots}`. Cada slot expone `{slotId, teamId, track, judges, startTime,
+endTime, intervalSeconds, status}`; track/judges contienen los mismos campos
+públicos que en el request. Slots se ordenan por inicio, TrackId y SlotId, y no
+se expone el agregado directamente. El scheduler asigna un juez por slot. Ese
+juez puede usar el slotId para ambos endpoints de captura existentes.
+
+`GET /challenges/{challengeId}/rounds` admite filtro opcional `?categoryId=...`.
+Devuelve una lista ordenada por número, categoría e id de ronda. Un filtro de
+categoría no ofrecida devuelve **400**; una categoría válida sin rondas devuelve
+**200** con `[]`. `GET /rounds/{roundId}` devuelve el mismo DTO del alta.
+Las listas de inscripciones/desafíos/rondas vacías son **200**; sus padres deben
+existir. Edición, inscripción, desafío o ronda inexistentes devuelven **400**.
+Las consultas no escriben ni cambian estados.
+
 ### Cargar los resultados de un intento
 
 El id de un intento es su turno: el slot y el número de intento (`<slotId>-<n>`, por ejemplo `slot-7-1`). El turno tiene que estar en una ronda programada, el juez que carga tiene que estar asignado al slot y el equipo es el del slot. El `challengeId` enviado debe coincidir con el desafío de la ronda, incluso en la primera captura; un desafío diferente devuelve 409 sin crear ni modificar el intento. El primer resultado abre el intento con la versión vigente del reglamento del desafío; los siguientes se puntúan con esa misma versión aunque se publique otra.
@@ -239,7 +347,7 @@ estado actual desde TeamRepository. Rechazos de validación no dejan cambios
 parciales en memoria. Team/Edition/Registration todavía no tienen persistencia
 Postgres: sus datos se pierden al reiniciar y no hay rollback en memoria ante
 fallos técnicos entre escrituras. Su JPA corresponde al frente 5; los endpoints
-HTTP de estos flujos se implementan en la spec 05.
+HTTP de estos flujos están implementados en la spec 05.
 
 ### Rondas por desafío y programación paralela
 
@@ -267,7 +375,7 @@ intento mixto. Las notas individuales del panel siguen siendo datos de scoring.
 La spec 04 implementa dominio, casos de uso, adaptador memory y rehidratación.
 Rondas en memoria se pierden al reiniciar y no garantizan exclusión entre
 programaciones concurrentes. Su JPA/locking corresponde al frente 5; los
-endpoints de programación y consulta se implementan en la spec 05.
+endpoints de programación y consulta están implementados en la spec 05.
 
 ## Cómo sumar lo tuyo
 

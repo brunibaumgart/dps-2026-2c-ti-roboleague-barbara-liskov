@@ -1,6 +1,6 @@
 # Frente 3: inscripción, programación y front
 
-Estado: specs 01–04 implementadas y verificadas; specs 05–06 pendientes.
+Estado: specs 01–05 implementadas y verificadas; spec 06 pendiente.
 
 Fuente: **Hoja de ruta RoboLeague.html**, sección «Frente 3», hallazgos #6 y #7,
 higiene de reloj/ids y flujo «RoboLeague en seis pasos». Se contrastó con el
@@ -43,9 +43,9 @@ contratos equivalentes que ya hayan integrado.
 El hallazgo #7 decía que faltaba RoundRepository. La spec 04 extendió el puerto
 existente con consultas por ronda, scope, desafío y todas las rondas, conservando
 findBySlotId y sin crear un repositorio separado para Slot.
-Hoy la API implementa configuración de ediciones/desafíos, capturas/desglose y
-revisión de apelaciones. Inscripción/programación y varias operaciones de
-apelaciones/tablas siguen sin endpoint. La spec 06 identifica estas dependencias
+Hoy la API implementa configuración/consultas de ediciones/desafíos, inscripción,
+actualización, programación, capturas/desglose y revisión de apelaciones. Varias
+operaciones de apelaciones/tablas siguen sin endpoint. La spec 06 identifica estas dependencias
 como tales: no simular respuestas exitosas para ocultar lo pendiente.
 
 ## Reglas comunes

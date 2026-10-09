@@ -1,8 +1,8 @@
 # 05 — API de inscripción y programación
 
-Estado: pendiente. Depende de 03 y 04 (y de sus bases 01/02).
+Estado: implementada y verificada. Depende de 03 y 04 (y de sus bases 01/02).
 
-## Estado actual y objetivo
+## Estado previo y objetivo
 
 Existe POST /editions y API de desafíos/capturas, pero no controllers para
 RegisterTeamUseCase o ScheduleRoundUseCase. Exponer estos flujos y consultas
@@ -90,3 +90,28 @@ Documentar JSON exacto elegido, unidades, defaults y ejemplos en README.
 Endpoints de tablas, presentación/aceptación/rechazo de apelaciones (frente 4),
 autorización, administración completa de recursos y persistencia pendiente de
 otros frentes. Reusar rutas equivalentes de compañeros antes de agregar duplicados.
+
+## Implementación realizada
+
+- Se implementaron las diez operaciones propuestas con DTOs propios y consultas
+  de application. Contratos exactos, unidades, defaults y ejemplos en README.
+- EditionDto conserva categories (ids) y agrega categoryDetails (restricciones).
+  Alta de categorías admite maxLengthMm/maxWidthMm/maxHeightMm opcionales,
+  default 1000 mm por eje. Cantidades físicas deben ser positivas y finitas.
+- Registro admite team completo o teamId, exactamente uno. TeamBody recibe
+  robot con weightGrams/lengthMm/widthMm/heightMm/actuatorCount/sensors y
+  documentación con documents/verifiedBy. El servidor fija tiempos. Metadatos
+  de respuesta enviados en el request son campos desconocidos (400).
+- PUT usa UpdateRegistrationUseCase para validar equipo/categoría juntos antes
+  de guardar, revalidando todas las otras inscripciones y conservando las fechas.
+  Una transición conjunta válida no se evalúa contra la categoría reemplazada.
+- Consultas muestran Team canónico, filtran desafíos por edición en ambos
+  adaptadores y distinguen filtros inválidos de listas vacías. No escriben.
+- Programación deriva edición del desafío. RoundDto muestra slots por horario,
+  TrackId y SlotId, un juez asignado y pausa de pista en segundos. Slots sirven
+  para measurements/judge-scores y breakdown existentes.
+- Pruebas cubren 400/409/422 sin cambios parciales por rechazo, consultas,
+  programación/captura, revalidación entre ediciones, puertos y proxies.
+  Verificación transversal: `mvn -B -o verify` con Postgres/Testcontainers.
+- Team/Edition/Round permanecen en memoria; no se implementó JPA ni locking
+  fuera del alcance acordado con frente 5. La siguiente spec es 06.

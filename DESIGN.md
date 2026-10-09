@@ -673,7 +673,7 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
   de concurrencia entre varios escritores. Repositorios/restore son mecanismos
   confiables de persistencia, no entradas de negocio. JPA, restricciones únicas
   y coordinación de escrituras concurrentes corresponden al frente 5. Endpoints
-  de inscripción/cambios/programación corresponden a la spec 05.
+  de inscripción/cambios/programación fueron implementados en la spec 05 (2.24).
 - **Verificación**: Calendario con edades que cambian elegibilidad al iniciar la
   edición, rechazos sin escrituras, duplicados, relaciones independientes,
   actualizaciones válidas e inválidas contra dos categorías, inmutabilidad y
@@ -729,6 +729,53 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
   Se prueban paralelismo, pausas, límites semicerrados, conflictos entre rondas,
   recursos por identidad, rechazos sin guardado, lifecycle, restore, contrato
   memory, captura, proxies y continuidad de la demo/rankings.
+
+### 2.24. API de inscripción y programación (frente 3, spec 05)
+
+- **Objetivo**: Operar ediciones, desafíos, inscripciones y rondas desde contratos
+  HTTP, sin conocer fixtures ni consultar adaptadores desde controllers. Las
+  consultas son entradas de application y devuelven datos que API transforma en
+  DTOs. No se introdujeron Spring/Jackson en el núcleo.
+- **Consultas (SRP/DIP)**: QueryEditionsUseCase, ListEditionChallengesUseCase,
+  QueryRegistrationsUseCase y QueryRoundsUseCase validan padres, relaciones y
+  filtros. RegistrationView reúne Registration y el Team canónico actual; no
+  guarda una copia dentro de Edition. ChallengeRepository agrega findByEditionId,
+  implementado en ambos adaptadores con orden estable. Un padre desconocido es
+  400; una lista vacía es 200; un filtro de categoría ajena es 400.
+- **Actualización conjunta**: PUT recibe categoryId y Team completo. El nuevo
+  UpdateRegistrationUseCase prepara la Edition candidata con esa categoría y
+  valida el equipo contra todas sus inscripciones, sustituyendo la edición
+  destino por la candidata. Comparte la validación coordinada con UpdateTeamUseCase.
+  Guarda Team y Edition solo después de validar; conserva fechas de inscripción.
+  No se encadenan dos mutaciones desde el controller, porque el primer cambio
+  podría quedar guardado si el segundo fuera rechazado, ni se valida contra la
+  categoría anterior cuando el usuario está cambiando ambos datos juntos.
+- **Transporte**: TeamBody construye el candidato con valores tipados, fechas de
+  creación/verificación del Clock del servidor y actor de verificación recibido.
+  No hay upload/autenticación en este paso. POST permite objeto Team nuevo o
+  TeamId existente, exactamente uno; un objeto de id existente no sobrescribe.
+  Los records usan wrappers para reconocer campos numéricos/booleanos faltantes,
+  y comprueban elementos null antes de construir valores. RequestValues se limita
+  a presencia/formato; elegibilidad y programación siguen siendo dominio.
+- **Compatibilidad**: EditionDto conserva categories como ids y suma categoryDetails
+  con restricciones. Alta de categoría permite límites dimensionales opcionales
+  con default histórico de 1000 mm por eje. Weight/Dimensions rechazan NaN/infinito
+  en sus constructores, evitando cantidades físicas inválidas. Las respuestas de
+  inscripción incluyen auditoría, pero esos campos no se aceptan en requests.
+- **Programación HTTP**: RoundController deriva edición del desafío; no recibe un
+  EditionId contradictorio. RoundDto incluye scope, estado y slots ordenados por
+  horario/TrackId/SlotId, sin exponer entidades internas. Sus slots se usan en los
+  endpoints existentes de ambas fuentes de captura y del desglose.
+- **Cableado y límites**: Todos los nuevos casos de uso conservan proxies de clase
+  de TransactionalUseCases. Postgres persiste desafíos/capturas; equipos, ediciones
+  y rondas siguen en memoria. Rechazos de validación no dejan cambios parciales;
+  rollback técnico y coordinación concurrente de memory siguen pendientes de
+  frente 5. No se implementaron endpoints de tablas/apelaciones del frente 4.
+- **Verificación**: MockMvc sobre Postgres/Testcontainers cubre creación, lectura,
+  actualización conjunta, revalidación entre ediciones, programación, consumo de
+  slots en captura y desglose, listas vacías y 400/409/422. Casos de uso prueban
+  validación conjunta antes de escribir; ambos adaptadores de desafíos prueban
+  filtro/orden por edición. La demo y las pruebas de proxies permanecen activas.
 
 ## 3. Matriz Comparativa Exhaustiva de Trade-offs
 

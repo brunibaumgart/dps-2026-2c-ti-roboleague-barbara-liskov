@@ -27,6 +27,28 @@ controllers, DTOs, config y demo bajo `src/main/java/com/roboleague/api`.
   código existente. Seguir imports actuales y revisar los POM antes de copiar
   ejemplos de otras versiones.
 
+## Inscripción y programación (spec 05)
+
+- Consultas pasan por QueryEditionsUseCase, ListEditionChallengesUseCase,
+  QueryRegistrationsUseCase y QueryRoundsUseCase. No consultar repositorios desde
+  controllers ni serializar agregados. RegistrationDto resuelve equipo canónico.
+- POST inscripción exige team o teamId, exactamente uno; PUT exige categoryId y
+  team completo, con id coherente con el path. TeamBody usa Clock del servidor
+  para creación/verificación; requests no admiten timestamps de inscripción o
+  verificación. verifiedBy omitido/null deja documentación sin verificar (422
+  cuando el dominio rechaza elegibilidad). Respuestas incluyen datos de auditoría
+  de solo lectura; no asumir que un DTO de respuesta puede enviarse como request.
+- EditionDto conserva categories como ids y agrega categoryDetails con límites.
+  Dimensiones máximas opcionales en alta conservan default 1000 mm por eje.
+- RoundController deriva EditionId del desafío; el body no acepta edición.
+  Duraciones son segundos y startTime local ISO sin offset. RoundDto ordena
+  slots por horario/TrackId/SlotId. Filtro categoryId ajeno → 400; válido sin
+  rondas → 200 con []; los padres de cada consulta deben existir.
+- RequestValues comprueba presencia y texto en transporte, usando wrappers para
+  distinguir campos numéricos/booleanos faltantes. Las reglas de elegibilidad,
+  estado y recursos siguen en dominio. Rechazar elementos null de colecciones
+  antes de construir valores, evitando NPE/500 ante JSON inválido.
+
 ## Cableado y ejecución
 
 - Registrar casos de uso y servicios en `config/UseCaseConfig` sin agregar Spring
@@ -40,8 +62,10 @@ controllers, DTOs, config y demo bajo `src/main/java/com/roboleague/api`.
   de los métodos y rollback sobre Postgres; comprobarla si cambia el wiring.
 - RegisterTeamUseCase, UpdateTeamUseCase y ChangeRegistrationCategoryUseCase
   están ensamblados en UseCaseConfig y reciben proxies transaccionales. Team y
-  Edition siguen en memoria; los endpoints de inscripción/cambios/programación
-  están pendientes de la spec 05. No serializar sus agregados para adelantarlos.
+  Edition siguen en memoria. RegistrationController expone altas, consultas y
+  PUT completo mediante UpdateRegistrationUseCase, validando equipo/categoría
+  juntos antes de guardar. No encadenar UpdateTeam y ChangeRegistrationCategory
+  desde el controller; la transacción no cubre los repositorios en memoria.
 - ScheduleRoundUseCase recibe ChallengeRepository y tiene proxy transaccional;
   las rondas siguen en memoria. Captura conserva challengeId en el request por
   compatibilidad y rechaza desafío distinto al de la ronda con 409. El juez

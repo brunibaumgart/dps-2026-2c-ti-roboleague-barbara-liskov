@@ -11,10 +11,15 @@ import com.roboleague.tournament.Challenge;
 import com.roboleague.tournament.ChallengeId;
 import com.roboleague.tournament.EditionId;
 import com.roboleague.usecase.ChangeRegistrationCategoryUseCase;
+import com.roboleague.usecase.ListEditionChallengesUseCase;
+import com.roboleague.usecase.QueryEditionsUseCase;
+import com.roboleague.usecase.QueryRegistrationsUseCase;
+import com.roboleague.usecase.QueryRoundsUseCase;
 import com.roboleague.usecase.RegisterTeamUseCase;
 import com.roboleague.usecase.ResolveAppealUseCase;
 import com.roboleague.usecase.SaveThenFailUseCase;
 import com.roboleague.usecase.ScheduleRoundUseCase;
+import com.roboleague.usecase.UpdateRegistrationUseCase;
 import com.roboleague.usecase.UpdateTeamUseCase;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -61,6 +66,17 @@ class TransactionalUseCasesTest {
     private ScheduleRoundUseCase scheduleRound;
 
     @Autowired
+    private UpdateRegistrationUseCase updateRegistration;
+    @Autowired
+    private QueryEditionsUseCase queryEditions;
+    @Autowired
+    private QueryRegistrationsUseCase queryRegistrations;
+    @Autowired
+    private QueryRoundsUseCase queryRounds;
+    @Autowired
+    private ListEditionChallengesUseCase listChallenges;
+
+    @Autowired
     private ChallengeRepository challenges;
 
     @Test
@@ -83,5 +99,8 @@ class TransactionalUseCasesTest {
         assertThat(AopUtils.isAopProxy(updateTeam)).isTrue();
         assertThat(AopUtils.isAopProxy(changeCategory)).isTrue();
         assertThat(AopUtils.isAopProxy(scheduleRound)).isTrue();
+        for (Object bean : List.of(updateRegistration, queryEditions, queryRegistrations, queryRounds, listChallenges)) {
+            assertThat(AopUtils.isAopProxy(bean)).isTrue();
+        }
     }
 }

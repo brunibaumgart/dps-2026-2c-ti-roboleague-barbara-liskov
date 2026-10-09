@@ -5,7 +5,8 @@ package com.roboleague.tournament;
  */
 public record Dimensions(double lengthMm, double widthMm, double heightMm) {
     public Dimensions {
-        if (lengthMm <= 0 || widthMm <= 0 || heightMm <= 0) {
+        if (!Double.isFinite(lengthMm) || !Double.isFinite(widthMm) || !Double.isFinite(heightMm)
+                || lengthMm <= 0 || widthMm <= 0 || heightMm <= 0) {
             throw new IllegalArgumentException("All dimensions must be positive");
         }
     }

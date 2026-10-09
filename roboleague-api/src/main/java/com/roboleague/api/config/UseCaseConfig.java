@@ -21,14 +21,19 @@ import com.roboleague.usecase.CreateEditionUseCase;
 import com.roboleague.usecase.FileAppealUseCase;
 import com.roboleague.usecase.GetAttemptBreakdownUseCase;
 import com.roboleague.usecase.GetChallengeUseCase;
+import com.roboleague.usecase.ListEditionChallengesUseCase;
 import com.roboleague.usecase.PublishOfficialRankingUseCase;
 import com.roboleague.usecase.PublishRulebookUseCase;
+import com.roboleague.usecase.QueryEditionsUseCase;
+import com.roboleague.usecase.QueryRegistrationsUseCase;
+import com.roboleague.usecase.QueryRoundsUseCase;
 import com.roboleague.usecase.RecalculateRankingUseCase;
 import com.roboleague.usecase.ReceiveResultUseCase;
 import com.roboleague.usecase.RegisterTeamUseCase;
 import com.roboleague.usecase.ResolveAppealUseCase;
 import com.roboleague.usecase.ReviewAppealUseCase;
 import com.roboleague.usecase.ScheduleRoundUseCase;
+import com.roboleague.usecase.UpdateRegistrationUseCase;
 import com.roboleague.usecase.UpdateTeamUseCase;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -148,5 +153,27 @@ class UseCaseConfig {
     PublishOfficialRankingUseCase publishOfficialRankingUseCase(RankingRepository rankings, AppealRepository appeals,
                                                                 AttemptRepository attempts, Clock clock) {
         return new PublishOfficialRankingUseCase(rankings, appeals, attempts, clock);
+    }
+    @Bean
+    QueryEditionsUseCase queryEditionsUseCase(EditionRepository editions) { return new QueryEditionsUseCase(editions); }
+
+    @Bean
+    ListEditionChallengesUseCase listEditionChallengesUseCase(EditionRepository editions, ChallengeRepository challenges) {
+        return new ListEditionChallengesUseCase(editions, challenges);
+    }
+
+    @Bean
+    QueryRegistrationsUseCase queryRegistrationsUseCase(EditionRepository editions, TeamRepository teams) {
+        return new QueryRegistrationsUseCase(editions, teams);
+    }
+
+    @Bean
+    QueryRoundsUseCase queryRoundsUseCase(ChallengeRepository challenges, EditionRepository editions, RoundRepository rounds) {
+        return new QueryRoundsUseCase(challenges, editions, rounds);
+    }
+
+    @Bean
+    UpdateRegistrationUseCase updateRegistrationUseCase(EditionRepository editions, TeamRepository teams) {
+        return new UpdateRegistrationUseCase(editions, teams);
     }
 }
