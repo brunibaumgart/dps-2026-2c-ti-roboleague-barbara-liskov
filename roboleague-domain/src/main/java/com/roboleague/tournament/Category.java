@@ -31,7 +31,7 @@ public record Category(
         return restrictions.ageRange().minAge();
     }
 
-    public int maxAge() {
+    public Integer maxAge() {
         return restrictions.ageRange().maxAge();
     }
 
@@ -67,11 +67,11 @@ public record Category(
         return new Category(id, name, restrictions);
     }
 
-    public static Category of(CategoryId id, String name, int minMembers, int maxMembers, int minAge, int maxAge, double maxWeightGrams) {
+    public static Category of(CategoryId id, String name, int minMembers, int maxMembers, int minAge, Integer maxAge, double maxWeightGrams) {
         return of(id, name, minMembers, maxMembers, minAge, maxAge, maxWeightGrams, 1000.0, 1000.0, 1000.0);
     }
 
-    public static Category of(CategoryId id, String name, int minMembers, int maxMembers, int minAge, int maxAge,
+    public static Category of(CategoryId id, String name, int minMembers, int maxMembers, int minAge, Integer maxAge,
                               double maxWeightGrams, double maxLenMm, double maxWidMm, double maxHgtMm) {
         return new Category(
                 id,

@@ -107,7 +107,7 @@ class DemoFixture implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        Category junior = Category.of(CategoryId.of("cat-junior"), "Junior", 2, 4, 15, 25, 2500.0, 300.0, 300.0, 300.0);
+        Category junior = Category.of(CategoryId.of("cat-junior"), "Junior", 2, 4, 13, null, 2500.0, 300.0, 300.0, 300.0);
         Edition edition = createEdition(junior);
         Challenge maze = addChallenge(edition, "ch-maze", "Laberinto", DemoRulebooks.maze());
         addChallenge(edition, "ch-line", "Seguidor de línea", DemoRulebooks.lineFollower(25.0));

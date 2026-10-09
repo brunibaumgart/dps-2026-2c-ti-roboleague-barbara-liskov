@@ -16,7 +16,8 @@ function documentRow(entry = ['', '']) {
   return { node: el('div', { className: 'row-card' }, grid(type, reference)), value: () => [type.input.value.trim(), reference.input.value.trim()] };
 }
 function limits(category) {
-  return `${category.minMembers}–${category.maxMembers} integrantes · ${category.minAge}–${category.maxAge} años al inicio de la edición · Hasta ${category.maxWeightGrams} g · ${category.maxLengthMm} × ${category.maxWidthMm} × ${category.maxHeightMm} mm`;
+  const ages = category.maxAge == null ? `Desde ${category.minAge} años, sin edad máxima` : `${category.minAge}–${category.maxAge} años`;
+  return `${category.minMembers}–${category.maxMembers} integrantes · ${ages} al inicio de la edición · Hasta ${category.maxWeightGrams} g · ${category.maxLengthMm} × ${category.maxWidthMm} × ${category.maxHeightMm} mm`;
 }
 export function mountRegistration(root, context) {
   const { edition, category, registrations } = context.data;

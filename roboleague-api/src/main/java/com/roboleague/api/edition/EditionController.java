@@ -102,7 +102,7 @@ class EditionController {
                     com.roboleague.api.RequestValues.required(minMembers, "category.minMembers"),
                     com.roboleague.api.RequestValues.required(maxMembers, "category.maxMembers"),
                     com.roboleague.api.RequestValues.required(minAge, "category.minAge"),
-                    com.roboleague.api.RequestValues.required(maxAge, "category.maxAge"),
+                    maxAge,
                     com.roboleague.api.RequestValues.required(maxWeightGrams, "category.maxWeightGrams"),
                     maxLengthMm == null ? 1000.0 : maxLengthMm,
                     maxWidthMm == null ? 1000.0 : maxWidthMm,
@@ -118,7 +118,7 @@ class EditionController {
                     edition.getCategories().stream().map(CategoryDto::from).toList());
         }
     }
-    record CategoryDto(String id, String name, int minMembers, int maxMembers, int minAge, int maxAge,
+    record CategoryDto(String id, String name, int minMembers, int maxMembers, int minAge, Integer maxAge,
                        double maxWeightGrams, double maxLengthMm, double maxWidthMm, double maxHeightMm) {
         static CategoryDto from(Category category) {
             return new CategoryDto(category.id().value(), category.name(), category.minTeamMembers(), category.maxTeamMembers(),

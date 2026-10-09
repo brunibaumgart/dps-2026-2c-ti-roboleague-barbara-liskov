@@ -5,7 +5,8 @@ import { el, field, choice, grid, panel, heading, table, empty, button, collecti
 const units = { COUNT: 'cantidad', SECONDS: 'segundos', METERS: 'metros', RATIO: 'proporción', POINTS: 'puntos' };
 function metricFields(rulebook, source) {
   return metricsFor(rulebook, source).map(metric => {
-    const item = field(metric.name, metric.name, { type: 'number', min: metric.range.min,
+    const label = { salidas_de_linea: 'Salidas de línea', vuelta_rapida: 'Vuelta rápida' }[metric.name] || metric.name.replaceAll('_', ' ');
+    const item = field(label, metric.name, { type: 'number', min: metric.range.min,
       max: metric.range.max ?? undefined, step: metric.unit === 'COUNT' ? 1 : 'any' });
     item.node.append(el('span', { className: 'metric-help' }, `${units[metric.unit] || metric.unit} · mínimo ${metric.range.min}${metric.range.max == null ? '' : ` · máximo ${metric.range.max}`}`));
     return item;

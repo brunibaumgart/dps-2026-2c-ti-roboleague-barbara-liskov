@@ -21,7 +21,7 @@ public class AgeLimitSpecification implements EligibilitySpecification<Eligibili
             int age = member.getAgeAt(candidate.referenceDate());
             if (age < category.minAge()) {
                 violations.add("Member " + member.fullName() + " is under the minimum age limit (" + age + " < " + category.minAge() + ")");
-            } else if (age > category.maxAge()) {
+            } else if (category.maxAge() != null && age > category.maxAge()) {
                 violations.add("Member " + member.fullName() + " exceeds the maximum age limit (" + age + " > " + category.maxAge() + ")");
             }
         }

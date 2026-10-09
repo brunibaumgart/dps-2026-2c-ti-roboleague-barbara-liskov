@@ -18,6 +18,23 @@ const challengeSelect = document.querySelector('#challenge');
 const categorySelect = document.querySelector('#category');
 const refresh = document.querySelector('#refresh');
 let editions = [], data, view = 'registration', selectedSlot, attemptNumber = 1, epoch = 0, busy = false, reloadRequired = false;
+const menuToggle = document.querySelector('#menu-toggle');
+const secondaryMenu = document.querySelector('#secondary-menu');
+function setMenuOpen(open, restoreFocus = true) {
+  secondaryMenu.hidden = !open;
+  document.querySelector('.app-shell').classList.toggle('menu-open', open);
+  menuToggle.setAttribute('aria-expanded', String(open));
+  menuToggle.setAttribute('aria-label', open ? 'Cerrar menú de competencia' : 'Abrir menú de competencia');
+  if (!open && restoreFocus) menuToggle.focus({ preventScroll: true });
+}
+menuToggle.addEventListener('click', () => setMenuOpen(secondaryMenu.hidden));
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !secondaryMenu.hidden) {
+    event.preventDefault();
+    setMenuOpen(false);
+  }
+});
+
 function options(select, items, label, selected, placeholder) {
   select.replaceChildren(...items.map(item => el('option', { value: item.id }, label(item))));
   if (!items.length) select.append(el('option', { value: '' }, placeholder));
@@ -29,14 +46,14 @@ function setBusy(value) {
   editionSelect.disabled = value || reloadRequired || !editions.length;
   challengeSelect.disabled = value || reloadRequired || !data?.challenges.length;
   categorySelect.disabled = value || reloadRequired || !data?.edition.categoryDetails.length;
-  document.querySelectorAll('#navigation button').forEach(button => { button.disabled = value || reloadRequired; });
+  document.querySelectorAll('button[data-view]').forEach(button => { button.disabled = value || reloadRequired; });
   root.setAttribute('aria-busy', String(value));
 }
 function render() {
   root.replaceChildren();
   document.querySelector('#page-title').textContent = views[view][0];
   document.querySelector('#page-description').textContent = views[view][1];
-  document.querySelectorAll('#navigation button').forEach(button => {
+  document.querySelectorAll('button[data-view]').forEach(button => {
     if (button.dataset.view === view) button.setAttribute('aria-current', 'page');
     else button.removeAttribute('aria-current');
   });
@@ -60,7 +77,10 @@ function render() {
 }
 function changeView(next) {
   if (busy || reloadRequired) return;
-  epoch++; view = next; render(); root.focus();
+  setMenuOpen(false, false);
+  epoch++; view = next; render();
+  root.focus({ preventScroll: true });
+  window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
 }
 async function loadContext(overrides = {}) {
   const currentEpoch = ++epoch;
@@ -98,5 +118,5 @@ editionSelect.addEventListener('change', () => { selectedSlot = undefined; attem
 challengeSelect.addEventListener('change', () => { selectedSlot = undefined; attemptNumber = 1; loadContext(); });
 categorySelect.addEventListener('change', () => { selectedSlot = undefined; attemptNumber = 1; loadContext(); });
 refresh.addEventListener('click', () => loadContext());
-document.querySelectorAll('#navigation button').forEach(button => button.addEventListener('click', () => changeView(button.dataset.view)));
+document.querySelectorAll('button[data-view]').forEach(button => button.addEventListener('click', () => changeView(button.dataset.view)));
 loadContext();

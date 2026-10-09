@@ -57,6 +57,20 @@ class EligibilitySpecificationTest {
     }
 
     @Test
+    void minimumOnlyAgeLimitAcceptsThirteenAndOlderAndRejectsTwelve() {
+        var category = Category.of(CategoryId.of("cat-open-age"), "Open age", 2, 4, 13, null, 3000.0);
+        var specification = new AgeLimitSpecification();
+        for (int age : List.of(12, 13, 26, 80)) {
+            var member = TeamMember.of(ParticipantId.of("age-" + age), "Participant",
+                    tournamentDate.minusYears(age), "MEMBER", tournamentDate);
+            var team = createValidTeam().withMembers(List.of(member));
+            var result = specification.isSatisfiedBy(new EligibilityCandidate(team, category, tournamentDate));
+            assertThat(result.isEligible()).as("age %s", age).isEqualTo(age > 12);
+            assertThat(category.allowsAge(age)).isEqualTo(age > 12);
+        }
+    }
+
+    @Test
     @DisplayName("Eligible team satisfies all composite specifications")
     void eligibleTeamSatisfiesAllSpecifications() {
         Team team = createValidTeam();

@@ -39,7 +39,7 @@ java -jar roboleague-api/target/roboleague-api-1.0-SNAPSHOT.jar --spring.profile
 
 El perfil `demo` vacía la base, aplica las migraciones y carga `DemoFixture` a través de los casos de uso. Cada corrida termina en el mismo estado:
 
-- Una edición (`ed-1`, categoría `cat-junior`) con tres desafíos: Laberinto (`ch-maze`), Seguidor de línea (`ch-line`, con su reglamento en v2) y Rescate (`ch-rescue`, mixto: exige mediciones automáticas y panel de jueces). Entre los tres usan los doce tipos de regla (base, bonificaciones y deducciones), la compuesta "Desempeño en pista", penalizaciones, bonificaciones con tope (40 / 30 / 30), mejores N de M y criterios de desempate encadenados. Se consultan con `GET /challenges/{id}`.
+- Una edición (`ed-1`, categoría `cat-junior`, desde 13 años cumplidos al inicio de la edición, sin edad máxima) con tres desafíos: Laberinto (`ch-maze`), Seguidor de línea (`ch-line`, con su reglamento en v2) y Rescate (`ch-rescue`, mixto: exige mediciones automáticas y panel de jueces). Entre los tres usan los doce tipos de regla (base, bonificaciones y deducciones), la compuesta "Desempeño en pista", penalizaciones, bonificaciones con tope (40 / 30 / 30), mejores N de M y criterios de desempate encadenados. Se consultan con `GET /challenges/{id}`.
 - Sobre Laberinto: dos equipos, una ronda, dos intentos (el desglose muestra el recorte del tope), un ranking provisional, una apelación aceptada con recálculo y la publicación oficial.
 - Sobre Rescate (F3): una ronda con un intento de CyberTeam que recibió las mediciones y el panel de jueces (147,5) y uno de TitanTeam que tiene las mediciones y espera el panel (`GET /attempts/{id}/breakdown` lo muestra pendiente).
 
@@ -48,7 +48,11 @@ La web permite inscribir equipos, programar rondas por desafío, capturar fuente
 Abrí **http://localhost:8080/** para usar el frontend. HTML/CSS y módulos
 JavaScript se sirven desde el mismo jar y puerto; no se requiere npm, servidor
 frontend separado, CDN ni configuración CORS. La interfaz usa colores neutros,
-formularios con labels, foco visible y layout para escritorio.
+formularios con labels, foco visible y layout para escritorio. El header reúne
+Equipos, Rondas y turnos, Resultados y Recargar datos. El botón de menú abre
+un panel lateral izquierdo con Desglose e historial, Apelaciones y Tabla de
+posiciones; se cierra al elegir una sección, al volver a pulsar el botón de menú
+o con Escape. Al cambiar de sección, la página vuelve al inicio.
 
 Sin el perfil `demo`, la app levanta en `http://localhost:8080` sobre la base tal
 como esté. Si no hay ediciones, muestra un estado vacío; no carga ni borra datos
@@ -130,6 +134,10 @@ Los paquetes no cambiaron al separar módulos (`com.roboleague.usecase`, `com.ro
 | POST | `/appeals/{id}/acceptance` · `/rejection` | pendiente |
 | GET | `/challenges/{id}/standings[/versions/{v}]` | pendiente |
 | POST | `/challenges/{id}/standings/versions/{v}/publication` | pendiente |
+
+La edad mínima se evalúa en años cumplidos al inicio de la edición. `maxAge`
+es opcional: omitido o `null` indica que la categoría no tiene edad máxima.
+La demo requiere ser mayor de 12 años (desde 13), sin límite superior.
 
 ### Configurar el evento y los desafíos
 

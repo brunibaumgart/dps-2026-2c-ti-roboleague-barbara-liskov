@@ -39,6 +39,8 @@ controllers, DTOs, config y demo bajo `src/main/java/com/roboleague/api`.
   cuando el dominio rechaza elegibilidad). Respuestas incluyen datos de auditoría
   de solo lectura; no asumir que un DTO de respuesta puede enviarse como request.
 - EditionDto conserva categories como ids y agrega categoryDetails con límites.
+  maxAge omitido/null significa sin edad máxima; minAge es inclusivo y se evalúa
+  en años cumplidos al inicio de la edición. La demo admite desde 13 años.
   Dimensiones máximas opcionales en alta conservan default 1000 mm por eje.
 - RoundController deriva EditionId del desafío; el body no acepta edición.
   Duraciones son segundos y startTime local ISO sin offset. RoundDto ordena
@@ -56,6 +58,11 @@ controllers, DTOs, config y demo bajo `src/main/java/com/roboleague/api`.
   de contratos, inscripciones, programación y captura/desglose. Mantener estética
   sobria, labels, teclado, foco visible y layout de escritorio. El frontend es
   exclusivamente para escritorio; mantener ese alcance en futuras extensiones.
+  Navegación principal en el header; consultas complementarias en el panel
+  lateral desplegable, cerrado al inicio. Conservar aria-expanded, cierre con
+  Escape y cierre con el mismo botón de menú, sin botón de cruz adicional.
+  Cambiar de sección vuelve al inicio de la página; usar preventScroll al mover
+  el foco para evitar que el navegador saltee el header y los selectores.
 - Consumir API real: no calcular scoring, elegibilidad ni publicación en JS. Los
   recursos sugeridos de otras rondas conservan ids; nuevos ids se generan al crear
   candidatos y no se cambian al editar. No presentar ids como nombres de recursos.

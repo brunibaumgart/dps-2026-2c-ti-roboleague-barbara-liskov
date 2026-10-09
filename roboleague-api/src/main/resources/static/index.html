@@ -9,22 +9,31 @@
 </head>
 <body>
   <a class="skip-link" href="#workspace">Ir al contenido</a>
-  <div class="app-shell">
-    <aside class="sidebar" aria-label="Navegación de la competencia">
+  <header class="site-header">
+    <div class="header-inner">
+      <button id="menu-toggle" type="button" class="menu-toggle" aria-expanded="false" aria-controls="secondary-menu" aria-label="Abrir menú de competencia"><span class="hamburger" aria-hidden="true"><span></span><span></span><span></span></span></button>
       <a class="brand" href="/" aria-label="RoboLeague, inicio"><span class="brand-mark">RL</span><span>RoboLeague<small>Gestión de competencia</small></span></a>
-      <p class="nav-label">COMPETENCIA</p>
-      <nav id="navigation">
-        <button type="button" data-view="registration" aria-current="page"><span>01</span> Equipos</button>
-        <button type="button" data-view="scheduling"><span>02</span> Rondas y turnos</button>
-        <button type="button" data-view="results"><span>03</span> Cargar resultados</button>
-        <button type="button" data-view="breakdown"><span>04</span> Desglose e historial</button>
-        <button type="button" data-view="appeals"><span>05</span> Apelaciones</button>
-        <button type="button" data-view="standings"><span>06</span> Tabla de posiciones</button>
+      <nav class="primary-navigation" aria-label="Navegación principal">
+        <button type="button" data-view="registration" aria-current="page">Equipos</button>
+        <button type="button" data-view="scheduling">Rondas y turnos</button>
+        <button type="button" data-view="results">Resultados</button>
       </nav>
-      <div class="sidebar-note"><strong>Un espacio para la competencia.</strong><p>Equipos, turnos y resultados en un mismo lugar.</p></div>
+      <button id="refresh" type="button" class="header-action">Recargar datos</button>
+    </div>
+  </header>
+  <div class="app-shell">
+    <aside id="secondary-menu" class="sidebar" aria-labelledby="menu-title" hidden>
+      <h2 id="menu-title" class="drawer-title">Competencia</h2>
+      <p class="drawer-description">Consultas y seguimiento</p>
+      <nav aria-label="Navegación complementaria">
+        <button type="button" data-view="breakdown">Desglose e historial</button>
+        <button type="button" data-view="appeals">Apelaciones</button>
+        <button type="button" data-view="standings">Tabla de posiciones</button>
+      </nav>
+      <div class="sidebar-note"><strong>Todo sobre la competencia.</strong><p>Consultá puntajes, revisiones y posiciones.</p></div>
     </aside>
     <main>
-      <header class="page-header"><div><p class="eyebrow">PANEL DE ORGANIZACIÓN</p><h1 id="page-title">Equipos</h1><p id="page-description">Inscripciones y datos de los equipos participantes.</p></div><button id="refresh" type="button" class="secondary">Recargar datos</button></header>
+      <header class="page-header"><div><p class="eyebrow">PANEL DE ORGANIZACIÓN</p><h1 id="page-title">Equipos</h1><p id="page-description">Inscripciones y datos de los equipos participantes.</p></div></header>
       <section class="context-bar" aria-label="Selección de competencia">
         <label for="edition">Edición<select id="edition" disabled><option>Cargando ediciones…</option></select></label>
         <label for="challenge">Desafío<select id="challenge" disabled><option>Elegí una edición</option></select></label>
