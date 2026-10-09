@@ -13,7 +13,7 @@ public record Track(
         Objects.requireNonNull(info, "info cannot be null");
     }
 
-    public String id() {
+    public TrackId id() {
         return info.id();
     }
 
@@ -29,7 +29,7 @@ public record Track(
         return new Track(info, isActive);
     }
 
-    public static Track active(String id, String name, String surfaceType) {
+    public static Track active(TrackId id, String name, String surfaceType) {
         return new Track(new TrackInfo(id, name, surfaceType), true);
     }
 }

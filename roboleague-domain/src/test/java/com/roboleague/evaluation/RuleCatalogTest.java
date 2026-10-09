@@ -29,6 +29,7 @@ import com.roboleague.evaluation.scheme.HigherTotal;
 import com.roboleague.evaluation.scheme.LowerDeductions;
 import com.roboleague.evaluation.scheme.LowerTime;
 import com.roboleague.evaluation.scheme.RankingScheme;
+import com.roboleague.scheduling.JudgeId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Test;
@@ -60,7 +61,7 @@ class RuleCatalogTest {
 
     private final RuleCatalog catalog = RuleCatalog.standard();
     private final RawMetrics everything = new RawMetrics(new TrackPerformance(55.0, 4, 2), EvaluationFeedback.of(
-            90.0, Map.of("j1", 8.0), Map.of(COLLISIONS.name(), 3.0, PRECISION.name(), 0.8,
+            90.0, Map.of(JudgeId.of("j1"), 8.0), Map.of(COLLISIONS.name(), 3.0, PRECISION.name(), 0.8,
                     RESCUED.name(), 3.0, CHECKPOINT.name(), 1.0)));
 
     private static RulebookDefinition withRule(RuleDefinition rule) {

@@ -2,11 +2,15 @@ package com.roboleague.api.challenge;
 
 import com.roboleague.api.ErrorDto;
 import com.roboleague.evaluation.Rulebook;
+import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.tournament.Challenge;
 import com.roboleague.tournament.ChallengeId;
+import com.roboleague.tournament.EditionId;
 import com.roboleague.usecase.AddChallengeCommand;
 import com.roboleague.usecase.AddChallengeUseCase;
 import com.roboleague.usecase.GetChallengeUseCase;
+import com.roboleague.usecase.GetRulebookUseCase;
+import com.roboleague.usecase.ListEditionChallengesUseCase;
 import com.roboleague.usecase.Publication;
 import com.roboleague.usecase.PublishRulebookUseCase;
 import org.springframework.http.HttpStatus;
@@ -30,11 +34,21 @@ class ChallengeController {
     private final PublishRulebookUseCase publishRulebook;
     private final GetChallengeUseCase getChallenge;
 
+    private final ListEditionChallengesUseCase listChallenges;
+    private final GetRulebookUseCase getRulebook;
+
     ChallengeController(AddChallengeUseCase addChallenge, PublishRulebookUseCase publishRulebook,
-                        GetChallengeUseCase getChallenge) {
+                        GetChallengeUseCase getChallenge, ListEditionChallengesUseCase listChallenges, GetRulebookUseCase getRulebook) {
+        this.listChallenges = listChallenges;
+        this.getRulebook = getRulebook;
         this.addChallenge = addChallenge;
         this.publishRulebook = publishRulebook;
         this.getChallenge = getChallenge;
+    }
+
+    @GetMapping("/editions/{editionId}/challenges")
+    List<ChallengeDto> list(@PathVariable String editionId) {
+        return listChallenges.execute(EditionId.of(editionId)).stream().map(ChallengeDto::from).toList();
     }
 
     @PostMapping("/editions/{editionId}/challenges")
@@ -43,7 +57,7 @@ class ChallengeController {
             throw new IllegalArgumentException("a challenge needs id, name and rulebook");
         }
         AddChallengeCommand command = new AddChallengeCommand(
-                Challenge.draft(ChallengeId.of(request.id()), editionId, request.name()),
+                Challenge.draft(ChallengeId.of(request.id()), EditionId.of(editionId), request.name()),
                 request.rulebook().toDefinition());
         return switch (addChallenge.execute(command)) {
             case Publication.Published<Challenge> published ->
@@ -64,6 +78,11 @@ class ChallengeController {
     @GetMapping("/challenges/{challengeId}")
     ChallengeDto get(@PathVariable String challengeId) {
         return ChallengeDto.from(getChallenge.execute(ChallengeId.of(challengeId)));
+    }
+
+    @GetMapping("/challenges/{challengeId}/rulebook/versions/{version}")
+    RulebookDto version(@PathVariable String challengeId, @PathVariable int version) {
+        return RulebookDto.from(getRulebook.execute(ChallengeId.of(challengeId), new RulebookVersion(version)));
     }
 
     private static ResponseEntity<ErrorDto> rulebookRejected(List<String> problems) {

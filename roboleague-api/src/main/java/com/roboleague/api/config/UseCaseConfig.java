@@ -11,29 +11,36 @@ import com.roboleague.repository.RankingRepository;
 import com.roboleague.repository.RoundRepository;
 import com.roboleague.repository.TeamRepository;
 import com.roboleague.scheduling.RoundSchedulerService;
-import com.roboleague.tournament.Team;
-import com.roboleague.tournament.eligibility.AgeLimitSpecification;
-import com.roboleague.tournament.eligibility.DocumentationVerifiedSpecification;
-import com.roboleague.tournament.eligibility.EligibilitySpecification;
-import com.roboleague.tournament.eligibility.RobotSpecificationLimit;
-import com.roboleague.tournament.eligibility.TeamSizeSpecification;
+import com.roboleague.support.Clock;
+import com.roboleague.support.IdGenerator;
+import com.roboleague.support.SystemClock;
+import com.roboleague.support.UuidGenerator;
 import com.roboleague.usecase.AddChallengeUseCase;
+import com.roboleague.usecase.ChangeRegistrationCategoryUseCase;
 import com.roboleague.usecase.CreateEditionUseCase;
 import com.roboleague.usecase.FileAppealUseCase;
 import com.roboleague.usecase.GetAttemptBreakdownUseCase;
 import com.roboleague.usecase.GetChallengeUseCase;
+import com.roboleague.usecase.GetRulebookUseCase;
+import com.roboleague.usecase.ListEditionChallengesUseCase;
 import com.roboleague.usecase.PublishOfficialRankingUseCase;
 import com.roboleague.usecase.PublishRulebookUseCase;
-import com.roboleague.usecase.ReceiveResultUseCase;
+import com.roboleague.usecase.QueryEditionsUseCase;
+import com.roboleague.usecase.QueryRegistrationsUseCase;
+import com.roboleague.usecase.QueryRoundsUseCase;
 import com.roboleague.usecase.RecalculateRankingUseCase;
+import com.roboleague.usecase.ReceiveResultUseCase;
 import com.roboleague.usecase.RegisterTeamUseCase;
 import com.roboleague.usecase.ResolveAppealUseCase;
 import com.roboleague.usecase.ReviewAppealUseCase;
 import com.roboleague.usecase.ScheduleRoundUseCase;
+import com.roboleague.usecase.UpdateRegistrationUseCase;
+import com.roboleague.usecase.UpdateTeamUseCase;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.time.LocalDate;
+import java.time.ZoneId;
 
 /**
  * Builds the domain services and use cases. They carry no Spring annotation: if Spring goes away,
@@ -43,11 +50,13 @@ import java.time.LocalDate;
 class UseCaseConfig {
 
     @Bean
-    EligibilitySpecification<Team> eligibilitySpecification() {
-        return new AgeLimitSpecification(LocalDate.now())
-                .and(new TeamSizeSpecification())
-                .and(new RobotSpecificationLimit())
-                .and(new DocumentationVerifiedSpecification());
+    Clock clock(@Value("${roboleague.time-zone}") String zone) {
+        return new SystemClock(ZoneId.of(zone));
+    }
+
+    @Bean
+    IdGenerator idGenerator() {
+        return new UuidGenerator();
     }
 
     @Bean
@@ -77,8 +86,8 @@ class UseCaseConfig {
     }
 
     @Bean
-    RoundSchedulerService roundSchedulerService() {
-        return new RoundSchedulerService();
+    RoundSchedulerService roundSchedulerService(IdGenerator ids) {
+        return new RoundSchedulerService(ids);
     }
 
     @Bean
@@ -88,14 +97,24 @@ class UseCaseConfig {
 
     @Bean
     RegisterTeamUseCase registerTeamUseCase(TeamRepository teams, EditionRepository editions,
-                                            EligibilitySpecification<Team> eligibility) {
-        return new RegisterTeamUseCase(teams, editions, eligibility);
+                                            Clock clock) {
+        return new RegisterTeamUseCase(teams, editions, clock);
     }
 
     @Bean
-    ScheduleRoundUseCase scheduleRoundUseCase(EditionRepository editions, RoundRepository rounds,
-                                              RoundSchedulerService scheduler) {
-        return new ScheduleRoundUseCase(editions, rounds, scheduler);
+    UpdateTeamUseCase updateTeamUseCase(TeamRepository teams, EditionRepository editions) {
+        return new UpdateTeamUseCase(teams, editions);
+    }
+
+    @Bean
+    ChangeRegistrationCategoryUseCase changeRegistrationCategoryUseCase(TeamRepository teams, EditionRepository editions) {
+        return new ChangeRegistrationCategoryUseCase(teams, editions);
+    }
+
+    @Bean
+    ScheduleRoundUseCase scheduleRoundUseCase(ChallengeRepository challenges, EditionRepository editions, TeamRepository teams, RoundRepository rounds,
+                                              RoundSchedulerService scheduler, IdGenerator ids) {
+        return new ScheduleRoundUseCase(challenges, editions, teams, rounds, scheduler, ids);
     }
 
     @Bean
@@ -105,19 +124,19 @@ class UseCaseConfig {
 
     @Bean
     ReceiveResultUseCase receiveResultUseCase(AttemptRepository attempts, RoundRepository rounds,
-                                              ChallengeRepository challenges) {
-        return new ReceiveResultUseCase(attempts, rounds, challenges);
+                                              ChallengeRepository challenges, Clock clock, IdGenerator ids) {
+        return new ReceiveResultUseCase(attempts, rounds, challenges, clock, ids);
     }
 
     @Bean
-    RecalculateRankingUseCase recalculateRankingUseCase(EditionRepository editions, AttemptRepository attempts,
-                                                        RankingRepository rankings, RankingCalculatorService calculator) {
-        return new RecalculateRankingUseCase(editions, attempts, rankings, calculator);
+    RecalculateRankingUseCase recalculateRankingUseCase(EditionRepository editions, TeamRepository teams, AttemptRepository attempts,
+                                                        RankingRepository rankings, RankingCalculatorService calculator, Clock clock, IdGenerator ids) {
+        return new RecalculateRankingUseCase(editions, teams, attempts, rankings, calculator, clock, ids);
     }
 
     @Bean
-    FileAppealUseCase fileAppealUseCase(AttemptRepository attempts, AppealRepository appeals) {
-        return new FileAppealUseCase(attempts, appeals);
+    FileAppealUseCase fileAppealUseCase(AttemptRepository attempts, AppealRepository appeals, Clock clock, IdGenerator ids) {
+        return new FileAppealUseCase(attempts, appeals, clock, ids);
     }
 
     @Bean
@@ -127,13 +146,39 @@ class UseCaseConfig {
 
     @Bean
     ResolveAppealUseCase resolveAppealUseCase(AppealRepository appeals, AttemptRepository attempts,
-                                              ChallengeRepository challenges, RecalculateRankingUseCase recalculate) {
-        return new ResolveAppealUseCase(appeals, attempts, challenges, recalculate);
+                                              ChallengeRepository challenges, RecalculateRankingUseCase recalculate, Clock clock, IdGenerator ids) {
+        return new ResolveAppealUseCase(appeals, attempts, challenges, recalculate, clock, ids);
     }
 
     @Bean
     PublishOfficialRankingUseCase publishOfficialRankingUseCase(RankingRepository rankings, AppealRepository appeals,
-                                                                AttemptRepository attempts) {
-        return new PublishOfficialRankingUseCase(rankings, appeals, attempts);
+                                                                AttemptRepository attempts, Clock clock) {
+        return new PublishOfficialRankingUseCase(rankings, appeals, attempts, clock);
+    }
+    @Bean
+    QueryEditionsUseCase queryEditionsUseCase(EditionRepository editions) { return new QueryEditionsUseCase(editions); }
+
+    @Bean
+    ListEditionChallengesUseCase listEditionChallengesUseCase(EditionRepository editions, ChallengeRepository challenges) {
+        return new ListEditionChallengesUseCase(editions, challenges);
+    }
+
+    @Bean
+    QueryRegistrationsUseCase queryRegistrationsUseCase(EditionRepository editions, TeamRepository teams) {
+        return new QueryRegistrationsUseCase(editions, teams);
+    }
+
+    @Bean
+    QueryRoundsUseCase queryRoundsUseCase(ChallengeRepository challenges, EditionRepository editions, RoundRepository rounds) {
+        return new QueryRoundsUseCase(challenges, editions, rounds);
+    }
+
+    @Bean
+    UpdateRegistrationUseCase updateRegistrationUseCase(EditionRepository editions, TeamRepository teams) {
+        return new UpdateRegistrationUseCase(editions, teams);
+    }
+    @Bean
+    GetRulebookUseCase getRulebookUseCase(ChallengeRepository challenges) {
+        return new GetRulebookUseCase(challenges);
     }
 }

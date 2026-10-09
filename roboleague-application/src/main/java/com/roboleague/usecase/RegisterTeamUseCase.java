@@ -2,43 +2,46 @@ package com.roboleague.usecase;
 
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.TeamRepository;
-import com.roboleague.tournament.Edition;
-import com.roboleague.tournament.Team;
-import com.roboleague.tournament.eligibility.EligibilityResult;
-import com.roboleague.tournament.eligibility.EligibilitySpecification;
+import com.roboleague.support.Clock;
+import com.roboleague.tournament.*;
 
 import java.util.Objects;
 
-/**
- * Use case to register a team into a tournament edition after enforcing eligibility specifications.
- */
+/** Enrolls new or canonical teams without overwriting an existing team's state. */
 public class RegisterTeamUseCase {
-    private final TeamRepository teamRepository;
-    private final EditionRepository editionRepository;
-    private final EligibilitySpecification<Team> eligibilitySpecification;
+    private final TeamRepository teams;
+    private final EditionRepository editions;
+    private final Clock clock;
 
-    public RegisterTeamUseCase(TeamRepository teamRepository,
-                               EditionRepository editionRepository,
-                               EligibilitySpecification<Team> eligibilitySpecification) {
-        this.teamRepository = Objects.requireNonNull(teamRepository, "teamRepository cannot be null");
-        this.editionRepository = Objects.requireNonNull(editionRepository, "editionRepository cannot be null");
-        this.eligibilitySpecification = Objects.requireNonNull(eligibilitySpecification, "eligibilitySpecification cannot be null");
+    public RegisterTeamUseCase(TeamRepository teams, EditionRepository editions, Clock clock) {
+        this.teams = Objects.requireNonNull(teams, "teams cannot be null");
+        this.editions = Objects.requireNonNull(editions, "editions cannot be null");
+        this.clock = Objects.requireNonNull(clock, "clock cannot be null");
     }
 
-    public Team execute(String editionId, Team team) {
-        Objects.requireNonNull(team, "team cannot be null");
-        Edition edition = editionRepository.findById(editionId)
-                .orElseThrow(() -> new IllegalArgumentException("Edition not found: " + editionId));
-
-        EligibilityResult result = eligibilitySpecification.isSatisfiedBy(team);
-        if (!result.isEligible()) {
-            throw new TeamIneligibleException("Team " + team.getName() + " failed eligibility requirements", result.reasons());
+    public Registration execute(EditionId editionId, CategoryId categoryId, Team newTeam) {
+        Objects.requireNonNull(newTeam, "team cannot be null");
+        Edition edition = edition(editionId);
+        if (teams.findById(newTeam.getId()).isPresent()) {
+            throw new IllegalStateException("Team already exists; enroll it by identity or use the controlled update: " + newTeam.getId());
         }
+        Edition enrolled = edition.registerTeam(newTeam, categoryId, clock.now());
+        // Validation is complete before either write. Memory adapters do not provide transactional rollback.
+        teams.save(newTeam);
+        editions.save(enrolled);
+        return enrolled.registration(newTeam.getId()).orElseThrow();
+    }
 
-        edition.registerTeam(team);
-        teamRepository.save(team);
-        editionRepository.save(edition);
+    public Registration execute(EditionId editionId, CategoryId categoryId, TeamId teamId) {
+        Edition edition = edition(editionId);
+        Team canonical = teams.findById(teamId)
+                .orElseThrow(() -> new IllegalArgumentException("Team not found: " + teamId));
+        Edition enrolled = edition.registerTeam(canonical, categoryId, clock.now());
+        editions.save(enrolled);
+        return enrolled.registration(teamId).orElseThrow();
+    }
 
-        return team;
+    private Edition edition(EditionId id) {
+        return editions.findById(id).orElseThrow(() -> new IllegalArgumentException("Edition not found: " + id));
     }
 }

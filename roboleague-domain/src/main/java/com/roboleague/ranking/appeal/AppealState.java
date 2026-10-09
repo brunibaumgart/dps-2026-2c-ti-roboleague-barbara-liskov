@@ -1,6 +1,9 @@
 package com.roboleague.ranking.appeal;
 
 import com.roboleague.evaluation.RawMetrics;
+import com.roboleague.support.ActorId;
+
+import java.time.LocalDateTime;
 
 /**
  * State pattern interface for the Appeal lifecycle.
@@ -8,11 +11,11 @@ import com.roboleague.evaluation.RawMetrics;
 public interface AppealState {
     String getStateName();
 
-    void beginReview(Appeal appeal, String reviewerId);
+    void beginReview(Appeal appeal, ActorId reviewerId);
 
-    void accept(Appeal appeal, String resolutionNotes, RawMetrics revisedMetrics, String reviewerId);
+    void accept(Appeal appeal, String resolutionNotes, RawMetrics revisedMetrics, ActorId reviewerId, LocalDateTime resolvedAt);
 
-    void reject(Appeal appeal, String resolutionNotes, String reviewerId);
+    void reject(Appeal appeal, String resolutionNotes, ActorId reviewerId, LocalDateTime resolvedAt);
 
     boolean isPending();
 

@@ -1,6 +1,9 @@
 package com.roboleague.ranking.appeal;
 
 import com.roboleague.evaluation.RawMetrics;
+import com.roboleague.support.ActorId;
+
+import java.time.LocalDateTime;
 
 /**
  * Terminal state representing an appeal that was dismissed/rejected.
@@ -13,17 +16,17 @@ public class RejectedAppealState implements AppealState {
     }
 
     @Override
-    public void beginReview(Appeal appeal, String reviewerId) {
+    public void beginReview(Appeal appeal, ActorId reviewerId) {
         throw new IllegalStateException("Cannot review an already rejected appeal");
     }
 
     @Override
-    public void accept(Appeal appeal, String resolutionNotes, RawMetrics revisedMetrics, String reviewerId) {
+    public void accept(Appeal appeal, String resolutionNotes, RawMetrics revisedMetrics, ActorId reviewerId, LocalDateTime resolvedAt) {
         throw new IllegalStateException("Cannot accept an already rejected appeal");
     }
 
     @Override
-    public void reject(Appeal appeal, String resolutionNotes, String reviewerId) {
+    public void reject(Appeal appeal, String resolutionNotes, ActorId reviewerId, LocalDateTime resolvedAt) {
         throw new IllegalStateException("Appeal has already been rejected");
     }
 

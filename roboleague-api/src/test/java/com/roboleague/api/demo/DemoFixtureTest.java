@@ -12,8 +12,11 @@ import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.ChallengeRepository;
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.RankingRepository;
+import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.ChallengeId;
 import com.roboleague.tournament.DateRange;
+import com.roboleague.tournament.EditionId;
+import com.roboleague.tournament.TeamId;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -47,7 +50,7 @@ class DemoFixtureTest {
 
     @Test
     void theDemoUsesFixedDatesSoEveryRunEndsTheSame() {
-        assertThat(editions.findById("ed-1").orElseThrow().getDates())
+        assertThat(editions.findById(EditionId.of("ed-1")).orElseThrow().getDates())
                 .isEqualTo(new DateRange(LocalDate.of(2026, 11, 10), LocalDate.of(2026, 11, 12)));
     }
 
@@ -55,9 +58,9 @@ class DemoFixtureTest {
     void theDemoEndsWithAnAcceptedAppealAndAnOfficialRanking() {
         assertThat(appeals.findAll()).singleElement().satisfies(appeal -> assertThat(appeal.isAccepted()).isTrue());
 
-        Ranking official = rankings.findLatestByEditionAndCategory("ed-1", "cat-junior").orElseThrow();
+        Ranking official = rankings.findLatestByEditionAndCategory(EditionId.of("ed-1"), CategoryId.of("cat-junior")).orElseThrow();
         assertThat(official.isOfficial()).isTrue();
-        assertThat(official.getEntries().getFirst().teamScore().teamId()).isEqualTo("t-b");
+        assertThat(official.getEntries().getFirst().teamScore().teamId()).isEqualTo(TeamId.of("t-b"));
         assertThat(mazeAttemptOf("t-b").getOriginalSnapshot().breakdown().totalScore())
                 .isEqualTo(197.5);
         assertThat(mazeAttemptOf("t-b").getFinalScore()).isEqualTo(257.5);
@@ -114,8 +117,8 @@ class DemoFixtureTest {
     }
 
     private Attempt attemptOf(String teamId, String challengeId) {
-        return attempts.findByTeamId(teamId).stream()
-                .filter(attempt -> attempt.getRulebookReference().challengeId().equals(challengeId))
+        return attempts.findByTeamId(TeamId.of(teamId)).stream()
+                .filter(attempt -> attempt.getRulebookReference().challengeId().equals(ChallengeId.of(challengeId)))
                 .findFirst()
                 .orElseThrow();
     }

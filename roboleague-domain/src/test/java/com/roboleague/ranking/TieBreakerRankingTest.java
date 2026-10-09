@@ -1,6 +1,9 @@
 package com.roboleague.ranking;
 
 import com.roboleague.ranking.tiebreakers.TieBreakerChain;
+import com.roboleague.tournament.CategoryId;
+import com.roboleague.tournament.EditionId;
+import com.roboleague.tournament.TeamId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -13,7 +16,7 @@ class TieBreakerRankingTest {
 
     private TeamScore createScore(String teamId, String teamName, double totalScore, double bestAttemptTime, int totalPenalties, double judgeScore) {
         return TeamScore.of(
-                teamId, teamName, "cat-1", "ed-1",
+                TeamId.of(teamId), teamName, CategoryId.of("cat-1"), EditionId.of("ed-1"),
                 PerformanceSummary.of(totalScore, bestAttemptTime, totalPenalties, judgeScore),
                 List.of()
         );
@@ -31,8 +34,8 @@ class TieBreakerRankingTest {
         list.sort(chain);
 
         // Team B has higher score (120 > 100), should be first
-        assertThat(list.get(0).teamId()).isEqualTo("t-2");
-        assertThat(list.get(1).teamId()).isEqualTo("t-1");
+        assertThat(list.get(0).teamId()).isEqualTo(TeamId.of("t-2"));
+        assertThat(list.get(1).teamId()).isEqualTo(TeamId.of("t-1"));
     }
 
     @Test
@@ -47,8 +50,8 @@ class TieBreakerRankingTest {
         List<TeamScore> list = new ArrayList<>(List.of(scoreB, scoreA));
         list.sort(chain);
 
-        assertThat(list.get(0).teamId()).isEqualTo("t-1");
-        assertThat(list.get(1).teamId()).isEqualTo("t-2");
+        assertThat(list.get(0).teamId()).isEqualTo(TeamId.of("t-1"));
+        assertThat(list.get(1).teamId()).isEqualTo(TeamId.of("t-2"));
     }
 
     @Test
@@ -63,8 +66,8 @@ class TieBreakerRankingTest {
         List<TeamScore> list = new ArrayList<>(List.of(scoreB, scoreA));
         list.sort(chain);
 
-        assertThat(list.get(0).teamId()).isEqualTo("t-1");
-        assertThat(list.get(1).teamId()).isEqualTo("t-2");
+        assertThat(list.get(0).teamId()).isEqualTo(TeamId.of("t-1"));
+        assertThat(list.get(1).teamId()).isEqualTo(TeamId.of("t-2"));
     }
 
     @Test
@@ -79,7 +82,7 @@ class TieBreakerRankingTest {
         List<TeamScore> list = new ArrayList<>(List.of(scoreA, scoreB));
         list.sort(chain);
 
-        assertThat(list.get(0).teamId()).isEqualTo("t-2");
-        assertThat(list.get(1).teamId()).isEqualTo("t-1");
+        assertThat(list.get(0).teamId()).isEqualTo(TeamId.of("t-2"));
+        assertThat(list.get(1).teamId()).isEqualTo(TeamId.of("t-1"));
     }
 }

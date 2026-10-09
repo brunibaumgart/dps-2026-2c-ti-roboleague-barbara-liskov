@@ -1,7 +1,9 @@
 package com.roboleague.usecase;
 
 import com.roboleague.ranking.appeal.Appeal;
+import com.roboleague.ranking.appeal.AppealId;
 import com.roboleague.repository.AppealRepository;
+import com.roboleague.support.ActorId;
 
 import java.util.Objects;
 
@@ -15,7 +17,7 @@ public class ReviewAppealUseCase {
         this.appealRepository = Objects.requireNonNull(appealRepository, "appealRepository cannot be null");
     }
 
-    public Appeal execute(String appealId, String reviewerId) {
+    public Appeal execute(AppealId appealId, ActorId reviewerId) {
         Objects.requireNonNull(reviewerId, "reviewerId cannot be null");
         Appeal appeal = appealRepository.findById(appealId)
                 .orElseThrow(() -> new IllegalArgumentException("Appeal not found: " + appealId));

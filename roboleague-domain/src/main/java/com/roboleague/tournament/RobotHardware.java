@@ -11,7 +11,7 @@ public record RobotHardware(int actuatorCount, Set<String> sensors) {
         if (actuatorCount < 0) {
             throw new IllegalArgumentException("actuatorCount cannot be negative");
         }
-        sensors = sensors != null ? Collections.unmodifiableSet(sensors) : Collections.emptySet();
+        sensors = sensors != null ? Set.copyOf(sensors) : Collections.emptySet();
     }
 
     public static RobotHardware of(int actuatorCount, Set<String> sensors) {

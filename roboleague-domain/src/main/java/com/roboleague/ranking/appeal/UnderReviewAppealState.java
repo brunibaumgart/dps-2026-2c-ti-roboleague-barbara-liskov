@@ -1,6 +1,7 @@
 package com.roboleague.ranking.appeal;
 
 import com.roboleague.evaluation.RawMetrics;
+import com.roboleague.support.ActorId;
 
 import java.time.LocalDateTime;
 
@@ -15,24 +16,24 @@ public class UnderReviewAppealState implements AppealState {
     }
 
     @Override
-    public void beginReview(Appeal appeal, String reviewerId) {
+    public void beginReview(Appeal appeal, ActorId reviewerId) {
         throw new IllegalStateException("Appeal is already under review by " + appeal.getReviewerId());
     }
 
     @Override
-    public void accept(Appeal appeal, String resolutionNotes, RawMetrics revisedMetrics, String reviewerId) {
+    public void accept(Appeal appeal, String resolutionNotes, RawMetrics revisedMetrics, ActorId reviewerId, LocalDateTime resolvedAt) {
         if (revisedMetrics == null) {
             throw new IllegalArgumentException("Revised metrics are mandatory when accepting an appeal");
         }
         appeal.setResolution(resolutionNotes, revisedMetrics, reviewerId);
-        appeal.setResolvedAt(LocalDateTime.now());
+        appeal.setResolvedAt(resolvedAt);
         appeal.transitionToState(new AcceptedAppealState());
     }
 
     @Override
-    public void reject(Appeal appeal, String resolutionNotes, String reviewerId) {
+    public void reject(Appeal appeal, String resolutionNotes, ActorId reviewerId, LocalDateTime resolvedAt) {
         appeal.setResolution(resolutionNotes, null, reviewerId);
-        appeal.setResolvedAt(LocalDateTime.now());
+        appeal.setResolvedAt(resolvedAt);
         appeal.transitionToState(new RejectedAppealState());
     }
 

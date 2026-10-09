@@ -1,13 +1,16 @@
 package com.roboleague.repository.memory;
 
 import com.roboleague.ranking.Ranking;
+import com.roboleague.ranking.RankingId;
 import com.roboleague.repository.RankingRepository;
+import com.roboleague.tournament.CategoryId;
+import com.roboleague.tournament.EditionId;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class InMemoryRankingRepository implements RankingRepository {
-    private final Map<String, Ranking> storage = new ConcurrentHashMap<>();
+    private final Map<RankingId, Ranking> storage = new ConcurrentHashMap<>();
 
     @Override
     public void save(Ranking ranking) {
@@ -16,12 +19,12 @@ public class InMemoryRankingRepository implements RankingRepository {
     }
 
     @Override
-    public Optional<Ranking> findById(String rankingId) {
+    public Optional<Ranking> findById(RankingId rankingId) {
         return Optional.ofNullable(storage.get(rankingId));
     }
 
     @Override
-    public Optional<Ranking> findLatestByEditionAndCategory(String editionId, String categoryId) {
+    public Optional<Ranking> findLatestByEditionAndCategory(EditionId editionId, CategoryId categoryId) {
         return storage.values().stream()
                 .filter(r -> r.getEditionId().equals(editionId) && r.getCategoryId().equals(categoryId))
                 .max(Comparator.comparing(Ranking::getGeneratedAt));

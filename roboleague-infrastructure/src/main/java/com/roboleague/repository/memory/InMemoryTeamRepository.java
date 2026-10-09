@@ -2,12 +2,13 @@ package com.roboleague.repository.memory;
 
 import com.roboleague.repository.TeamRepository;
 import com.roboleague.tournament.Team;
+import com.roboleague.tournament.TeamId;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class InMemoryTeamRepository implements TeamRepository {
-    private final Map<String, Team> storage = new ConcurrentHashMap<>();
+    private final Map<TeamId, Team> storage = new ConcurrentHashMap<>();
 
     @Override
     public void save(Team team) {
@@ -16,7 +17,7 @@ public class InMemoryTeamRepository implements TeamRepository {
     }
 
     @Override
-    public Optional<Team> findById(String id) {
+    public Optional<Team> findById(TeamId id) {
         return Optional.ofNullable(storage.get(id));
     }
 
@@ -25,10 +26,4 @@ public class InMemoryTeamRepository implements TeamRepository {
         return new ArrayList<>(storage.values());
     }
 
-    @Override
-    public List<Team> findByCategory(String categoryId) {
-        return storage.values().stream()
-                .filter(t -> t.getCategory().id().equals(categoryId))
-                .toList();
-    }
 }

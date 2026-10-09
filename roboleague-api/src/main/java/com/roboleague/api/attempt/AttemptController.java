@@ -7,6 +7,7 @@ import com.roboleague.evaluation.Measurements;
 import com.roboleague.evaluation.SourceDelivery;
 import com.roboleague.evaluation.SourceReport;
 import com.roboleague.evaluation.TrackPerformance;
+import com.roboleague.scheduling.JudgeId;
 import com.roboleague.tournament.ChallengeId;
 import com.roboleague.usecase.GetAttemptBreakdownUseCase;
 import com.roboleague.usecase.ReceiveResultCommand;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -57,7 +59,7 @@ class AttemptController {
         Measurements measurements = new Measurements(
                 new TrackPerformance(request.timeSeconds(), request.objectives(), request.penalties()),
                 request.consumption(), orNone(request.measurements()));
-        return receive(attemptId, request.challengeId(), new SourceDelivery(measurements, request.judgeId()));
+        return receive(attemptId, request.challengeId(), new SourceDelivery(measurements, JudgeId.of(request.judgeId())));
     }
 
     @PutMapping("/judge-scores")
@@ -65,8 +67,10 @@ class AttemptController {
         if (request.challengeId() == null || request.judgeId() == null || request.scores() == null) {
             throw new IllegalArgumentException("judge scores need challengeId, judgeId and scores");
         }
-        SourceReport scores = new JudgeScores(request.scores(), orNone(request.measurements()));
-        return receive(attemptId, request.challengeId(), new SourceDelivery(scores, request.judgeId()));
+        Map<JudgeId, Double> byJudge = new HashMap<>();
+        request.scores().forEach((id, score) -> byJudge.put(JudgeId.of(id), score));
+        SourceReport scores = new JudgeScores(byJudge, orNone(request.measurements()));
+        return receive(attemptId, request.challengeId(), new SourceDelivery(scores, JudgeId.of(request.judgeId())));
     }
 
     private ResponseEntity<?> receive(String attemptId, String challengeId, SourceDelivery delivery) {

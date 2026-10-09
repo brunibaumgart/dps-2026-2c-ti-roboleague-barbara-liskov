@@ -8,6 +8,25 @@ Plataforma para competencias de robótica: torneos, elegibilidad de equipos, pro
 - Maven 3.6.3 o superior
 - Docker (Postgres con `docker compose`; los tests de repositorio y de API lo usan vía Testcontainers)
 
+El reloj de la aplicación usa `America/Argentina/Buenos_Aires` por defecto.
+Se configura con `ROBOLEAGUE_TIME_ZONE` (un identificador válido de `ZoneId`, por
+ejemplo `UTC`); no toma la zona implícita de la máquina. Los timestamps siguen
+siendo fechas/horas locales sin offset en los contratos existentes.
+Los casos de uso reciben los puertos `Clock` e `IdGenerator`; infrastructure
+provee `SystemClock` y `UuidGenerator`. Las fábricas/transiciones del dominio
+reciben fechas y metadatos explícitos, y los tests pueden fijar esos valores.
+No cambiar a UTC la lectura de un historial existente: los timestamps almacenados
+no se reinterpretan al configurar la zona para nuevas operaciones.
+
+Las identidades del núcleo son tipos distintos (`TeamId`, `JudgeId`, `SlotId`,
+`RoundId`, `EditionId`, `CategoryId`, `AppealId`, `RankingId`, `ParticipantId`,
+`RobotId` y `TrackId`), además de los existentes `ChallengeId` y `AttemptId`.
+Controllers y mappers convierten explícitamente entre estos tipos y texto:
+los ids de JSON, paths, columnas y claves de mapas JSON siguen siendo strings.
+Los autores que pueden tener varios roles usan `ActorId`; no se identifican
+automáticamente como jueces. `AttemptId` contiene un `SlotId` y un número
+positivo, conserva `<slot>-<numero>` y parsea desde el último guion.
+
 ## Correr la demo
 
 Desde la raíz del repo:
@@ -20,13 +39,25 @@ java -jar roboleague-api/target/roboleague-api-1.0-SNAPSHOT.jar --spring.profile
 
 El perfil `demo` vacía la base, aplica las migraciones y carga `DemoFixture` a través de los casos de uso. Cada corrida termina en el mismo estado:
 
-- Una edición (`ed-1`, categoría `cat-junior`) con tres desafíos: Laberinto (`ch-maze`), Seguidor de línea (`ch-line`, con su reglamento en v2) y Rescate (`ch-rescue`, mixto: exige mediciones automáticas y panel de jueces). Entre los tres usan los doce tipos de regla (base, bonificaciones y deducciones), la compuesta "Desempeño en pista", penalizaciones, bonificaciones con tope (40 / 30 / 30), mejores N de M y criterios de desempate encadenados. Se consultan con `GET /challenges/{id}`.
+- Una edición (`ed-1`, categoría `cat-junior`, desde 13 años cumplidos al inicio de la edición, sin edad máxima) con tres desafíos: Laberinto (`ch-maze`), Seguidor de línea (`ch-line`, con su reglamento en v2) y Rescate (`ch-rescue`, mixto: exige mediciones automáticas y panel de jueces). Entre los tres usan los doce tipos de regla (base, bonificaciones y deducciones), la compuesta "Desempeño en pista", penalizaciones, bonificaciones con tope (40 / 30 / 30), mejores N de M y criterios de desempate encadenados. Se consultan con `GET /challenges/{id}`.
 - Sobre Laberinto: dos equipos, una ronda, dos intentos (el desglose muestra el recorte del tope), un ranking provisional, una apelación aceptada con recálculo y la publicación oficial.
 - Sobre Rescate (F3): una ronda con un intento de CyberTeam que recibió las mediciones y el panel de jueces (147,5) y uno de TitanTeam que tiene las mediciones y espera el panel (`GET /attempts/{id}/breakdown` lo muestra pendiente).
 
-Programar rondas por desafío y ver la tabla con mejores N de M son de los otros frentes; hoy la demo los deja configurados.
+La web permite inscribir equipos, programar rondas por desafío, capturar fuentes y consultar desgloses. La tabla por desafío con mejores N de M sigue pendiente de los endpoints del frente 4.
 
-Sin el perfil `demo`, la app levanta en `http://localhost:8080` sobre la base tal como esté.
+Abrí **http://localhost:8080/** para usar el frontend. HTML/CSS y módulos
+JavaScript se sirven desde el mismo jar y puerto; no se requiere npm, servidor
+frontend separado, CDN ni configuración CORS. La interfaz usa colores neutros,
+formularios con labels, foco visible y layout para escritorio. El header reúne
+Equipos, Rondas y turnos, Resultados y Recargar datos. El botón de menú abre
+un panel lateral izquierdo con Desglose e historial, Apelaciones y Tabla de
+posiciones; se cierra al elegir una sección, al volver a pulsar el botón de menú
+o con Escape. Al cambiar de sección, la página vuelve al inicio.
+
+Sin el perfil `demo`, la app levanta en `http://localhost:8080` sobre la base tal
+como esté. Si no hay ediciones, muestra un estado vacío; no carga ni borra datos
+al abrir la página. Para explorar los tres desafíos, usar el perfil demo solo
+sobre una base dedicada: **el inicio de demo limpia esa base**.
 
 Si el puerto 5432 ya está ocupado (otro Postgres local), elegí otro con `DB_PORT` en los dos comandos: `DB_PORT=5433 docker compose up -d --wait` y `DB_PORT=5433 java -jar ...`.
 
@@ -77,7 +108,7 @@ Los paquetes no cambiaron al separar módulos (`com.roboleague.usecase`, `com.ro
   | Otro pedido guardó lo mismo a la vez (versión vieja o id repetido al confirmar) | 409, para volver a cargar y reintentar |
 
   Un caso de uso que devuelva un resultado `sealed` se traduce en su controller con un `switch` (por ejemplo `Published → 200`, `Rejected → 409`).
-- Cada caso de uso corre en una transacción: si falla a mitad de camino no queda nada guardado (`TransactionalUseCases`).
+- Cada caso de uso corre en una transacción (`TransactionalUseCases`) que cubre Postgres. Los repositorios en memoria no ofrecen rollback ante fallos técnicos entre escrituras; los rechazos de validación se comprueban antes de guardar.
 - Referencia: `AppealController` y `AppealControllerTest`.
 
 ### Contratos
@@ -89,8 +120,13 @@ Los paquetes no cambiaron al separar módulos (`com.roboleague.usecase`, `com.ro
 | POST | `/editions/{id}/challenges` | hecho |
 | POST | `/challenges/{id}/rulebook/versions` | hecho |
 | GET | `/challenges/{id}` | hecho |
-| POST | `/editions/{id}/registrations` | pendiente |
-| POST | `/challenges/{id}/rounds` | pendiente |
+| GET | `/challenges/{id}/rulebook/versions/{version}` | hecho |
+| GET | `/editions` · `/editions/{id}` | hecho |
+| GET | `/editions/{id}/challenges` | hecho |
+| POST · GET | `/editions/{id}/registrations` | hecho |
+| GET · PUT | `/editions/{id}/registrations/{teamId}` | hecho |
+| POST · GET | `/challenges/{id}/rounds` | hecho |
+| GET | `/rounds/{id}` | hecho |
 | PUT | `/attempts/{id}/measurements` | hecho |
 | PUT | `/attempts/{id}/judge-scores` | hecho |
 | GET | `/attempts/{id}/breakdown` | hecho |
@@ -98,6 +134,10 @@ Los paquetes no cambiaron al separar módulos (`com.roboleague.usecase`, `com.ro
 | POST | `/appeals/{id}/acceptance` · `/rejection` | pendiente |
 | GET | `/challenges/{id}/standings[/versions/{v}]` | pendiente |
 | POST | `/challenges/{id}/standings/versions/{v}/publication` | pendiente |
+
+La edad mínima se evalúa en años cumplidos al inicio de la edición. `maxAge`
+es opcional: omitido o `null` indica que la categoría no tiene edad máxima.
+La demo requiere ser mayor de 12 años (desde 13), sin límite superior.
 
 ### Configurar el evento y los desafíos
 
@@ -156,9 +196,113 @@ Un tipo en la lista de otra sección es 422 y dice a cuál pertenece (`"rule 'Fa
 
 Una métrica es `{"name", "source"}` con `source` = `AUTOMATIC_MEASUREMENTS` o `JUDGE_PANEL`. Toda métrica que lee una regla tiene que estar declarada en `metrics` con la misma fuente, una unidad (`COUNT`, `SECONDS`, `METERS`, `RATIO` o `POINTS`; `COUNT` solo acepta enteros) y un rango (`min` y, si tiene tope, `max`). Una métrica no declarada o de otra fuente, un rango invertido o una métrica declarada dos veces: 422. Una unidad desconocida: 400. Tiempo, objetivos, faltas, consumo y notas de jueces son campos fijos y no se declaran. Límite de bonificaciones: `capped` (`maximum`) o `unlimited`. Selección de rondas: `best-n-of-m` (`considered`, `outOf`) o `all-rounds`. Criterios: `higher-total`, `lower-time`, `lower-deductions` (menos puntos descontados por las deducciones), `higher-judge-score`. El primero es siempre `higher-total` (se ordena por puntaje) y ninguno se repite; los demás desempatan en el orden declarado.
 
+### Inscribir y actualizar equipos
+
+`GET /editions` devuelve una lista; `GET /editions/{editionId}` devuelve el detalle.
+Ambos usan `{id, name, startDate, endDate, categories, categoryDetails}`.
+`categories` conserva los ids del contrato original; `categoryDetails` contiene
+`{id, name, minMembers, maxMembers, minAge, maxAge, maxWeightGrams, maxLengthMm,
+maxWidthMm, maxHeightMm}`. En `POST /editions`, las tres dimensiones máximas son
+opcionales: cada una omitida/null conserva el default de **1000 mm**. Peso y
+restricciones de integrantes/edad son obligatorios; peso/dimensiones deben ser
+positivos y finitos. `GET /editions/{editionId}/challenges` devuelve desafíos de
+esa edición con el mismo DTO de `GET /challenges/{id}`, ordenados por id.
+
+`POST /editions/{editionId}/registrations` → **201**:
+
+```json
+{"categoryId": "cat-junior", "team": {
+  "id": "team-a", "name": "Team A", "institution": "Universidad",
+  "members": [{"id": "participant-a", "fullName": "Ana Pérez",
+               "birthDate": "2010-01-01", "role": "LEADER"},
+              {"id": "participant-b", "fullName": "Bruno Díaz",
+               "birthDate": "2010-02-01", "role": "DEV"}],
+  "robot": {"id": "robot-a", "name": "Bot A", "weightGrams": 1500,
+            "lengthMm": 200, "widthMm": 200, "heightMm": 150,
+            "actuatorCount": 2, "sensors": ["LIDAR"]},
+  "documentation": {"documents": {"consent": "consent.pdf"}, "verifiedBy": "inspector-a"}
+}}
+```
+
+Los datos completos del equipo son obligatorios, incluidas listas de miembros,
+sensores y mapa de documentos. `institution` puede estar vacío; nombres, roles,
+ids, sensores y referencias documentales no pueden estar vacíos. Un equipo sin
+integrantes o sin verificación se evalúa por elegibilidad y devuelve **422** si
+la categoría lo rechaza. `verifiedBy` omitido/null significa sin verificación;
+si se informa, el servidor verifica el conjunto recibido con ese ActorId y su
+Clock. Este flujo no incorpora autenticación ni upload. Peso en gramos,
+dimensiones en milímetros, fechas de nacimiento ISO `YYYY-MM-DD`.
+
+Para inscribir el estado canónico existente, enviar **exactamente una** alternativa:
+
+```json
+{"categoryId": "cat-junior", "teamId": "team-a"}
+```
+
+Enviar `team` y `teamId` juntos, ninguno, o un dato requerido faltante → **400**.
+Un objeto `team` cuyo id ya existe no sobrescribe el equipo → **409**, al igual
+que una inscripción duplicada. Referencias inexistentes → **400**. Elegibilidad
+rechazada → **422** con motivos en `ErrorDto.details`.
+
+La respuesta de inscripción es `{editionId, teamId, categoryId, registeredAt,
+referenceDate, team}`. `team` contiene id/nombre/institución, miembros y robot
+con los mismos campos del request; documentación se representa con
+`{documents, verified, verifiedAt, verifiedBy, revocationReason}`. registeredAt
+lo fija el servidor; referenceDate es la fecha de inicio de la edición. Los
+requests no aceptan registeredAt/referenceDate/verifiedAt ni otros metadatos de
+respuesta: propiedades desconocidas devuelven **400**.
+
+`GET /editions/{editionId}/registrations` devuelve esas vistas, ordenadas por
+registeredAt y TeamId; `GET /editions/{editionId}/registrations/{teamId}` devuelve
+una. Siempre muestran el equipo canónico actual, también si fue actualizado
+desde otra edición. No se guardan equipos duplicados dentro de Edition.
+
+`PUT /editions/{editionId}/registrations/{teamId}` → **200**, con body
+`{categoryId, team}` y **candidato completo**, incluso si solo cambia la categoría.
+El id de team debe coincidir con el path y la inscripción debe existir. Se valida
+el equipo contra la nueva categoría en esa edición y contra las categorías
+actuales de todas sus otras inscripciones **antes de guardar ambos cambios**.
+Una validación rechazada conserva el equipo y todas las relaciones anteriores.
+registeredAt/referenceDate permanecen iguales; la verificación del conjunto
+recibido vuelve a usar la hora del servidor.
+
+### Programar y consultar rondas por HTTP
+
+`POST /challenges/{challengeId}/rounds` → **201**:
+
+```json
+{"categoryId": "cat-junior", "roundNumber": 1, "roundName": "Clasificatoria",
+ "startTime": "2026-11-10T10:00:00", "slotDurationSeconds": 300, "intervalSeconds": 60,
+ "tracks": [{"id": "track-1", "name": "Pista 1", "surfaceType": "Madera", "isActive": true}],
+ "judges": [{"id": "judge-1", "fullName": "Juez Uno", "specialty": "General"}]}
+```
+
+Todos los campos son obligatorios. La edición se deriva del desafío; enviar
+editionId en el body devuelve **400**. Tiempo local ISO, sin offset, en la zona
+configurada del servidor. Duración en segundos positivos; pausa de pista en
+segundos no negativos. Número de ronda positivo. Los recursos se suministran
+por request, sin crear catálogos persistidos. Pistas inactivas se excluyen;
+recursos duplicados, ausencia de pista activa/juez y categoría ajena → **400**;
+scope duplicado → **409**; equipos canónicos inelegibles → **422**.
+
+Respuesta: `{roundId, challengeId, editionId, categoryId, roundNumber, name,
+status, slots}`. Cada slot expone `{slotId, teamId, track, judges, startTime,
+endTime, intervalSeconds, status}`; track/judges contienen los mismos campos
+públicos que en el request. Slots se ordenan por inicio, TrackId y SlotId, y no
+se expone el agregado directamente. El scheduler asigna un juez por slot. Ese
+juez puede usar el slotId para ambos endpoints de captura existentes.
+
+`GET /challenges/{challengeId}/rounds` admite filtro opcional `?categoryId=...`.
+Devuelve una lista ordenada por número, categoría e id de ronda. Un filtro de
+categoría no ofrecida devuelve **400**; una categoría válida sin rondas devuelve
+**200** con `[]`. `GET /rounds/{roundId}` devuelve el mismo DTO del alta.
+Las listas de inscripciones/desafíos/rondas vacías son **200**; sus padres deben
+existir. Edición, inscripción, desafío o ronda inexistentes devuelven **400**.
+Las consultas no escriben ni cambian estados.
+
 ### Cargar los resultados de un intento
 
-El id de un intento es su turno: el slot y el número de intento (`<slotId>-<n>`, por ejemplo `slot-7-1`). El turno tiene que estar en una ronda programada, el juez que carga tiene que estar asignado al slot y el equipo es el del slot. El primer resultado abre el intento con la versión vigente del reglamento del desafío; los siguientes se puntúan con esa misma versión aunque se publique otra.
+El id de un intento es su turno: el slot y el número de intento (`<slotId>-<n>`, por ejemplo `slot-7-1`). El turno tiene que estar en una ronda programada, el juez que carga tiene que estar asignado al slot y el equipo es el del slot. El `challengeId` enviado debe coincidir con el desafío de la ronda, incluso en la primera captura; un desafío diferente devuelve 409 sin crear ni modificar el intento. El primer resultado abre el intento con la versión vigente del reglamento del desafío; los siguientes se puntúan con esa misma versión aunque se publique otra.
 
 Cada fuente llega por separado (F3). El reglamento dice qué fuentes exige: si todas sus reglas leen sensores alcanza con las mediciones; el desafío mixto espera también al panel de jueces y queda `AWAITING_SOURCES`, sin puntaje, hasta que llega la última.
 
@@ -192,6 +336,129 @@ Cada fuente llega por separado (F3). El reglamento dice qué fuentes exige: si t
 | Un slot que no está en ninguna ronda, un id sin número, un campo obligatorio que falta, un valor negativo | 400 |
 
 `GET /attempts/{id}/breakdown` → 200 con lo que el intento todavía espera (`awaiting`), su puntaje, cada ítem de la última revisión (tope y piso incluidos), lo que aportó cada fuente (`bySource`) y cada revisión con su versión de reglamento, autor y motivo.
+
+## Inscripción y cambios de equipo (casos de uso)
+
+La edición contiene `Registration`, identificada por edición/equipo, con la
+categoría, la fecha de inicio de edición para calcular edades y `registeredAt`
+obtenido del reloj. Un equipo puede competir en categorías distintas en otras
+ediciones. `TeamRepository` es su fuente canónica; la edición conserva TeamId,
+sin referencias mutables al equipo.
+
+`RegisterTeamUseCase.execute(editionId, categoryId, team)` crea una inscripción
+para un equipo nuevo. Para un equipo existente, usar la variante con TeamId;
+enviar otro Team con su mismo id se rechaza para impedir sobrescrituras.
+Se comprueban categoría ofrecida, edades, cantidad de miembros, robot y
+documentación; una reinscripción en la misma edición es conflicto.
+
+Team, Robot, Documentation y Edition son inmutables. Construir el candidato
+completo y guardar cambios mediante `UpdateTeamUseCase.execute(teamId, candidate)`:
+valida todas sus inscripciones antes de reemplazar el equipo. Para cambiar
+categoría, usar `ChangeRegistrationCategoryUseCase.execute(editionId, teamId,
+categoryId)`, que afecta esa edición y conserva sus tiempos. Cambiar un documento
+con `withDocument` invalida la verificación del candidato; `verify` devuelve
+otro valor con autor y hora explícitos. Conservar siempre los valores devueltos.
+
+Programación revalida participantes; programación y rankings resuelven el
+estado actual desde TeamRepository. Rechazos de validación no dejan cambios
+parciales en memoria. Team/Edition/Registration todavía no tienen persistencia
+Postgres: sus datos se pierden al reiniciar y no hay rollback en memoria ante
+fallos técnicos entre escrituras. Su JPA corresponde al frente 5; los endpoints
+HTTP de estos flujos están implementados en la spec 05.
+
+### Rondas por desafío y programación paralela
+
+`ScheduleRoundCommand` incluye ChallengeId y EditionId; el desafío debe pertenecer
+a esa edición y la categoría estar ofrecida. Se revalidan los equipos canónicos
+y se ordenan las inscripciones por registeredAt, con TeamId como desempate.
+El scope desafío/categoría/número es único. RoundRepository permite buscar por
+RoundId, scope, desafío y SlotId, además de consultar todas las rondas.
+
+El scheduler asigna un juez por turno y elige la combinación pista/juez con
+inicio libre más temprano, desempata por el orden de los recursos del command.
+No usa pistas inactivas y rechaza ids de recursos duplicados. Con dos pistas,
+dos jueces, duración de 5 minutos y pausa de pista de 1 minuto: A/B compiten
+10:00–10:05 y C/D 10:06–10:11. Con un juez, el segundo equipo usa la otra pista
+10:05–10:10. Se respetan ocupaciones guardadas por pista, juez y equipo; las
+ventanas son [inicio, fin), y la pausa pertenece solo a la pista.
+
+Round y Slot son inmutables. Las operaciones de Round devuelven el nuevo
+agregado y protegen sus slots: SCHEDULED → IN_PROGRESS → COMPLETED, con
+SCHEDULED → CANCELLED para turnos. Completar ronda requiere todos sus slots
+completados o cancelados. Cancelar libera recursos. Recibir fuentes de medición
+no cambia estos estados; el juez asignado puede cargar ambas fuentes de un
+intento mixto. Las notas individuales del panel siguen siendo datos de scoring.
+
+La spec 04 implementa dominio, casos de uso, adaptador memory y rehidratación.
+Rondas en memoria se pierden al reiniciar y no garantizan exclusión entre
+programaciones concurrentes. Su JPA/locking corresponde al frente 5; los
+endpoints de programación y consulta están implementados en la spec 05.
+
+## Front web: uso y estado de integración
+
+1. Elegí edición, desafío y categoría en la barra superior. Los nombres vienen
+   del servidor; la web conserva los ids como referencias.
+2. **Equipos** lista inscripciones, permite editar candidatos completos, agregar
+   integrantes/documentos y elegir equipos de otras ediciones. Muestra límites
+   de categoría. Un 422 conserva el formulario y todos los motivos del servidor;
+   solo un cambio confirmado actualiza la lista.
+3. **Rondas y turnos** presenta columnas por pista con horarios, equipo y jueces.
+   Permite programar con duración/pausa en segundos y recursos existentes o
+   nuevos. Los recursos sugeridos conservan sus ids entre desafíos/categorías;
+   no se calcula el horario en JavaScript. Seleccionar un turno abre resultados.
+4. **Cargar resultados** deriva `<slotId>-<numero>` con número positivo y permite
+   elegir el juez asignado y una fuente pendiente. Los campos de métricas se
+   generan a partir del reglamento, incluyendo fuente/unidad/rango. Las notas
+   del panel se cargan por juez con nombres de recursos conocidos; no es un
+   editor de JSON. Ambas fuentes se envían a los endpoints existentes.
+5. **Desglose e historial** consulta puntaje, fuentes pendientes/recibidas, ítems,
+   fórmulas, subtotales, notas, aportes y revisiones disponibles. Un puntaje
+   pendiente/descalificado no se representa como cero. Los desgloses y totales
+   son los del servidor, sin recalcular scoring en el navegador.
+
+Si el intento fue abierto con un reglamento anterior, la web consulta
+`GET /challenges/{id}/rulebook/versions/{version}` (200 con RulebookDto, 400 si
+no existe desafío/versión o si el número es inválido) para presentar las métricas
+históricas. Esa consulta no publica una versión ni modifica las existentes.
+Una primera captura usa el reglamento vigente consultado al servidor.
+
+Los envíos bloquean sus formularios y selección de contexto para evitar doble
+captura accidental. Un **409** bloquea nuevas mutaciones hasta usar **Recargar
+datos**; nunca se reintenta una mutación automáticamente. Los nombres, motivos y
+mensajes se renderizan como texto, sin HTML suministrado por usuarios. No hay
+login ni seguridad por roles simulada; la API conserva sus responsabilidades.
+
+**Entrega parcial de la spec 06:** Apelaciones y Tabla muestran su integración
+pendiente. La API solo tiene POST /appeals/{id}/review, sin listado para elegir
+apelaciones ni presentación/resolución. También faltan consultas de tabla,
+versiones, recálculo y publicación. No hay mocks en producción, endpoints
+inventados ni reglas del frente 4 implementadas en JS. El cierre de la spec
+requiere esos contratos reales y sus pruebas de navegador. Equipos/ediciones/
+rondas siguen en memoria; la UI no los presenta como durables.
+
+### Verificación del frontend
+
+Desde la raíz:
+
+```bash
+mvn -B verify
+node --experimental-default-type=module --test roboleague-api/src/test/frontend/*.test.mjs
+```
+
+Node 20+ se usa **solo para tests**, sin instalar paquetes ni compilar assets.
+La CI ejecuta también esos tests. Maven prueba entrega de HTML/CSS/módulos por
+Spring, consulta de reglamentos históricos y regresiones de la demo/API. Los
+tests de JS cubren contratos, auditoría de solo lectura, métricas por fuente,
+recursos por identidad, horarios paralelos y errores sin retry. Son pruebas de
+módulos, **no una corrida de navegador**.
+
+En esta implementación no se pudo ejecutar la verificación visual/interactiva:
+el navegador de la sesión no estuvo disponible. Sigue pendiente comprobar
+escritorio, teclado y flujos reales de inscripción válida/inelegible,
+edición rechazada sin pérdida, dos pistas paralelas, captura mixta y desglose
+con tope desde la web. Apelación, recálculo y publicación requieren además el
+frente 4. Las pruebas HTTP existentes cubren los contratos del backend, sin
+acreditar por sí solas esa comprobación de UI.
 
 ## Cómo sumar lo tuyo
 

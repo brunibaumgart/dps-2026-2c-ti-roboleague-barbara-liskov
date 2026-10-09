@@ -14,11 +14,13 @@ import com.roboleague.evaluation.scheme.AllRounds;
 import com.roboleague.repository.memory.InMemoryChallengeRepository;
 import com.roboleague.repository.memory.InMemoryEditionRepository;
 import com.roboleague.tournament.Category;
+import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.Challenge;
 import com.roboleague.tournament.ChallengeId;
 import com.roboleague.tournament.DateRange;
 import com.roboleague.tournament.EditionContext;
 import com.roboleague.tournament.EditionHeader;
+import com.roboleague.tournament.EditionId;
 import com.roboleague.tournament.Season;
 import com.roboleague.tournament.Tournament;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,9 +54,9 @@ class ConfigureChallengesUseCaseTest {
 
     private static CreateEditionCommand editionCommand(String id) {
         Tournament tournament = Tournament.of("t-1", "RoboLeague", new Season("s-2026", 2026, "Temporada 2026"));
-        return new CreateEditionCommand(new EditionContext(tournament, new EditionHeader(id, "RoboLeague 2026", 1)),
+        return new CreateEditionCommand(new EditionContext(tournament, new EditionHeader(EditionId.of(id), "RoboLeague 2026", 1)),
                 new DateRange(LocalDate.of(2026, 11, 10), LocalDate.of(2026, 11, 12)),
-                List.of(Category.of("cat-junior", "Junior", 2, 4, 12, 17, 2500.0)));
+                List.of(Category.of(CategoryId.of("cat-junior"), "Junior", 2, 4, 12, 17, 2500.0)));
     }
 
     private static final RulebookDefinition.Bonuses NO_BONUSES =
@@ -77,13 +79,13 @@ class ConfigureChallengesUseCaseTest {
     }
 
     private static AddChallengeCommand maze(RulebookDefinition rulebook) {
-        return new AddChallengeCommand(Challenge.draft(ChallengeId.of("ch-maze"), "ed-2026", "Laberinto"), rulebook);
+        return new AddChallengeCommand(Challenge.draft(ChallengeId.of("ch-maze"), EditionId.of("ed-2026"), "Laberinto"), rulebook);
     }
 
     @Test
     @DisplayName("Crear una edición con un id que ya existe se rechaza")
     void givenAnExistingEditionIdThenCreatingItAgainFails() {
-        assertThat(editions.findById("ed-2026")).isPresent();
+        assertThat(editions.findById(EditionId.of("ed-2026"))).isPresent();
         assertThatThrownBy(() -> createEdition.execute(editionCommand("ed-2026")))
                 .isInstanceOf(IllegalStateException.class);
     }
@@ -113,7 +115,7 @@ class ConfigureChallengesUseCaseTest {
     @DisplayName("Un desafío para una edición que no existe se rechaza")
     void givenAnUnknownEditionThenAddingTheChallengeFails() {
         AddChallengeCommand elsewhere = new AddChallengeCommand(
-                Challenge.draft(ChallengeId.of("ch-x"), "ed-none", "X"), penaltyRulebook(10.0));
+                Challenge.draft(ChallengeId.of("ch-x"), EditionId.of("ed-none"), "X"), penaltyRulebook(10.0));
 
         assertThatThrownBy(() -> addChallenge.execute(elsewhere)).isInstanceOf(IllegalArgumentException.class);
     }

@@ -1,5 +1,10 @@
 package com.roboleague.ranking;
 
+import com.roboleague.scheduling.RoundId;
+import com.roboleague.tournament.CategoryId;
+import com.roboleague.tournament.EditionId;
+import com.roboleague.tournament.TeamId;
+
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -18,38 +23,38 @@ public class Ranking {
     }
 
     private final RankingScope scope;
-    private final String roundId;
+    private final Optional<RoundId> roundId;
     private RankingStatus status;
     private final LocalDateTime generatedAt;
     private LocalDateTime publishedAt;
     private String publicationNotes;
     private final List<RankingEntry> entries;
 
-    public Ranking(RankingScope scope, String roundId, List<RankingEntry> entries) {
+    public Ranking(RankingScope scope, Optional<RoundId> roundId, List<RankingEntry> entries, LocalDateTime generatedAt) {
         this.scope = Objects.requireNonNull(scope, "scope cannot be null");
-        this.roundId = roundId != null ? roundId : "";
+        this.roundId = Objects.requireNonNull(roundId, "roundId cannot be null");
         this.entries = entries != null ? List.copyOf(entries) : List.of();
         this.status = RankingStatus.PROVISIONAL;
-        this.generatedAt = LocalDateTime.now();
+        this.generatedAt = Objects.requireNonNull(generatedAt, "generatedAt cannot be null");
     }
 
     public RankingScope getScope() {
         return scope;
     }
 
-    public String getRankingId() {
+    public RankingId getRankingId() {
         return scope.rankingId();
     }
 
-    public String getEditionId() {
+    public EditionId getEditionId() {
         return scope.editionId();
     }
 
-    public String getCategoryId() {
+    public CategoryId getCategoryId() {
         return scope.categoryId();
     }
 
-    public String getRoundId() {
+    public Optional<RoundId> getRoundId() {
         return roundId;
     }
 
@@ -77,21 +82,22 @@ public class Ranking {
         return Collections.unmodifiableList(entries);
     }
 
-    public Optional<RankingEntry> getEntryForTeam(String teamId) {
+    public Optional<RankingEntry> getEntryForTeam(TeamId teamId) {
         return entries.stream().filter(e -> e.teamScore().teamId().equals(teamId)).findFirst();
     }
 
-    public void publishOfficial(String notes) {
+    public void publishOfficial(String notes, LocalDateTime publishedAt) {
+        Objects.requireNonNull(publishedAt, "publishedAt cannot be null");
         this.status = RankingStatus.OFFICIAL;
-        this.publishedAt = LocalDateTime.now();
+        this.publishedAt = publishedAt;
         this.publicationNotes = notes != null ? notes : "Official ranking published.";
     }
 
-    public static Ranking of(RankingScope scope, String roundId, List<RankingEntry> entries) {
-        return new Ranking(scope, roundId, entries);
+    public static Ranking of(RankingScope scope, Optional<RoundId> roundId, List<RankingEntry> entries, LocalDateTime generatedAt) {
+        return new Ranking(scope, roundId, entries, generatedAt);
     }
 
-    public static Ranking of(String rankingId, String editionId, String categoryId, String roundId, List<RankingEntry> entries) {
-        return new Ranking(new RankingScope(rankingId, editionId, categoryId), roundId, entries);
+    public static Ranking of(RankingId rankingId, EditionId editionId, CategoryId categoryId, Optional<RoundId> roundId, List<RankingEntry> entries, LocalDateTime generatedAt) {
+        return new Ranking(new RankingScope(rankingId, editionId, categoryId), roundId, entries, generatedAt);
     }
 }

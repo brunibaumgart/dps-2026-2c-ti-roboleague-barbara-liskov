@@ -1,6 +1,8 @@
 package com.roboleague.evaluation.audit;
 
+import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.ResultSource;
+import com.roboleague.scheduling.JudgeId;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -8,7 +10,7 @@ import java.util.Objects;
 /**
  * Event triggered when one source of an attempt's results arrives (F3), with the judge who loaded it.
  */
-public record SourceReceivedEvent(EventMetadata metadata, ResultSource source, String judgeId) implements AttemptEvent {
+public record SourceReceivedEvent(EventMetadata metadata, ResultSource source, JudgeId judgeId) implements AttemptEvent {
 
     public SourceReceivedEvent {
         Objects.requireNonNull(metadata, "metadata cannot be null");
@@ -22,7 +24,7 @@ public record SourceReceivedEvent(EventMetadata metadata, ResultSource source, S
     }
 
     @Override
-    public String attemptId() {
+    public AttemptId attemptId() {
         return metadata.attemptId();
     }
 
@@ -41,7 +43,7 @@ public record SourceReceivedEvent(EventMetadata metadata, ResultSource source, S
         return source.label() + " loaded by " + judgeId;
     }
 
-    public static SourceReceivedEvent create(String attemptId, ResultSource source, String judgeId) {
-        return new SourceReceivedEvent(EventMetadata.create(attemptId), source, judgeId);
+    public static SourceReceivedEvent create(EventMetadata metadata, ResultSource source, JudgeId judgeId) {
+        return new SourceReceivedEvent(metadata, source, judgeId);
     }
 }

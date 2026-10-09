@@ -1,5 +1,7 @@
 package com.roboleague.evaluation;
 
+import com.roboleague.scheduling.JudgeId;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -29,7 +31,7 @@ public record RawMetrics(
         return feedback.resourceConsumption();
     }
 
-    public Map<String, Double> judgeSubjectiveScores() {
+    public Map<JudgeId, Double> judgeSubjectiveScores() {
         return feedback.judgeSubjectiveScores();
     }
 
@@ -79,7 +81,7 @@ public record RawMetrics(
      * The capture with what the judge panel sent: each judge's score and their named measurements. What the
      * sensors measured stays.
      */
-    public RawMetrics withJudgePanel(Map<String, Double> scores, Map<String, Double> named) {
+    public RawMetrics withJudgePanel(Map<JudgeId, Double> scores, Map<String, Double> named) {
         return new RawMetrics(performance, EvaluationFeedback.of(resourceConsumption(), scores, measuredWith(named)));
     }
 
@@ -107,7 +109,7 @@ public record RawMetrics(
         );
     }
 
-    public static RawMetrics of(double timeTakenSeconds, int objectivesCompleted, int penaltiesCount, Map<String, Double> judgeScores) {
+    public static RawMetrics of(double timeTakenSeconds, int objectivesCompleted, int penaltiesCount, Map<JudgeId, Double> judgeScores) {
         return new RawMetrics(
                 new TrackPerformance(timeTakenSeconds, objectivesCompleted, penaltiesCount),
                 EvaluationFeedback.withJudgeScores(judgeScores)

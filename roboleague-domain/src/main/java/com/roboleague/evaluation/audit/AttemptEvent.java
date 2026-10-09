@@ -1,5 +1,7 @@
 package com.roboleague.evaluation.audit;
 
+import com.roboleague.evaluation.AttemptId;
+
 import java.time.LocalDateTime;
 
 /**
@@ -8,7 +10,7 @@ import java.time.LocalDateTime;
 public sealed interface AttemptEvent permits SourceReceivedEvent, ResultRegisteredEvent, PenaltyAppliedEvent,
         ScoreAdjustedEvent, AppealAcceptedEvent, AttemptDisqualifiedEvent {
     String eventId();
-    String attemptId();
+    AttemptId attemptId();
     LocalDateTime timestamp();
     String eventType();
     String description();

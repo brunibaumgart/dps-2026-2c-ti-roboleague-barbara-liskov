@@ -1,5 +1,8 @@
 package com.roboleague.evaluation.audit;
 
+import com.roboleague.evaluation.AttemptId;
+import com.roboleague.scheduling.JudgeId;
+
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -9,7 +12,7 @@ import java.util.Objects;
 public record AttemptDisqualifiedEvent(
         EventMetadata metadata,
         String reason,
-        String judgeId
+        JudgeId judgeId
 ) implements AttemptEvent {
 
     public AttemptDisqualifiedEvent {
@@ -24,7 +27,7 @@ public record AttemptDisqualifiedEvent(
     }
 
     @Override
-    public String attemptId() {
+    public AttemptId attemptId() {
         return metadata.attemptId();
     }
 
@@ -43,7 +46,7 @@ public record AttemptDisqualifiedEvent(
         return "Attempt disqualified by " + judgeId + ": " + reason;
     }
 
-    public static AttemptDisqualifiedEvent create(String attemptId, String reason, String judgeId) {
-        return new AttemptDisqualifiedEvent(EventMetadata.create(attemptId), reason, judgeId);
+    public static AttemptDisqualifiedEvent create(EventMetadata metadata, String reason, JudgeId judgeId) {
+        return new AttemptDisqualifiedEvent(metadata, reason, judgeId);
     }
 }

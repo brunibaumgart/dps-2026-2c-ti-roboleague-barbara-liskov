@@ -20,6 +20,7 @@ import com.roboleague.evaluation.rules.VictimsRule;
 import com.roboleague.evaluation.scheme.AllRounds;
 import com.roboleague.evaluation.scheme.HigherTotal;
 import com.roboleague.evaluation.scheme.RankingScheme;
+import com.roboleague.scheduling.JudgeId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Test;
@@ -150,7 +151,7 @@ class RulebookSourcesTest {
     void givenAMixedRulebookThenContributionsSplitItemsBySourceAndAddUpToTheTotal() {
         Rulebook rescue = rulebookWith(List.of(TIME, VICTIMS, JUDGES), List.of(ABANDONED));
         RawMetrics metrics = new RawMetrics(new TrackPerformance(50.0, 0, 0),
-                EvaluationFeedback.of(0.0, Map.of("j1", 8.0), Map.of(RESCUED.name(), 3.0)));
+                EvaluationFeedback.of(0.0, Map.of(JudgeId.of("j1"), 8.0), Map.of(RESCUED.name(), 3.0)));
 
         List<SourceContribution> contributions = rescue.contributions(metrics);
 

@@ -4,6 +4,7 @@ import com.roboleague.evaluation.rules.*;
 import com.roboleague.evaluation.scheme.AllRounds;
 import com.roboleague.evaluation.scheme.HigherTotal;
 import com.roboleague.evaluation.scheme.RankingScheme;
+import com.roboleague.scheduling.JudgeId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -99,10 +100,10 @@ class ScoringEngineTest {
     void judgeSubjectiveRuleCalculations() {
         JudgeSubjectiveRule rule = new JudgeSubjectiveRule("Puntuación de Innovación", 5.0);
 
-        Map<String, Double> judgeScores = Map.of(
-                "judge-1", 8.0,
-                "judge-2", 9.0,
-                "judge-3", 10.0
+        Map<JudgeId, Double> judgeScores = Map.of(
+                JudgeId.of("judge-1"), 8.0,
+                JudgeId.of("judge-2"), 9.0,
+                JudgeId.of("judge-3"), 10.0
         ); // Average = 9.0
 
         RawMetrics metrics = RawMetrics.of(50.0, 2, 0, judgeScores);
@@ -134,7 +135,7 @@ class ScoringEngineTest {
         // Expected total = 110 + 120 - 20 + 16 = 226.0
         RawMetrics metrics = new RawMetrics(
                 new TrackPerformance(50.0, 4, 2),
-                new EvaluationFeedback(0.0, Map.of("j1", 8.0, "j2", 8.0), Map.of())
+                new EvaluationFeedback(0.0, Map.of(JudgeId.of("j1"), 8.0, JudgeId.of("j2"), 8.0), Map.of())
         );
 
         ScoreBreakdown breakdown = rulebook.evaluate(metrics);

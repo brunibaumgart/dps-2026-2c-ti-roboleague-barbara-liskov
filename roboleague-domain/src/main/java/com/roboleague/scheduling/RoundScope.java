@@ -1,12 +1,17 @@
 package com.roboleague.scheduling;
 
+import com.roboleague.tournament.CategoryId;
+import com.roboleague.tournament.ChallengeId;
+import com.roboleague.tournament.EditionId;
+
 import java.util.Objects;
 
 /**
- * Value object representing edition, category and sequence number of a round.
+ * Value object representing challenge, edition, category and sequence number of a round.
  */
-public record RoundScope(String editionId, String categoryId, int roundNumber) {
+public record RoundScope(ChallengeId challengeId, EditionId editionId, CategoryId categoryId, int roundNumber) {
     public RoundScope {
+        Objects.requireNonNull(challengeId, "challengeId cannot be null");
         Objects.requireNonNull(editionId, "editionId cannot be null");
         Objects.requireNonNull(categoryId, "categoryId cannot be null");
         if (roundNumber <= 0) {
@@ -14,7 +19,7 @@ public record RoundScope(String editionId, String categoryId, int roundNumber) {
         }
     }
 
-    public static RoundScope of(String editionId, String categoryId, int roundNumber) {
-        return new RoundScope(editionId, categoryId, roundNumber);
+    public static RoundScope of(ChallengeId challengeId, EditionId editionId, CategoryId categoryId, int roundNumber) {
+        return new RoundScope(challengeId, editionId, categoryId, roundNumber);
     }
 }

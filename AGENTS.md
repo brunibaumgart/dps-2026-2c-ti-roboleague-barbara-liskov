@@ -19,6 +19,18 @@ reglas en los `AGENTS.md`, evitando duplicarlas en los archivos de entrada.
 Proyecto Maven multimódulo, Java 25 y Spring Boot (versión en `pom.xml`).
 Los paquetes siguen bajo `com.roboleague`, sin prefijos Java por módulo.
 
+La arquitectura es hexagonal (puertos y adaptadores), con modelado DDD y
+separación dominio/aplicación compatible con la regla de dependencias de Clean
+Architecture. El flujo de ejecución puede llegar a Postgres; las dependencias
+del código apuntan al núcleo: infrastructure implementa puertos definidos en
+domain. Los métodos de los casos de uso son la entrada al núcleo; no crear una
+interfaz por clase solamente para reproducir un diagrama arquitectónico.
+
+`tournament`, `scheduling`, `evaluation` y `ranking` son áreas del modelo que
+comparten tipos. Sus paquetes no establecen por sí solos bounded contexts
+independientes ni microservicios. Justificar nuevos límites por lenguaje,
+invariantes y necesidades del negocio, antes de separar módulos o servicios.
+
 | Módulo                      | Responsabilidad                                                | Dependencias de producción          |
 | --------------------------- | -------------------------------------------------------------- | ----------------------------------- |
 | `roboleague-domain`         | Agregados, objetos de valor, servicios y puertos `*Repository` | Java, sin frameworks                |
@@ -35,6 +47,49 @@ Persistencia actual: `Attempt`, `Challenge` y `Appeal` tienen adaptadores JPA.
 `InMemoryRepositoryConfig`. No asumir persistencia completa ni rollback de los
 repositorios en memoria. Flyway administra el esquema y Hibernate lo valida.
 
+`support.Clock` e `support.IdGenerator` son puertos del dominio. Infrastructure
+provee `SystemClock` y `UuidGenerator`, ensamblados en API. No usar reloj del
+sistema ni UUID aleatorios desde domain/application: los casos de uso obtienen
+valores por los puertos y pasan fechas/metadatos a los agregados. Conservar ids
+derivados y tiempos persistidos durante la rehidratación.
+
+`Team`, `Robot`, `Documentation` y `Edition` son inmutables. Edition contiene
+Registration por edición/equipo, con CategoryId, fecha de inicio como referencia
+y momento explícito de inscripción; no contiene Team. Resolver sus TeamIds
+contra TeamRepository, que conserva el estado canónico. Los cambios de equipo
+se guardan mediante UpdateTeamUseCase, validando todas sus inscripciones; cambiar
+categoría usa ChangeRegistrationCategoryUseCase para una edición concreta.
+Para cambiar equipo y categoría juntos por HTTP, UpdateRegistrationUseCase
+valida el candidato contra la categoría nueva y todas las otras inscripciones
+antes de escribir. No encadenar dos mutaciones que puedan dejar un cambio parcial
+por rechazo. No reintroducir mutadores o categoría/fecha global en Team.
+
+`Round` y `Slot` son inmutables. Round controla adición y transiciones de sus
+slots: conservar el valor devuelto y guardar la ronda completa. Su scope incluye
+ChallengeId/EditionId/CategoryId/número. Programación asigna un juez por slot,
+respeta ocupaciones de otras rondas y conserva la pausa de pista en cada slot.
+RoundRepository sigue en memoria: no garantiza exclusión de programaciones
+concurrentes ni rollback. No crear un SlotRepository independiente.
+
+## Criterios SOLID
+
+- **SRP:** separar traducción HTTP, coordinación de casos de uso, reglas de
+  negocio y conversión de persistencia según sus razones para cambiar.
+- **OCP:** extender reglas, criterios y especificaciones mediante los contratos
+  y composición existentes. Registrar un tipo en el catálogo es válido; evitar
+  agregar condicionales de fórmulas a controllers o a `Attempt`.
+- **LSP:** preservar resultados, errores y efectos observables del contrato al
+  agregar implementaciones. Documentar diferencias de durabilidad, concurrencia
+  y rollback entre adaptadores; una interfaz común no garantiza equivalencia.
+- **ISP:** definir puertos según necesidades de sus consumidores. Evitar
+  interfaces generales que obliguen a implementar operaciones ajenas o lanzar
+  `UnsupportedOperationException` para métodos que el contrato promete soportar.
+- **DIP:** el núcleo define los contratos que necesita y recibe adaptadores por
+  constructor. La inyección de Spring no reemplaza esta regla de dependencias.
+
+Agregar abstracciones cuando representen una variación o límite concreto;
+no exigir una interfaz para cada clase ni patrones sin una necesidad del cambio.
+
 ## Convenciones de trabajo
 
 - Trabajar sobre el alcance solicitado y respetar cambios existentes del equipo.
@@ -42,6 +97,11 @@ repositorios en memoria. Flyway administra el esquema y Hibernate lo valida.
   Documentar las instrucciones compartidas en español.
 - Ubicar invariantes y cálculos en el dominio; coordinar repositorios desde los
   casos de uso y traducir entrada/salida en los adaptadores.
+- Usar identidades tipadas del dominio en entidades, commands, referencias, mapas
+  y puertos. Convertir texto explícitamente en controllers/mappers; conservar
+  strings en HTTP y persistencia. No agregar overloads String al núcleo para
+  eludir los tipos. Autores de roles diversos usan `ActorId`; jueces usan
+  `JudgeId`, con conversión explícita `asActorId()` para auditoría.
 - Seguir las fábricas, records, resultados `sealed` y estados existentes cuando
   correspondan al problema. No agregar setters o anotaciones de framework a
   agregados para facilitar serialización o persistencia.

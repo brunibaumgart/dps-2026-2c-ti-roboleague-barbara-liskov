@@ -9,8 +9,18 @@ import com.roboleague.evaluation.scheme.RankingScheme;
 import com.roboleague.repository.ChallengeRepository;
 import com.roboleague.tournament.Challenge;
 import com.roboleague.tournament.ChallengeId;
+import com.roboleague.tournament.EditionId;
+import com.roboleague.usecase.ChangeRegistrationCategoryUseCase;
+import com.roboleague.usecase.ListEditionChallengesUseCase;
+import com.roboleague.usecase.QueryEditionsUseCase;
+import com.roboleague.usecase.QueryRegistrationsUseCase;
+import com.roboleague.usecase.QueryRoundsUseCase;
+import com.roboleague.usecase.RegisterTeamUseCase;
 import com.roboleague.usecase.ResolveAppealUseCase;
 import com.roboleague.usecase.SaveThenFailUseCase;
+import com.roboleague.usecase.ScheduleRoundUseCase;
+import com.roboleague.usecase.UpdateRegistrationUseCase;
+import com.roboleague.usecase.UpdateTeamUseCase;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.aop.support.AopUtils;
@@ -44,12 +54,35 @@ class TransactionalUseCasesTest {
     private ResolveAppealUseCase resolveAppeal;
 
     @Autowired
+    private RegisterTeamUseCase registerTeam;
+
+    @Autowired
+    private UpdateTeamUseCase updateTeam;
+
+    @Autowired
+    private ChangeRegistrationCategoryUseCase changeCategory;
+
+    @Autowired
+    private ScheduleRoundUseCase scheduleRound;
+
+    @Autowired
+    private UpdateRegistrationUseCase updateRegistration;
+    @Autowired
+    private QueryEditionsUseCase queryEditions;
+    @Autowired
+    private QueryRegistrationsUseCase queryRegistrations;
+    @Autowired
+    private QueryRoundsUseCase queryRounds;
+    @Autowired
+    private ListEditionChallengesUseCase listChallenges;
+
+    @Autowired
     private ChallengeRepository challenges;
 
     @Test
     @DisplayName("Si un caso de uso falla después de guardar, no queda nada guardado")
     void givenAUseCaseThatFailsAfterSavingThenNothingIsSaved() {
-        Challenge maze = Challenge.draft(ChallengeId.of("tx-ch-1"), "ed-tx", "Laberinto").publish(
+        Challenge maze = Challenge.draft(ChallengeId.of("tx-ch-1"), EditionId.of("ed-tx"), "Laberinto").publish(
                 ScoringScheme.withoutBonuses(List.of(TimeBasedRule.standard(100.0, 60.0)), List.of()),
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
 
@@ -62,5 +95,12 @@ class TransactionalUseCasesTest {
     @DisplayName("Los casos de uso de la aplicación corren dentro de una transacción")
     void givenTheApplicationThenItsUseCasesAreTransactional() {
         assertThat(AopUtils.isAopProxy(resolveAppeal)).isTrue();
+        assertThat(AopUtils.isAopProxy(registerTeam)).isTrue();
+        assertThat(AopUtils.isAopProxy(updateTeam)).isTrue();
+        assertThat(AopUtils.isAopProxy(changeCategory)).isTrue();
+        assertThat(AopUtils.isAopProxy(scheduleRound)).isTrue();
+        for (Object bean : List.of(updateRegistration, queryEditions, queryRegistrations, queryRounds, listChallenges)) {
+            assertThat(AopUtils.isAopProxy(bean)).isTrue();
+        }
     }
 }

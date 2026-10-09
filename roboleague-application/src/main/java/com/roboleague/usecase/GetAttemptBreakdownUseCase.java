@@ -6,7 +6,6 @@ import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookReference;
 import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.ChallengeRepository;
-import com.roboleague.tournament.ChallengeId;
 
 import java.util.Objects;
 
@@ -27,7 +26,7 @@ public class GetAttemptBreakdownUseCase {
         Attempt attempt = attemptRepository.findById(attemptId)
                 .orElseThrow(() -> new IllegalArgumentException("Attempt not found: " + attemptId));
         RulebookReference scoredWith = attempt.getRulebookReference();
-        Rulebook rulebook = challengeRepository.findById(ChallengeId.of(scoredWith.challengeId()))
+        Rulebook rulebook = challengeRepository.findById(scoredWith.challengeId())
                 .flatMap(challenge -> challenge.rulebook(scoredWith.version()))
                 .orElseThrow(() -> new IllegalStateException("Rulebook " + scoredWith + " not found"));
         return new AttemptBreakdown(attempt, attempt.awaitedSources(rulebook), attempt.contributionsBySource(rulebook));

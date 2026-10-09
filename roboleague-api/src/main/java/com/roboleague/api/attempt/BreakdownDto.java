@@ -50,7 +50,7 @@ record BreakdownDto(String attemptId, String status, int rulebookVersion, List<R
                        LocalDateTime timestamp) {
         static RevisionDto from(AttemptScoreSnapshot revision) {
             return new RevisionDto(revision.revisionNumber(), revision.rulebookVersion().number(),
-                    revision.authorOrJudgeId(), revision.reason(), revision.breakdown().totalScore(),
+                    revision.authorOrJudgeId().value(), revision.reason(), revision.breakdown().totalScore(),
                     revision.timestamp());
         }
     }

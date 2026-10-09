@@ -1,5 +1,8 @@
 package com.roboleague.evaluation.audit;
 
+import com.roboleague.evaluation.AttemptId;
+import com.roboleague.support.ActorId;
+
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -9,13 +12,13 @@ import java.util.Objects;
 public record PenaltyAppliedEvent(
         EventMetadata metadata,
         PenaltyDetail detail,
-        String judgeId
+        ActorId authorId
 ) implements AttemptEvent {
 
     public PenaltyAppliedEvent {
         Objects.requireNonNull(metadata, "metadata cannot be null");
         Objects.requireNonNull(detail, "detail cannot be null");
-        Objects.requireNonNull(judgeId, "judgeId cannot be null");
+        Objects.requireNonNull(authorId, "authorId cannot be null");
     }
 
     @Override
@@ -24,7 +27,7 @@ public record PenaltyAppliedEvent(
     }
 
     @Override
-    public String attemptId() {
+    public AttemptId attemptId() {
         return metadata.attemptId();
     }
 
@@ -48,14 +51,14 @@ public record PenaltyAppliedEvent(
 
     @Override
     public String description() {
-        return "Penalty of " + additionalPenalties() + " fouls applied by " + judgeId + ": " + reason();
+        return "Penalty of " + additionalPenalties() + " fouls applied by " + authorId + ": " + reason();
     }
 
-    public static PenaltyAppliedEvent create(String attemptId, int additionalPenalties, String reason, String judgeId) {
+    public static PenaltyAppliedEvent create(EventMetadata metadata, int additionalPenalties, String reason, ActorId authorId) {
         return new PenaltyAppliedEvent(
-                EventMetadata.create(attemptId),
+                metadata,
                 PenaltyDetail.of(additionalPenalties, reason),
-                judgeId
+                authorId
         );
     }
 }

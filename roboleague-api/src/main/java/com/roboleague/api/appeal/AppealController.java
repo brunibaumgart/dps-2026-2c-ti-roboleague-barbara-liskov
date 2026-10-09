@@ -1,5 +1,7 @@
 package com.roboleague.api.appeal;
 
+import com.roboleague.ranking.appeal.AppealId;
+import com.roboleague.support.ActorId;
 import com.roboleague.usecase.ReviewAppealUseCase;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,7 +24,7 @@ class AppealController {
 
     @PostMapping("/review")
     AppealDto review(@PathVariable String appealId, @RequestBody ReviewRequest request) {
-        return AppealDto.from(reviewAppeal.execute(appealId, request.reviewerId()));
+        return AppealDto.from(reviewAppeal.execute(AppealId.of(appealId), ActorId.of(request.reviewerId())));
     }
 
     record ReviewRequest(String reviewerId) {

@@ -1,13 +1,42 @@
 # Documento de Decisiones de Diseño (DESIGN.md) - RoboLeague
 
-**Trabajo Integrador - Entrega 1: Módulo de Dominio**  
+**Trabajo Integrador - Diseño del dominio y evolución a aplicación REST**
+
 **Plataforma de Competencias de Robótica y Desafíos Técnicos**
 
 ---
 
-## 1. Arquitectura de Dominio y Contextos Delimitados (Bounded Contexts)
+## 1. Arquitectura y organización del dominio
 
-El dominio de **RoboLeague** se estructura en cuatro submódulos conceptuales altamente cohesivos y débilmente acoplados, reflejando el flujo natural de una competencia técnica:
+El documento se inició en la Entrega 1, centrada en el dominio, y conserva
+decisiones de esa etapa junto con su evolución. Actualmente RoboLeague es una
+aplicación Maven multimódulo con arquitectura **hexagonal (puertos y adaptadores)**,
+modelado inspirado en **DDD** y separación compatible con la regla de dependencias
+de **Clean Architecture**.
+
+| Módulo | Responsabilidad y dependencia de producción |
+| --- | --- |
+| `roboleague-domain` | Modelo, invariantes, servicios de dominio y puertos; Java sin frameworks |
+| `roboleague-application` | Casos de uso que coordinan el dominio; depende de domain |
+| `roboleague-infrastructure` | Adaptadores JPA/Postgres y en memoria; depende de domain |
+| `roboleague-api` | REST, DTOs, configuración Spring y ensamblado; depende de application e infrastructure |
+
+Application depende de infrastructure únicamente en tests. En ejecución, un
+controller llama al caso de uso, que utiliza el dominio y los puertos de
+repositorio. En el código, el adaptador de persistencia depende del contrato
+interno que implementa; el núcleo desconoce JPA y HTTP. Los métodos públicos de
+casos de uso constituyen la entrada al núcleo sin requerir una interfaz por clase.
+La configuración de Spring vive en API, incluyendo las transacciones.
+
+Esta separación permite probar el negocio con Java y repositorios en memoria,
+incorporar REST y persistencia por etapas y extender reglas de puntuación sin
+acoplarlas al transporte o al esquema de datos. Su costo es mantener mappers,
+contratos y configuración adicionales; las nuevas abstracciones deben responder
+a variaciones o límites concretos del negocio.
+
+DDD aparece en el lenguaje del modelo, objetos de valor, agregados con
+comportamiento, servicios, repositorios y especificaciones. El dominio se
+organiza en cuatro áreas que reflejan el flujo de una competencia técnica:
 
 ```text
 roboleague-domain/
@@ -17,13 +46,39 @@ roboleague-domain/
 └── ranking/             # Criterios de ordenamiento, Desempates, Publicación, Apelaciones
 ```
 
-### Responsabilidades por Contexto:
+Estas áreas comparten tipos y referencias. La división por paquetes no demuestra
+bounded contexts independientes: delimitar uno requiere establecer dónde es
+válido su modelo y cómo se integra con otros. Tampoco implica microservicios.
+
+### Responsabilidades por área:
 1. **`tournament`**: Modela el ciclo organizativo: definición de temporadas, torneos y ediciones cronológicas; categorización técnica con restricciones físicas y etarias; registro de equipos, participantes y especificaciones de robots; y evaluación compuesta de elegibilidad.
 2. **`scheduling`**: Modela la logística operativa de campo: gestión de pistas o arenas de prueba, designación y perfiles de jueces evaluadores, planificación de rondas y asignación determinista de turnos (slots) con ventanas temporales y pausas intermedias.
 3. **`evaluation`**: Corazón computacional del sistema. Modela los intentos en pista (`Attempt`), la captura estructurada de métricas observadas (`RawMetrics`), el motor de puntuación explicable y versionado (`Rulebook`, `ScoreRule`, `ScoreBreakdown`), y el rastro de auditoría append-only con snapshots inmutables y eventos de dominio.
 4. **`ranking`**: Consolida los puntajes agregados por equipo (`TeamScore`), resuelve empates jerárquicamente mediante cadenas desacopladas (`TieBreakerChain`), administra la publicación oficial o provisional de tablas (`Ranking`), y gobierna el ciclo de apelaciones (`Appeal`) mediante una máquina de estados polimórfica.
 
 **Cardinalidad del evento:** una `Edition` es el evento y tiene varios `Challenge` (Laberinto, Seguidor de línea, Rescate). Cada desafío publica su propio reglamento versionado (`Rulebook`). `Category` es elegibilidad, no un desafío. Ver 2.8.
+
+### Criterios SOLID y límites del modelo
+
+- **SRP:** controllers traducen HTTP, casos de uso coordinan, dominio mantiene
+  invariantes y cálculos, y mappers convierten representaciones persistidas.
+  Separar responsabilidades por sus razones para cambiar.
+- **OCP:** Strategy, Composite y Specification permiten extender comportamiento
+  mediante composición. Agregar una regla y registrarla en `RuleCatalog` es una
+  extensión válida; no exige mantener intacto todo archivo de configuración.
+- **LSP:** implementaciones de reglas y puertos deben respetar sus contratos
+  observables. Los adaptadores en memoria y JPA no son equivalentes en durabilidad,
+  concurrencia o rollback; sus diferencias deben ser explícitas.
+- **ISP:** mantener contratos enfocados en sus consumidores; no obligar a un
+  adaptador a simular operaciones ajenas o rechazar métodos prometidos por su interfaz.
+- **DIP:** application depende de puertos del núcleo y recibe implementaciones
+  por constructor; el contenedor Spring ensambla, pero no define por sí solo esta inversión.
+
+Las invariantes se protegen mediante operaciones del agregado y construcción de
+objetos de valor, incluso sin HTTP. API valida el transporte y application los
+requisitos de coordinación. Las referencias entre agregados requieren revisar
+identidad, ciclo de vida y consistencia: `Challenge` referencia edición por id,
+mientras `Edition` contiene Registration y referencia equipos canónicos por TeamId. No se impone una política universal de ids.
 
 ---
 
@@ -185,6 +240,10 @@ roboleague-domain/
 
 - **Solución Implementada**:  
   - Se implementó el patrón **Specification** componible mediante la interfaz genérica `EligibilitySpecification<T>`.
+  - Las reglas evalúan EligibilityCandidate (Team, Category y fecha explícita).
+    RegistrationEligibility reúne la política estándar, reutilizada en inscripción,
+    actualización, cambio de categoría y programación; la referencia es el inicio
+    de la edición.
   - Operaciones booleanas combinatorias de primer orden: `and()`, `or()`, `not()`.
   - Especificaciones atómicas de dominio:
     - `AgeLimitSpecification`: Comprueba el rango etario de los integrantes calculando la edad exacta a la fecha del torneo.
@@ -203,24 +262,26 @@ roboleague-domain/
 
 ---
 
-### 2.7 Inversión de Control, Aislamiento del Dominio y Composition Root (`Main`)
+### 2.7 Inversión de Control, Aislamiento del Dominio y Composition Root
 
 - **Problema**:  
   Si los casos de uso o servicios de dominio crean internamente instancias concretas (`new InMemoryRepository()`, `new ConcreteService()`), quedan fuertemente acoplados a detalles de infraestructura. Del mismo modo, si el dominio importa herramientas de consola (`System.out`), frameworks de serialización (`Gson`) o clientes HTTP (`Unirest`), el negocio pierde pureza y portabilidad.
 
 - **Solución Implementada**:  
-  - **Dependencia Exclusiva de Interfaces**: El dominio solo conoce contratos (`TeamRepository`, `EditionRepository`, `AttemptRepository`, `RankingRepository`, `AppealRepository`).
-  - **Inyección por Constructor**: Todas las dependencias requeridas por casos de uso y servicios se reciben explícitamente en el constructor. No existe ningún `new` de implementaciones concretas dentro de las clases de negocio.
-  - **Composition Root Único ([`Main.java`](file:///c:/ITBA/2026/2026_Q2/Dps/tp/roboleague-domain/src/main/java/com/roboleague/Main.java))**: Es el único punto de ensamble donde se construyen las instancias de infraestructura en memoria, se configuran las cadenas de desempate y especificaciones de elegibilidad, se inyectan en los casos de uso y se orquesta la ejecución.
+  - **Puertos internos**: Los casos de uso conocen contratos de persistencia definidos en domain: `TeamRepository`, `EditionRepository`, `RoundRepository`, `ChallengeRepository`, `AttemptRepository`, `RankingRepository` y `AppealRepository`. No dependen de los adaptadores JPA o en memoria.
+  - **Inyección por Constructor**: Los casos de uso reciben puertos y servicios; construir objetos del modelo dentro del negocio es válido. Evitar la creación interna de adaptadores tecnológicos.
+  - **Composition Root actual**: [`UseCaseConfig`](roboleague-api/src/main/java/com/roboleague/api/config/UseCaseConfig.java) registra servicios y casos de uso. [`InMemoryRepositoryConfig`](roboleague-api/src/main/java/com/roboleague/api/config/InMemoryRepositoryConfig.java) registra los puertos que siguen en memoria; Spring descubre los adaptadores JPA. [`RoboLeagueApplication`](roboleague-api/src/main/java/com/roboleague/RoboLeagueApplication.java) inicia la aplicación. El ensamblado manual en `Main` corresponde a la Entrega 1 y ya no describe la ejecución actual.
+  - **Transacciones externas al núcleo**: [`TransactionalUseCases`](roboleague-api/src/main/java/com/roboleague/api/config/TransactionalUseCases.java) aplica proxies de clase a beans del paquete exacto `com.roboleague.usecase`. El rollback cubre escrituras Postgres, no cambios de repositorios en memoria.
   - **Higiene de Importaciones**: Cero uso e importación de `System.out`, `Scanner`, `Gson` o `Unirest` en todo el paquete de dominio.
 
 - **Pros**:
   - **Dominio 100% Puro y Portable**: El código de negocio puede ser reutilizado sin modificaciones en una aplicación Spring Boot, una API Quarkus, una CLI, o una arquitectura serverless.
-  - **Testeabilidad Absoluta**: Los tests unitarios e integrados reemplazan cualquier dependencia por implementaciones en memoria o mocks sin alterar una sola línea de código de dominio.
+  - **Pruebas del núcleo sin frameworks**: Los tests de dominio y casos de uso pueden usar objetos Java, adaptadores en memoria o mocks. Las garantías de JPA, concurrencia, transacciones y HTTP requieren sus pruebas de integración.
   - **Facilidad de Mantenimiento**: El grafo completo de dependencias de la aplicación se comprende de un solo vistazo inspeccionando el Composition Root.
 
 - **Contras**:
-  - **Wiring Manual**: Al no utilizar un contenedor de inyección automático (ej. Spring Framework o Google Guice) en esta etapa, el ensamblado de clases en `Main` y en los tests de integración debe realizarse de forma explícita.
+  - **Configuración de ensamblado**: Aunque Spring gestiona los beans, se mantienen registros explícitos de casos de uso y selección de adaptadores. Debe haber un único bean por puerto.
+  - **Restricciones de proxies**: La interceptación transaccional depende del paquete y de clases/métodos aptos para proxies. Cambiar esa estructura exige verificar el cableado.
 
 ---
 
@@ -369,7 +430,7 @@ roboleague-domain/
 - **Solución Implementada**: tabla `challenges` (migración `V2`) con id, edición, nombre y una columna JSONB con todas las versiones del reglamento como definiciones. `ChallengeMapper` (capa anticorrupción, como `AppealMapper`) guarda `rulebook.definition()` y, al leer, reconstruye cada versión con `RuleCatalog` y el agregado con `Challenge.restore`, que exige versiones consecutivas desde 1. Si una versión guardada no se puede reconstruir es un dato corrupto: `IllegalStateException`.
 - **Por qué una columna JSON y no tablas por regla**: un reglamento es un árbol (reglas compuestas, bonificaciones, estrategias) que se lee y se escribe entero y nunca se consulta por partes. Las versiones viejas no cambian. La forma del JSON la fijan records propios de infraestructura, no las clases del dominio.
 - **Sin clave foránea a `editions`**: son agregados distintos y se referencian por id; la edición todavía no está en Postgres.
-- **Deuda**: `Edition` sigue en memoria porque persistirla arrastra a los equipos inscriptos, que se van a modelar como inscripción (`Registration`). El perfil `demo` recarga todo en cada arranque, así que la demo no lo nota, pero sin ese perfil un desafío guardado puede quedar apuntando a una edición que ya no está en memoria.
+- **Deuda**: `Edition` y Team siguen en memoria; la spec 03 ya separó su relación mediante Registration. Sus adaptadores JPA corresponden al frente 5. El perfil `demo` recarga todo en cada arranque, así que la demo no lo nota, pero sin ese perfil un desafío guardado puede quedar apuntando a una edición que ya no está en memoria.
 - **Deuda: concurrencia.** Alta y publicación leen y después guardan sin bloqueo optimista: dos altas simultáneas con el mismo id, o dos publicaciones simultáneas, pueden pisarse en vez de dar 409. Se resuelve con `@Version` en la entidad cuando haga falta.
 - **Deuda: dato corrupto.** Un reglamento guardado que no se puede reconstruir lanza `IllegalStateException`, que la convención de la API traduce a 409; un error propio de dato corrupto (500) queda pendiente.
 
@@ -459,7 +520,7 @@ roboleague-domain/
   - **Versión fijada (hallazgo 2)**: `RulebookReference(desafío, versión)` se guarda al abrir el intento y `EvaluationSnapshot` guarda la versión de cada revisión. Puntuar con otra versión falla. `ResolveAppealUseCase.acceptAppeal` ya no recibe el desafío: carga la versión del intento. `recalculateWith`, que puntuaba con cualquier reglamento, se borró.
   - **Estados (State, como `Appeal`)**: `AttemptState` con una clase por forma de comportarse: `WaitingAttemptState` (programado o esperando fuentes: solo toma resultados), `SettledAttemptState` (evaluado o ajustado: toma apelaciones, ajustes de faltas y la descalificación), `UnderAppealAttemptState` (cuenta las apelaciones abiertas y recuerda si vuelve a evaluado o ajustado) y `DisqualifiedAttemptState` (no toma nada). Lo que un estado no acepta lo rechaza un método por defecto que nombra el estado (409 en la API).
   - **Puntaje computable**: `countableScore()` es el desglose que cuenta, vacío antes de puntuar o si está descalificado (regla #24). `TeamScore` solo usa intentos que cuentan; un equipo sin ninguno no suma.
-  - **Validación contra la ronda**: `ScheduleRoundUseCase` guarda la ronda en un `RoundRepository` mínimo (`save`, `findBySlotId`); `Round.slot(id)` y `Slot.isJudgedBy(juez)`. `ReceiveResultUseCase` exige que el turno exista (400) y que el juez esté asignado (422), toma el equipo del slot y abre el intento con la versión vigente del desafío.
+  - **Validación contra la ronda**: `ScheduleRoundUseCase` guarda la ronda completa en `RoundRepository` (extendido en 2.23); `Round.slot(id)` y `Slot.isJudgedBy(juez)`. `ReceiveResultUseCase` exige que el turno exista (400), que el desafío coincida con la ronda (409) y que el juez esté asignado (422), toma el equipo del slot y abre el intento con la versión vigente del desafío.
   - **API**: `PUT /attempts/{id}/measurements`, `PUT /attempts/{id}/judge-scores` y `GET /attempts/{id}/breakdown`, que muestra lo pendiente y lo que aportó cada fuente (README, "Cargar los resultados de un intento").
   - **Persistencia**: migración V3 con el turno, la versión y la etapa en columnas, y las entregas, revisiones y eventos en JSONB. `Attempt.restore(identidad, referencia, AttemptProgress)` reconstruye sin repetir transiciones, como `Appeal.restore`; `AttemptStage` es el estado como dato y el único lugar que elige un estado por su nombre (regla #9). `AttemptEvent` pasa a ser sellado para que el mapper guarde cada tipo.
   - **Issue #5**: `RawMetrics.withPenalties` cambia solo las faltas.
@@ -479,13 +540,16 @@ roboleague-domain/
 - **Patrones no aplicados**: event sourcing (reconstruir el intento desde sus eventos; se guardan revisiones y eventos tal cual); Visitor para las fuentes (alcanza con `addTo` polimórfico).
 - **Dos fuentes al mismo tiempo**: en F3 las mediciones y el panel pueden llegar casi juntos. Postgres guarda el intento con bloqueo optimista (`@Version`, migración `V4`): `JpaAttemptRepository` recuerda con qué versión cargó cada intento y la manda al guardar, así que si otro pedido lo guardó en el medio el segundo se rechaza con 409 y se reintenta, en lugar de pisar la fuente que ya llegó. La versión es un detalle del adaptador: el agregado no la conoce.
 - **Deuda que decidimos no resolver en este paso**:
-  - `challengeId` viaja en el cuerpo de la captura hasta que la ronda conozca su desafío (frente 3); entonces sale de la ronda.
-  - `RoundRepository` es mínimo y en memoria; el frente 3 lo completa y lo persiste.
+  - `challengeId` sigue en el cuerpo de captura por compatibilidad; desde 2.23
+    se valida contra la ronda.
+  - RoundRepository fue extendido en 2.23 y sigue en memoria; frente 5 coordina
+    persistencia y exclusión de programaciones concurrentes.
   - No se valida el horario del turno ni su estado (`Slot.status`), y del panel de jueces solo se valida al juez que carga, no a cada juez que puntúa.
   - Descalificar solo se acepta sobre un intento puntuado, como el diagrama de estados.
   - La tabla sigue armándose con el mejor intento (`TeamScore`) y `TieBreakerChain`; cuando use `RankingScheme` (frente 4), cada `RoundScore` sale de `countableScore()` y su snapshot.
   - Las rutas de apelación (`POST /attempts/{id}/appeals`, aceptación y rechazo) son del frente 4; los casos de uso ya usan el intento nuevo.
-  - Los eventos siguen tomando `now()` y `UUID` (frente 3: `Clock` e `IdGenerator`).
+  - La dependencia estática de reloj/UUID se resolvió en la sección 2.20; los
+    ids de referencias se tiparon en la sección 2.21.
 
 ---
 
@@ -495,9 +559,260 @@ roboleague-domain/
   - *Alternativas descartadas*: `@Transactional` en los casos de uso (mete Spring en la aplicación); un puerto `Transactions` inyectado en cada caso de uso (cambia constructores de varios frentes para el mismo efecto); transacciones en los controllers (la demo, que llama a los casos de uso directo, quedaría afuera).
 - **JSON estricto (issue #14)**: un campo desconocido es 400 con el nombre del campo y los esperados, en lugar de ignorarse (`"penalties"` en vez de `"deductions"` perdía la penalización). El reglamento acepta y descarta `version` y `requiredSources`, que trae cuando se lo lee con `GET`, para poder mandarlo de vuelta tal cual.
 - **Demo con fechas fijas**: la edición es del 10 al 12/11/2026 y las rondas arrancan desde las 9:00 del primer día, una por hora, así cada corrida termina igual.
-- **Deuda**: la elegibilidad todavía mide la edad con la fecha de hoy (`UseCaseConfig`) y los ids de ronda y apelación son UUID; se resuelven con los puertos de reloj e ids y la inscripción (frente 3).
+- **Actualización**: reloj e ids se inyectan como puertos (2.20). La spec 03
+  resolvió el calendario de elegibilidad usando el inicio de cada edición (2.22).
 
 ---
+
+### 2.20 Tiempo e identidades generadas como dependencias explícitas
+
+- **Problema**: Las llamadas al reloj del sistema y a UUID en el núcleo hacían
+  depender fixtures, auditoría y fechas del host y del momento de ejecución.
+- **Solución**: Los puertos `com.roboleague.support.Clock` e `IdGenerator` viven
+  en domain. `SystemClock` y `UuidGenerator` viven en infrastructure y se ensamblan
+  en `UseCaseConfig`. La propiedad `roboleague.time-zone`, configurable con
+  `ROBOLEAGUE_TIME_ZONE`, usa `America/Argentina/Buenos_Aires` por defecto.
+  El núcleo no consulta estáticamente el reloj ni genera UUID por su cuenta.
+- **Valores en los agregados**: Registration, Documentation, Appeal y Ranking reciben
+  fechas/horas explícitas; las transiciones de Attempt reciben `OperationAudit`
+  con hora y dos ids de evento preparados por el caller (una transición genera
+  como máximo dos eventos). Revisiones y eventos de una misma operación comparten
+  hora; los ids de snapshots siguen derivados de intento y número de revisión.
+  Una captura parcial o una descalificación usa solo el primer id, dejando el
+  segundo sin uso; consumir un id no implica que haya un evento persistido.
+- **Rehidratación y calendario**: Mappers conservan tiempos, ids y versiones
+  existentes sin recurrir a puertos. `TeamMember.of` valida nacimiento contra
+  una fecha explícita; su constructor de valor conserva datos estructurales al
+  rehidratar. La spec 03 fijó la referencia de elegibilidad al inicio de cada
+  edición y conservó el momento de inscripción separado de esa fecha (2.22).
+- **Trade-off**: Las firmas del núcleo exigen más valores explícitos y los
+  callers/fixtures deben suministrarlos. Se conserva el formato LocalDateTime
+  sin offset, las columnas y el JSON histórico; configurar otra zona afecta
+  nuevas operaciones y no convierte timestamps anteriores.
+- **Verificación**: Reloj fijo y secuencia local de ids en el flujo de competencia,
+  prueba de cambio de fecha por zona y pruebas de rehidratación/JPA y JSON de API.
+  Los escenarios que consultan el ranking más reciente avanzan explícitamente
+  su reloj entre cálculos; un reloj fijo no garantiza orden entre timestamps iguales.
+
+### 2.21 Identidades tipadas y contratos externos textuales
+
+- **Problema**: Los ids String de equipos, jueces, slots y otros conceptos podían
+  intercambiarse sin que el compilador detectara el error, incluso en puertos y
+  mapas internos. ChallengeId y AttemptId ya expresaban parte de esta intención.
+- **Decisión**: Records distintos por concepto, sin jerarquía universal ni
+  dependencias de frameworks. TeamId, EditionId, CategoryId, ParticipantId y
+  RobotId viven en tournament; JudgeId, SlotId, RoundId y TrackId en scheduling;
+  RankingId y AppealId en sus contextos. Se reutilizan ChallengeId y AttemptId,
+  que ahora contiene SlotId y número positivo. Los valores rechazan null/blanco,
+  conservan espacios y mayúsculas de valores válidos y no exigen UUID.
+- **Alcance**: Entidades, profiles, scopes, commands, repositorios y claves de
+  mapas de equipos y jueces usan los tipos. IdGenerator sigue entregando texto;
+  quien genera un slot, ronda, ranking o apelación lo envuelve inmediatamente.
+  El desempate final conserva el orden textual mediante Comparable<TeamId>.
+  El filtro de ronda de Ranking y recálculo usa Optional<RoundId>: ausencia
+  significa todas las rondas, evitando una identidad vacía ficticia.
+- **Autores**: Capturas y descalificaciones inequívocamente realizadas por jueces
+  usan JudgeId. Auditoría, ajustes, revisión de apelaciones y verificación de
+  documentación usan ActorId, porque el responsable puede tener distintos roles.
+  JudgeId.asActorId() expresa conscientemente al juez como autor; no se convierte
+  automáticamente un actor genérico en juez.
+- **Bordes**: DTOs HTTP, entidades JPA y records JSONB mantienen campos String.
+  Controllers y mappers convierten mediante of/parse/value; las claves del panel
+  de jueces también se convierten explícitamente. No se anotan los records del
+  núcleo con Jackson/JPA ni se deja su serialización automática definir la API.
+  Columnas, claves primarias, formato de AttemptId e historial conservan sus
+  representaciones; no hace falta una migración SQL por este cambio de tipos Java.
+- **Trade-off**: Cambian las firmas internas y los fixtures necesitan valores
+  tipados. Se gana detección de referencias intercambiadas al compilar, a costa
+  de conversiones explícitas en los adaptadores. No se tipa cada etiqueta:
+  nombres, motivos, métricas nombradas y los ids internos de eventos/snapshots
+  conservan sus contratos actuales, fuera del alcance de esta migración.
+- **Verificación**: El compilador rechaza un JudgeId donde SlotIdentity exige
+  TeamId. Tests cubren valores inválidos, conservación de texto histórico,
+  parsing con guiones, rehidratación desde una fila textual preexistente,
+  búsquedas y escritura con las mismas claves, además de contratos HTTP de ids.
+
+### 2.22 Registration y elegibilidad sostenida (spec 03)
+
+- **Problema**: Edition retenía Team mutable y este llevaba una categoría global.
+  Cambiar integrantes, robot o documentación podía invalidar una inscripción sin
+  control, y el calendario de elegibilidad se fijaba al iniciar Spring.
+- **Modelo**: Registration es una entidad inmutable dentro de Edition, con
+  identidad compuesta EditionId/TeamId, CategoryId, referenceDate y registeredAt.
+  La referencia es Edition.startDate; el momento de inscripción viene del Clock.
+  Categoría y fecha salen de Team. TeamRepository guarda su estado canónico;
+  Edition contiene relaciones y nunca una segunda lista de equipos.
+- **Protección del estado**: Team, Robot, Documentation y Edition son inmutables;
+  sus constructores copian colecciones. Métodos with... y operaciones de edición
+  devuelven nuevos valores. Cambiar documentos invalida su verificación porque
+  esta correspondía al conjunto anterior; verificar el candidato suministra autor
+  y hora explícitos. Ningún cambio del candidato modifica el equipo ya guardado.
+- **Política de dominio**: Las especificaciones componen EligibilityCandidate
+  (equipo, categoría y fecha), reuniendo causas de edad, tamaño, robot y
+  documentación. RegistrationEligibility se usa desde Edition en altas, cambios
+  de categoría y revalidación. TeamIneligibleException vive en domain, conservando
+  su traducción HTTP a 422 en API.
+- **Coordinación**: RegisterTeamUseCase distingue Team nuevo de TeamId existente
+  y rechaza sobrescribir estado canónico mediante un alta. Duplicados en una
+  edición son conflictos. UpdateTeamUseCase consulta EditionRepository.findByTeamId,
+  valida el candidato contra todas las relaciones y reúne motivos por edición
+  antes de guardar. ChangeRegistrationCategoryUseCase modifica una relación y
+  conserva sus tiempos. Programación revalida antes de generar ids; rankings
+  resuelven los participantes actuales sin cambiar cálculos del frente 4.
+- **Rehidratación**: Edition.restore valida pertenencia, categorías, fecha de
+  referencia y unicidad, conservando los tiempos sin reevaluar equipos. Team
+  admite construcción completa de su estado; Documentation.restore conserva
+  documentos y verificación sin replay. Para frente 5, la restricción única de
+  Registration es edición/equipo, y los mappers deben preservar estos valores.
+- **Alternativas**: No se agregó un cierre de inscripción, pues no existe ese
+  ciclo de vida. Copias defensivas de un Team mutable habrían conservado múltiples
+  fuentes de estado; bloquear todos los cambios impediría actualizaciones válidas.
+  Se eligieron snapshots inmutables con validación coordinada de inscripciones.
+- **Límites**: Team y Edition siguen en memoria. Validar antes de escribir evita
+  cambios parciales por rechazo, pero no rollback ante fallos técnicos ni control
+  de concurrencia entre varios escritores. Repositorios/restore son mecanismos
+  confiables de persistencia, no entradas de negocio. JPA, restricciones únicas
+  y coordinación de escrituras concurrentes corresponden al frente 5. Endpoints
+  de inscripción/cambios/programación fueron implementados en la spec 05 (2.24).
+- **Verificación**: Calendario con edades que cambian elegibilidad al iniciar la
+  edición, rechazos sin escrituras, duplicados, relaciones independientes,
+  actualizaciones válidas e inválidas contra dos categorías, inmutabilidad y
+  rehidratación, revalidación al programar, rankings canónicos, proxies y demo.
+
+### 2.23. Rondas por desafío y programación paralela (frente 3, spec 04)
+
+- **Problema**: El scheduler usaba un horario serial y asignaba dos jueces sin
+  comprobar disponibilidad. La ronda no conocía el desafío y cualquier consumidor
+  podía cambiar slots sin controles de pertenencia, solapamiento o lifecycle.
+- **Límite de agregado (DDD)**: Round contiene Slot y controla sus operaciones;
+  un SlotId sigue siendo global, pero no crea otro repositorio. RoundScope contiene
+  ChallengeId/EditionId/CategoryId/número positivo. El caso de uso consulta Challenge
+  y Edition para verificar pertenencia, categoría y elegibilidad antes de generar
+  ids. Las referencias por identidad evitan incorporar otros agregados al ciclo
+  de vida de la ronda.
+- **Estado protegido**: Round/Slot son snapshots inmutables; las operaciones
+  devuelven una nueva ronda. Se rechazan slots ajenos, ids/equipos duplicados y
+  solapamientos de pista o juez. Los intervalos son semicerrados. Round y Slot
+  pasan de SCHEDULED a IN_PROGRESS y COMPLETED; solo un slot SCHEDULED puede
+  cancelarse. La ronda termina con todos los slots completados o cancelados.
+  Las fuentes recibidas por Attempt no provocan estas transiciones.
+- **Servicio de dominio**: RoundSchedulerService recibe equipos ordenados por
+  registeredAt/TeamId y rondas guardadas. Evalúa combinaciones pista/juez en orden,
+  busca la ventana libre más temprana avanzando al fin de cada conflicto y asigna
+  un juez. SlotConflicts centraliza la regla compartida con el agregado. Se
+  comparan ids, no igualdad de perfiles. Pistas inactivas se excluyen y recursos
+  duplicados se rechazan. Las ventanas completas permiten respetar ocupaciones
+  futuras y aprovechar huecos anteriores.
+- **Pausa de pista**: Slot conserva trackInterval. Pista ocupada hasta fin +
+  pausa; juez/equipo hasta fin. También se considera la pausa del candidato para
+  no invadir un turno futuro. CANCELLED libera recursos; COMPLETED conserva la
+  ocupación histórica. No extender la pausa del juez ni deducirla del request de
+  otra ronda, porque cambiaría las restricciones del horario ya guardado.
+- **Puertos y adaptadores (DIP/hexagonal)**: RoundRepository incorpora findById,
+  findByScope, findByChallengeId y findAll, conservando findBySlotId. Memory guarda
+  la ronda completa, reemplaza por id y rechaza scope o SlotId usados por otra
+  ronda. Round.restore/Slot.restore conservan scope, estados, asignaciones,
+  horarios y pausa sin replay. Domain/application siguen sin frameworks.
+- **Captura y demo**: ReceiveResultUseCase verifica desafío de ronda antes de
+  abrir/cambiar Attempt, incluso en la primera captura (409). Se conserva el
+  request existente, scoring y auditoría. La demo indica desafío al programar y
+  usa al juez asignado para ambas fuentes; notas del panel no equivalen a
+  disponibilidad/asignación de sus miembros.
+- **Alternativas**: Mantener Slot mutable permitiría saltear Round por un getter.
+  Repositorios separados debilitarían el límite de consistencia. Clases State
+  por enum no aportan aquí comportamientos variables como en Attempt/Appeal;
+  alcanzan transiciones explícitas protegidas por Round. El algoritmo vive en
+  dominio y los casos de uso solo cargan, coordinan y guardan (SRP).
+- **Límites y verificación**: Memory no ofrece durabilidad, rollback ni exclusión
+  entre programaciones concurrentes. La validación secuencial no equivale a un
+  lock transaccional; JPA, restricciones y coordinación corresponden al frente 5.
+  Se prueban paralelismo, pausas, límites semicerrados, conflictos entre rondas,
+  recursos por identidad, rechazos sin guardado, lifecycle, restore, contrato
+  memory, captura, proxies y continuidad de la demo/rankings.
+
+### 2.24. API de inscripción y programación (frente 3, spec 05)
+
+- **Objetivo**: Operar ediciones, desafíos, inscripciones y rondas desde contratos
+  HTTP, sin conocer fixtures ni consultar adaptadores desde controllers. Las
+  consultas son entradas de application y devuelven datos que API transforma en
+  DTOs. No se introdujeron Spring/Jackson en el núcleo.
+- **Consultas (SRP/DIP)**: QueryEditionsUseCase, ListEditionChallengesUseCase,
+  QueryRegistrationsUseCase y QueryRoundsUseCase validan padres, relaciones y
+  filtros. RegistrationView reúne Registration y el Team canónico actual; no
+  guarda una copia dentro de Edition. ChallengeRepository agrega findByEditionId,
+  implementado en ambos adaptadores con orden estable. Un padre desconocido es
+  400; una lista vacía es 200; un filtro de categoría ajena es 400.
+- **Actualización conjunta**: PUT recibe categoryId y Team completo. El nuevo
+  UpdateRegistrationUseCase prepara la Edition candidata con esa categoría y
+  valida el equipo contra todas sus inscripciones, sustituyendo la edición
+  destino por la candidata. Comparte la validación coordinada con UpdateTeamUseCase.
+  Guarda Team y Edition solo después de validar; conserva fechas de inscripción.
+  No se encadenan dos mutaciones desde el controller, porque el primer cambio
+  podría quedar guardado si el segundo fuera rechazado, ni se valida contra la
+  categoría anterior cuando el usuario está cambiando ambos datos juntos.
+- **Transporte**: TeamBody construye el candidato con valores tipados, fechas de
+  creación/verificación del Clock del servidor y actor de verificación recibido.
+  No hay upload/autenticación en este paso. POST permite objeto Team nuevo o
+  TeamId existente, exactamente uno; un objeto de id existente no sobrescribe.
+  Los records usan wrappers para reconocer campos numéricos/booleanos faltantes,
+  y comprueban elementos null antes de construir valores. RequestValues se limita
+  a presencia/formato; elegibilidad y programación siguen siendo dominio.
+- **Compatibilidad**: EditionDto conserva categories como ids y suma categoryDetails
+  con restricciones. Alta de categoría permite límites dimensionales opcionales
+  con default histórico de 1000 mm por eje. Weight/Dimensions rechazan NaN/infinito
+  en sus constructores, evitando cantidades físicas inválidas. Las respuestas de
+  inscripción incluyen auditoría, pero esos campos no se aceptan en requests.
+- **Programación HTTP**: RoundController deriva edición del desafío; no recibe un
+  EditionId contradictorio. RoundDto incluye scope, estado y slots ordenados por
+  horario/TrackId/SlotId, sin exponer entidades internas. Sus slots se usan en los
+  endpoints existentes de ambas fuentes de captura y del desglose.
+- **Cableado y límites**: Todos los nuevos casos de uso conservan proxies de clase
+  de TransactionalUseCases. Postgres persiste desafíos/capturas; equipos, ediciones
+  y rondas siguen en memoria. Rechazos de validación no dejan cambios parciales;
+  rollback técnico y coordinación concurrente de memory siguen pendientes de
+  frente 5. No se implementaron endpoints de tablas/apelaciones del frente 4.
+- **Verificación**: MockMvc sobre Postgres/Testcontainers cubre creación, lectura,
+  actualización conjunta, revalidación entre ediciones, programación, consumo de
+  slots en captura y desglose, listas vacías y 400/409/422. Casos de uso prueban
+  validación conjunta antes de escribir; ambos adaptadores de desafíos prueban
+  filtro/orden por edición. La demo y las pruebas de proxies permanecen activas.
+
+### 2.25. Front web servido por API (frente 3, spec 06 parcial)
+
+- **Decisión**: HTML/CSS y módulos ES nativos en resources/static, con el mismo
+  jar/puerto que la API. Sin build Node, framework frontend, CDN ni autenticación
+  simulada. Es un adaptador de entrada; no agrega scoring/elegibilidad al browser.
+  Diseño sobrio, neutro, para escritorio, con selección visible de contexto y acciones
+  de competencia en navegación lateral.
+- **Responsabilidades (SRP/hexagonal)**: api.js concentra HTTP/ErrorDto; ui.js
+  construye nodos seguros y controla envíos; models.js traduce contratos, referencias
+  y presentación; registration/scheduling/results presentan flujos. app.js carga
+  estado del backend y coordina contexto/navegación, descartando respuestas tardías
+  tras un cambio de contexto. No mantiene otro modelo de dominio ni estado de
+  competencia durable en el browser.
+- **Contratos y referencias**: Formularios normales, sin JSON manual. Team/miembro/
+  robot/recurso nuevos reciben ids en el candidato; editar conserva identidades.
+  Auditoría de respuesta no se reenvía como request. Recursos conocidos entre
+  rondas/desafíos conservan ids. El servidor confirma cambios, horarios y puntajes.
+- **Captura histórica**: Se agregó GetRulebookUseCase y GET de versión publicada.
+  Un breakdown identifica la versión del intento y la web consulta sus métricas,
+  evitando usar la definición actual para una segunda fuente histórica. La consulta
+  es de solo lectura y usa ChallengeRepository; no reescribe reglamentos.
+- **Uso y errores**: Métricas se presentan por fuente, unidad y rango declarado.
+  El desglose usa ítems/fórmulas/topes/revisiones del backend y muestra ausencia
+  de puntaje como pendiente/sin puntaje computable. Los 422 conservan candidatos;
+  un 409 bloquea mutaciones hasta recargar, sin retries automáticos. La selección
+  de contexto se bloquea durante un envío. Renderizado por texto evita interpretar
+  nombres/motivos como HTML.
+- **Límites explícitos**: La API de frente 4 solo permite revisar una apelación
+  conocida. No hay listado/presentación/resolución ni tabla/versiones/recálculo/
+  publicación. Sus pantallas muestran integración pendiente sin mocks ni cálculos
+  locales. La spec 06 no se considera terminada. No se agregó JPA del frente 5.
+- **Verificación**: Tests JS de contratos/cliente HTTP sin dependencias npm,
+  añadidos a CI; Maven cubre assets, versión histórica, demo y contratos existentes.
+  El navegador de la sesión no estuvo disponible: no se acredita validación visual,
+  layout de escritorio, teclado o flujos desde navegador; quedan documentados en README.
+  La finalización requiere esa comprobación y conectar los contratos del frente 4.
 
 ## 3. Matriz Comparativa Exhaustiva de Trade-offs
 
@@ -511,7 +826,7 @@ roboleague-domain/
 | **Cadenas de Desempate con `Comparator Composition`** | Flexibilidad total para reordenar o añadir criterios de desempate; testeo aislado de cada regla. | Exige que todas las métricas de desempate se encuentren consolidadas en `PerformanceSummary`. | Algoritmo rígido hardcodeado con `if-else` anidados. Rechazada por fragilidad y dificultad de extensión. |
 | **Máquina de Estados Polimórfica (`AppealState`)** | Transiciones legalmente seguras; consultas polimórficas sin `if/switch`; cero strings de estado. | Proliferación de clases de estado; necesidad de mappers al momento de persistir en base de datos. | Campo `String` o `Enum` con bifurcaciones condicionales. Rechazada por riesgo de transiciones ilegales y código frágil. |
 | **Elegibilidad con `Composite Specification`** | Composabilidad declarativa (`and`, `or`, `not`); desacoplamiento de criterios; detalle de causales de fallo. | Evaluación sucesiva en memoria; requiere recorrer las listas de integrantes y características del robot. | Validaciones manuales procedurales dentro del caso de uso. Rechazada por violar SRP y no ser reutilizable. |
-| **Composition Root Único (`Main`)** | Dominio puro sin frameworks externos; inversión de dependencias estricta; máxima testeabilidad. | Requiere cableado manual explícito al no utilizar un framework de DI automático en el dominio. | Hacer `new` de implementaciones concretas adentro de servicios. Rechazada por acoplamiento indebido. |
+| **Composition Root en API (configuración Spring)** | Núcleo libre de frameworks; puertos internos y adaptadores seleccionados externamente. | Mantener registros de beans, selección de repositorios y restricciones de proxies transaccionales. | Crear adaptadores tecnológicos dentro del negocio. Rechazada por acoplamiento indebido. |
 | **`Challenge` como agregado con su `Rulebook`** | Varios desafíos por evento, cada uno con su reglamento versionado; F1, F2 y F3 viven en el reglamento del desafío. | Captura y apelación tienen que saber de qué desafío es el intento. | Una edición = una prueba (Entrega 1). Rechazada en la Entrega 2: la demo pide tres desafíos en un evento y reglas por desafío. |
 | **Recálculo = reordenar snapshots vigentes** | Cumple “reprocesar posiciones después de una corrección”; no reinterpreta la pista; barato y determinista. | No re-aplica las `ScoreRule` si el desafío publica una versión nueva después de evaluar; que el intento recuerde su versión queda pendiente (hallazgo 2). | Re-evaluar todos los `RawMetrics` en cada recálculo de tabla. Rechazada: con reglamentos inmutables el resultado no cambia; el gancho `recalculateWith` queda por si el negocio lo pide. |
 | **Tope de bonificaciones en el esquema de puntaje (`BonusLimit`)** | El tope va sobre la suma y queda explicado; ninguna regla de bonificación cambia. | Las bonificaciones se declaran aparte del resto de las reglas, y `Rulebook`/`Challenge.publish` pasaron a recibir un `ScoringScheme` en lugar de una lista de reglas. | Decorator que envuelve las bonificaciones como una regla más. Rechazada: el grupo mezcla fuentes y una regla declara una sola. |
@@ -546,16 +861,16 @@ roboleague-domain/
 9. **Enum de criterios de desempate con comparadores (como `TieBreakerChain.StandardCriterion`)**:
    - *Justificación del descarte*: no dice qué criterio decidió y agregar uno obliga a abrir el enum (OCP). Cada criterio es una clase con nombre.
 
-### Decisiones Técnicas Pospuestas (Justificación Arquitectónica):
+### Evolución de decisiones técnicas inicialmente pospuestas:
 1. **Framework de Persistencia Real (JPA / Hibernate / Spring Data)**:
-   - *Decisión*: No incorporar dependencias de bases de datos relacionales ni ORMs en esta etapa.
-   - *Justificación*: Conforme a los lineamientos de la consigna (*"Únicamente módulo del dominio; no se exige persistencia real ni API REST"*), diferir la persistencia mantiene el dominio desacoplado de esquemas relacionales, tablas o anotaciones de infraestructura.
+   - *Entrega 1*: Se difirió la persistencia real porque la consigna se centraba en el módulo de dominio.
+   - *Estado actual*: infrastructure incorpora Spring Data JPA, Hibernate, Postgres y migraciones Flyway para `Appeal`, `Challenge` y `Attempt`. `Edition`, `Team`, `Round` y `Ranking` siguen en memoria. Las entidades JPA y mappers son propios del adaptador; domain y application permanecen libres de anotaciones de persistencia. Flyway administra el esquema y Hibernate lo valida.
 2. **Contenedor de Inyección de Dependencias Automatizado (Spring / Guice / CDI)**:
-   - *Decisión*: Ensamble explícito manual en `Main` y en fixtures de test.
-   - *Justificación*: Evita la contaminación del modelo de dominio con anotaciones externas (`@Inject`, `@Autowired`, `@Component`), garantizando un artefacto de dominio puro en Java nativo estándar.
+   - *Entrega 1*: Se utilizó ensamblado manual en `Main` y fixtures de test.
+   - *Estado actual*: Spring Boot ensambla la aplicación desde API; `UseCaseConfig` registra casos de uso y servicios, y `TransactionalUseCases` aplica las transacciones. El núcleo conserva inyección por constructor y Java sin anotaciones Spring. La independencia del dominio se mantiene aunque el ensamblado externo use un framework.
 3. **Motor de Reglas Externo con DSL (Drools / Rete)**:
    - *Decisión*: Resolver el scoring mediante composición de objetos Java puros (`ScoreRule`).
-   - *Justificación*: El patrón Strategy + Composite ofrece tipado fuerte en tiempo de compilación, velocidad máxima de ejecución, cero overhead de parsing en runtime y máxima facilidad de depuración mediante pruebas unitarias nativas de JUnit 5.
+   - *Justificación*: Strategy + Composite permite componer y probar reglas Java sin un motor externo. Las definiciones configurables se validan y reconstruyen mediante `RuleCatalog`; eso incluye procesamiento en ejecución. No se presupone ausencia de parsing ni superioridad de rendimiento sin mediciones.
 
 ---
 

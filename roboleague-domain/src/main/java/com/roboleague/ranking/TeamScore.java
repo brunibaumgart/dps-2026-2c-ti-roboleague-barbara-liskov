@@ -2,6 +2,9 @@ package com.roboleague.ranking;
 
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.RawMetrics;
+import com.roboleague.tournament.CategoryId;
+import com.roboleague.tournament.EditionId;
+import com.roboleague.tournament.TeamId;
 
 import java.util.Collections;
 import java.util.Comparator;
@@ -23,7 +26,7 @@ public record TeamScore(
         evaluatedAttempts = evaluatedAttempts != null ? Collections.unmodifiableList(evaluatedAttempts) : Collections.emptyList();
     }
 
-    public String teamId() {
+    public TeamId teamId() {
         return header.team().teamId();
     }
 
@@ -31,11 +34,11 @@ public record TeamScore(
         return header.team().teamName();
     }
 
-    public String categoryId() {
+    public CategoryId categoryId() {
         return header.context().categoryId();
     }
 
-    public String editionId() {
+    public EditionId editionId() {
         return header.context().editionId();
     }
 
@@ -64,7 +67,7 @@ public record TeamScore(
         return new TeamScore(header, performance, evaluatedAttempts);
     }
 
-    public static TeamScore of(String teamId, String teamName, String categoryId, String editionId,
+    public static TeamScore of(TeamId teamId, String teamName, CategoryId categoryId, EditionId editionId,
                                PerformanceSummary performance, List<Attempt> evaluatedAttempts) {
         return new TeamScore(
                 TeamEntryHeader.of(teamId, teamName, categoryId, editionId),
@@ -77,7 +80,7 @@ public record TeamScore(
      * Scores the team with its best attempt that counts. Attempts not scored yet or disqualified do not count, so a
      * team without one that counts scores nothing.
      */
-    public static TeamScore fromBestAttempt(String teamId, String teamName, String categoryId, String editionId, List<Attempt> attempts) {
+    public static TeamScore fromBestAttempt(TeamId teamId, String teamName, CategoryId categoryId, EditionId editionId, List<Attempt> attempts) {
         List<Attempt> candidates = attempts != null ? attempts : List.of();
         Optional<Attempt> countedAttempt = candidates.stream()
                 .filter(a -> a.countableScore().isPresent())

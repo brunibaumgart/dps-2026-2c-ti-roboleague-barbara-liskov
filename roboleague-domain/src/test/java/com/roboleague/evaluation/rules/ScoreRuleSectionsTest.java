@@ -4,6 +4,7 @@ import com.roboleague.evaluation.EvaluationFeedback;
 import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.TrackPerformance;
+import com.roboleague.scheduling.JudgeId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Named;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -39,7 +40,7 @@ class ScoreRuleSectionsTest {
 
     private static RawMetrics run(TrackPerformance performance, double consumption, double judgeScore,
                                   Map<String, Double> measurements) {
-        return new RawMetrics(performance, EvaluationFeedback.of(consumption, Map.of("j1", judgeScore), measurements));
+        return new RawMetrics(performance, EvaluationFeedback.of(consumption, Map.of(JudgeId.of("j1"), judgeScore), measurements));
     }
 
     private static Stream<Arguments> inEveryRun(List<? extends Named<? extends ScoreRule>> rules) {

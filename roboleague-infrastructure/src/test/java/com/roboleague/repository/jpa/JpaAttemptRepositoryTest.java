@@ -2,8 +2,8 @@ package com.roboleague.repository.jpa;
 
 import com.roboleague.PostgresContainer;
 import com.roboleague.evaluation.AppealRevision;
-import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.Attempt.AttemptStatus;
+import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.AttemptIdentity;
 import com.roboleague.evaluation.AttemptStage;
@@ -32,6 +32,13 @@ import com.roboleague.evaluation.rules.VictimsRule;
 import com.roboleague.evaluation.scheme.AllRounds;
 import com.roboleague.evaluation.scheme.HigherTotal;
 import com.roboleague.evaluation.scheme.RankingScheme;
+import com.roboleague.ranking.appeal.AppealId;
+import com.roboleague.scheduling.JudgeId;
+import com.roboleague.scheduling.RoundId;
+import com.roboleague.scheduling.SlotId;
+import com.roboleague.support.ActorId;
+import com.roboleague.tournament.ChallengeId;
+import com.roboleague.tournament.TeamId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +53,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.util.List;
 import java.util.Map;
 
+import static com.roboleague.support.TestValues.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -63,12 +71,15 @@ class JpaAttemptRepositoryTest {
                     List.of(new PenaltyRule("Faltas", 10.0))),
             new CappedAt(10.0)), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
     private static final SourceDelivery SENSORS = new SourceDelivery(
-            new Measurements(new TrackPerformance(90.0, 4, 1), 12.5, Map.of()), "j-1");
+            new Measurements(new TrackPerformance(90.0, 4, 1), 12.5, Map.of()), JudgeId.of("j-1"));
     private static final SourceDelivery PANEL = new SourceDelivery(
-            new JudgeScores(Map.of("j-1", 8.0, "j-2", 6.0), Map.of(RESCUED.name(), 2.0)), "j-2");
+            new JudgeScores(Map.of(JudgeId.of("j-1"), 8.0, JudgeId.of("j-2"), 6.0), Map.of(RESCUED.name(), 2.0)), JudgeId.of("j-2"));
 
     @Autowired
     private JpaAttemptRepository repository;
+
+    @Autowired
+    private jakarta.persistence.EntityManager entityManager;
 
     @Autowired
     private PlatformTransactionManager transactionManager;
@@ -78,14 +89,14 @@ class JpaAttemptRepositoryTest {
     @DisplayName("Two sources saved over the same stored attempt: the second save is refused instead of losing the first")
     void givenTwoCopiesOfTheSameAttemptThenTheSecondSaveIsRefused() {
         Attempt awaiting = attempt("slot-race-1", "r-race", "t-race");
-        awaiting.receive(SENSORS, RESCUE);
+        awaiting.receive(SENSORS, RESCUE, audit());
         repository.save(awaiting);
         Attempt first = repository.findById(awaiting.getId()).orElseThrow();
         Attempt second = repository.findById(awaiting.getId()).orElseThrow();
 
-        first.receive(PANEL, RESCUE);
+        first.receive(PANEL, RESCUE, audit());
         repository.save(first);
-        second.receive(PANEL, RESCUE);
+        second.receive(PANEL, RESCUE, audit());
 
         assertThatThrownBy(() -> repository.save(second))
                 .isInstanceOf(IllegalStateException.class)
@@ -98,9 +109,9 @@ class JpaAttemptRepositoryTest {
     @DisplayName("Two first sources creating the same attempt: the second one is refused instead of overwriting it")
     void givenTwoNewAttemptsForTheSameTurnThenTheSecondSaveIsRefused() {
         Attempt bySensors = attempt("slot-race-2", "r-race", "t-race");
-        bySensors.receive(SENSORS, RESCUE);
+        bySensors.receive(SENSORS, RESCUE, audit());
         Attempt byPanel = attempt("slot-race-2", "r-race", "t-race");
-        byPanel.receive(PANEL, RESCUE);
+        byPanel.receive(PANEL, RESCUE, audit());
 
         repository.save(bySensors);
 
@@ -114,14 +125,14 @@ class JpaAttemptRepositoryTest {
     void givenSavesInsideTransactionsThenTheRememberedVersionStaysCurrent() {
         TransactionTemplate useCase = new TransactionTemplate(transactionManager);
         repository.save(attempt("slot-race-4", "r-race", "t-race"));
-        Attempt loaded = repository.findById(AttemptId.of("slot-race-4", 1)).orElseThrow();
+        Attempt loaded = repository.findById(AttemptId.of(SlotId.of("slot-race-4"), 1)).orElseThrow();
 
         useCase.executeWithoutResult(status -> {
-            loaded.receive(SENSORS, RESCUE);
+            loaded.receive(SENSORS, RESCUE, audit());
             repository.save(loaded);
         });
         useCase.executeWithoutResult(status -> {
-            loaded.receive(PANEL, RESCUE);
+            loaded.receive(PANEL, RESCUE, audit());
             repository.save(loaded);
         });
 
@@ -133,10 +144,10 @@ class JpaAttemptRepositoryTest {
     @DisplayName("The same loaded attempt can be saved again after each change")
     void givenOneCopyThenItCanBeSavedAfterEachChange() {
         Attempt attempt = attempt("slot-race-3", "r-race", "t-race");
-        attempt.receive(SENSORS, RESCUE);
+        attempt.receive(SENSORS, RESCUE, audit());
         repository.save(attempt);
 
-        attempt.receive(PANEL, RESCUE);
+        attempt.receive(PANEL, RESCUE, audit());
         repository.save(attempt);
 
         assertThat(repository.findById(attempt.getId()).orElseThrow().getStatus()).isEqualTo(AttemptStatus.EVALUATED);
@@ -146,15 +157,15 @@ class JpaAttemptRepositoryTest {
     @DisplayName("An attempt awaiting the judge panel comes back with what the sensors sent and still takes the panel")
     void awaitingAttemptRoundTrip() {
         Attempt attempt = attempt("slot-1", "r-1", "t-1");
-        attempt.receive(SENSORS, RESCUE);
+        attempt.receive(SENSORS, RESCUE, audit());
 
         repository.save(attempt);
         Attempt stored = repository.findById(attempt.getId()).orElseThrow();
 
         assertThat(stored.getStatus()).isEqualTo(AttemptStatus.AWAITING_SOURCES);
         assertThat(stored.getDeliveries()).containsExactly(SENSORS);
-        assertThat(stored.getRulebookReference()).isEqualTo(new RulebookReference("ch-rescue", RulebookVersion.first()));
-        stored.receive(PANEL, RESCUE);
+        assertThat(stored.getRulebookReference()).isEqualTo(new RulebookReference(ChallengeId.of("ch-rescue"), RulebookVersion.first()));
+        stored.receive(PANEL, RESCUE, audit());
         // 4 zones => 60; 2 victims => 50; judges 7 * 5 => 35; bonus 20 capped at 10; 1 fault => -10
         assertThat(stored.getFinalScore()).isEqualTo(145.0);
     }
@@ -163,13 +174,13 @@ class JpaAttemptRepositoryTest {
     @DisplayName("An adjusted attempt with appeals open keeps every revision, event and the appeals it counts")
     void appealedAttemptRoundTrip() {
         Attempt attempt = attempt("slot-2", "r-1", "t-1");
-        attempt.receive(SENSORS, RESCUE);
-        attempt.receive(PANEL, RESCUE);
-        attempt.applyPenaltyAdjustment(1, new AuditNote("j-2", "Falta vista en video"), RESCUE);
+        attempt.receive(SENSORS, RESCUE, audit());
+        attempt.receive(PANEL, RESCUE, audit());
+        attempt.applyPenaltyAdjustment(1, new AuditNote(ActorId.of("j-2"), "Falta vista en video"), RESCUE, audit());
         attempt.markUnderAppeal();
         attempt.markUnderAppeal();
-        attempt.adjustAfterAppeal(new AppealRevision("app-1", attempt.getLatestMetrics().withPenalties(0),
-                new AuditNote("arb-1", "Las faltas no existieron")), RESCUE);
+        attempt.adjustAfterAppeal(new AppealRevision(AppealId.of("app-1"), attempt.getLatestMetrics().withPenalties(0),
+                new AuditNote(ActorId.of("arb-1"), "Las faltas no existieron")), RESCUE, audit());
 
         repository.save(attempt);
         Attempt stored = repository.findById(attempt.getId()).orElseThrow();
@@ -188,9 +199,9 @@ class JpaAttemptRepositoryTest {
     @DisplayName("A disqualified attempt comes back disqualified, with no score that counts")
     void disqualifiedAttemptRoundTrip() {
         Attempt attempt = attempt("slot-3", "r-1", "t-1");
-        attempt.receive(SENSORS, RESCUE);
-        attempt.receive(PANEL, RESCUE);
-        attempt.disqualify("Robot fuera de pista", "j-1");
+        attempt.receive(SENSORS, RESCUE, audit());
+        attempt.receive(PANEL, RESCUE, audit());
+        attempt.disqualify("Robot fuera de pista", JudgeId.of("j-1"), audit());
 
         repository.save(attempt);
         Attempt stored = repository.findById(attempt.getId()).orElseThrow();
@@ -208,15 +219,48 @@ class JpaAttemptRepositoryTest {
         repository.save(attempt("slot-5", "r-find-1", "t-find-b"));
         repository.save(attempt("slot-6", "r-find-2", "t-find-a"));
 
-        assertThat(repository.findByTeamId("t-find-a")).extracting(stored -> stored.getId().slotId())
+        assertThat(repository.findByTeamId(TeamId.of("t-find-a"))).extracting(stored -> stored.getId().slotId().value())
                 .containsExactlyInAnyOrder("slot-4", "slot-6");
-        assertThat(repository.findByRoundId("r-find-1")).extracting(stored -> stored.getId().slotId())
+        assertThat(repository.findByRoundId(RoundId.of("r-find-1"))).extracting(stored -> stored.getId().slotId().value())
                 .containsExactlyInAnyOrder("slot-4", "slot-5");
-        assertThat(repository.findById(AttemptId.of("slot-unknown", 1))).isEmpty();
+        assertThat(repository.findById(AttemptId.of(SlotId.of("slot-unknown"), 1))).isEmpty();
+    }
+
+    @Test
+    void readsHistoricalTextualIdsAndWritesTheSameKeys() {
+        entityManager.createNativeQuery("""
+                INSERT INTO attempts (id, slot_id, attempt_number, round_id, team_id, challenge_id,
+                                      rulebook_version, status, open_appeals, history, version)
+                VALUES ('legacy-slot-with-dashes-2', 'legacy-slot-with-dashes', 2, 'Legacy Round',
+                        'Legacy Team', 'Legacy Challenge', 1, 'SCHEDULED', 0,
+                        '{"deliveries":[],"revisions":[],"events":[]}', 0)
+                """).executeUpdate();
+        entityManager.clear();
+
+        AttemptId id = AttemptId.parse("legacy-slot-with-dashes-2");
+        Attempt historical = repository.findById(id).orElseThrow();
+        assertThat(historical.getSlotId()).isEqualTo(SlotId.of("legacy-slot-with-dashes"));
+        assertThat(historical.getRoundId()).isEqualTo(RoundId.of("Legacy Round"));
+        assertThat(historical.getTeamId()).isEqualTo(TeamId.of("Legacy Team"));
+        assertThat(historical.getRulebookReference().challengeId()).isEqualTo(ChallengeId.of("Legacy Challenge"));
+        assertThat(repository.findByTeamId(TeamId.of("Legacy Team"))).extracting(Attempt::getId).containsExactly(id);
+        assertThat(repository.findByRoundId(RoundId.of("Legacy Round"))).extracting(Attempt::getId).containsExactly(id);
+
+        historical.receive(SENSORS, RESCUE, audit());
+        repository.save(historical);
+        entityManager.clear();
+        Object[] stored = (Object[]) entityManager.createNativeQuery("""
+                SELECT id, slot_id, round_id, team_id, challenge_id,
+                       history -> 'deliveries' -> 0 ->> 'judgeId'
+                  FROM attempts WHERE id = 'legacy-slot-with-dashes-2'
+                """).getSingleResult();
+        assertThat(stored).containsExactly("legacy-slot-with-dashes-2", "legacy-slot-with-dashes",
+                "Legacy Round", "Legacy Team", "Legacy Challenge", "j-1");
+        assertThat(repository.findById(id).orElseThrow().getDeliveries()).containsExactly(SENSORS);
     }
 
     private static Attempt attempt(String slotId, String roundId, String teamId) {
-        return Attempt.of(new AttemptIdentity(AttemptId.of(slotId, 1), roundId, teamId),
-                RulebookReference.of("ch-rescue", RESCUE));
+        return Attempt.of(new AttemptIdentity(AttemptId.of(SlotId.of(slotId), 1), RoundId.of(roundId), TeamId.of(teamId)),
+                RulebookReference.of(ChallengeId.of("ch-rescue"), RESCUE));
     }
 }

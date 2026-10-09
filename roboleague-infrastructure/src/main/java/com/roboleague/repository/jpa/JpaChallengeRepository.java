@@ -4,8 +4,10 @@ import com.roboleague.evaluation.RuleCatalog;
 import com.roboleague.repository.ChallengeRepository;
 import com.roboleague.tournament.Challenge;
 import com.roboleague.tournament.ChallengeId;
+import com.roboleague.tournament.EditionId;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -30,5 +32,9 @@ public class JpaChallengeRepository implements ChallengeRepository {
     @Override
     public Optional<Challenge> findById(ChallengeId id) {
         return jpa.findById(id.value()).map(mapper::toDomain);
+    }
+    @Override
+    public List<Challenge> findByEditionId(EditionId editionId) {
+        return jpa.findByEditionIdOrderByIdAsc(editionId.value()).stream().map(mapper::toDomain).toList();
     }
 }

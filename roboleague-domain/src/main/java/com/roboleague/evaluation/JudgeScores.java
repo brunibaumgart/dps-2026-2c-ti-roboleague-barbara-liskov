@@ -1,5 +1,7 @@
 package com.roboleague.evaluation;
 
+import com.roboleague.scheduling.JudgeId;
+
 import java.util.Map;
 import java.util.Objects;
 
@@ -7,7 +9,7 @@ import java.util.Objects;
  * What the judge panel sent for an attempt: each judge's score and the named measurements the judges count,
  * such as rescued victims.
  */
-public record JudgeScores(Map<String, Double> byJudge, Map<String, Double> named) implements SourceReport {
+public record JudgeScores(Map<JudgeId, Double> byJudge, Map<String, Double> named) implements SourceReport {
 
     public JudgeScores {
         Objects.requireNonNull(byJudge, "judge scores cannot be null");

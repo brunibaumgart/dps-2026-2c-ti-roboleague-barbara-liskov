@@ -1,6 +1,7 @@
 package com.roboleague.api.demo;
 
 import com.roboleague.repository.RankingRepository;
+import com.roboleague.support.Clock;
 import com.roboleague.usecase.AddChallengeUseCase;
 import com.roboleague.usecase.CreateEditionUseCase;
 import com.roboleague.usecase.FileAppealUseCase;
@@ -38,9 +39,9 @@ class DemoConfig {
                             RegisterTeamUseCase registerTeam, ScheduleRoundUseCase scheduleRound,
                             ReceiveResultUseCase receiveResult, RecalculateRankingUseCase recalculateRanking,
                             FileAppealUseCase fileAppeal, ReviewAppealUseCase reviewAppeal,
-                            ResolveAppealUseCase resolveAppeal, PublishOfficialRankingUseCase publishRanking) {
+                            ResolveAppealUseCase resolveAppeal, PublishOfficialRankingUseCase publishRanking, Clock clock) {
         return new DemoFixture(rankings, new DemoFixture.DemoUseCases(
                 createEdition, addChallenge, publishRulebook, registerTeam, scheduleRound, receiveResult, recalculateRanking,
-                fileAppeal, reviewAppeal, resolveAppeal, publishRanking));
+                fileAppeal, reviewAppeal, resolveAppeal, publishRanking), clock);
     }
 }

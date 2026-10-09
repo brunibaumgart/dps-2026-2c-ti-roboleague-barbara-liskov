@@ -11,7 +11,7 @@ record AppealDto(String id, String attemptId, String teamId, String reason, Stri
                  String reviewerId, LocalDateTime submittedAt) {
 
     static AppealDto from(Appeal appeal) {
-        return new AppealDto(appeal.getAppealId(), appeal.getAttemptId(), appeal.getTeamId(), appeal.getReason(),
-                appeal.getStatusName(), appeal.getReviewerId(), appeal.getSubmittedAt());
+        return new AppealDto(appeal.getAppealId().value(), appeal.getAttemptId().value(), appeal.getTeamId().value(), appeal.getReason(),
+                appeal.getStatusName(), appeal.getReviewerId() == null ? null : appeal.getReviewerId().value(), appeal.getSubmittedAt());
     }
 }

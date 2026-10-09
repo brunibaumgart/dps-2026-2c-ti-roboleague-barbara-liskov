@@ -12,17 +12,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class EditionTest {
 
-    private final Edition edition = new Edition(
+    private Edition edition = new Edition(
             new EditionContext(Tournament.of("t-1", "RoboLeague", new Season("s-2026", 2026, "Temporada 2026")),
-                    new EditionHeader("ed-2026", "RoboLeague 2026", 1)),
+                    new EditionHeader(EditionId.of("ed-2026"), "RoboLeague 2026", 1)),
             new DateRange(LocalDate.of(2026, 11, 10), LocalDate.of(2026, 11, 12)));
 
     @Test
     @DisplayName("Una edición no ofrece dos categorías con el mismo id")
     void givenAnOfferedCategoryIdThenAnotherCategoryWithItIsRejected() {
-        edition.addCategory(Category.of("cat-junior", "Junior", 2, 4, 12, 17, 2500.0));
+        edition = edition.addCategory(Category.of(CategoryId.of("cat-junior"), "Junior", 2, 4, 12, 17, 2500.0));
 
-        assertThatThrownBy(() -> edition.addCategory(Category.of("cat-junior", "Junior libre", 1, 9, 5, 90, 9000.0)))
+        assertThatThrownBy(() -> edition.addCategory(Category.of(CategoryId.of("cat-junior"), "Junior libre", 1, 9, 5, 90, 9000.0)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Category already offered in this edition: cat-junior");
         assertThat(edition.getCategories()).extracting(Category::name).containsExactly("Junior");
@@ -32,7 +32,7 @@ class EditionTest {
     @CsvSource({"'  ', RoboLeague 2026, edition id cannot be blank", "ed-2026, '  ', edition name cannot be blank"})
     @DisplayName("Una edición no acepta id ni nombre en blanco")
     void givenABlankEditionIdOrNameThenItIsRejected(String id, String name, String problem) {
-        assertThatThrownBy(() -> new EditionHeader(id, name, 1))
+        assertThatThrownBy(() -> new EditionHeader(EditionId.of(id), name, 1))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage(problem);
     }
@@ -41,7 +41,7 @@ class EditionTest {
     @CsvSource({"'  ', Junior, category id cannot be blank", "cat-junior, '  ', category name cannot be blank"})
     @DisplayName("Una categoría no acepta id ni nombre en blanco")
     void givenABlankCategoryIdOrNameThenItIsRejected(String id, String name, String problem) {
-        assertThatThrownBy(() -> Category.of(id, name, 2, 4, 12, 17, 2500.0))
+        assertThatThrownBy(() -> Category.of(CategoryId.of(id), name, 2, 4, 12, 17, 2500.0))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage(problem);
     }

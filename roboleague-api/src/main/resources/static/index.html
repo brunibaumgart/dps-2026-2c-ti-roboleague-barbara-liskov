@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="color-scheme" content="light">
+  <title>RoboLeague · Gestión de competencia</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/js/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#workspace">Ir al contenido</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <button id="menu-toggle" type="button" class="menu-toggle" aria-expanded="false" aria-controls="secondary-menu" aria-label="Abrir menú de competencia"><span class="hamburger" aria-hidden="true"><span></span><span></span><span></span></span></button>
+      <a class="brand" href="/" aria-label="RoboLeague, inicio"><span class="brand-mark">RL</span><span>RoboLeague<small>Gestión de competencia</small></span></a>
+      <nav class="primary-navigation" aria-label="Navegación principal">
+        <button type="button" data-view="registration" aria-current="page">Equipos</button>
+        <button type="button" data-view="scheduling">Rondas y turnos</button>
+        <button type="button" data-view="results">Resultados</button>
+      </nav>
+      <button id="refresh" type="button" class="header-action">Recargar datos</button>
+    </div>
+  </header>
+  <div class="app-shell">
+    <aside id="secondary-menu" class="sidebar" aria-labelledby="menu-title" hidden>
+      <h2 id="menu-title" class="drawer-title">Competencia</h2>
+      <p class="drawer-description">Consultas y seguimiento</p>
+      <nav aria-label="Navegación complementaria">
+        <button type="button" data-view="breakdown">Desglose e historial</button>
+        <button type="button" data-view="appeals">Apelaciones</button>
+        <button type="button" data-view="standings">Tabla de posiciones</button>
+      </nav>
+      <div class="sidebar-note"><strong>Todo sobre la competencia.</strong><p>Consultá puntajes, revisiones y posiciones.</p></div>
+    </aside>
+    <main>
+      <header class="page-header"><div><p class="eyebrow">PANEL DE ORGANIZACIÓN</p><h1 id="page-title">Equipos</h1><p id="page-description">Inscripciones y datos de los equipos participantes.</p></div></header>
+      <section class="context-bar" aria-label="Selección de competencia">
+        <label for="edition">Edición<select id="edition" disabled><option>Cargando ediciones…</option></select></label>
+        <label for="challenge">Desafío<select id="challenge" disabled><option>Elegí una edición</option></select></label>
+        <label for="category">Categoría<select id="category" disabled><option>Elegí una edición</option></select></label>
+      </section>
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+      <section id="workspace" tabindex="-1" aria-labelledby="page-title" aria-busy="true"><p class="empty">Cargando la competencia…</p></section>
+      <footer>Los equipos, las inscripciones y las rondas se conservan durante esta ejecución. Se pierden al reiniciar el servidor.</footer>
+    </main>
+  </div>
+  <noscript><p class="notice">Activá JavaScript para usar los formularios de RoboLeague.</p></noscript>
+</body>
+</html>

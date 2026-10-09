@@ -1,5 +1,9 @@
 package com.roboleague.ranking;
 
+import com.roboleague.tournament.CategoryId;
+import com.roboleague.tournament.EditionId;
+import com.roboleague.tournament.TeamId;
+
 import java.util.Objects;
 
 /**
@@ -15,7 +19,7 @@ public record TeamEntryHeader(TeamIdentity team, CompetitionContext context) {
         return new TeamEntryHeader(team, context);
     }
 
-    public static TeamEntryHeader of(String teamId, String teamName, String categoryId, String editionId) {
+    public static TeamEntryHeader of(TeamId teamId, String teamName, CategoryId categoryId, EditionId editionId) {
         return new TeamEntryHeader(
                 new TeamIdentity(teamId, teamName),
                 new CompetitionContext(categoryId, editionId)

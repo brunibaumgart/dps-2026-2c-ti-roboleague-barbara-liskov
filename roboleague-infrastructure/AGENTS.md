@@ -4,15 +4,30 @@ Leer también `../AGENTS.md`. Adaptadores en
 `src/main/java/com/roboleague/repository/{jpa,memory}`; puertos en domain.
 No depender de application o API.
 
+Los adaptadores de soporte `SystemClock` y `UuidGenerator` viven en
+`com.roboleague.support`. El primero requiere zona explícita; ambos implementan
+puertos de domain y se registran en la configuración API, sin acoplar el núcleo
+a sus implementaciones.
+
 ## Estado actual y convenciones
 
 - Postgres persiste `Appeal`, `Challenge` y `Attempt`; hay adaptadores en memoria
   para los siete puertos. La API selecciona cuáles usar.
+- Respetar el contrato observable de cada puerto: identidad, resultado de
+  búsquedas, errores y efectos de guardar. Las consultas no deben efectuar
+  transiciones de negocio ni escrituras inesperadas. Documentar diferencias de
+  concurrencia, durabilidad y rollback frente al adaptador en memoria; no exigir
+  equivalencia transaccional que este no implementa. Cubrir los comportamientos
+  compartidos del contrato y las garantías particulares del adaptador.
 - Mantener entidad JPA propia, interfaz `SpringDataXxx`, mapper en ambos sentidos
   y `JpaXxxRepository implements XxxRepository`. Entidades y detalles de JSON
   quedan dentro del adaptador; no anotar agregados con JPA/Jackson.
 - Rehidratar con `restore(...)`. Conservar estado, ids, tiempos, métricas,
   entregas, revisiones y eventos originales sin recrear acciones de negocio.
+- ChallengeRepository.findByEditionId filtra por edición y ordena por ChallengeId
+  tanto en memory como en JPA. SpringDataChallenges hace la consulta por edition_id;
+  el mapper preserva todos los reglamentos, igual que en findById. Consultar una
+  edición inexistente es validación de application, no del adaptador.
 - `ChallengeMapper` guarda definiciones y reconstruye con `RuleCatalog`.
   Un reglamento persistido inválido es un error; no omitirlo ni sustituirlo por
   un reglamento por defecto. Preservar todas sus versiones.
@@ -21,6 +36,35 @@ No depender de application o API.
 - `JpaAttemptRepository` conserva la versión leída fuera del agregado y usa
   `saveAndFlush` con control optimista. Preservar rechazo de escrituras obsoletas
   y creaciones concurrentes del mismo intento; no convertirlas en sobrescrituras.
+
+## Team, Edition y Registration (memoria)
+
+TeamRepository es canónico y ya no consulta categoría: pertenece a Registration.
+EditionRepository.findByTeamId busca ediciones con esa relación; guardar una
+nueva versión inmutable reemplaza el snapshot del mismo id. Un getter no permite
+modificar el objeto guardado. Esto evita aliases y cambios parciales por
+validación, sin agregar garantías transaccionales ni de concurrencia.
+
+Para los futuros mappers de frente 5: Edition.restore recibe context, fechas,
+categorías e inscripciones completas; conservar TeamId/EditionId/CategoryId,
+referenceDate y registeredAt. La clave de inscripción es edición/equipo. Team
+se reconstruye con profile, robot, members y documentation; no lleva categoría
+ni fecha de inscripción. Documentation.restore conserva documentos y metadatos
+sin repetir verify. No replay de inscripción ni consulta del reloj al leer.
+
+## Round y Slot (memoria)
+
+RoundRepository guarda el agregado completo e incluye findById, findByScope,
+findByChallengeId, findAll y findBySlotId. InMemoryRoundRepository reemplaza el
+snapshot del mismo RoundId sin duplicar slots y rechaza scopes o SlotIds usados
+por otra ronda. Estas validaciones son secuenciales: ConcurrentHashMap no hace
+atómica una programación completa ni evita dos escritores concurrentes.
+
+Para frente 5: usar Round.restore y Slot.restore con scope, estados y slots
+completos. Conservar Slot.trackInterval además de ventana, pista y jueces: la
+pausa afecta ocupaciones de otras rondas. Definir restricciones únicas de scope
+(desafío/categoría/número) y SlotId global, y coordinación de recursos entre
+programaciones concurrentes. No crear un repositorio de Slot independiente.
 
 ## Esquema y selección de adaptadores
 

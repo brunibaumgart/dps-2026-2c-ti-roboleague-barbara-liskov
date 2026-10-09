@@ -30,6 +30,7 @@ import com.roboleague.evaluation.scheme.LowerTime;
 import com.roboleague.evaluation.scheme.RankingScheme;
 import com.roboleague.tournament.Challenge;
 import com.roboleague.tournament.ChallengeId;
+import com.roboleague.tournament.EditionId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +49,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({PostgresContainer.class, JpaChallengeRepository.class, JpaChallengeRepositoryTest.Catalog.class})
 class JpaChallengeRepositoryTest {
+
+    @Test
+    void listsOnlyChallengesOfTheRequestedEditionInStableOrder() {
+        for (String id : List.of("ch-filter-b", "ch-filter-a")) {
+            repository.save(Challenge.draft(ChallengeId.of(id), EditionId.of("ed-filter"), id)
+                    .publish(mazeScoring(40), BEST_THREE_OF_FIVE));
+        }
+        repository.save(mazeWithTwoVersions("ch-filter-foreign"));
+        assertThat(repository.findByEditionId(EditionId.of("ed-filter")))
+                .extracting(challenge -> challenge.getId().value()).containsExactly("ch-filter-a", "ch-filter-b");
+        assertThat(repository.findByEditionId(EditionId.of("ed-filter-empty"))).isEmpty();
+    }
 
     @TestConfiguration(proxyBeanMethods = false)
     static class Catalog {
@@ -83,7 +96,7 @@ class JpaChallengeRepositoryTest {
     }
 
     private Challenge mazeWithTwoVersions(String id) {
-        Challenge maze = Challenge.draft(ChallengeId.of(id), "ed-2026", "Laberinto")
+        Challenge maze = Challenge.draft(ChallengeId.of(id), EditionId.of("ed-2026"), "Laberinto")
                 .publish(mazeScoring(40.0), BEST_THREE_OF_FIVE);
         maze.publish(mazeScoring(20.0), BEST_THREE_OF_FIVE);
         return maze;
@@ -97,7 +110,7 @@ class JpaChallengeRepositoryTest {
         repository.save(maze);
         Challenge stored = repository.findById(ChallengeId.of("ch-repo-1")).orElseThrow();
 
-        assertThat(stored.getEditionId()).isEqualTo("ed-2026");
+        assertThat(stored.getEditionId()).isEqualTo(EditionId.of("ed-2026"));
         assertThat(stored.getName()).isEqualTo("Laberinto");
         assertThat(stored.currentRulebook().version()).isEqualTo(new RulebookVersion(2));
         assertThat(stored.rulebook(RulebookVersion.first()).orElseThrow().definition())

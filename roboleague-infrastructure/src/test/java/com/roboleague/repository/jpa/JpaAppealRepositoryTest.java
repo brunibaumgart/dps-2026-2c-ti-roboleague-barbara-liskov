@@ -1,8 +1,13 @@
 package com.roboleague.repository.jpa;
 
 import com.roboleague.PostgresContainer;
+import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.ranking.appeal.Appeal;
+import com.roboleague.ranking.appeal.AppealId;
+import com.roboleague.scheduling.JudgeId;
+import com.roboleague.support.ActorId;
+import com.roboleague.tournament.TeamId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +18,7 @@ import org.springframework.context.annotation.Import;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
+import static com.roboleague.support.TestValues.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
@@ -27,13 +33,13 @@ class JpaAppealRepositoryTest {
     @Test
     @DisplayName("A pending appeal comes back from Postgres with its claim and state")
     void pendingAppealRoundTrip() {
-        Appeal appeal = Appeal.of("app-1", "att-1", "team-1", "Error en medicion de tiempo", "Video de camara 2");
+        Appeal appeal = Appeal.of(AppealId.of("app-1"), AttemptId.parse("att-1"), TeamId.of("team-1"), "Error en medicion de tiempo", "Video de camara 2", TIME);
 
         repository.save(appeal);
-        Appeal stored = repository.findById("app-1").orElseThrow();
+        Appeal stored = repository.findById(AppealId.of("app-1")).orElseThrow();
 
-        assertThat(stored.getAttemptId()).isEqualTo("att-1");
-        assertThat(stored.getTeamId()).isEqualTo("team-1");
+        assertThat(stored.getAttemptId()).isEqualTo(AttemptId.parse("att-1"));
+        assertThat(stored.getTeamId()).isEqualTo(TeamId.of("team-1"));
         assertThat(stored.getReason()).isEqualTo("Error en medicion de tiempo");
         assertThat(stored.getEvidenceDescription()).isEqualTo("Video de camara 2");
         assertThat(stored.getStatusName()).isEqualTo("PENDING");
@@ -44,16 +50,16 @@ class JpaAppealRepositoryTest {
     @Test
     @DisplayName("An accepted appeal keeps its revised metrics and resolution")
     void acceptedAppealRoundTrip() {
-        Appeal appeal = Appeal.of("app-2", "att-2", "team-2", "Penalizacion inexistente", "Video pista");
-        appeal.beginReview("arb-1");
-        RawMetrics revised = RawMetrics.of(45.0, 5, 0, Map.of("diseño", 8.5));
-        appeal.accept("Penalizaciones corregidas", revised, "arb-1");
+        Appeal appeal = Appeal.of(AppealId.of("app-2"), AttemptId.parse("att-2"), TeamId.of("team-2"), "Penalizacion inexistente", "Video pista", TIME);
+        appeal.beginReview(ActorId.of("arb-1"));
+        RawMetrics revised = RawMetrics.of(45.0, 5, 0, Map.of(JudgeId.of("diseño"), 8.5));
+        appeal.accept("Penalizaciones corregidas", revised, ActorId.of("arb-1"), TIME);
 
         repository.save(appeal);
-        Appeal stored = repository.findById("app-2").orElseThrow();
+        Appeal stored = repository.findById(AppealId.of("app-2")).orElseThrow();
 
         assertThat(stored.isAccepted()).isTrue();
-        assertThat(stored.getReviewerId()).isEqualTo("arb-1");
+        assertThat(stored.getReviewerId()).isEqualTo(ActorId.of("arb-1"));
         assertThat(stored.getResolutionNotes()).isEqualTo("Penalizaciones corregidas");
         assertThat(stored.getRevisedMetrics()).isEqualTo(revised);
         assertThat(stored.getResolvedAt()).isCloseTo(appeal.getResolvedAt(), within(1, ChronoUnit.MICROS));
@@ -62,29 +68,29 @@ class JpaAppealRepositoryTest {
     @Test
     @DisplayName("A restored appeal keeps enforcing its state machine")
     void restoredAppealKeepsItsBehaviour() {
-        Appeal appeal = Appeal.of("app-3", "att-3", "team-3", "Falta no cometida", "");
-        appeal.beginReview("arb-1");
+        Appeal appeal = Appeal.of(AppealId.of("app-3"), AttemptId.parse("att-3"), TeamId.of("team-3"), "Falta no cometida", "", TIME);
+        appeal.beginReview(ActorId.of("arb-1"));
         repository.save(appeal);
 
-        Appeal stored = repository.findById("app-3").orElseThrow();
-        stored.reject("Las grabaciones confirman la falta", "arb-1");
+        Appeal stored = repository.findById(AppealId.of("app-3")).orElseThrow();
+        stored.reject("Las grabaciones confirman la falta", ActorId.of("arb-1"), TIME);
         repository.save(stored);
 
-        assertThat(repository.findById("app-3").orElseThrow().isRejected()).isTrue();
+        assertThat(repository.findById(AppealId.of("app-3")).orElseThrow().isRejected()).isTrue();
     }
 
     @Test
     @DisplayName("Appeals can be found by attempt and by pending state")
     void queries() {
-        Appeal pending = Appeal.of("app-4", "att-4", "team-4", "Motivo", "");
-        Appeal underReview = Appeal.of("app-5", "att-4", "team-4", "Otro motivo", "");
-        underReview.beginReview("arb-1");
+        Appeal pending = Appeal.of(AppealId.of("app-4"), AttemptId.parse("att-4"), TeamId.of("team-4"), "Motivo", "", TIME);
+        Appeal underReview = Appeal.of(AppealId.of("app-5"), AttemptId.parse("att-4"), TeamId.of("team-4"), "Otro motivo", "", TIME);
+        underReview.beginReview(ActorId.of("arb-1"));
         repository.save(pending);
         repository.save(underReview);
 
-        assertThat(repository.findByAttemptId("att-4")).extracting(Appeal::getAppealId)
+        assertThat(repository.findByAttemptId(AttemptId.parse("att-4"))).extracting(a -> a.getAppealId().value())
                 .containsExactlyInAnyOrder("app-4", "app-5");
-        assertThat(repository.findPendingAppeals()).extracting(Appeal::getAppealId)
+        assertThat(repository.findPendingAppeals()).extracting(a -> a.getAppealId().value())
                 .containsExactly("app-4");
     }
 }

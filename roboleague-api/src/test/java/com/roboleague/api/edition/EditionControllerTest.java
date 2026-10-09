@@ -36,6 +36,16 @@ class EditionControllerTest extends ApiTest {
         return post("/editions").contentType(MediaType.APPLICATION_JSON).content(body);
     }
 
+    @Test
+    void acceptsCategoryWithoutAnUpperAgeLimit() throws Exception {
+        var category = CATEGORY.replace("\"minAge\": 12", "\"minAge\": 13")
+                .replace("\"maxAge\": 17, ", "");
+        mvc.perform(create(edition("api-ed-open-age", TOURNAMENT, category)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.categoryDetails[0].minAge").value(13))
+                .andExpect(jsonPath("$.categoryDetails[0].maxAge").isEmpty());
+    }
+
     @ParameterizedTest(name = "{0}")
     @MethodSource("editionsMissingARequiredField")
     @DisplayName("Una edición sin un dato obligatorio es un pedido inválido, no un error del servidor")

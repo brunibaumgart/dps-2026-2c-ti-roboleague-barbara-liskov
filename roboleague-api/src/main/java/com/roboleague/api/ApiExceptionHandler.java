@@ -1,6 +1,6 @@
 package com.roboleague.api;
 
-import com.roboleague.usecase.TeamIneligibleException;
+import com.roboleague.tournament.eligibility.TeamIneligibleException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;

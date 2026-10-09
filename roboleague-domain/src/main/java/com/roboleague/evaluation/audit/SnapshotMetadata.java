@@ -1,5 +1,7 @@
 package com.roboleague.evaluation.audit;
 
+import com.roboleague.support.ActorId;
+
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -20,7 +22,7 @@ public record SnapshotMetadata(SnapshotIdentity identity, AuditAuthor author) {
         return identity.revisionNumber();
     }
 
-    public String authorOrJudgeId() {
+    public ActorId authorOrJudgeId() {
         return author.authorOrJudgeId();
     }
 
@@ -32,10 +34,10 @@ public record SnapshotMetadata(SnapshotIdentity identity, AuditAuthor author) {
         return new SnapshotMetadata(identity, author);
     }
 
-    public static SnapshotMetadata of(String snapshotId, int revisionNumber, String authorOrJudgeId) {
+    public static SnapshotMetadata of(String snapshotId, int revisionNumber, ActorId authorOrJudgeId, LocalDateTime timestamp) {
         return new SnapshotMetadata(
                 new SnapshotIdentity(snapshotId, revisionNumber),
-                AuditAuthor.now(authorOrJudgeId)
+                AuditAuthor.of(authorOrJudgeId, timestamp)
         );
     }
 }

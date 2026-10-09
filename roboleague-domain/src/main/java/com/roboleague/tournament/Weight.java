@@ -5,7 +5,7 @@ package com.roboleague.tournament;
  */
 public record Weight(double grams) {
     public Weight {
-        if (grams <= 0) {
+        if (!Double.isFinite(grams) || grams <= 0) {
             throw new IllegalArgumentException("grams must be positive");
         }
     }

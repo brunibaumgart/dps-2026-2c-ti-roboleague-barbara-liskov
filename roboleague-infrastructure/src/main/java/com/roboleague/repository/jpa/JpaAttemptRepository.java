@@ -3,6 +3,8 @@ package com.roboleague.repository.jpa;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.repository.AttemptRepository;
+import com.roboleague.scheduling.RoundId;
+import com.roboleague.tournament.TeamId;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
@@ -50,13 +52,13 @@ public class JpaAttemptRepository implements AttemptRepository {
     }
 
     @Override
-    public List<Attempt> findByTeamId(String teamId) {
-        return jpa.findByTeamId(teamId).stream().map(this::toDomain).toList();
+    public List<Attempt> findByTeamId(TeamId teamId) {
+        return jpa.findByTeamId(teamId.value()).stream().map(this::toDomain).toList();
     }
 
     @Override
-    public List<Attempt> findByRoundId(String roundId) {
-        return jpa.findByRoundId(roundId).stream().map(this::toDomain).toList();
+    public List<Attempt> findByRoundId(RoundId roundId) {
+        return jpa.findByRoundId(roundId.value()).stream().map(this::toDomain).toList();
     }
 
     @Override

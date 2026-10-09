@@ -1,6 +1,8 @@
 package com.roboleague.repository.jpa;
 
+import com.roboleague.evaluation.AttemptId;
 import com.roboleague.ranking.appeal.Appeal;
+import com.roboleague.ranking.appeal.AppealId;
 import com.roboleague.repository.AppealRepository;
 import org.springframework.stereotype.Repository;
 
@@ -25,13 +27,13 @@ public class JpaAppealRepository implements AppealRepository {
     }
 
     @Override
-    public Optional<Appeal> findById(String appealId) {
-        return jpa.findById(appealId).map(AppealMapper::toDomain);
+    public Optional<Appeal> findById(AppealId appealId) {
+        return jpa.findById(appealId.value()).map(AppealMapper::toDomain);
     }
 
     @Override
-    public List<Appeal> findByAttemptId(String attemptId) {
-        return jpa.findByAttemptId(attemptId).stream().map(AppealMapper::toDomain).toList();
+    public List<Appeal> findByAttemptId(AttemptId attemptId) {
+        return jpa.findByAttemptId(attemptId.value()).stream().map(AppealMapper::toDomain).toList();
     }
 
     @Override

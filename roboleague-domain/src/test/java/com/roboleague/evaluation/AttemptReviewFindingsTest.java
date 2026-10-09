@@ -6,6 +6,13 @@ import com.roboleague.evaluation.rules.TimeBasedRule;
 import com.roboleague.evaluation.scheme.AllRounds;
 import com.roboleague.evaluation.scheme.HigherTotal;
 import com.roboleague.evaluation.scheme.RankingScheme;
+import com.roboleague.ranking.appeal.AppealId;
+import com.roboleague.scheduling.JudgeId;
+import com.roboleague.scheduling.RoundId;
+import com.roboleague.scheduling.SlotId;
+import com.roboleague.support.ActorId;
+import com.roboleague.tournament.ChallengeId;
+import com.roboleague.tournament.TeamId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -15,6 +22,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import static com.roboleague.support.TestValues.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -44,27 +52,27 @@ class AttemptReviewFindingsTest {
     @Test
     @DisplayName("Hallazgo 3: una apelación aceptada trae métricas corregidas y el intento las puntúa")
     void givenAnAcceptedAppealThenTheAttemptScoresTheCorrectedMetrics() {
-        Attempt attempt = Attempt.of(new AttemptIdentity(AttemptId.of("slot-1", 1), "r-1", "t-1"),
-                RulebookReference.of("ch-maze", RULEBOOK));
-        attempt.receive(new SourceDelivery(new Measurements(new TrackPerformance(50.0, 0, 4), 0.0, Map.of()), "judge-1"),
-                RULEBOOK);
+        Attempt attempt = Attempt.of(new AttemptIdentity(AttemptId.of(SlotId.of("slot-1"), 1), RoundId.of("r-1"), TeamId.of("t-1")),
+                RulebookReference.of(ChallengeId.of("ch-maze"), RULEBOOK));
+        attempt.receive(new SourceDelivery(new Measurements(new TrackPerformance(50.0, 0, 4), 0.0, Map.of()), JudgeId.of("judge-1")),
+                RULEBOOK, audit());
         attempt.markUnderAppeal();
 
-        attempt.adjustAfterAppeal(new AppealRevision("app-1", RawMetrics.of(50.0, 0, 0),
-                new AuditNote("arb-1", "Las faltas no existieron")), RULEBOOK);
+        attempt.adjustAfterAppeal(new AppealRevision(AppealId.of("app-1"), RawMetrics.of(50.0, 0, 0),
+                new AuditNote(ActorId.of("arb-1"), "Las faltas no existieron")), RULEBOOK, audit());
 
         assertThat(attempt.getOriginalSnapshot().breakdown().totalScore()).isEqualTo(70.0);
         assertThat(attempt.getFinalScore()).isEqualTo(110.0);
-        assertThat(attempt.getLatestSnapshot().authorOrJudgeId()).isEqualTo("arb-1");
+        assertThat(attempt.getLatestSnapshot().authorOrJudgeId()).isEqualTo(ActorId.of("arb-1"));
     }
 
     @Test
     @DisplayName("Hallazgo 2: el intento y cada revisión guardan la versión del reglamento con que se puntuaron")
     void givenAScoredAttemptThenItAndEachRevisionKnowTheRulebookVersion() {
         Attempt attempt = scoredAttempt();
-        attempt.applyPenaltyAdjustment(1, new AuditNote("judge-2", "Falta vista en video"), RULEBOOK);
+        attempt.applyPenaltyAdjustment(1, new AuditNote(ActorId.of("judge-2"), "Falta vista en video"), RULEBOOK, audit());
 
-        assertThat(attempt.getRulebookReference()).isEqualTo(new RulebookReference("ch-maze", RulebookVersion.first()));
+        assertThat(attempt.getRulebookReference()).isEqualTo(new RulebookReference(ChallengeId.of("ch-maze"), RulebookVersion.first()));
         assertThat(attempt.getRevisionHistory())
                 .extracting(revision -> revision.rulebookVersion())
                 .containsExactly(RulebookVersion.first(), RulebookVersion.first());
@@ -80,8 +88,8 @@ class AttemptReviewFindingsTest {
                         List.of(new PenaltyRule("Faltas", 100.0))),
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
 
-        assertThatThrownBy(() -> attempt.adjustAfterAppeal(new AppealRevision("app-1", RawMetrics.of(50.0, 0, 1),
-                new AuditNote("arb-1", "Una sola falta")), harsher))
+        assertThatThrownBy(() -> attempt.adjustAfterAppeal(new AppealRevision(AppealId.of("app-1"), RawMetrics.of(50.0, 0, 1),
+                new AuditNote(ActorId.of("arb-1"), "Una sola falta")), harsher, audit()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("the attempt is scored with ch-maze v1, not with v2");
         assertThat(attempt.getRevisionHistory()).hasSize(1);
@@ -91,10 +99,10 @@ class AttemptReviewFindingsTest {
     @DisplayName("Hallazgo 3: un intento descalificado y sin apelación no se ajusta a ningún puntaje")
     void givenADisqualifiedAttemptThenAnAppealCannotAdjustIt() {
         Attempt attempt = scoredAttempt();
-        attempt.disqualify("robot fuera de pista", "j-1");
+        attempt.disqualify("robot fuera de pista", JudgeId.of("j-1"), audit());
 
-        assertThatThrownBy(() -> attempt.adjustAfterAppeal(new AppealRevision("no-existe", RawMetrics.of(1.0, 5, 0),
-                new AuditNote("cualquiera", "sin apelación")), RULEBOOK))
+        assertThatThrownBy(() -> attempt.adjustAfterAppeal(new AppealRevision(AppealId.of("no-existe"), RawMetrics.of(1.0, 5, 0),
+                new AuditNote(ActorId.of("cualquiera"), "sin apelación")), RULEBOOK, audit()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("attempt is disqualified: it cannot close an appeal: it has none open");
         assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.DISQUALIFIED);
@@ -121,24 +129,24 @@ class AttemptReviewFindingsTest {
         Attempt attempt = scoredAttempt();
         assertThat(attempt.countableScore()).hasValueSatisfying(score -> assertThat(score.totalScore()).isEqualTo(70.0));
 
-        attempt.disqualify("robot fuera de pista", "j-1");
+        attempt.disqualify("robot fuera de pista", JudgeId.of("j-1"), audit());
 
         assertThat(attempt.countableScore()).isEmpty();
     }
 
     @Test
     void givenAnAttemptNotScoredYetThenItHasNoCountableScore() {
-        Attempt attempt = Attempt.of(new AttemptIdentity(AttemptId.of("slot-1", 1), "r-1", "t-1"),
-                RulebookReference.of("ch-maze", RULEBOOK));
+        Attempt attempt = Attempt.of(new AttemptIdentity(AttemptId.of(SlotId.of("slot-1"), 1), RoundId.of("r-1"), TeamId.of("t-1")),
+                RulebookReference.of(ChallengeId.of("ch-maze"), RULEBOOK));
 
         assertThat(attempt.countableScore()).isEmpty();
     }
 
     private static Attempt scoredAttempt() {
-        Attempt attempt = Attempt.of(new AttemptIdentity(AttemptId.of("slot-1", 1), "r-1", "t-1"),
-                RulebookReference.of("ch-maze", RULEBOOK));
-        attempt.receive(new SourceDelivery(new Measurements(new TrackPerformance(50.0, 0, 4), 0.0, Map.of()), "judge-1"),
-                RULEBOOK);
+        Attempt attempt = Attempt.of(new AttemptIdentity(AttemptId.of(SlotId.of("slot-1"), 1), RoundId.of("r-1"), TeamId.of("t-1")),
+                RulebookReference.of(ChallengeId.of("ch-maze"), RULEBOOK));
+        attempt.receive(new SourceDelivery(new Measurements(new TrackPerformance(50.0, 0, 4), 0.0, Map.of()), JudgeId.of("judge-1")),
+                RULEBOOK, audit());
         return attempt;
     }
 }

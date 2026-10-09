@@ -2,6 +2,7 @@ package com.roboleague.ranking;
 
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.tournament.Team;
+import com.roboleague.tournament.TeamId;
 
 import java.util.Collections;
 import java.util.List;
@@ -13,7 +14,7 @@ import java.util.Objects;
  */
 public record RankingCalculationData(
         List<Team> teams,
-        Map<String, List<Attempt>> attemptsByTeamId
+        Map<TeamId, List<Attempt>> attemptsByTeamId
 ) {
     public RankingCalculationData {
         Objects.requireNonNull(teams, "teams cannot be null");
@@ -22,7 +23,7 @@ public record RankingCalculationData(
         attemptsByTeamId = Collections.unmodifiableMap(attemptsByTeamId);
     }
 
-    public static RankingCalculationData of(List<Team> teams, Map<String, List<Attempt>> attemptsByTeamId) {
+    public static RankingCalculationData of(List<Team> teams, Map<TeamId, List<Attempt>> attemptsByTeamId) {
         return new RankingCalculationData(teams, attemptsByTeamId);
     }
 }

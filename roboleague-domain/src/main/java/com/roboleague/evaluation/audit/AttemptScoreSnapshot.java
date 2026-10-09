@@ -3,6 +3,7 @@ package com.roboleague.evaluation.audit;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.ScoreBreakdown;
+import com.roboleague.support.ActorId;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -34,7 +35,7 @@ public record AttemptScoreSnapshot(
         return metadata.timestamp();
     }
 
-    public String authorOrJudgeId() {
+    public ActorId authorOrJudgeId() {
         return metadata.authorOrJudgeId();
     }
 

@@ -16,7 +16,7 @@ public record Judge(
         certificationLevel = certificationLevel != null ? certificationLevel : "CERTIFIED";
     }
 
-    public String id() {
+    public JudgeId id() {
         return profile.id();
     }
 
@@ -28,7 +28,7 @@ public record Judge(
         return new Judge(profile, specialty, certificationLevel);
     }
 
-    public static Judge of(String id, String fullName, String specialty) {
+    public static Judge of(JudgeId id, String fullName, String specialty) {
         return new Judge(new JudgeProfile(id, fullName), specialty, "CERTIFIED");
     }
 }
