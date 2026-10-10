@@ -43,7 +43,7 @@ El perfil `demo` vacía la base, aplica las migraciones y carga `DemoFixture` a 
 - Sobre Laberinto: dos equipos, una ronda, dos intentos (el desglose muestra el recorte del tope), un ranking provisional, una apelación aceptada con recálculo y la publicación oficial.
 - Sobre Rescate (F3): una ronda con un intento de CyberTeam que recibió las mediciones y el panel de jueces (147,5) y uno de TitanTeam que tiene las mediciones y espera el panel (`GET /attempts/{id}/breakdown` lo muestra pendiente).
 
-La web permite inscribir equipos, programar rondas por desafío, capturar fuentes y consultar desgloses. La tabla por desafío con mejores N de M sigue pendiente de los endpoints del frente 4.
+La web permite inscribir equipos, programar rondas por desafío, capturar fuentes, consultar desgloses, presentar y resolver apelaciones, y consultar, recalcular y publicar la tabla por desafío y categoría.
 
 Abrí **http://localhost:8080/** para usar el frontend. HTML/CSS y módulos
 JavaScript se sirven desde el mismo jar y puerto; no se requiere npm, servidor
@@ -130,10 +130,12 @@ Los paquetes no cambiaron al separar módulos (`com.roboleague.usecase`, `com.ro
 | PUT | `/attempts/{id}/measurements` | hecho |
 | PUT | `/attempts/{id}/judge-scores` | hecho |
 | GET | `/attempts/{id}/breakdown` | hecho |
-| POST | `/attempts/{id}/appeals` | pendiente |
-| POST | `/appeals/{id}/acceptance` · `/rejection` | pendiente |
-| GET | `/challenges/{id}/standings[/versions/{v}]` | pendiente |
-| POST | `/challenges/{id}/standings/versions/{v}/publication` | pendiente |
+| POST · GET | `/attempts/{id}/appeals` | hecho |
+| GET | `/challenges/{id}/appeals` · `/appeals/{id}` | hecho |
+| POST | `/appeals/{id}/acceptance` · `/rejection` | hecho |
+| GET | `/challenges/{id}/standings[/versions/{v}]` | hecho |
+| POST | `/challenges/{id}/standings/versions` | hecho |
+| POST | `/challenges/{id}/standings/versions/{v}/publication` | hecho |
 
 La edad mínima se evalúa en años cumplidos al inicio de la edición. `maxAge`
 es opcional: omitido o `null` indica que la categoría no tiene edad máxima.
@@ -337,6 +339,45 @@ Cada fuente llega por separado (F3). El reglamento dice qué fuentes exige: si t
 
 `GET /attempts/{id}/breakdown` → 200 con lo que el intento todavía espera (`awaiting`), su puntaje, cada ítem de la última revisión (tope y piso incluidos), lo que aportó cada fuente (`bySource`) y cada revisión con su versión de reglamento, autor y motivo.
 
+### Apelaciones
+
+`POST /attempts/{id}/appeals` → **201**:
+
+```json
+{"teamId": "t-b", "reason": "Penalizacion inexistente", "evidence": "Video pista"}
+```
+
+El equipo tiene que ser el del intento. Responde el `AppealDto` (`id`, `attemptId`, `teamId`, `reason`, `evidence`, `status`, `reviewerId`, `submittedAt`, `resolutionNotes`, `resolvedAt`, `revisedMetrics`). `GET /attempts/{id}/appeals` y `GET /challenges/{id}/appeals?categoryId=` listan las de ese intento o de la categoría, más antiguas primero. `GET /appeals/{id}` devuelve una.
+
+`POST /appeals/{id}/review` con `{"reviewerId"}` → 200 `UNDER_REVIEW`. Volver a revisarla es **409**.
+
+`POST /appeals/{id}/acceptance` → 200:
+
+```json
+{"reviewerId": "j-arb", "notes": "Penalizaciones corregidas",
+ "measurements": {"timeSeconds": 45, "objectives": 5, "penalties": 0, "consumption": 90}}
+```
+
+`measurements` y `judgeScores` son opcionales, con la misma forma que al cargar un resultado. Hace falta al menos una fuente. El intento se puntúa con **su** reglamento; si las correcciones no caben, **422** y no cambia nada. La respuesta es `{appeal, standingsVersion}`: aceptar recalcula la tabla de su desafío y categoría.
+
+`POST /appeals/{id}/rejection` con `{"reviewerId", "notes"}` → 200. Conserva el puntaje. Solo el revisor que tomó el reclamo puede aceptarlo o rechazarlo (**409**).
+
+### Tabla de posiciones
+
+Hay una tabla por desafío y categoría. Cada recálculo agrega una versión; ninguna se edita. El orden sale del `ranking` del reglamento vigente (mejores N de M y la cadena de desempate).
+
+`GET /challenges/{id}/standings?categoryId=` → 200 con `{challengeId, categoryId, versions, latest, official, pending}`. Antes del primer cálculo `latest` y `official` son `null`. `pending` dice `{openAppeals, unfinishedTurns, outdated}`. `GET .../standings/versions/{v}` devuelve esa versión con sus filas.
+
+`POST /challenges/{id}/standings/versions?categoryId=` → **201** con la versión nueva (provisional).
+
+`POST /challenges/{id}/standings/versions/{v}/publication?categoryId=` → 200:
+
+```json
+{"publishedBy": "org-1", "notes": "Publicacion definitiva post-arbitraje"}
+```
+
+Solo se publica la última versión, y solo si no hay apelaciones abiertas, no quedan turnos sin resultado y los resultados no cambiaron desde ese cálculo. Si algo lo bloquea, **409** con cada motivo en `details`. Publicar reemplaza a la oficial anterior, que queda `REPLACED`.
+
 ## Inscripción y cambios de equipo (casos de uso)
 
 La edición contiene `Registration`, identificada por edición/equipo, con la
@@ -359,7 +400,7 @@ categoryId)`, que afecta esa edición y conserva sus tiempos. Cambiar un documen
 con `withDocument` invalida la verificación del candidato; `verify` devuelve
 otro valor con autor y hora explícitos. Conservar siempre los valores devueltos.
 
-Programación revalida participantes; programación y rankings resuelven el
+Programación revalida participantes; programación y standings resuelven el
 estado actual desde TeamRepository. Rechazos de validación no dejan cambios
 parciales en memoria. Team/Edition/Registration todavía no tienen persistencia
 Postgres: sus datos se pierden al reiniciar y no hay rollback en memoria ante
@@ -415,6 +456,12 @@ endpoints de programación y consulta están implementados en la spec 05.
    fórmulas, subtotales, notas, aportes y revisiones disponibles. Un puntaje
    pendiente/descalificado no se representa como cero. Los desgloses y totales
    son los del servidor, sin recalcular scoring en el navegador.
+6. **Apelaciones** lista los reclamos de la categoría, permite presentar uno
+   sobre un turno/intento y avanzar revisión, aceptación o rechazo. La
+   corrección de una aceptación la valida el servidor.
+7. **Tabla de posiciones** muestra versiones, filas, explicación de cada puesto
+   y lo que bloquearía publicar ahora. Recalcular y publicar son pedidos al
+   servidor; un 409 lista cada motivo.
 
 Si el intento fue abierto con un reglamento anterior, la web consulta
 `GET /challenges/{id}/rulebook/versions/{version}` (200 con RulebookDto, 400 si
@@ -428,13 +475,13 @@ datos**; nunca se reintenta una mutación automáticamente. Los nombres, motivos
 mensajes se renderizan como texto, sin HTML suministrado por usuarios. No hay
 login ni seguridad por roles simulada; la API conserva sus responsabilidades.
 
-**Entrega parcial de la spec 06:** Apelaciones y Tabla muestran su integración
-pendiente. La API solo tiene POST /appeals/{id}/review, sin listado para elegir
-apelaciones ni presentación/resolución. También faltan consultas de tabla,
-versiones, recálculo y publicación. No hay mocks en producción, endpoints
-inventados ni reglas del frente 4 implementadas en JS. El cierre de la spec
-requiere esos contratos reales y sus pruebas de navegador. Equipos/ediciones/
-rondas siguen en memoria; la UI no los presenta como durables.
+**Apelaciones y tabla (frente 4):** las pantallas consumen la API real. Presentar
+un reclamo, tomarlo en revisión, aceptarlo con mediciones corregidas o
+rechazarlo, recalcular y publicar van al servidor. El navegador no ordena
+filas ni decide si se puede publicar: un 409 muestra cada motivo (versión
+vieja, apelaciones abiertas, turnos sin resultado o resultados posteriores al
+cálculo). Equipos/ediciones/rondas siguen en memoria; la UI no los presenta
+como durables. Las standings sí se guardan en Postgres.
 
 ### Verificación del frontend
 
@@ -455,10 +502,10 @@ módulos, **no una corrida de navegador**.
 En esta implementación no se pudo ejecutar la verificación visual/interactiva:
 el navegador de la sesión no estuvo disponible. Sigue pendiente comprobar
 escritorio, teclado y flujos reales de inscripción válida/inelegible,
-edición rechazada sin pérdida, dos pistas paralelas, captura mixta y desglose
-con tope desde la web. Apelación, recálculo y publicación requieren además el
-frente 4. Las pruebas HTTP existentes cubren los contratos del backend, sin
-acreditar por sí solas esa comprobación de UI.
+edición rechazada sin pérdida, dos pistas paralelas, captura mixta, desglose
+con tope, apelación aceptada y publicación de la última versión desde la web.
+Las pruebas HTTP cubren los contratos del backend, sin acreditar por sí solas
+esa comprobación de UI.
 
 ## Cómo sumar lo tuyo
 

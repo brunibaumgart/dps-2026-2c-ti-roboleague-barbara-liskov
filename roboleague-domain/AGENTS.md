@@ -73,9 +73,9 @@ constructor de valor permite rehidratar sin consultar el calendario actual.
   v1. Una modificación publica otra versión, sin reemplazar las anteriores.
 - Las identidades de equipos, participantes, robots, categorías y ediciones
   viven en tournament; las de jueces, pistas, rondas y slots en scheduling;
-  RankingId y AppealId en sus contextos. Todas conservan el texto y rechazan
-  null/blanco. `Ranking` expresa el filtro de ronda con `Optional<RoundId>`:
-  vacío significa todas las rondas; no construir un RoundId vacío.
+  StandingsId y AppealId en sus contextos. Todas conservan el texto y rechazan
+  null/blanco. `StandingsId` se deriva de desafío y categoría; no inventar un
+  id textual aparte.
 - `AttemptId` contiene `SlotId` y número de intento. `RulebookReference` fija el
   desafío y versión usados: capturas posteriores y correcciones deben conservarlos.
 - `Attempt.receive` valida la fuente y las métricas antes de aceptar la captura;
@@ -106,9 +106,8 @@ Al extender reglas, revisar `RuleCatalogTest.everyRuleType()`,
 `ScoreRuleSectionsTest` y la tabla de reglas del README.
 
 Hay estrategias de rondas y desempate en `evaluation/scheme` y cálculo de tablas
-en `ranking`, con cadenas en `ranking/tiebreakers`. Leer sus consumidores antes
-de cambiar criterios: no asumir que todo ranking usa automáticamente el esquema
-publicado del desafío.
+en `ranking`. `StandingsTable` ordena con `rulebook.rankingScheme()` y explica
+cada puesto con `decide`. No reintroducir `TieBreakerChain` ni `TeamScore`.
 
 ## Verificación
 

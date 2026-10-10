@@ -8,12 +8,15 @@ import com.roboleague.evaluation.rules.TimeBasedRule;
 import com.roboleague.evaluation.scheme.AllRounds;
 import com.roboleague.evaluation.scheme.HigherTotal;
 import com.roboleague.evaluation.scheme.RankingScheme;
-import com.roboleague.ranking.Ranking;
-import com.roboleague.ranking.RankingCalculatorService;
-import com.roboleague.ranking.RankingId;
+import com.roboleague.evaluation.audit.AuditNote;
+import com.roboleague.ranking.Placement;
+import com.roboleague.ranking.Standings;
+import com.roboleague.ranking.StandingsEntry;
+import com.roboleague.ranking.StandingsId;
+import com.roboleague.ranking.StandingsPublication;
+import com.roboleague.ranking.StandingsVersion;
 import com.roboleague.ranking.appeal.Appeal;
 import com.roboleague.ranking.appeal.AppealId;
-import com.roboleague.ranking.tiebreakers.TieBreakerChain;
 import com.roboleague.repository.memory.*;
 import com.roboleague.scheduling.Judge;
 import com.roboleague.scheduling.JudgeId;
@@ -36,12 +39,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 import static com.roboleague.support.TestValues.*;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 class AppealAndRecalculateIntegrationTest {
 
@@ -49,7 +51,7 @@ class AppealAndRecalculateIntegrationTest {
     private InMemoryEditionRepository editionRepository;
     private InMemoryChallengeRepository challengeRepository;
     private InMemoryAttemptRepository attemptRepository;
-    private InMemoryRankingRepository rankingRepository;
+    private InMemoryStandingsRepository standingsRepository;
     private InMemoryAppealRepository appealRepository;
 
     private RegisterTeamUseCase registerTeamUseCase;
@@ -58,8 +60,10 @@ class AppealAndRecalculateIntegrationTest {
     private FileAppealUseCase fileAppealUseCase;
     private ReviewAppealUseCase reviewAppealUseCase;
     private ResolveAppealUseCase resolveAppealUseCase;
-    private RecalculateRankingUseCase recalculateRankingUseCase;
-    private PublishOfficialRankingUseCase publishOfficialRankingUseCase;
+    private RecalculateStandingsUseCase recalculateStandingsUseCase;
+    private PublishStandingsUseCase publishStandingsUseCase;
+
+    private static final AuditNote CLOSING = AuditNote.of(ActorId.of("org-1"), "Resultados definitivos validados por el comite");
 
     private LocalDateTime operationTime;
 
@@ -76,7 +80,7 @@ class AppealAndRecalculateIntegrationTest {
         editionRepository = new InMemoryEditionRepository();
         challengeRepository = new InMemoryChallengeRepository();
         attemptRepository = new InMemoryAttemptRepository();
-        rankingRepository = new InMemoryRankingRepository();
+        standingsRepository = new InMemoryStandingsRepository();
         appealRepository = new InMemoryAppealRepository();
 
         registerTeamUseCase = new RegisterTeamUseCase(teamRepository, editionRepository, clock);
@@ -85,17 +89,16 @@ class AppealAndRecalculateIntegrationTest {
                 new RoundSchedulerService(ids), ids);
         receiveResultUseCase = new ReceiveResultUseCase(attemptRepository, roundRepository, challengeRepository, clock, ids);
 
-        RankingCalculatorService rankingService = new RankingCalculatorService(TieBreakerChain.defaultRules());
-        recalculateRankingUseCase = new RecalculateRankingUseCase(
-                editionRepository, teamRepository, attemptRepository, rankingRepository, rankingService,
-                clock, ids);
+        CategoryResultsReader results = new CategoryResultsReader(challengeRepository, editionRepository, teamRepository,
+                roundRepository, attemptRepository);
+        recalculateStandingsUseCase = new RecalculateStandingsUseCase(results, standingsRepository, clock);
+        publishStandingsUseCase = new PublishStandingsUseCase(results, standingsRepository, clock);
 
         fileAppealUseCase = new FileAppealUseCase(attemptRepository, appealRepository, clock, ids);
         reviewAppealUseCase = new ReviewAppealUseCase(appealRepository);
         resolveAppealUseCase = new ResolveAppealUseCase(
-                appealRepository, attemptRepository, challengeRepository, recalculateRankingUseCase,
+                appealRepository, attemptRepository, challengeRepository, roundRepository, recalculateStandingsUseCase,
                 clock, ids);
-        publishOfficialRankingUseCase = new PublishOfficialRankingUseCase(rankingRepository, appealRepository, attemptRepository, clock);
 
         // Setup Domain: Season, Tournament, Category, Edition
         Season season2026 = new Season("s-2026", 2026, "Temporada 2026");
@@ -180,23 +183,25 @@ class AppealAndRecalculateIntegrationTest {
         // BUT wrongly assigned 4 penalties (-60 pts) => Total: 110 + 125 - 60 = 175.0
         Attempt attemptBeta = receive(firstAttemptIn(round1, 1), track(50.0, 5, 4), "j-1");
 
-        // 4. Initial Ranking Calculation (Provisional)
-        Ranking provisionalRanking = recalculateRankingUseCase.execute(edition2026.getId(), mazeCategory.id(), Optional.of(round1.getId()));
-        assertThat(provisionalRanking.getStatus()).isEqualTo(Ranking.RankingStatus.PROVISIONAL);
+        // 4. First standings calculation: provisional version 1
+        StandingsId mazeStandings = new StandingsId(maze.getId(), mazeCategory.id());
+        Standings standings = recalculateStandingsUseCase.execute(mazeStandings);
+        StandingsVersion first = standings.latest();
+        assertThat(first.number()).isEqualTo(1);
+        assertThat(standings.statusOf(first)).isEqualTo(StandingsVersion.Status.PROVISIONAL);
 
         // Position 1: Team Alpha (185.0)
-        // Position 2: Team Beta (175.0)
-        assertThat(provisionalRanking.getEntries().get(0).teamScore().teamId()).isEqualTo(TeamId.of("t-alpha"));
-        assertThat(provisionalRanking.getEntries().get(0).teamScore().totalScore()).isEqualTo(185.0);
-        assertThat(provisionalRanking.getEntries().get(1).teamScore().teamId()).isEqualTo(TeamId.of("t-beta"));
-        assertThat(provisionalRanking.getEntries().get(1).teamScore().totalScore()).isEqualTo(175.0);
+        // Position 2: Team Beta (175.0), placed by the first criterion of the chain
+        assertThat(first.table().entries()).extracting(entry -> entry.team().teamId(), StandingsEntry::total)
+                .containsExactly(tuple(TeamId.of("t-alpha"), 185.0), tuple(TeamId.of("t-beta"), 175.0));
+        assertThat(first.table().entries().getLast().placement())
+                .isEqualTo(new Placement(2, "Debajo del puesto 1 por Mayor puntaje total"));
 
         assertThat(attemptBeta.getEventHistory()).extracting(event -> event.eventId())
                 .containsExactly("generated-6", "generated-7");
         assertThat(attemptBeta.getRevisionHistory().getFirst().snapshotId()).isEqualTo("generated-3-1-r1");
         assertThat(attemptBeta.getRevisionHistory().getFirst().timestamp()).isEqualTo(TIME);
-        assertThat(provisionalRanking.getRankingId()).isEqualTo(RankingId.of("generated-8"));
-        assertThat(provisionalRanking.getGeneratedAt()).isEqualTo(TIME);
+        assertThat(first.calculatedAt()).isEqualTo(TIME);
         operationTime = TIME.plusHours(1);
 
         // 5. Team Beta files an Appeal regarding wrongly counted penalties
@@ -207,13 +212,13 @@ class AppealAndRecalculateIntegrationTest {
                 "Video oficial de camara 1 muestra recorrido limpio"
         );
         assertThat(appealBeta.getStatusName()).isEqualTo("PENDING");
-        assertThat(appealBeta.getAppealId()).isEqualTo(AppealId.of("generated-9"));
+        assertThat(appealBeta.getAppealId()).isEqualTo(AppealId.of("generated-8"));
         assertThat(appealBeta.getSubmittedAt()).isEqualTo(operationTime);
 
-        // 6. Attempting to publish official ranking while an appeal is unresolved MUST FAIL
-        assertThatThrownBy(() -> publishOfficialRankingUseCase.execute(provisionalRanking.getRankingId(), "Intento de cierre"))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("appeal(s) remain unresolved");
+        // 6. Publishing while an appeal is unresolved is blocked, and says why
+        assertThat(publishStandingsUseCase.execute(mazeStandings, 1, CLOSING))
+                .isEqualTo(new StandingsPublication.Blocked(List.of("1 appeal(s) still open")));
+        assertThat(standings.official()).isEmpty();
 
         // 7. Arbitration Committee reviews appeal
         reviewAppealUseCase.execute(appealBeta.getAppealId(), ActorId.of("arbitro-jefe"));
@@ -222,14 +227,10 @@ class AppealAndRecalculateIntegrationTest {
         // 8. Arbitrator accepts appeal: penalties were indeed 0, not 4!
         // Revised metrics: 50s, 5 objectives, 0 penalties => Total: 110 + 125 - 0 = 235.0!
         operationTime = TIME.plusHours(2);
-        RawMetrics revisedMetricsBeta = RawMetrics.of(50.0, 5, 0);
-        resolveAppealUseCase.acceptAppeal(
+        AppealAcceptance acceptance = resolveAppealUseCase.acceptAppeal(
                 appealBeta.getAppealId(),
-                mazeCategory.id(),
-                Optional.of(round1.getId()),
-                "Video revisado por unanimidad. Se anulan las 4 faltas inexistentes.",
-                revisedMetricsBeta,
-                ActorId.of("arbitro-jefe")
+                AuditNote.of(ActorId.of("arbitro-jefe"), "Video revisado por unanimidad. Se anulan las 4 faltas inexistentes."),
+                List.of(track(50.0, 5, 0))
         );
 
         // 9. Verify Attempt Beta Audit Trail
@@ -241,32 +242,29 @@ class AppealAndRecalculateIntegrationTest {
         assertThat(appealBeta.getResolvedAt()).isEqualTo(operationTime);
         assertThat(auditedAttemptBeta.getRevisionHistory().getLast().timestamp()).isEqualTo(operationTime);
         assertThat(auditedAttemptBeta.getEventHistory()).extracting(event -> event.eventId())
-                .containsExactly("generated-6", "generated-7", "generated-10", "generated-11");
+                .containsExactly("generated-6", "generated-7", "generated-9", "generated-10");
 
-        // 10. Verify Ranking Recalculation after appeal acceptance
-        Ranking updatedRanking = rankingRepository.findLatestByEditionAndCategory(edition2026.getId(), mazeCategory.id()).orElseThrow();
+        // 10. The acceptance recalculated the standings as version 2; version 1 stays as it was
+        assertThat(acceptance).isInstanceOf(AppealAcceptance.Accepted.class);
+        StandingsVersion corrected = ((AppealAcceptance.Accepted) acceptance).standings();
+        assertThat(corrected.number()).isEqualTo(2);
+        assertThat(corrected.calculatedAt()).isEqualTo(operationTime);
+        assertThat(corrected.table().entries()).extracting(entry -> entry.team().teamId(), StandingsEntry::total)
+                .containsExactly(tuple(TeamId.of("t-beta"), 235.0), tuple(TeamId.of("t-alpha"), 185.0));
+        assertThat(standings.version(1)).contains(first);
 
-        assertThat(updatedRanking.getRankingId()).isEqualTo(RankingId.of("generated-12"));
-        assertThat(updatedRanking.getGeneratedAt()).isEqualTo(operationTime);
-
-        // Team Beta is now #1 with 235.0 pts!
-        // Team Alpha is now #2 with 185.0 pts!
-        assertThat(updatedRanking.getEntries().get(0).position()).isEqualTo(1);
-        assertThat(updatedRanking.getEntries().get(0).teamScore().teamId()).isEqualTo(TeamId.of("t-beta"));
-        assertThat(updatedRanking.getEntries().get(0).teamScore().totalScore()).isEqualTo(235.0);
-
-        assertThat(updatedRanking.getEntries().get(1).position()).isEqualTo(2);
-        assertThat(updatedRanking.getEntries().get(1).teamScore().teamId()).isEqualTo(TeamId.of("t-alpha"));
-        assertThat(updatedRanking.getEntries().get(1).teamScore().totalScore()).isEqualTo(185.0);
-
-        // 11. Publish Official Ranking now succeeds because all appeals are resolved
+        // 11. Version 1 is outdated now; version 2 is published because every appeal is resolved
         operationTime = TIME.plusHours(3);
-        Ranking officialRanking = publishOfficialRankingUseCase.execute(updatedRanking.getRankingId(), "Resultados definitivos validados por el comite");
+        assertThat(publishStandingsUseCase.execute(mazeStandings, 1, CLOSING))
+                .isEqualTo(new StandingsPublication.Blocked(
+                        List.of("only the latest version (2) can be published; version 1 is outdated")));
+        assertThat(publishStandingsUseCase.execute(mazeStandings, 2, CLOSING))
+                .isEqualTo(new StandingsPublication.Published(corrected));
 
-        assertThat(officialRanking.getStatus()).isEqualTo(Ranking.RankingStatus.OFFICIAL);
-        assertThat(officialRanking.isOfficial()).isTrue();
-        assertThat(officialRanking.getPublishedAt()).isEqualTo(operationTime);
-        assertThat(officialRanking.getPublicationNotes()).contains("Resultados definitivos");
+        Standings stored = standingsRepository.findById(mazeStandings).orElseThrow();
+        assertThat(stored.official()).contains(corrected);
+        assertThat(stored.publicationOf(corrected).orElseThrow().publishedAt()).isEqualTo(operationTime);
+        assertThat(stored.publicationOf(corrected).orElseThrow().note().reason()).contains("Resultados definitivos");
     }
 
     private static Measurements track(double seconds, int objectives, int faults) {

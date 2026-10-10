@@ -27,6 +27,11 @@ final class WaitingAttemptState implements AttemptState {
     }
 
     @Override
+    public boolean hasOutcome() {
+        return false;
+    }
+
+    @Override
     public AttemptState sourceReceived(boolean lastOne) {
         return lastOne ? SettledAttemptState.evaluated() : awaitingSources();
     }

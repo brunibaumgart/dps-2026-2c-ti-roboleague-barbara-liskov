@@ -72,8 +72,9 @@ controllers, DTOs, config y demo bajo `src/main/java/com/roboleague/api`.
 - Resultados consultan breakdown y la versión fijada mediante GET
   /challenges/{id}/rulebook/versions/{version} si difiere de la actual. No usar
   métricas vigentes para una captura histórica. GetRulebookUseCase es de lectura.
-- Apelaciones/tabla muestran faltantes reales del frente 4. No marcar completada
-  spec 06 ni simular esos flujos mientras no haya contratos y verificación web.
+- Apelaciones y tabla consumen los contratos del frente 4 (`/attempts/{id}/appeals`,
+  `/appeals/{id}/review|acceptance|rejection`, `/challenges/{id}/standings`).
+  No calcular posiciones, desempates ni transiciones en JS.
 - Tests de módulos JS: node --experimental-default-type=module --test
   roboleague-api/src/test/frontend/*.test.mjs (Node 20+, sin paquetes). Maven
   comprueba entrega de assets y HTTP; no atribuir a estos tests validación visual
@@ -100,8 +101,8 @@ controllers, DTOs, config y demo bajo `src/main/java/com/roboleague/api`.
   las rondas siguen en memoria. Captura conserva challengeId en el request por
   compatibilidad y rechaza desafío distinto al de la ronda con 409. El juez
   asignado puede enviar ambas fuentes; las notas del panel no asignan jueces.
-- `InMemoryRepositoryConfig` registra teams, editions, rankings y rounds;
-  attempts, challenges y appeals usan JPA. Al persistir otro agregado, quitar
+- `InMemoryRepositoryConfig` registra teams, editions y rounds; attempts,
+  challenges, appeals y standings usan JPA. Al persistir otro agregado, quitar
   su bean en memoria. No prometer rollback ni durabilidad de todos los agregados.
 - `application.yml` configura datasource con `DB_URL`, `DB_PORT`, `DB_USER` y
   `DB_PASSWORD`, desactiva Open Session in View y valida esquema con Hibernate.

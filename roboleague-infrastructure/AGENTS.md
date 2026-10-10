@@ -11,8 +11,9 @@ a sus implementaciones.
 
 ## Estado actual y convenciones
 
-- Postgres persiste `Appeal`, `Challenge` y `Attempt`; hay adaptadores en memoria
-  para los siete puertos. La API selecciona cuáles usar.
+- Postgres persiste `Appeal`, `Challenge`, `Attempt` y `Standings`; hay adaptadores
+  en memoria para los siete puertos. La API selecciona cuáles usar. `JpaStandingsRepository`
+  conserva la versión leída y rechaza escrituras concurrentes, como el de intentos.
 - Respetar el contrato observable de cada puerto: identidad, resultado de
   búsquedas, errores y efectos de guardar. Las consultas no deben efectuar
   transiciones de negocio ni escrituras inesperadas. Documentar diferencias de

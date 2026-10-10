@@ -1,14 +1,12 @@
 package com.roboleague.api.config;
 
 import com.roboleague.evaluation.RuleCatalog;
-import com.roboleague.ranking.RankingCalculatorService;
-import com.roboleague.ranking.tiebreakers.TieBreakerChain;
 import com.roboleague.repository.AppealRepository;
 import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.ChallengeRepository;
 import com.roboleague.repository.EditionRepository;
-import com.roboleague.repository.RankingRepository;
 import com.roboleague.repository.RoundRepository;
+import com.roboleague.repository.StandingsRepository;
 import com.roboleague.repository.TeamRepository;
 import com.roboleague.scheduling.RoundSchedulerService;
 import com.roboleague.support.Clock;
@@ -16,6 +14,7 @@ import com.roboleague.support.IdGenerator;
 import com.roboleague.support.SystemClock;
 import com.roboleague.support.UuidGenerator;
 import com.roboleague.usecase.AddChallengeUseCase;
+import com.roboleague.usecase.CategoryResultsReader;
 import com.roboleague.usecase.ChangeRegistrationCategoryUseCase;
 import com.roboleague.usecase.CreateEditionUseCase;
 import com.roboleague.usecase.FileAppealUseCase;
@@ -23,12 +22,14 @@ import com.roboleague.usecase.GetAttemptBreakdownUseCase;
 import com.roboleague.usecase.GetChallengeUseCase;
 import com.roboleague.usecase.GetRulebookUseCase;
 import com.roboleague.usecase.ListEditionChallengesUseCase;
-import com.roboleague.usecase.PublishOfficialRankingUseCase;
 import com.roboleague.usecase.PublishRulebookUseCase;
+import com.roboleague.usecase.PublishStandingsUseCase;
+import com.roboleague.usecase.QueryAppealsUseCase;
 import com.roboleague.usecase.QueryEditionsUseCase;
 import com.roboleague.usecase.QueryRegistrationsUseCase;
 import com.roboleague.usecase.QueryRoundsUseCase;
-import com.roboleague.usecase.RecalculateRankingUseCase;
+import com.roboleague.usecase.QueryStandingsUseCase;
+import com.roboleague.usecase.RecalculateStandingsUseCase;
 import com.roboleague.usecase.ReceiveResultUseCase;
 import com.roboleague.usecase.RegisterTeamUseCase;
 import com.roboleague.usecase.ResolveAppealUseCase;
@@ -91,11 +92,6 @@ class UseCaseConfig {
     }
 
     @Bean
-    RankingCalculatorService rankingCalculatorService() {
-        return new RankingCalculatorService(TieBreakerChain.defaultRules());
-    }
-
-    @Bean
     RegisterTeamUseCase registerTeamUseCase(TeamRepository teams, EditionRepository editions,
                                             Clock clock) {
         return new RegisterTeamUseCase(teams, editions, clock);
@@ -129,9 +125,32 @@ class UseCaseConfig {
     }
 
     @Bean
-    RecalculateRankingUseCase recalculateRankingUseCase(EditionRepository editions, TeamRepository teams, AttemptRepository attempts,
-                                                        RankingRepository rankings, RankingCalculatorService calculator, Clock clock, IdGenerator ids) {
-        return new RecalculateRankingUseCase(editions, teams, attempts, rankings, calculator, clock, ids);
+    CategoryResultsReader categoryResultsReader(ChallengeRepository challenges, EditionRepository editions,
+                                                TeamRepository teams, RoundRepository rounds, AttemptRepository attempts) {
+        return new CategoryResultsReader(challenges, editions, teams, rounds, attempts);
+    }
+
+    @Bean
+    RecalculateStandingsUseCase recalculateStandingsUseCase(CategoryResultsReader results, StandingsRepository standings,
+                                                            Clock clock) {
+        return new RecalculateStandingsUseCase(results, standings, clock);
+    }
+
+    @Bean
+    PublishStandingsUseCase publishStandingsUseCase(CategoryResultsReader results, StandingsRepository standings,
+                                                    Clock clock) {
+        return new PublishStandingsUseCase(results, standings, clock);
+    }
+
+    @Bean
+    QueryStandingsUseCase queryStandingsUseCase(CategoryResultsReader results, StandingsRepository standings) {
+        return new QueryStandingsUseCase(results, standings);
+    }
+
+    @Bean
+    QueryAppealsUseCase queryAppealsUseCase(AppealRepository appeals, AttemptRepository attempts,
+                                            CategoryResultsReader results) {
+        return new QueryAppealsUseCase(appeals, attempts, results);
     }
 
     @Bean
@@ -146,15 +165,11 @@ class UseCaseConfig {
 
     @Bean
     ResolveAppealUseCase resolveAppealUseCase(AppealRepository appeals, AttemptRepository attempts,
-                                              ChallengeRepository challenges, RecalculateRankingUseCase recalculate, Clock clock, IdGenerator ids) {
-        return new ResolveAppealUseCase(appeals, attempts, challenges, recalculate, clock, ids);
+                                              ChallengeRepository challenges, RoundRepository rounds,
+                                              RecalculateStandingsUseCase recalculate, Clock clock, IdGenerator ids) {
+        return new ResolveAppealUseCase(appeals, attempts, challenges, rounds, recalculate, clock, ids);
     }
 
-    @Bean
-    PublishOfficialRankingUseCase publishOfficialRankingUseCase(RankingRepository rankings, AppealRepository appeals,
-                                                                AttemptRepository attempts, Clock clock) {
-        return new PublishOfficialRankingUseCase(rankings, appeals, attempts, clock);
-    }
     @Bean
     QueryEditionsUseCase queryEditionsUseCase(EditionRepository editions) { return new QueryEditionsUseCase(editions); }
 

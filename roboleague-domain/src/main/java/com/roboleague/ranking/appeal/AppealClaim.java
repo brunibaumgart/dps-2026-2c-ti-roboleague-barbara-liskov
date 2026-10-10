@@ -8,6 +8,9 @@ import java.util.Objects;
 public record AppealClaim(String reason, String evidenceDescription) {
     public AppealClaim {
         Objects.requireNonNull(reason, "reason cannot be null");
+        if (reason.isBlank()) {
+            throw new IllegalArgumentException("an appeal says what it claims: reason cannot be blank");
+        }
         evidenceDescription = evidenceDescription != null ? evidenceDescription : "";
     }
 

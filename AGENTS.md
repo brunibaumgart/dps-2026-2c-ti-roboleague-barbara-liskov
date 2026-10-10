@@ -42,8 +42,8 @@ Application usa infrastructure **solo en tests**, para los adaptadores en memori
 Mantener las dependencias hacia el dominio; no introducir HTTP, Spring, JPA o
 Jackson en domain/application.
 
-Persistencia actual: `Attempt`, `Challenge` y `Appeal` tienen adaptadores JPA.
-`Edition`, `Team`, `Round` y `Ranking` siguen en memoria, cableados por
+Persistencia actual: `Attempt`, `Challenge`, `Appeal` y `Standings` tienen adaptadores JPA.
+`Edition`, `Team` y `Round` siguen en memoria, cableados por
 `InMemoryRepositoryConfig`. No asumir persistencia completa ni rollback de los
 repositorios en memoria. Flyway administra el esquema y Hibernate lo valida.
 

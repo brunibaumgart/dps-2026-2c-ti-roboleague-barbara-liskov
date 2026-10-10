@@ -2,11 +2,8 @@ package com.roboleague.api.attempt;
 
 import com.roboleague.api.ErrorDto;
 import com.roboleague.evaluation.AttemptId;
-import com.roboleague.evaluation.JudgeScores;
-import com.roboleague.evaluation.Measurements;
 import com.roboleague.evaluation.SourceDelivery;
 import com.roboleague.evaluation.SourceReport;
-import com.roboleague.evaluation.TrackPerformance;
 import com.roboleague.scheduling.JudgeId;
 import com.roboleague.tournament.ChallengeId;
 import com.roboleague.usecase.GetAttemptBreakdownUseCase;
@@ -22,7 +19,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -56,9 +52,8 @@ class AttemptController {
             throw new IllegalArgumentException(
                     "measurements need challengeId, judgeId, timeSeconds, objectives, penalties and consumption");
         }
-        Measurements measurements = new Measurements(
-                new TrackPerformance(request.timeSeconds(), request.objectives(), request.penalties()),
-                request.consumption(), orNone(request.measurements()));
+        SourceReport measurements = new MeasurementsBody(request.timeSeconds(), request.objectives(),
+                request.penalties(), request.consumption(), request.measurements()).toReport();
         return receive(attemptId, request.challengeId(), new SourceDelivery(measurements, JudgeId.of(request.judgeId())));
     }
 
@@ -67,9 +62,7 @@ class AttemptController {
         if (request.challengeId() == null || request.judgeId() == null || request.scores() == null) {
             throw new IllegalArgumentException("judge scores need challengeId, judgeId and scores");
         }
-        Map<JudgeId, Double> byJudge = new HashMap<>();
-        request.scores().forEach((id, score) -> byJudge.put(JudgeId.of(id), score));
-        SourceReport scores = new JudgeScores(byJudge, orNone(request.measurements()));
+        SourceReport scores = new JudgeScoresBody(request.scores(), request.measurements()).toReport();
         return receive(attemptId, request.challengeId(), new SourceDelivery(scores, JudgeId.of(request.judgeId())));
     }
 
@@ -81,10 +74,6 @@ class AttemptController {
             case Reception.Rejected rejected -> ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT)
                     .body(new ErrorDto("Result rejected", rejected.problems()));
         };
-    }
-
-    private static Map<String, Double> orNone(Map<String, Double> measurements) {
-        return measurements != null ? measurements : Map.of();
     }
 
     record MeasurementsRequest(String challengeId, String judgeId, Double timeSeconds, Integer objectives,

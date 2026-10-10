@@ -1,6 +1,11 @@
 package com.roboleague.usecase;
 
-import com.roboleague.ranking.RankingCalculatorService;
+import com.roboleague.evaluation.ScoringScheme;
+import com.roboleague.evaluation.rules.ObjectivesRule;
+import com.roboleague.evaluation.scheme.AllRounds;
+import com.roboleague.evaluation.scheme.HigherTotal;
+import com.roboleague.evaluation.scheme.RankingScheme;
+import com.roboleague.ranking.StandingsId;
 import com.roboleague.repository.memory.*;
 import com.roboleague.support.ActorId;
 import com.roboleague.tournament.*;
@@ -10,7 +15,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.List;
-import java.util.Optional;
 
 import static com.roboleague.support.TestValues.*;
 import static com.roboleague.usecase.RegistrationFixtures.*;
@@ -79,13 +83,20 @@ class UpdateTeamUseCaseTest {
                         .verify(ActorId.of("inspector-2"), TIME.plusHours(1)));
         assertThat(update.execute(canonical.getId(), changed)).isSameAs(changed);
         assertThat(teams.findById(canonical.getId())).containsSame(changed);
-        RecalculateRankingUseCase ranking = new RecalculateRankingUseCase(editions, teams,
-                new InMemoryAttemptRepository(), new InMemoryRankingRepository(), new RankingCalculatorService(), CLOCK, ids());
+        InMemoryChallengeRepository challenges = new InMemoryChallengeRepository();
+        RecalculateStandingsUseCase standings = new RecalculateStandingsUseCase(new CategoryResultsReader(challenges,
+                editions, teams, new InMemoryRoundRepository(), new InMemoryAttemptRepository()),
+                new InMemoryStandingsRepository(), CLOCK);
         for (Edition edition : before) {
             assertThat(editions.findById(edition.getId())).containsSame(edition);
             Registration registration = edition.registration(canonical.getId()).orElseThrow();
-            assertThat(ranking.execute(edition.getId(), registration.categoryId(), Optional.empty()).getEntries())
-                    .singleElement().satisfies(entry -> assertThat(entry.teamScore().teamName()).isEqualTo("New name"));
+            Challenge challenge = Challenge.draft(ChallengeId.of("ch-" + edition.getId()), edition.getId(), "Laberinto")
+                    .publish(ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objetivos", 20.0)), List.of()),
+                            new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
+            challenges.save(challenge);
+            assertThat(standings.execute(new StandingsId(challenge.getId(), registration.categoryId()))
+                    .latest().table().entries())
+                    .singleElement().satisfies(entry -> assertThat(entry.team().teamName()).isEqualTo("New name"));
         }
         assertThat(canonical.getName()).isEqualTo("team-1");
         assertThat(canonical.getRobot().getSpecification().weight().grams()).isEqualTo(1000);

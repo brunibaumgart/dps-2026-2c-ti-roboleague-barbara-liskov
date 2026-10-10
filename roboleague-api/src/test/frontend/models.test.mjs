@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { attemptId, metricsFor, teamCandidate, resourceSuggestions, slotsFor } from '../../main/resources/static/js/models.js';
+import { attemptId, appealLabels, metricsFor, standingsLabels, teamCandidate, resourceSuggestions, slotsFor } from '../../main/resources/static/js/models.js';
 import { ApiError, request } from '../../main/resources/static/js/api.js';
 
 test('an attempt retains the full textual slot id and requires a positive integer', () => {
@@ -46,6 +46,10 @@ for (const status of [400, 409, 422]) {
     assert.equal(calls, 1);
   });
 }
+test('appeal and standings labels stay on the server status names', () => {
+  assert.equal(appealLabels.UNDER_REVIEW, 'En revisión');
+  assert.equal(standingsLabels.REPLACED, 'Reemplazada');
+});
 test('network and malformed responses become explicit errors rather than false success', async () => {
   await assert.rejects(request('/', { fetcher: async () => { throw new Error('offline'); } }), error => error.status === 0);
   await assert.rejects(request('/', { fetcher: async () => ({ ok: true, status: 200, text: async () => '<html>proxy error</html>' }) }), error => error instanceof ApiError);
