@@ -89,10 +89,6 @@ public class Appeal {
         return reviewerId;
     }
 
-    public void setReviewerId(ActorId reviewerId) {
-        this.reviewerId = reviewerId;
-    }
-
     public String getResolutionNotes() {
         return resolutionNotes;
     }
@@ -105,18 +101,28 @@ public class Appeal {
         return resolvedAt;
     }
 
-    public void setResolvedAt(LocalDateTime resolvedAt) {
-        this.resolvedAt = resolvedAt;
-    }
-
     void transitionToState(AppealState newState) {
         this.state = Objects.requireNonNull(newState, "newState cannot be null");
     }
 
-    void setResolution(String resolutionNotes, RawMetrics revisedMetrics, ActorId reviewerId) {
+    /**
+     * The reviewer is fixed when the review begins; only the transitions of its states set it.
+     */
+    void assignReviewer(ActorId reviewerId) {
+        this.reviewerId = Objects.requireNonNull(reviewerId, "reviewerId cannot be null");
+    }
+
+    /**
+     * Records how the review ended. The one who resolves is the reviewer who took the appeal.
+     */
+    void resolve(String resolutionNotes, RawMetrics revisedMetrics, ActorId resolvedBy, LocalDateTime resolvedAt) {
+        if (!this.reviewerId.equals(resolvedBy)) {
+            throw new IllegalStateException("Appeal " + getAppealId() + " is under review by " + this.reviewerId
+                    + "; " + resolvedBy + " cannot resolve it");
+        }
         this.resolutionNotes = resolutionNotes;
         this.revisedMetrics = revisedMetrics;
-        this.reviewerId = reviewerId;
+        this.resolvedAt = resolvedAt;
     }
 
     public void beginReview(ActorId reviewerId) {
@@ -151,10 +157,6 @@ public class Appeal {
 
     public boolean isResolved() {
         return state.isResolved();
-    }
-
-    public boolean canPublishOfficialRanking() {
-        return state.canPublishOfficialRanking();
     }
 
     public static Appeal of(AppealTarget target, AppealClaim claim, LocalDateTime submittedAt) {

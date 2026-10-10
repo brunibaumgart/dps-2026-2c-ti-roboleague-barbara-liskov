@@ -2,7 +2,9 @@ import { api } from './api.js';
 import { mountRegistration } from './registration.js';
 import { mountScheduling } from './scheduling.js';
 import { mountResults } from './results.js';
-import { el, panel, heading, empty, notify } from './ui.js';
+import { mountAppeals } from './appeals.js';
+import { mountStandings } from './standings.js';
+import { el, empty, notify } from './ui.js';
 
 const views = {
   registration: ['Equipos', 'Inscripciones y datos de los equipos participantes.'],
@@ -62,17 +64,11 @@ function render() {
   const context = { data, selectedSlot, attemptNumber, isCurrent: () => currentEpoch === epoch, setBusy, canMutate: () => !reloadRequired,
     requireReload: () => { reloadRequired = true; },
     reload: loadContext, openSlot: (slotId, number = 1) => { selectedSlot = slotId; attemptNumber = number; changeView('results'); } };
-  if (view === 'appeals' || view === 'standings') {
-    const appeals = view === 'appeals';
-    root.append(panel(heading(appeals ? 'Apelaciones todavía no disponibles' : 'Tabla todavía no disponible'),
-      el('p', {}, appeals ? 'Faltan las operaciones del servidor para listar, presentar y resolver apelaciones. La revisión existe, pero no hay una consulta para seleccionar un reclamo.'
-        : 'El servidor todavía no expone consultas de tabla, versiones, recálculo ni publicación.'),
-      el('p', {}, 'Podés seguir trabajando con los equipos, los turnos y los resultados disponibles.'),
-      el('span', { className: 'badge' }, 'Integración pendiente'))); return;
-  }
   if (!data.category) { root.append(empty('Esta edición no tiene categorías configuradas.')); return; }
   if (view === 'registration') mountRegistration(root, context);
   else if (view === 'scheduling') mountScheduling(root, context);
+  else if (view === 'appeals') mountAppeals(root, context);
+  else if (view === 'standings') mountStandings(root, context);
   else mountResults(root, context, view === 'breakdown');
 }
 function changeView(next) {

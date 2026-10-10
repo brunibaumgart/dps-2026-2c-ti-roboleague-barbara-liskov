@@ -1,6 +1,7 @@
 # Frente 3: inscripción, programación y front
 
-Estado: specs 01–05 implementadas y verificadas; spec 06 entregada parcialmente (API de frente 4 y comprobación en navegador pendientes).
+Estado: specs 01–05 implementadas y verificadas; spec 06 cableada también a los
+contratos del frente 4. Pendiente: comprobación visual en navegador.
 
 Fuente: **Hoja de ruta RoboLeague.html**, sección «Frente 3», hallazgos #6 y #7,
 higiene de reloj/ids y flujo «RoboLeague en seis pasos». Se contrastó con el

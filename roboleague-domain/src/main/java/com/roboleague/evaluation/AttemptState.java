@@ -22,6 +22,13 @@ interface AttemptState {
     }
 
     /**
+     * Whether the turn already has an outcome: a score, even under appeal, or a disqualification.
+     */
+    default boolean hasOutcome() {
+        return true;
+    }
+
+    /**
      * A source of results arrived; {@code lastOne} says whether it was the last one the rulebook needs.
      */
     default AttemptState sourceReceived(boolean lastOne) {

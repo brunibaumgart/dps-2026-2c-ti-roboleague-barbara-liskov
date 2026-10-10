@@ -17,7 +17,7 @@ public class PendingAppealState implements AppealState {
 
     @Override
     public void beginReview(Appeal appeal, ActorId reviewerId) {
-        appeal.setReviewerId(reviewerId);
+        appeal.assignReviewer(reviewerId);
         appeal.transitionToState(new UnderReviewAppealState());
     }
 
@@ -53,11 +53,6 @@ public class PendingAppealState implements AppealState {
 
     @Override
     public boolean isResolved() {
-        return false;
-    }
-
-    @Override
-    public boolean canPublishOfficialRanking() {
         return false;
     }
 }

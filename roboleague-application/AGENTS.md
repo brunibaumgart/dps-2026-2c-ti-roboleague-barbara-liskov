@@ -41,7 +41,7 @@ Leer también `../AGENTS.md`. Producción en
   de lectura: validan padres/filtros, entregan datos actuales y no escriben.
   RegistrationView reúne relación y Team canónico sin incluir conceptos HTTP.
 - Programación revalida equipos canónicos antes de generar ids/guardar rondas.
-  Ranking resuelve los TeamIds de las registrations contra TeamRepository.
+  CategoryResultsReader resuelve los TeamIds de las registrations contra TeamRepository.
   No conservar listas paralelas de Team dentro de Edition.
 - Los rechazos de validación no escriben ni mutan referencias ya guardadas.
   Esto no acredita rollback ante un fallo técnico entre escrituras en memoria.
@@ -56,14 +56,16 @@ Leer también `../AGENTS.md`. Producción en
   las siguientes cargan la versión fijada en el intento. Guardar solo capturas
   aceptadas, conservando la identidad derivada de slot/número.
 - `ResolveAppealUseCase` acepta correcciones con el reglamento del intento,
-  actualiza intento y apelación y recalcula ranking al aceptar. Al rechazar,
-  restaura el estado del intento mediante su transición de dominio.
-- `PublishOfficialRankingUseCase` bloquea publicación por apelaciones abiertas
-  que afectan la tabla; las de otros equipos/rondas no deben bloquearla por
-  accidente. Consultar sus pruebas al cambiar el alcance.
-- `RecalculateRankingUseCase` calcula por edición/categoría y filtro opcional
-  de ronda; no asumir que su implementación agrega por desafío o utiliza todas
-  las estrategias configurables de un `Rulebook`.
+  actualiza intento y apelación y recalcula las standings de su desafío y
+  categoría al aceptar. Al rechazar, restaura el estado del intento mediante
+  su transición de dominio. Correcciones que no caben en el reglamento vuelven
+  como `AppealAcceptance.Invalid` y no escriben.
+- `PublishStandingsUseCase` publica solo la última versión. El agregado bloquea
+  si hay apelaciones abiertas, turnos sin resultado o resultados posteriores al
+  cálculo. Un bloqueo no guarda nada y devuelve cada motivo.
+- `RecalculateStandingsUseCase` calcula por desafío y categoría con el
+  `RankingScheme` vigente del desafío; cada cálculo agrega una versión y no
+  edita las anteriores.
 
 ## Integración y pruebas
 

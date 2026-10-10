@@ -74,4 +74,26 @@ class AppealStateFlowTest {
         assertThatThrownBy(() -> appeal.accept("Changed mind", RawMetrics.of(10, 0, 0), ActorId.of("arb-2"), TIME))
                 .isInstanceOf(IllegalStateException.class);
     }
+
+    @Test
+    @DisplayName("Only the reviewer who took the appeal resolves it, and it stays under review otherwise")
+    void onlyTheReviewerResolvesTheAppeal() {
+        Appeal appeal = Appeal.of(AppealId.of("app-3"), AttemptId.parse("att-3"), TeamId.of("team-3"), "Falta no cometida", "Video", TIME);
+        appeal.beginReview(ActorId.of("arb-1"));
+
+        assertThatThrownBy(() -> appeal.reject("No corresponde", ActorId.of("arb-2"), TIME))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Appeal app-3 is under review by arb-1; arb-2 cannot resolve it");
+        assertThatThrownBy(() -> appeal.accept("Corresponde", RawMetrics.of(10, 0, 0), ActorId.of("arb-2"), TIME))
+                .isInstanceOf(IllegalStateException.class);
+        assertThat(appeal.getStatusName()).isEqualTo("UNDER_REVIEW");
+        assertThat(appeal.getResolvedAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("An appeal needs a reason")
+    void anAppealNeedsAReason() {
+        assertThatThrownBy(() -> Appeal.of(AppealId.of("app-4"), AttemptId.parse("att-4"), TeamId.of("team-4"), " ", "Video", TIME))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 }

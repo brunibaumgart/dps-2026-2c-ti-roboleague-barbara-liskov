@@ -1,6 +1,5 @@
 package com.roboleague.support;
 
-import com.roboleague.ranking.RankingId;
 import com.roboleague.ranking.appeal.AppealId;
 import com.roboleague.scheduling.JudgeId;
 import com.roboleague.scheduling.RoundId;
@@ -35,7 +34,7 @@ class TypedIdentitiesTest {
 
     static Stream<Function<String, Object>> identities() {
         return Stream.of(TeamId::of, JudgeId::of, SlotId::of, RoundId::of, EditionId::of,
-                CategoryId::of, AppealId::of, RankingId::of, ParticipantId::of, RobotId::of,
+                CategoryId::of, AppealId::of, ParticipantId::of, RobotId::of,
                 TrackId::of, ActorId::of, ChallengeId::of);
     }
 

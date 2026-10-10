@@ -146,6 +146,21 @@ public class Attempt {
         return Optional.of(getLatestSnapshot().breakdown());
     }
 
+    /**
+     * Whether the turn already has an outcome: scored (even under appeal) or disqualified. Not while it awaits
+     * a source, so the standings of its challenge cannot be published yet.
+     */
+    public boolean hasOutcome() {
+        return state.hasOutcome();
+    }
+
+    /**
+     * Appeals still open on this attempt; none unless it is under appeal.
+     */
+    public int openAppeals() {
+        return state.stage().openAppeals();
+    }
+
     public RawMetrics getLatestMetrics() {
         AttemptScoreSnapshot latest = getLatestSnapshot();
         return latest != null ? latest.metrics() : null;

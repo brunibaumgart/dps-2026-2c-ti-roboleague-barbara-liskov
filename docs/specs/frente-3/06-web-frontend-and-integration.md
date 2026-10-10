@@ -1,7 +1,8 @@
 # 06 — Front web mínimo e integración de los flujos
 
-Estado: entrega parcial; flujos disponibles implementados y verificados por módulos/HTTP.
-Pendientes: integración de frente 4 y comprobación visual/interactiva en navegador.
+Estado: flujos de inscripción, programación, captura, apelaciones y tabla
+implementados y verificados por módulos/HTTP. Pendiente: comprobación
+visual/interactiva en navegador.
 Depende de 05 y de los contratos API de los frentes 1, 2 y 4.
 Puede comenzar la estructura con 05; no se considera completo mientras las
 operaciones de los otros frentes no puedan ejecutarse contra la API real.
@@ -112,12 +113,12 @@ hosting externo y diseño visual elaborado que bloquee el flujo funcional.
 - Servidor como fuente de verdad. IDs conservados al editar/reusar recursos,
   envíos bloqueados, 422 sin descartar formulario y 409 sin nuevos envíos hasta
   recargar. Texto seguro, sin innerHTML ni scoring/elegibilidad local.
-- Apelaciones/tabla muestran operación no disponible por falta de sus APIs.
-  POST review existe, pero no hay listado/consulta para seleccionar apelaciones.
-  No se implementó frente 4 ni se simulan respuestas de producción.
+- Apelaciones y tabla consumen los contratos del frente 4. No hay mocks ni
+  recálculo local. Un 409 de publicación o de transición muestra los motivos
+  del servidor.
 - Verificación automatizada: Maven con Postgres/Testcontainers para assets,
   histórico y regresiones; Node para contratos/módulos HTTP, sin dependencias.
   Pruebas visuales e interactivas no ejecutadas: navegador de la sesión no
   disponible. README distingue cobertura automatizada de comprobaciones pendientes.
-- **No se satisface todavía el cierre de las seis operaciones**: faltan APIs
-  externas e interacción en navegador. Mantener este estado hasta verificarlas.
+- Las seis operaciones están cableadas contra la API real. El cierre visual
+  en navegador sigue pendiente y se documenta en el README.

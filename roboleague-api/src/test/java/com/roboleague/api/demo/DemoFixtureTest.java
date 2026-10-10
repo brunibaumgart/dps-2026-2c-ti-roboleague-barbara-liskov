@@ -6,12 +6,13 @@ import com.roboleague.evaluation.MeasurementCheck;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.SourceDelivery;
-import com.roboleague.ranking.Ranking;
+import com.roboleague.ranking.Standings;
+import com.roboleague.ranking.StandingsId;
 import com.roboleague.repository.AppealRepository;
 import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.ChallengeRepository;
 import com.roboleague.repository.EditionRepository;
-import com.roboleague.repository.RankingRepository;
+import com.roboleague.repository.StandingsRepository;
 import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.ChallengeId;
 import com.roboleague.tournament.DateRange;
@@ -34,7 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DemoFixtureTest {
 
     @Autowired
-    private RankingRepository rankings;
+    private StandingsRepository standings;
 
     @Autowired
     private AppealRepository appeals;
@@ -58,9 +59,11 @@ class DemoFixtureTest {
     void theDemoEndsWithAnAcceptedAppealAndAnOfficialRanking() {
         assertThat(appeals.findAll()).singleElement().satisfies(appeal -> assertThat(appeal.isAccepted()).isTrue());
 
-        Ranking official = rankings.findLatestByEditionAndCategory(EditionId.of("ed-1"), CategoryId.of("cat-junior")).orElseThrow();
-        assertThat(official.isOfficial()).isTrue();
-        assertThat(official.getEntries().getFirst().teamScore().teamId()).isEqualTo(TeamId.of("t-b"));
+        Standings official = standings.findById(new StandingsId(ChallengeId.of("ch-maze"), CategoryId.of("cat-junior")))
+                .orElseThrow();
+        assertThat(official.official()).isPresent();
+        assertThat(official.official().orElseThrow().table().entries().getFirst().team().teamId())
+                .isEqualTo(TeamId.of("t-b"));
         assertThat(mazeAttemptOf("t-b").getOriginalSnapshot().breakdown().totalScore())
                 .isEqualTo(197.5);
         assertThat(mazeAttemptOf("t-b").getFinalScore()).isEqualTo(257.5);

@@ -26,6 +26,4 @@ public interface AppealState {
     boolean isRejected();
 
     boolean isResolved();
-
-    boolean canPublishOfficialRanking();
 }

@@ -54,7 +54,7 @@ válido su modelo y cómo se integra con otros. Tampoco implica microservicios.
 1. **`tournament`**: Modela el ciclo organizativo: definición de temporadas, torneos y ediciones cronológicas; categorización técnica con restricciones físicas y etarias; registro de equipos, participantes y especificaciones de robots; y evaluación compuesta de elegibilidad.
 2. **`scheduling`**: Modela la logística operativa de campo: gestión de pistas o arenas de prueba, designación y perfiles de jueces evaluadores, planificación de rondas y asignación determinista de turnos (slots) con ventanas temporales y pausas intermedias.
 3. **`evaluation`**: Corazón computacional del sistema. Modela los intentos en pista (`Attempt`), la captura estructurada de métricas observadas (`RawMetrics`), el motor de puntuación explicable y versionado (`Rulebook`, `ScoreRule`, `ScoreBreakdown`), y el rastro de auditoría append-only con snapshots inmutables y eventos de dominio.
-4. **`ranking`**: Consolida los puntajes agregados por equipo (`TeamScore`), resuelve empates jerárquicamente mediante cadenas desacopladas (`TieBreakerChain`), administra la publicación oficial o provisional de tablas (`Ranking`), y gobierna el ciclo de apelaciones (`Appeal`) mediante una máquina de estados polimórfica.
+4. **`ranking`**: Consolida los puntajes de cada equipo en una categoría de un desafío (`Standings`), resuelve empates con la cadena declarada en el `RankingScheme` del reglamento, versiona y publica la tabla (`StandingsVersion` / `OfficialPublication`), y gobierna el ciclo de apelaciones (`Appeal`) mediante una máquina de estados polimórfica.
 
 **Cardinalidad del evento:** una `Edition` es el evento y tiene varios `Challenge` (Laberinto, Seguidor de línea, Rescate). Cada desafío publica su propio reglamento versionado (`Rulebook`). `Category` es elegibilidad, no un desafío. Ver 2.8.
 
@@ -95,7 +95,7 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
   - *Restricciones de Competencia*: `AgeRange`, `TeamSizeRange`, `CategoryRestrictions` y `DateRange`.
   - *Logística y Planificación*: `TimeWindow`, `SlotIdentity`, `SlotAssignment`, `RoundScope`, `RoundInfo`, `RoundScheduleTiming`, `RoundResources` y `RoundScheduleRequest`.
   - *Métricas y Puntuación*: `TimeTargets`, `TimeAdjustments`, `TimeRuleConfig`, `ObjectiveRuleConfig`, `TrackPerformance`, `EvaluationFeedback` y `EvaluationDetails`.
-  - *Clasificación*: `TieStatus`, `TeamIdentity`, `CompetitionContext`, `TeamEntryHeader`, `PerformanceSummary` y `RankingScope`.
+  - *Clasificación*: `TeamIdentity`, `StandingsId`, `Placement`, `StandingsEntry`, `TeamRounds` y `RoundResult`.
   - *Auditoría y Reclamos*: `SnapshotIdentity`, `AuditAuthor`, `SnapshotMetadata`, `EvaluationSnapshot`, `AppealTarget` y `AppealClaim`.
 
   La lógica de dominio se ubicó estrictamente donde reside el dato:
@@ -196,7 +196,7 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
 - **Contras**:
   - **Dependencia de la Información de Entrada**: Toda variable utilizada para desempatar debe estar consolidada previamente en `TeamScore` / `PerformanceSummary`.
 
-- **Entrega 2**: la cadena pasa a declararse en el reglamento de cada desafío (`RankingScheme`, ver 2.10). `TieBreakerChain` sigue siendo la que usa `RankingCalculatorService` hasta que la tabla por desafío consuma `rulebook.rankingScheme()`.
+- **Entrega 2**: la cadena se declara en el reglamento (`RankingScheme`, ver 2.10) y la tabla la consume (`StandingsTable`, ver 2.20). `TieBreakerChain` y `RankingCalculatorService` se eliminaron.
 
 ---
 
@@ -317,7 +317,7 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
 
 - **Qué se eligió**:  
   - **Evaluar con la versión del reglamento del intento** (actualizado en 2.18): el intento se abre con la versión vigente de su desafío y la guarda; cada revisión, también la de una apelación aceptada, se puntúa con esa versión aunque el desafío publique otra. El snapshot guarda la versión, las métricas y el desglose.  
-  - **Recalcular el ranking** (`RecalculateRankingUseCase`) lee el último snapshot de cada intento, arma `TeamScore` y vuelve a ordenar con `TieBreakerChain`. Cumple la fila de la tabla: reprocesa **posiciones** después de una corrección.  
+  - **Recalcular la tabla** (`RecalculateStandingsUseCase`) lee el último snapshot de cada intento, arma el total con la selección de rondas del reglamento y vuelve a ordenar con `RankingScheme`. Cumple la fila de la consigna: reprocesa **posiciones** después de una corrección. Cada cálculo es una versión nueva.  
   - No se re-aplica un reglamento sobre las mismas métricas: `Attempt.recalculateWith`, que lo permitía con cualquier versión, se borró en 2.18.
 
 - **Pros**:  
@@ -348,7 +348,7 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
 - **F1: clases modificadas**: `Rulebook` (tercer componente `rankingScheme`), `Challenge` (`Draft.publish` y `publish` reciben reglas y esquema), `DemoFixture` (Sumo declara mejores 2 de 3 y cuatro criterios encadenados); la demo actual es la de 2.15.
 - **F1: refactors**: ninguno sobre las reglas de puntaje; es una pieza nueva que se enchufa en el reglamento.
 - **F1: deuda que decidimos no resolver en este paso**:
-  - **La tabla de posiciones todavía no usa el esquema**: `RankingCalculatorService` sigue con `TieBreakerChain`, toma el mejor intento por equipo y agrupa por edición, categoría y ronda, así que en la demo todavía no se ven rondas descartadas. Conectarlo es parte de la tabla por desafío (`Standings`): armar por equipo un `RoundScore` por ronda, ordenar con `rulebook.rankingScheme()` y explicar cada posición con `decide`. En ese mismo cambio se borran `TieBreakerChain` y `TeamScore.isTiedWith`, que hoy duplican los criterios (regla #27).
+  - **La tabla de posiciones usa el esquema** (2.20): `StandingsTable` arma por equipo las rondas que el reglamento cuenta, ordena con `rulebook.rankingScheme()` y explica cada posición con `decide`. `TieBreakerChain` y `TeamScore` se eliminaron (regla #27).
   - M no se valida contra las rondas programadas: `BestNOfM` rechaza más de M rondas al seleccionar, pero programar más de M es responsabilidad de la ronda por desafío.
   - Elegir el intento que representa a un equipo en una ronda (por ejemplo, el mejor no descalificado) queda en quien arma los `RoundScore`.
 - **Patrones no aplicados**: Decorator sobre `RoundSelection` (no hay variación que lo pida). Los criterios por nombre llegaron después, con la configuración por API (`RuleCatalog`, 2.13).
@@ -502,7 +502,7 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
   - Los reglamentos guardados antes de este cambio (una penalización en `rules`, `allCompletedBonus`, `fewer-penalties`) no se reconstruyen. Solo hay datos de la demo, que se recargan en cada arranque.
   - El bono por segundo bajo el objetivo de la regla de tiempo sigue siendo parte de la base y no entra al tope.
   - `all-objectives` es un `milestone` sobre los objetivos y `penalty` un `counted-fault` sobre las faltas: se unifican cuando esos campos fijos sean métricas declaradas (2.16).
-  - `TieBreakerChain` y `TeamScore` siguen contando faltas hasta que la tabla use `RankingScheme` (2.10).
+  - ~~`TieBreakerChain` y `TeamScore` siguen contando faltas hasta que la tabla use `RankingScheme` (2.10).~~ Cerrada en 2.20.
   - Una nota de jueces negativa rompería el contrato de la base: `EvaluationFeedback` no valida su signo.
   - ~~La API ignora las claves JSON desconocidas.~~ Cerrada en 2.19 (issue #14): un campo desconocido es 400.
 
@@ -804,15 +804,59 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
   un 409 bloquea mutaciones hasta recargar, sin retries automáticos. La selección
   de contexto se bloquea durante un envío. Renderizado por texto evita interpretar
   nombres/motivos como HTML.
-- **Límites explícitos**: La API de frente 4 solo permite revisar una apelación
-  conocida. No hay listado/presentación/resolución ni tabla/versiones/recálculo/
-  publicación. Sus pantallas muestran integración pendiente sin mocks ni cálculos
-  locales. La spec 06 no se considera terminada. No se agregó JPA del frente 5.
+- **Límites explícitos**: Apelaciones y tabla ya consumen los contratos del frente 4
+  (2.26). Equipos, ediciones y rondas siguen en memoria. No se agregó JPA de esos
+  agregados. La comprobación visual en navegador sigue pendiente.
 - **Verificación**: Tests JS de contratos/cliente HTTP sin dependencias npm,
-  añadidos a CI; Maven cubre assets, versión histórica, demo y contratos existentes.
+  añadidos a CI; Maven cubre assets, versión histórica, demo, apelaciones y standings.
   El navegador de la sesión no estuvo disponible: no se acredita validación visual,
   layout de escritorio, teclado o flujos desde navegador; quedan documentados en README.
-  La finalización requiere esa comprobación y conectar los contratos del frente 4.
+
+### 2.26. Tabla versionada, publicación y ciclo de apelaciones (frente 4)
+
+- **Problema**:
+  La Entrega 1 agrupaba por edición/categoría/ronda con `Ranking` + `TieBreakerChain`
+  y publicaba esa foto. El hallazgo 5 permitía oficializar una tabla vieja; el 8
+  no declaraba el desempate en el reglamento; el 3 no contaba apelaciones abiertas.
+  Frente 3 necesitaba consultar, recalcular y publicar por desafío, y el ciclo
+  completo de apelaciones (presentar, revisar, aceptar/rechazar).
+
+- **Solución Implementada**:
+  - **`Standings` por desafío y categoría** (`StandingsId`). Cada recálculo agrega
+    una `StandingsVersion` y no edita las anteriores. El orden lo decide
+    `StandingsTable` con el `RankingScheme` vigente del desafío: ronda por ronda
+    (`TeamRounds` / `RoundResult`) y `decide` para explicar el puesto (`Placement`).
+  - **Publicar es un resultado** (`StandingsPublication.Published` | `Blocked`):
+    solo la última versión, y solo si `PublicationCheck` ve la misma tabla, cero
+    apelaciones abiertas y cero turnos sin resultado. Publicar reemplaza a la
+    oficial anterior (`OfficialPublication`); la vieja queda `REPLACED`.
+  - **Apelación sin setters públicos**: las transiciones siguen en `AppealState`.
+    Aceptar lleva correcciones `SourceReport` y las puntúa el intento con su
+    reglamento (`AppealAcceptance`). Rechazar restaura el intento; con dos
+    apelaciones abiertas, una sola no lo libera.
+  - **API**: `POST /attempts/{id}/appeals`, `GET` por intento/categoría,
+    `POST /appeals/{id}/review|acceptance|rejection`, `GET/POST` standings y
+    `POST .../publication`. Un bloqueo o una corrección inválida no escriben.
+  - **Persistencia**: `JpaStandingsRepository` (migración `V5`) con versión
+    optimista, igual que el intento. `Appeal` ya estaba en Postgres.
+
+- **Por qué no se reutilizó `Ranking`**: el alcance cambió (desafío, no ronda
+  suelta) y el recálculo tenía que ser append-only. Evolucionar el agregado
+  viejo mezclaba dos invariantes. El reglamento ya tenía el esquema; faltaba
+  el consumidor (regla #27).
+
+- **Alternativas descartadas**:
+  - Editar la última fila al recalcular: alguien ya pudo ver esa versión.
+  - Publicar cualquier versión histórica: hallazgo 5.
+  - Contar apelaciones en un servicio con `if` de estado: el intento ya las cuenta.
+  - Recalcular en el navegador: el front es adaptador (2.25).
+
+- **Clases agregadas**: `Standings`, `StandingsVersion`, `StandingsTable`,
+  `PublicationCheck`, `StandingsPublication`, `CategoryResults`,
+  `RecalculateStandingsUseCase`, `PublishStandingsUseCase`, `QueryStandingsUseCase`,
+  `QueryAppealsUseCase`, `StandingsController`, `JpaStandingsRepository`.
+- **Clases eliminadas**: `Ranking`, `RankingCalculatorService`, `TieBreakerChain`,
+  `TeamScore`, `PublishOfficialRankingUseCase`, `RecalculateRankingUseCase`.
 
 ## 3. Matriz Comparativa Exhaustiva de Trade-offs
 
@@ -831,7 +875,8 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
 | **Recálculo = reordenar snapshots vigentes** | Cumple “reprocesar posiciones después de una corrección”; no reinterpreta la pista; barato y determinista. | No re-aplica las `ScoreRule` si el desafío publica una versión nueva después de evaluar; que el intento recuerde su versión queda pendiente (hallazgo 2). | Re-evaluar todos los `RawMetrics` en cada recálculo de tabla. Rechazada: con reglamentos inmutables el resultado no cambia; el gancho `recalculateWith` queda por si el negocio lo pide. |
 | **Tope de bonificaciones en el esquema de puntaje (`BonusLimit`)** | El tope va sobre la suma y queda explicado; ninguna regla de bonificación cambia. | Las bonificaciones se declaran aparte del resto de las reglas, y `Rulebook`/`Challenge.publish` pasaron a recibir un `ScoringScheme` en lugar de una lista de reglas. | Decorator que envuelve las bonificaciones como una regla más. Rechazada: el grupo mezcla fuentes y una regla declara una sola. |
 | **Fuente declarada por cada regla (`ScoreRule.source()`)** | El reglamento sabe qué fuentes exige y separa el desglose por fuente sin `if` por tipo de regla. | Cada regla nueva tiene que declarar su fuente; una regla compuesta no puede mezclarlas. | Mapa fuente → reglas en el reglamento. Rechazada: duplica lo que la regla ya sabe. |
-| **Esquema de clasificación en el reglamento (`RankingScheme`)** | Mejores N de M y desempate son datos del reglamento y viajan con su versión; cada criterio dice cuándo decidió. | La tabla todavía no lo consume (pendiente de la tabla por desafío). | Cadena de desempate armada en `Main`/config. Rechazada: dos desafíos no podrían desempatar distinto ni reproducir el criterio de una versión anterior. |
+| **Esquema de clasificación en el reglamento (`RankingScheme`)** | Mejores N de M y desempate son datos del reglamento y viajan con su versión; cada criterio dice cuándo decidió. | Hay que declarar la cadena al publicar el reglamento. | Cadena de desempate armada en `Main`/config. Rechazada: dos desafíos no podrían desempatar distinto ni reproducir el criterio de una versión anterior. |
+| **Standings versionadas por desafío y categoría** | Una corrección no reescribe una tabla ya vista; publicar solo la última evita el hallazgo 5; el desempate es el del reglamento. | Más tipos y una tabla Postgres aparte; el recálculo no reabre el motor de reglas. | Seguir con `Ranking` por edición/ronda. Rechazada: mezclaba alcance y no versionaba. |
 
 ---
 
@@ -864,7 +909,7 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
 ### Evolución de decisiones técnicas inicialmente pospuestas:
 1. **Framework de Persistencia Real (JPA / Hibernate / Spring Data)**:
    - *Entrega 1*: Se difirió la persistencia real porque la consigna se centraba en el módulo de dominio.
-   - *Estado actual*: infrastructure incorpora Spring Data JPA, Hibernate, Postgres y migraciones Flyway para `Appeal`, `Challenge` y `Attempt`. `Edition`, `Team`, `Round` y `Ranking` siguen en memoria. Las entidades JPA y mappers son propios del adaptador; domain y application permanecen libres de anotaciones de persistencia. Flyway administra el esquema y Hibernate lo valida.
+   - *Estado actual*: infrastructure incorpora Spring Data JPA, Hibernate, Postgres y migraciones Flyway para `Appeal`, `Challenge`, `Attempt` y `Standings`. `Edition`, `Team` y `Round` siguen en memoria. Las entidades JPA y mappers son propios del adaptador; domain y application permanecen libres de anotaciones de persistencia. Flyway administra el esquema y Hibernate lo valida.
 2. **Contenedor de Inyección de Dependencias Automatizado (Spring / Guice / CDI)**:
    - *Entrega 1*: Se utilizó ensamblado manual en `Main` y fixtures de test.
    - *Estado actual*: Spring Boot ensambla la aplicación desde API; `UseCaseConfig` registra casos de uso y servicios, y `TransactionalUseCases` aplica las transacciones. El núcleo conserva inyección por constructor y Java sin anotaciones Spring. La independencia del dominio se mantiene aunque el ensamblado externo use un framework.
@@ -894,11 +939,12 @@ El diseño implementado se valida con pruebas automatizadas en `src/test/java` d
   - `AttemptAuditTrailTest`: Valida que cada modificación sobre un intento genere snapshots inmutables con numeración correlativa, preservando la revisión original intacta y registrando eventos de dominio. Cubre además la descalificación auditada (`AttemptDisqualifiedEvent`) y la restauración del estado del intento tras una apelación rechazada.
 - **Pruebas Unitarias de Dominio y Flujos de Estado**:
   - `AppealStateFlowTest`: Verifica la imposibilidad de transiciones ilegales en la máquina de estados de apelaciones y comprueba las consultas polimórficas de habilitación de publicación oficial.
-  - `TieBreakerRankingTest`: Valida el comportamiento de `TieBreakerChain` resolviendo empates por mayor puntaje, menor tiempo, menores faltas y notas de jueces, documentando la justificación en `TieStatus`.
+  - `StandingsTableTest`: Valida el orden y la explicación de cada puesto con la cadena del reglamento, incluyendo empates y desempates.
+  - `StandingsTest` y `PublicationCheckTest`: versionado append-only, bloqueos de publicación y conteo de apelaciones/turnos abiertos.
   - `EligibilitySpecificationTest`: Comprueba el funcionamiento de las especificaciones compuestas de edad, integrantes, dimensiones y peso del robot, y documentación aprobada.
 - **Pruebas de Casos de Uso y de Integración de Punta a Punta**:
   - `RegisterTeamUseCaseTest`: Verifica la correcta admisión y el rechazo fundamentado de equipos según su elegibilidad.
   - `ScheduleRoundUseCaseTest`: Verifica la generación ordenada de slots, asignación balanceada de jueces y pistas, y prevención de turnos solapados.
-  - `PublishOfficialRankingUseCaseTest`: Comprueba el bloqueo automático de la publicación del ranking oficial mientras existan apelaciones abiertas o en revisión sobre intentos de ese ranking, que apelaciones de otras rondas no bloquean, y que un ranking oficial no puede republicarse.
+  - `StandingsUseCasesTest`: Comprueba recálculo por categoría, versiones nuevas, bloqueo por turnos sin resultado o resultados posteriores, y el listado de apelaciones.
   - `ResolveAppealUseCaseTest`: Verifica que rechazar una apelación conserva el puntaje original y libera el intento del estado de apelación.
-  - `AppealAndRecalculateIntegrationTest`: **Prueba de integración end-to-end** que ejecuta el ciclo de vida completo: Registro de equipos -> Planificación de ronda -> Captura inicial de intentos -> Cálculo de ranking provisional -> Presentación de apelación por controversia en penalizaciones -> Bloqueo de publicación oficial -> Revisión técnica arbitral -> Aceptación del reclamo con métricas corregidas -> Verificación del rastro de auditoría en el intento -> Recálculo automático del ranking con inversión legítima de posiciones -> Publicación exitosa del ranking oficial.
+  - `AppealAndRecalculateIntegrationTest`: **Prueba de integración end-to-end** que ejecuta el ciclo de vida completo: Registro de equipos -> Planificación de ronda -> Captura inicial de intentos -> Cálculo de standings provisionales -> Presentación de apelación -> Bloqueo de publicación -> Revisión -> Aceptación con métricas corregidas -> Auditoría del intento -> Recálculo automático como versión nueva con inversión de posiciones -> Publicación de la última versión.

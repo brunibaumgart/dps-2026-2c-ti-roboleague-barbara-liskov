@@ -4,13 +4,13 @@ import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.JudgeScores;
 import com.roboleague.evaluation.Measurements;
-import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.SourceDelivery;
 import com.roboleague.evaluation.TrackPerformance;
+import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.evaluation.definition.RulebookDefinition;
-import com.roboleague.ranking.Ranking;
+import com.roboleague.ranking.StandingsId;
+import com.roboleague.ranking.StandingsPublication;
 import com.roboleague.ranking.appeal.Appeal;
-import com.roboleague.repository.RankingRepository;
 import com.roboleague.scheduling.Judge;
 import com.roboleague.scheduling.JudgeId;
 import com.roboleague.scheduling.Round;
@@ -42,10 +42,11 @@ import com.roboleague.usecase.AddChallengeUseCase;
 import com.roboleague.usecase.CreateEditionCommand;
 import com.roboleague.usecase.CreateEditionUseCase;
 import com.roboleague.usecase.FileAppealUseCase;
+import com.roboleague.usecase.AppealAcceptance;
 import com.roboleague.usecase.Publication;
-import com.roboleague.usecase.PublishOfficialRankingUseCase;
 import com.roboleague.usecase.PublishRulebookUseCase;
-import com.roboleague.usecase.RecalculateRankingUseCase;
+import com.roboleague.usecase.PublishStandingsUseCase;
+import com.roboleague.usecase.RecalculateStandingsUseCase;
 import com.roboleague.usecase.ReceiveResultCommand;
 import com.roboleague.usecase.ReceiveResultUseCase;
 import com.roboleague.usecase.Reception;
@@ -64,13 +65,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 /**
  * Loads the demo through the use cases, the same way a user would through the API: an edition with three
  * challenges (maze, line follower and the mixed rescue), a new rulebook version for the line follower, and on the
- * maze two teams, a round, two attempts, a provisional ranking, an accepted appeal and the official publication.
+ * maze two teams, a round, two attempts, a provisional standings version, an accepted appeal and the official publication.
  * On the rescue (F3), one attempt is scored with the measurements and the judge panel, and the other one still
  * awaits the panel.
  */
@@ -83,12 +83,10 @@ class DemoFixture implements ApplicationRunner {
     /** Round n starts n - 1 hours after the first one. */
     private static final LocalDateTime ROUND_START = LocalDateTime.of(2026, 11, 10, 9, 0);
 
-    private final RankingRepository rankings;
     private final DemoUseCases useCases;
 
-    DemoFixture(RankingRepository rankings, DemoUseCases useCases, Clock clock) {
+    DemoFixture(DemoUseCases useCases, Clock clock) {
         this.clock = clock;
-        this.rankings = rankings;
         this.useCases = useCases;
     }
 
@@ -98,11 +96,11 @@ class DemoFixture implements ApplicationRunner {
                         RegisterTeamUseCase registerTeam,
                         ScheduleRoundUseCase scheduleRound,
                         ReceiveResultUseCase receiveResult,
-                        RecalculateRankingUseCase recalculateRanking,
+                        RecalculateStandingsUseCase recalculateStandings,
                         FileAppealUseCase fileAppeal,
                         ReviewAppealUseCase reviewAppeal,
                         ResolveAppealUseCase resolveAppeal,
-                        PublishOfficialRankingUseCase publishRanking) {
+                        PublishStandingsUseCase publishStandings) {
     }
 
     @Override
@@ -129,17 +127,27 @@ class DemoFixture implements ApplicationRunner {
         Attempt titanAttempt = receive(maze, firstAttempt(round, 1),
                 new SourceDelivery(mazeRun(45.0, 5, 4, 90.0), round.getSlots().get(1).getAssignedJudges().getFirst().id()));
 
-        useCases.recalculateRanking().execute(edition.getId(), junior.id(), Optional.of(round.getId()));
+        StandingsId mazeTable = new StandingsId(maze.getId(), junior.id());
+        useCases.recalculateStandings().execute(mazeTable);
 
         Appeal appeal = useCases.fileAppeal().execute(
                 titanAttempt.getId(), titan.getId(), "Penalizacion inexistente", "Video pista");
         useCases.reviewAppeal().execute(appeal.getAppealId(), ActorId.of("j-arb"));
-        useCases.resolveAppeal().acceptAppeal(appeal.getAppealId(), junior.id(), Optional.of(round.getId()),
-                "Penalizaciones corregidas tras revision", mazeRun(45.0, 5, 0, 90.0).addTo(RawMetrics.nothingMeasured()),
-                ActorId.of("j-arb"));
-
-        Ranking latest = rankings.findLatestByEditionAndCategory(edition.getId(), junior.id()).orElseThrow();
-        useCases.publishRanking().execute(latest.getRankingId(), "Publicacion definitiva post-arbitraje");
+        AppealAcceptance acceptance = useCases.resolveAppeal().acceptAppeal(appeal.getAppealId(),
+                AuditNote.of(ActorId.of("j-arb"), "Penalizaciones corregidas tras revision"),
+                List.of(mazeRun(45.0, 5, 0, 90.0)));
+        int officialVersion = switch (acceptance) {
+            case AppealAcceptance.Accepted accepted -> accepted.standings().number();
+            case AppealAcceptance.Invalid invalid ->
+                    throw new IllegalStateException("Demo appeal rejected: " + invalid.problems());
+        };
+        switch (useCases.publishStandings().execute(mazeTable, officialVersion,
+                AuditNote.of(ActorId.of("org-1"), "Publicacion definitiva post-arbitraje"))) {
+            case StandingsPublication.Published published -> {
+            }
+            case StandingsPublication.Blocked blocked ->
+                    throw new IllegalStateException("Demo publication blocked: " + blocked.reasons());
+        }
 
         Round rescueRound = scheduleRound(rescue, edition, 2, "Ronda de Rescate", Track.active(TrackId.of("trk-2"), "Rescate 1", "Madera"));
         receive(rescue, firstAttempt(rescueRound, 0), new SourceDelivery(rescueRun(120.0, 3), JudgeId.of("j-1")));
@@ -147,9 +155,9 @@ class DemoFixture implements ApplicationRunner {
         Attempt awaitingPanel = receive(rescue, firstAttempt(rescueRound, 1),
                 new SourceDelivery(rescueRun(110.0, 4), rescueRound.getSlots().get(1).getAssignedJudges().getFirst().id()));
 
-        log.info("Demo loaded: edition {}, challenges ch-maze/ch-line/ch-rescue, round {}, appeal {}, official ranking {}, "
+        log.info("Demo loaded: edition {}, challenges ch-maze/ch-line/ch-rescue, round {}, appeal {}, official standings v{}, "
                         + "rescue attempt {} awaiting the judge panel",
-                edition.getId(), round.getId(), appeal.getAppealId(), latest.getRankingId(), awaitingPanel.getId());
+                edition.getId(), round.getId(), appeal.getAppealId(), officialVersion, awaitingPanel.getId());
     }
 
     private Round scheduleRound(Challenge challenge, Edition edition, int number, String name, Track track) {

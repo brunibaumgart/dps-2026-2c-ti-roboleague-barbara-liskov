@@ -25,15 +25,13 @@ public class UnderReviewAppealState implements AppealState {
         if (revisedMetrics == null) {
             throw new IllegalArgumentException("Revised metrics are mandatory when accepting an appeal");
         }
-        appeal.setResolution(resolutionNotes, revisedMetrics, reviewerId);
-        appeal.setResolvedAt(resolvedAt);
+        appeal.resolve(resolutionNotes, revisedMetrics, reviewerId, resolvedAt);
         appeal.transitionToState(new AcceptedAppealState());
     }
 
     @Override
     public void reject(Appeal appeal, String resolutionNotes, ActorId reviewerId, LocalDateTime resolvedAt) {
-        appeal.setResolution(resolutionNotes, null, reviewerId);
-        appeal.setResolvedAt(resolvedAt);
+        appeal.resolve(resolutionNotes, null, reviewerId, resolvedAt);
         appeal.transitionToState(new RejectedAppealState());
     }
 
@@ -59,11 +57,6 @@ public class UnderReviewAppealState implements AppealState {
 
     @Override
     public boolean isResolved() {
-        return false;
-    }
-
-    @Override
-    public boolean canPublishOfficialRanking() {
         return false;
     }
 }

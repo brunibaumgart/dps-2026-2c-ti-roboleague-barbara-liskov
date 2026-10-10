@@ -54,9 +54,4 @@ public class RejectedAppealState implements AppealState {
     public boolean isResolved() {
         return true;
     }
-
-    @Override
-    public boolean canPublishOfficialRanking() {
-        return true;
-    }
 }
