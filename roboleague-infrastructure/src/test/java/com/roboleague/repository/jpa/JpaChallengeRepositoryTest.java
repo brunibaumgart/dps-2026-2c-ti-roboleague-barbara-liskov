@@ -80,7 +80,7 @@ class JpaChallengeRepositoryTest {
     private JpaChallengeRepository repository;
 
     private final RawMetrics run = new RawMetrics(new TrackPerformance(50.0, 5, 1),
-            EvaluationFeedback.withMeasurements(Map.of(COLLISIONS.name(), 3.0, CHECKPOINT.name(), 1.0)));
+            EvaluationFeedback.of(0.0, Map.of(), Map.of(COLLISIONS.name(), 3.0, CHECKPOINT.name(), 1.0)));
 
     private static ScoringScheme mazeScoring(double cap) {
         MetricSheet metrics = new MetricSheet(List.of(

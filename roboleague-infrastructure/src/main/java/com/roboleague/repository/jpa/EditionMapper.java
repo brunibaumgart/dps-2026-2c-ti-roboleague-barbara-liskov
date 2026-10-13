@@ -5,7 +5,9 @@ import com.roboleague.repository.jpa.EditionJpaEntity.RegistrationJson;
 import com.roboleague.repository.jpa.EditionJpaEntity.TournamentJson;
 import com.roboleague.tournament.Category;
 import com.roboleague.tournament.CategoryId;
+import com.roboleague.tournament.CategoryRestrictions;
 import com.roboleague.tournament.DateRange;
+import com.roboleague.tournament.Dimensions;
 import com.roboleague.tournament.Edition;
 import com.roboleague.tournament.EditionContext;
 import com.roboleague.tournament.EditionHeader;
@@ -64,9 +66,11 @@ final class EditionMapper {
     }
 
     private static CategoryJson toJson(Category category) {
-        return new CategoryJson(category.id().value(), category.name(), category.minTeamMembers(),
-                category.maxTeamMembers(), category.minAge(), category.maxAge(), category.maxRobotWeightGrams(),
-                category.maxRobotLengthMm(), category.maxRobotWidthMm(), category.maxRobotHeightMm());
+        CategoryRestrictions limits = category.restrictions();
+        Dimensions robot = limits.robotLimits().maxDimensions();
+        return new CategoryJson(category.id().value(), category.name(), limits.teamSize().minMembers(),
+                limits.teamSize().maxMembers(), limits.ageRange().minAge(), limits.ageRange().maxAge(),
+                limits.robotLimits().maxWeight().grams(), robot.lengthMm(), robot.widthMm(), robot.heightMm());
     }
 
     private static Category toCategory(CategoryJson json) {

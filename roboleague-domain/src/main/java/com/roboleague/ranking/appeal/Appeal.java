@@ -46,14 +46,6 @@ public class Appeal {
         return appeal;
     }
 
-    public AppealTarget getTarget() {
-        return target;
-    }
-
-    public AppealClaim getClaim() {
-        return claim;
-    }
-
     public AppealId getAppealId() {
         return target.appealId();
     }
@@ -76,10 +68,6 @@ public class Appeal {
 
     public LocalDateTime getSubmittedAt() {
         return submittedAt;
-    }
-
-    public AppealState getState() {
-        return state;
     }
 
     public String getStatusName() {

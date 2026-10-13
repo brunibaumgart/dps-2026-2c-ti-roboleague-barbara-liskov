@@ -237,7 +237,7 @@ class AppealAndRecalculateIntegrationTest {
         // 9. Verify Attempt Beta Audit Trail
         Attempt auditedAttemptBeta = attemptRepository.findById(attemptBeta.getId()).orElseThrow();
         assertThat(auditedAttemptBeta.getRevisionHistory()).hasSize(2);
-        assertThat(auditedAttemptBeta.getOriginalSnapshot().breakdown().totalScore()).isEqualTo(Points.of(175));
+        assertThat(auditedAttemptBeta.getRevisionHistory().getFirst().breakdown().totalScore()).isEqualTo(Points.of(175));
         assertThat(auditedAttemptBeta.getLatestSnapshot().breakdown().totalScore()).isEqualTo(Points.of(235));
         assertThat(auditedAttemptBeta.getScoreBreakdown().totalScore()).isEqualTo(Points.of(235));
         assertThat(appealBeta.getResolvedAt()).isEqualTo(operationTime);

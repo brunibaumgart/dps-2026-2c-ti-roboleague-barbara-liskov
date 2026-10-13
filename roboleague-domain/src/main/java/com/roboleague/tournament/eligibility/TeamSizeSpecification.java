@@ -1,25 +1,24 @@
 package com.roboleague.tournament.eligibility;
 
-import com.roboleague.tournament.Category;
-import com.roboleague.tournament.Team;
+import com.roboleague.tournament.TeamSizeRange;
 
 /**
- * Validates that the team composition matches the minimum and maximum members allowed in the category.
+ * Validates that the team composition matches the minimum and maximum members allowed in the category, delegating
+ * the bounds to {@link TeamSizeRange}.
  */
 public class TeamSizeSpecification implements EligibilitySpecification<EligibilityCandidate> {
 
     @Override
     public EligibilityResult isSatisfiedBy(EligibilityCandidate candidate) {
-        Team team = candidate.team();
-        Category category = candidate.category();
-        int size = team.getMembers().size();
+        TeamSizeRange range = candidate.category().restrictions().teamSize();
+        int size = candidate.team().getMembers().size();
 
-        if (size < category.minTeamMembers()) {
-            return EligibilityResult.ineligible("Team has fewer members than required: " + size + " < " + category.minTeamMembers());
+        if (range.allows(size)) {
+            return EligibilityResult.eligible();
         }
-        if (size > category.maxTeamMembers()) {
-            return EligibilityResult.ineligible("Team exceeds maximum member count: " + size + " > " + category.maxTeamMembers());
+        if (size < range.minMembers()) {
+            return EligibilityResult.ineligible("Team has fewer members than required: " + size + " < " + range.minMembers());
         }
-        return EligibilityResult.eligible();
+        return EligibilityResult.ineligible("Team exceeds maximum member count: " + size + " > " + range.maxMembers());
     }
 }

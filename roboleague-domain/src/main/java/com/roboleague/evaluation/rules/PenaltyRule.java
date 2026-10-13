@@ -28,10 +28,6 @@ public class PenaltyRule implements DeductionRule {
         this.deductionPerPenalty = deductionPerPenalty;
     }
 
-    public static PenaltyRule standard(Points deductionPerPenalty) {
-        return new PenaltyRule("Penalizaciones por Faltas", deductionPerPenalty);
-    }
-
     public static final String TYPE = "penalty";
     private static final String DEDUCTION_PER_PENALTY = "deductionPerPenalty";
 

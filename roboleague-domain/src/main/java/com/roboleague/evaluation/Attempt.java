@@ -117,13 +117,6 @@ public class Attempt {
         return revisionHistory.get(revisionHistory.size() - 1);
     }
 
-    public AttemptScoreSnapshot getOriginalSnapshot() {
-        if (revisionHistory.isEmpty()) {
-            return null;
-        }
-        return revisionHistory.get(0);
-    }
-
     public ScoreBreakdown getScoreBreakdown() {
         AttemptScoreSnapshot latest = getLatestSnapshot();
         return latest != null ? latest.breakdown() : ScoreBreakdown.empty();

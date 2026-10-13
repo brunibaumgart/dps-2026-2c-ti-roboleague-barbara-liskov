@@ -118,7 +118,7 @@ class ReceiveResultUseCaseTest {
 
         Attempt stored = attempts.findById(TURN).orElseThrow();
         assertThat(stored.getRevisionHistory()).hasSize(1);
-        assertThat(stored.getOriginalSnapshot().metrics().timeTakenSeconds()).isEqualTo(55.0);
+        assertThat(stored.getRevisionHistory().getFirst().metrics().timeTakenSeconds()).isEqualTo(55.0);
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.roboleague.evaluation;
 
+import com.roboleague.support.TestValues;
 import com.roboleague.evaluation.rules.AbandonedVictimsRule;
 import com.roboleague.evaluation.rules.BaseRule;
 import com.roboleague.evaluation.rules.CompositeScoreRule;
@@ -41,7 +42,7 @@ class RulebookSourcesTest {
     private static final RankingScheme ANY_SCHEME = new RankingScheme(new AllRounds(), List.of(new HigherTotal()));
     private static final BaseRule TIME = TimeBasedRule.standard(Points.of(100), 60.0);
     private static final BaseRule OBJECTIVES = ObjectivesRule.standard(Points.of(20));
-    private static final BaseRule JUDGES = JudgeSubjectiveRule.standard(2.0);
+    private static final BaseRule JUDGES = new JudgeSubjectiveRule("Evaluación de Jueces", 2.0);
     private static final Metric RESCUED = Metric.judged("victimas_rescatadas");
     private static final BaseRule VICTIMS = new VictimsRule("Víctimas rescatadas", RESCUED, Points.of(25));
     private static final DeductionRule ABANDONED =
@@ -110,7 +111,7 @@ class RulebookSourcesTest {
     void givenTheTrackPerformanceCompositeThenItAddsTimeAndObjectivesKeepingEachItem() {
         CompositeScoreRule trackPerformance = new CompositeScoreRule("Desempeño en pista", List.of(TIME, OBJECTIVES));
 
-        ScoreRule.RuleEvaluation evaluation = trackPerformance.evaluate(RawMetrics.of(50.0, 5, 0));
+        ScoreRule.RuleEvaluation evaluation = trackPerformance.evaluate(TestValues.metrics(50.0, 5, 0));
 
         assertThat(evaluation.items()).hasSize(2);
         assertThat(evaluation.total()).isEqualTo(Points.of(115 + 100));
@@ -169,7 +170,7 @@ class RulebookSourcesTest {
     void givenANegativeSumThenTheFloorIsInTheBreakdownButNotInAnySource() {
         Rulebook rescue = rulebookWith(List.of(VICTIMS), List.of(ABANDONED));
         RawMetrics noneRescued = new RawMetrics(new TrackPerformance(50.0, 0, 0),
-                EvaluationFeedback.withMeasurements(Map.of(RESCUED.name(), 0.0)));
+                TestValues.measured(Map.of(RESCUED.name(), 0.0)));
 
         List<SourceContribution> contributions = rescue.contributions(noneRescued);
 

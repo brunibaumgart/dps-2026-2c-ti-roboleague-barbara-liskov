@@ -25,7 +25,7 @@ class RegistrationModelTest {
 
     @Test
     void returnedCandidatesDoNotMutateTheOriginalTeamOrNestedValues() {
-        Team candidate = team.withMembers(List.of()).withRobot(robot.withSpecification(
+        Team candidate = team.withMembers(List.of()).withRobot(new Robot(robot.getId(), robot.getName(),
                 RobotSpecification.of(3000, 100, 100, 100, 1, Set.of())))
                 .withDocumentation(documentation.revokeVerification("Missing consent"));
         assertThat(team.getMembers()).containsExactly(member);

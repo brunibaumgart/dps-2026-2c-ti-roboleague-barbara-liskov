@@ -54,10 +54,6 @@ public class CompositeScoreRule implements BaseRule {
         return new RuleDefinition(TYPE, name, RuleArguments.ofRules(children));
     }
 
-    public List<BaseRule> getRules() {
-        return rules;
-    }
-
     @Override
     public String getRuleName() {
         return name;

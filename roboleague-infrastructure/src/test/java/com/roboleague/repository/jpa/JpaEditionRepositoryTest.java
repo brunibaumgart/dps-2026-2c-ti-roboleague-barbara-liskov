@@ -68,7 +68,7 @@ class JpaEditionRepositoryTest {
         assertThat(stored.getContext()).isEqualTo(edition.getContext());
         assertThat(stored.getDates()).isEqualTo(edition.getDates());
         assertThat(stored.getCategories()).containsExactly(JUNIOR, OPEN);
-        assertThat(stored.category(OPEN.id()).maxAge()).isNull();
+        assertThat(stored.category(OPEN.id()).restrictions().ageRange().maxAge()).isNull();
         assertThat(stored.getRegistrations())
                 .extracting(Registration::teamId, Registration::editionId, Registration::categoryId,
                         Registration::referenceDate, Registration::registeredAt)

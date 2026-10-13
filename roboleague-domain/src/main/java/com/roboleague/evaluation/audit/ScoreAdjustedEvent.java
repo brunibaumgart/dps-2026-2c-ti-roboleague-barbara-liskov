@@ -1,8 +1,6 @@
 package com.roboleague.evaluation.audit;
 
 import com.roboleague.evaluation.AttemptId;
-import com.roboleague.evaluation.RawMetrics;
-import com.roboleague.evaluation.ScoreBreakdown;
 import com.roboleague.support.ActorId;
 
 import java.time.LocalDateTime;
@@ -50,14 +48,6 @@ public record ScoreAdjustedEvent(
         return details.authorId();
     }
 
-    public RawMetrics newMetrics() {
-        return evaluation.metrics();
-    }
-
-    public ScoreBreakdown newScoreBreakdown() {
-        return evaluation.breakdown();
-    }
-
     @Override
     public String eventType() {
         return "SCORE_ADJUSTED";
@@ -65,7 +55,7 @@ public record ScoreAdjustedEvent(
 
     @Override
     public String description() {
-        return "Score adjusted (rev " + newRevisionNumber() + ") to " + newScoreBreakdown().totalScore() + ": " + reason();
+        return "Score adjusted (rev " + newRevisionNumber() + ") to " + evaluation.breakdown().totalScore() + ": " + reason();
     }
 
     public static ScoreAdjustedEvent create(EventMetadata metadata, int newRevisionNumber, EvaluationSnapshot evaluation,

@@ -19,50 +19,6 @@ public record Category(
         }
     }
 
-    public int minTeamMembers() {
-        return restrictions.teamSize().minMembers();
-    }
-
-    public int maxTeamMembers() {
-        return restrictions.teamSize().maxMembers();
-    }
-
-    public int minAge() {
-        return restrictions.ageRange().minAge();
-    }
-
-    public Integer maxAge() {
-        return restrictions.ageRange().maxAge();
-    }
-
-    public double maxRobotWeightGrams() {
-        return restrictions.robotLimits().maxWeight().grams();
-    }
-
-    public double maxRobotLengthMm() {
-        return restrictions.robotLimits().maxDimensions().lengthMm();
-    }
-
-    public double maxRobotWidthMm() {
-        return restrictions.robotLimits().maxDimensions().widthMm();
-    }
-
-    public double maxRobotHeightMm() {
-        return restrictions.robotLimits().maxDimensions().heightMm();
-    }
-
-    public boolean allowsTeamSize(int memberCount) {
-        return restrictions.teamSize().allows(memberCount);
-    }
-
-    public boolean allowsAge(int age) {
-        return restrictions.ageRange().contains(age);
-    }
-
-    public boolean allowsRobot(RobotSpecification spec) {
-        return restrictions.robotLimits().allows(spec);
-    }
-
     public static Category of(CategoryId id, String name, CategoryRestrictions restrictions) {
         return new Category(id, name, restrictions);
     }

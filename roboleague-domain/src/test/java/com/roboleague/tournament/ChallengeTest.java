@@ -1,6 +1,7 @@
 package com.roboleague.tournament;
 
 import com.roboleague.evaluation.Points;
+import com.roboleague.support.TestValues;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookVersion;
@@ -23,7 +24,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ChallengeTest {
 
-    private final RawMetrics tenSecondsUnderTarget = RawMetrics.of(50.0, 0, 0);
+    private final RawMetrics tenSecondsUnderTarget = TestValues.metrics(50.0, 0, 0);
     private final RankingScheme allRounds = new RankingScheme(new AllRounds(), List.of(new HigherTotal()));
 
     private Challenge mazeWithBase(double basePoints) {

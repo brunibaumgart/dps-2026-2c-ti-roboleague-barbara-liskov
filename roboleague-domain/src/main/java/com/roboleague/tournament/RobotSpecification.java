@@ -41,11 +41,6 @@ public record RobotSpecification(
         return hardware.sensors();
     }
 
-    public boolean fitsWithin(RobotLimits limits) {
-        Objects.requireNonNull(limits, "limits cannot be null");
-        return limits.allows(this);
-    }
-
     public static RobotSpecification of(Weight weight, Dimensions dimensions, RobotHardware hardware) {
         return new RobotSpecification(weight, dimensions, hardware);
     }

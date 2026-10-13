@@ -1,5 +1,6 @@
 package com.roboleague.evaluation;
 
+import com.roboleague.support.TestValues;
 import com.roboleague.evaluation.rules.AllObjectivesBonusRule;
 import com.roboleague.evaluation.rules.BaseRule;
 import com.roboleague.evaluation.rules.BonusRule;
@@ -34,7 +35,7 @@ class BonusCapTest {
     private static final RankingScheme ANY_RANKING = new RankingScheme(new AllRounds(), List.of(new HigherTotal()));
 
     private final RawMetrics bothMilestonesAt60Seconds = new RawMetrics(new TrackPerformance(60.0, 0, 0),
-            EvaluationFeedback.withMeasurements(Map.of(ZONE.name(), 1.0, DISTANCE.name(), 12.0)));
+            TestValues.measured(Map.of(ZONE.name(), 1.0, DISTANCE.name(), 12.0)));
 
     private static boolean isBonus(ScoreItem item) {
         return item.concept().equals(ZONE_BONUS.getRuleName()) || item.concept().equals(DISTANCE_BONUS.getRuleName());
@@ -114,7 +115,7 @@ class BonusCapTest {
                 new CappedAt(Points.of(40))),
                 ANY_RANKING);
         RawMetrics threeFaults = new RawMetrics(new TrackPerformance(60.0, 0, 3),
-                EvaluationFeedback.withMeasurements(Map.of(ZONE.name(), 1.0, DISTANCE.name(), 12.0)));
+                TestValues.measured(Map.of(ZONE.name(), 1.0, DISTANCE.name(), 12.0)));
 
         ScoreBreakdown breakdown = rulebook.evaluate(threeFaults);
 
@@ -131,7 +132,7 @@ class BonusCapTest {
                 List.of(TIME), List.of(ZONE_BONUS, DISTANCE_BONUS, new AllObjectivesBonusRule("Todos", 5, Points.of(25))),
                 List.of()), new CappedAt(Points.of(40))), ANY_RANKING);
         RawMetrics run = new RawMetrics(new TrackPerformance(60.0, objectives, 0),
-                EvaluationFeedback.withMeasurements(Map.of(ZONE.name(), 1.0, DISTANCE.name(), 12.0)));
+                TestValues.measured(Map.of(ZONE.name(), 1.0, DISTANCE.name(), 12.0)));
 
         assertThat(capItem(rulebook.evaluate(run)).subtotal()).isEqualTo(Points.of(-expectedCut));
     }
@@ -143,7 +144,7 @@ class BonusCapTest {
                 new ScoreRules(List.of(TIME), List.of(ZONE_BONUS, DISTANCE_BONUS), List.of(new PenaltyRule("Faltas", Points.of(10)))),
                 new CappedAt(Points.of(40))), ANY_RANKING);
         RawMetrics twoFaults = new RawMetrics(new TrackPerformance(60.0, 0, 2),
-                EvaluationFeedback.withMeasurements(Map.of(ZONE.name(), 1.0, DISTANCE.name(), 12.0)));
+                TestValues.measured(Map.of(ZONE.name(), 1.0, DISTANCE.name(), 12.0)));
 
         ScoreBreakdown breakdown = rulebook.evaluate(twoFaults);
 

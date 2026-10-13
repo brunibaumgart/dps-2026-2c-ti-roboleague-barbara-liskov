@@ -65,7 +65,7 @@ class DemoFixtureTest {
         assertThat(official.official()).isPresent();
         assertThat(official.official().orElseThrow().table().entries().getFirst().team().teamId())
                 .isEqualTo(TeamId.of("t-b"));
-        assertThat(mazeAttemptOf("t-b").getOriginalSnapshot().breakdown().totalScore())
+        assertThat(mazeAttemptOf("t-b").getRevisionHistory().getFirst().breakdown().totalScore())
                 .isEqualTo(Points.of(197.5));
         assertThat(mazeAttemptOf("t-b").getScoreBreakdown().totalScore()).isEqualTo(Points.of(257.5));
         assertThat(mazeAttemptOf("t-a").getScoreBreakdown().totalScore()).isEqualTo(Points.of(235));
@@ -73,7 +73,7 @@ class DemoFixtureTest {
 
     @Test
     void theAppealLowersWhatTheDeductionsTookFromTitanTeam() {
-        assertThat(mazeAttemptOf("t-b").getOriginalSnapshot().breakdown().deducted())
+        assertThat(mazeAttemptOf("t-b").getRevisionHistory().getFirst().breakdown().deducted())
                 .isEqualTo(Points.of(65));
         assertThat(mazeAttemptOf("t-b").getScoreBreakdown().deducted()).isEqualTo(Points.of(5));
     }
@@ -98,7 +98,7 @@ class DemoFixtureTest {
     void theMazeAttemptsShowTheBonusCapInTheirBreakdown() {
         assertThat(mazeAttemptOf("t-a").getScoreBreakdown().items())
                 .anyMatch(item -> item.concept().equals("Tope de bonificaciones") && item.subtotal().equals(Points.of(-10)));
-        assertThat(mazeAttemptOf("t-b").getOriginalSnapshot().breakdown().items())
+        assertThat(mazeAttemptOf("t-b").getRevisionHistory().getFirst().breakdown().items())
                 .anyMatch(item -> item.concept().equals("Tope de bonificaciones") && item.subtotal().equals(Points.of(-35)));
     }
 

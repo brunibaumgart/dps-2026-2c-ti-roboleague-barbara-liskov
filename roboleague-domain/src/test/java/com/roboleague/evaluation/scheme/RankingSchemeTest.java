@@ -1,5 +1,6 @@
 package com.roboleague.evaluation.scheme;
 
+import com.roboleague.support.TestValues;
 import com.roboleague.evaluation.EvaluationFeedback;
 import com.roboleague.evaluation.MeasurementUnit;
 import com.roboleague.evaluation.Metric;
@@ -132,7 +133,7 @@ class RankingSchemeTest {
 
     private static RoundScore scoredRound(ScoringScheme scoring, double seconds, Map<String, Double> measurements) {
         RawMetrics run = new RawMetrics(new TrackPerformance(seconds, 0, 0),
-                EvaluationFeedback.withMeasurements(measurements));
+                TestValues.measured(measurements));
         return new RoundScore(RoundId.of("r1"), new EvaluationSnapshot(RulebookVersion.first(), run, scoring.evaluate(run)));
     }
 

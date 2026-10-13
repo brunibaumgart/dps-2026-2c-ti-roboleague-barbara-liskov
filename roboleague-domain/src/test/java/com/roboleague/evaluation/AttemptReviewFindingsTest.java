@@ -1,5 +1,6 @@
 package com.roboleague.evaluation;
 
+import com.roboleague.support.TestValues;
 import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.TimeBasedRule;
@@ -58,10 +59,10 @@ class AttemptReviewFindingsTest {
                 RULEBOOK, audit());
         attempt.markUnderAppeal();
 
-        attempt.adjustAfterAppeal(new AppealRevision(AppealId.of("app-1"), RawMetrics.of(50.0, 0, 0),
+        attempt.adjustAfterAppeal(new AppealRevision(AppealId.of("app-1"), TestValues.metrics(50.0, 0, 0),
                 new AuditNote(ActorId.of("arb-1"), "Las faltas no existieron")), RULEBOOK, audit());
 
-        assertThat(attempt.getOriginalSnapshot().breakdown().totalScore()).isEqualTo(Points.of(70));
+        assertThat(attempt.getRevisionHistory().getFirst().breakdown().totalScore()).isEqualTo(Points.of(70));
         assertThat(attempt.getScoreBreakdown().totalScore()).isEqualTo(Points.of(110));
         assertThat(attempt.getLatestSnapshot().authorOrJudgeId()).isEqualTo(ActorId.of("arb-1"));
     }
@@ -88,7 +89,7 @@ class AttemptReviewFindingsTest {
                         List.of(new PenaltyRule("Faltas", Points.of(100)))),
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
 
-        assertThatThrownBy(() -> attempt.adjustAfterAppeal(new AppealRevision(AppealId.of("app-1"), RawMetrics.of(50.0, 0, 1),
+        assertThatThrownBy(() -> attempt.adjustAfterAppeal(new AppealRevision(AppealId.of("app-1"), TestValues.metrics(50.0, 0, 1),
                 new AuditNote(ActorId.of("arb-1"), "Una sola falta")), harsher, audit()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("the attempt is scored with ch-maze v1, not with v2");
@@ -101,7 +102,7 @@ class AttemptReviewFindingsTest {
         Attempt attempt = scoredAttempt();
         attempt.disqualify(AuditNote.of(JudgeId.of("j-1").asActorId(), "robot fuera de pista"), audit());
 
-        assertThatThrownBy(() -> attempt.adjustAfterAppeal(new AppealRevision(AppealId.of("no-existe"), RawMetrics.of(1.0, 5, 0),
+        assertThatThrownBy(() -> attempt.adjustAfterAppeal(new AppealRevision(AppealId.of("no-existe"), TestValues.metrics(1.0, 5, 0),
                 new AuditNote(ActorId.of("cualquiera"), "sin apelación")), RULEBOOK, audit()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("attempt is disqualified: it cannot close an appeal: it has none open");

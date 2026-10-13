@@ -65,7 +65,7 @@ class AttemptAuditTrailTest {
         assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.ADJUSTED);
 
         // Original revision 1 is untouched
-        AttemptScoreSnapshot rev1 = attempt.getOriginalSnapshot();
+        AttemptScoreSnapshot rev1 = attempt.getRevisionHistory().getFirst();
         assertThat(rev1.revisionNumber()).isEqualTo(1);
         assertThat(rev1.authorOrJudgeId()).isEqualTo(ActorId.of("judge-alfa"));
         assertThat(rev1.metrics().penaltiesCount()).isEqualTo(0);

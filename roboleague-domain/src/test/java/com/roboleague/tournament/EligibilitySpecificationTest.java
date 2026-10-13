@@ -66,7 +66,7 @@ class EligibilitySpecificationTest {
             var team = createValidTeam().withMembers(List.of(member));
             var result = specification.isSatisfiedBy(new EligibilityCandidate(team, category, tournamentDate));
             assertThat(result.isEligible()).as("age %s", age).isEqualTo(age > 12);
-            assertThat(category.allowsAge(age)).isEqualTo(age > 12);
+            assertThat(category.restrictions().ageRange().contains(age)).isEqualTo(age > 12);
         }
     }
 
@@ -98,6 +98,23 @@ class EligibilitySpecificationTest {
 
         assertThat(result.isEligible()).isFalse();
         assertThat(result.reasons()).anyMatch(r -> r.contains("under the minimum age limit"));
+    }
+
+    @Test
+    @DisplayName("The age limits are the category's inclusive AgeRange, and each side explains itself")
+    void ageLimitsFollowTheCategoryAgeRange() {
+        Team team = createValidTeam().withMembers(List.of(
+                TeamMember.of(ParticipantId.of("m-14"), "Justo Catorce", tournamentDate.minusYears(14), "M", DATE),
+                TeamMember.of(ParticipantId.of("m-18"), "Justa Dieciocho", tournamentDate.minusYears(18), "M", DATE),
+                TeamMember.of(ParticipantId.of("m-13"), "Nene", tournamentDate.minusYears(13), "M", DATE),
+                TeamMember.of(ParticipantId.of("m-19"), "Mayor", tournamentDate.minusYears(19), "M", DATE)));
+
+        EligibilityResult result = new AgeLimitSpecification()
+                .isSatisfiedBy(new EligibilityCandidate(team, sumoCategory, tournamentDate));
+
+        assertThat(result.reasons()).containsExactly(
+                "Member Nene is under the minimum age limit (13 < 14)",
+                "Member Mayor exceeds the maximum age limit (19 > 18)");
     }
 
     @Test

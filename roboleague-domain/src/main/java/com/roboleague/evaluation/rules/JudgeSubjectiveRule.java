@@ -29,10 +29,6 @@ public class JudgeSubjectiveRule implements BaseRule {
         this.weightMultiplier = weightMultiplier;
     }
 
-    public static JudgeSubjectiveRule standard(double weightMultiplier) {
-        return new JudgeSubjectiveRule("Evaluación de Jueces", weightMultiplier);
-    }
-
     public static final String TYPE = "judges";
     private static final String WEIGHT_MULTIPLIER = "weightMultiplier";
 

@@ -1,5 +1,6 @@
 package com.roboleague.evaluation.rules;
 
+import com.roboleague.support.TestValues;
 import com.roboleague.evaluation.EvaluationFeedback;
 import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.Points;
@@ -23,7 +24,7 @@ class MeasuredRulesTest {
     private static final Metric DISTANCE = Metric.sensor("distancia_metros");
 
     private static RawMetrics measuring(Metric metric, double value) {
-        return new RawMetrics(new TrackPerformance(60.0, 0, 0), EvaluationFeedback.withMeasurements(Map.of(metric.name(), value)));
+        return new RawMetrics(new TrackPerformance(60.0, 0, 0), TestValues.measured(Map.of(metric.name(), value)));
     }
 
     private static Points subtotal(ScoreRule rule, RawMetrics metrics) {
@@ -117,7 +118,7 @@ class MeasuredRulesTest {
     @DisplayName("Sin la medición capturada la regla no inventa un cero: falla nombrando la métrica")
     void givenAMissingMeasurementThenTheRuleFailsNamingTheMetric() {
         CountedFaultRule lineExits = new CountedFaultRule("Salidas de línea", LINE_EXITS, new FaultTariff(0, Points.of(5)));
-        RawMetrics withoutExits = RawMetrics.of(60.0, 0, 0);
+        RawMetrics withoutExits = TestValues.metrics(60.0, 0, 0);
 
         assertThatThrownBy(() -> lineExits.evaluate(withoutExits))
                 .isInstanceOf(IllegalStateException.class)

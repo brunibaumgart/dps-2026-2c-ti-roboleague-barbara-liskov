@@ -1,5 +1,6 @@
 package com.roboleague.evaluation;
 
+import com.roboleague.evaluation.rules.BaseRule;
 import com.roboleague.evaluation.rules.CompositeScoreRule;
 import com.roboleague.evaluation.rules.FaultTariff;
 import com.roboleague.evaluation.rules.JudgeSubjectiveRule;
@@ -52,12 +53,14 @@ class RulebookReviewFindingsTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 1: la lista de reglas que expone la regla compuesta no se puede modificar")
+    @DisplayName("Hallazgo 1: la regla compuesta copia sus reglas; cambiar la lista recibida no la modifica")
     void givenTheCompositeRuleThenItsRulesListIsUnmodifiable() {
-        CompositeScoreRule composite = new CompositeScoreRule("Laberinto", List.of(TimeBasedRule.standard(Points.of(100), 60.0)));
+        List<BaseRule> received = new java.util.ArrayList<>(List.of(TimeBasedRule.standard(Points.of(100), 60.0)));
+        CompositeScoreRule composite = new CompositeScoreRule("Laberinto", received);
 
-        assertThatThrownBy(() -> composite.getRules().add(ObjectivesRule.standard(Points.of(15))))
-                .isInstanceOf(UnsupportedOperationException.class);
+        received.add(ObjectivesRule.standard(Points.of(15)));
+
+        assertThat(composite.definition().arguments().rules()).hasSize(1);
     }
 
     @Test

@@ -84,10 +84,6 @@ public class TimeBasedRule implements BaseRule {
         return ruleName;
     }
 
-    public TimeRuleConfig getConfig() {
-        return config;
-    }
-
     @Override
     public RuleEvaluation evaluate(RawMetrics metrics) {
         double time = metrics.timeTakenSeconds();

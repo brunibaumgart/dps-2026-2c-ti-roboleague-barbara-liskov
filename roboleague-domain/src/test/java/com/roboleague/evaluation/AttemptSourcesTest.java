@@ -72,7 +72,7 @@ class AttemptSourcesTest {
 
         assertThat(attempt.getStatus()).isEqualTo(AttemptStatus.EVALUATED);
         assertThat(attempt.getScoreBreakdown().totalScore()).isEqualTo(Points.of(130));
-        assertThat(attempt.getOriginalSnapshot().authorOrJudgeId()).isEqualTo(ActorId.of("j-2"));
+        assertThat(attempt.getRevisionHistory().getFirst().authorOrJudgeId()).isEqualTo(ActorId.of("j-2"));
         assertThat(attempt.getEventHistory()).extracting(AttemptEvent::eventType)
                 .containsExactly("SOURCE_RECEIVED", "SOURCE_RECEIVED", "RESULT_REGISTERED");
     }

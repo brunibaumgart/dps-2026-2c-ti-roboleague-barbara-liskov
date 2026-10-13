@@ -28,10 +28,6 @@ public final class Robot {
         return specification;
     }
 
-    public Robot withSpecification(RobotSpecification specification) {
-        return new Robot(id, name, specification);
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

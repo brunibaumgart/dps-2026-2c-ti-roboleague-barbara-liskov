@@ -2,7 +2,9 @@ package com.roboleague.repository.jpa;
 
 import com.roboleague.PostgresContainer;
 import com.roboleague.evaluation.AttemptId;
+import com.roboleague.evaluation.EvaluationFeedback;
 import com.roboleague.evaluation.RawMetrics;
+import com.roboleague.evaluation.TrackPerformance;
 import com.roboleague.ranking.appeal.Appeal;
 import com.roboleague.ranking.appeal.AppealId;
 import com.roboleague.scheduling.JudgeId;
@@ -52,7 +54,8 @@ class JpaAppealRepositoryTest {
     void acceptedAppealRoundTrip() {
         Appeal appeal = Appeal.of(AppealId.of("app-2"), AttemptId.parse("att-2"), TeamId.of("team-2"), "Penalizacion inexistente", "Video pista", TIME);
         appeal.beginReview(ActorId.of("arb-1"));
-        RawMetrics revised = RawMetrics.of(45.0, 5, 0, Map.of(JudgeId.of("diseño"), 8.5));
+        RawMetrics revised = RawMetrics.of(new TrackPerformance(45.0, 5, 0),
+                EvaluationFeedback.of(0.0, Map.of(JudgeId.of("diseño"), 8.5), Map.of()));
         appeal.accept("Penalizaciones corregidas", revised, ActorId.of("arb-1"), TIME);
 
         repository.save(appeal);

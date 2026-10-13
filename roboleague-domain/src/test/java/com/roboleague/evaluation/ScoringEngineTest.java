@@ -1,5 +1,6 @@
 package com.roboleague.evaluation;
 
+import com.roboleague.support.TestValues;
 import com.roboleague.evaluation.rules.*;
 import com.roboleague.evaluation.scheme.AllRounds;
 import com.roboleague.evaluation.scheme.HigherTotal;
@@ -23,7 +24,7 @@ class ScoringEngineTest {
         TimeBasedRule rule = new TimeBasedRule("Tiempo de Carrera", TimeRuleConfig.of(Points.of(100), 60.0, 2.0, 3.0, Points.ZERO));
 
         // Completed in 45 seconds (15 seconds faster)
-        RawMetrics metrics = RawMetrics.of(45.0, 0, 0);
+        RawMetrics metrics = TestValues.metrics(45.0, 0, 0);
         ScoreRule.RuleEvaluation eval = rule.evaluate(metrics);
 
         assertThat(eval.items()).hasSize(1);
@@ -41,10 +42,10 @@ class ScoringEngineTest {
         Locale previous = Locale.getDefault();
         Locale.setDefault(Locale.GERMANY);
         try {
-            ScoreItem objectives = new ObjectivesRule("Objetivos", Points.of(20)).evaluate(RawMetrics.of(50.0, 5, 0))
+            ScoreItem objectives = new ObjectivesRule("Objetivos", Points.of(20)).evaluate(TestValues.metrics(50.0, 5, 0))
                     .items().getFirst();
             ScoreItem allObjectives = new AllObjectivesBonusRule("Todos los objetivos", 5, Points.of(25))
-                    .evaluate(RawMetrics.of(50.0, 5, 0)).items().getFirst();
+                    .evaluate(TestValues.metrics(50.0, 5, 0)).items().getFirst();
 
             assertThat(objectives.appliedFormula()).isEqualTo("5 obj * 20.0 pts");
             assertThat(allObjectives.appliedFormula()).isEqualTo("todos los objetivos: +25.0 pts");
@@ -59,7 +60,7 @@ class ScoringEngineTest {
         TimeBasedRule rule = new TimeBasedRule("Tiempo de Carrera", TimeRuleConfig.of(Points.of(100), 60.0, 2.0, 3.0, Points.ZERO));
 
         // Completed in 70 seconds (10 seconds slower)
-        RawMetrics metrics = RawMetrics.of(70.0, 0, 0);
+        RawMetrics metrics = TestValues.metrics(70.0, 0, 0);
         ScoreRule.RuleEvaluation eval = rule.evaluate(metrics);
 
         ScoreItem item = eval.items().get(0);
@@ -73,8 +74,8 @@ class ScoringEngineTest {
     void objectivesAndTheAllObjectivesBonusAreSeparateRules() {
         ScoreRule objectives = new ObjectivesRule("Hitos de Navegación", Points.of(20));
         ScoreRule allObjectives = new AllObjectivesBonusRule("Todos los hitos", 4, Points.of(30));
-        RawMetrics threeOfFour = RawMetrics.of(50.0, 3, 0);
-        RawMetrics fourOfFour = RawMetrics.of(50.0, 4, 0);
+        RawMetrics threeOfFour = TestValues.metrics(50.0, 3, 0);
+        RawMetrics fourOfFour = TestValues.metrics(50.0, 4, 0);
 
         assertThat(objectives.evaluate(threeOfFour).total()).isEqualTo(Points.of(60));
         assertThat(allObjectives.evaluate(threeOfFour).total()).isEqualTo(Points.ZERO);
@@ -87,7 +88,7 @@ class ScoringEngineTest {
     void penaltyRuleCalculations() {
         PenaltyRule rule = new PenaltyRule("Penalizaciones en Pista", Points.of(15));
 
-        RawMetrics metrics = RawMetrics.of(50.0, 2, 3); // 3 penalties
+        RawMetrics metrics = TestValues.metrics(50.0, 2, 3); // 3 penalties
         ScoreRule.RuleEvaluation eval = rule.evaluate(metrics);
 
         ScoreItem item = eval.items().get(0);
@@ -106,7 +107,7 @@ class ScoringEngineTest {
                 JudgeId.of("judge-3"), 10.0
         ); // Average = 9.0
 
-        RawMetrics metrics = RawMetrics.of(50.0, 2, 0, judgeScores);
+        RawMetrics metrics = TestValues.metrics(50.0, 2, 0, judgeScores);
         ScoreRule.RuleEvaluation eval = rule.evaluate(metrics);
 
         ScoreItem item = eval.items().get(0);
