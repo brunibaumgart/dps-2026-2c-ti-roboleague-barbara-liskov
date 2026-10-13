@@ -1,6 +1,7 @@
 package com.roboleague.api.scheduling;
 
 import com.roboleague.api.ApiTest;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.rules.ObjectivesRule;
 import com.roboleague.evaluation.scheme.AllRounds;
@@ -142,7 +143,7 @@ class RoundLifecycleControllerTest extends ApiTest {
         String suffix = String.valueOf(NEXT.incrementAndGet());
         String challenge = "ch-api-life-" + suffix;
         challenges.save(Challenge.draft(ChallengeId.of(challenge), EditionId.of(EDITION), "Laberinto").publish(
-                ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objetivos", 20.0)), List.of()),
+                ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objetivos", Points.of(20))), List.of()),
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal()))));
         Scheduled scheduled = new Scheduled("round-api-life-" + suffix, challenge);
         RoundId roundId = RoundId.of(scheduled.id());

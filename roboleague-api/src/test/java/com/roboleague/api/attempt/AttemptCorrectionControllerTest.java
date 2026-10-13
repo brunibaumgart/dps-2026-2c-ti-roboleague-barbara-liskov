@@ -1,6 +1,7 @@
 package com.roboleague.api.attempt;
 
 import com.roboleague.api.ApiTest;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.rules.ObjectivesRule;
 import com.roboleague.evaluation.rules.PenaltyRule;
@@ -167,8 +168,8 @@ class AttemptCorrectionControllerTest extends ApiTest {
         String challenge = "ch-api-fix-" + suffix;
         String slot = "slot-api-fix-" + suffix;
         challenges.save(Challenge.draft(ChallengeId.of(challenge), EditionId.of(EDITION), "Laberinto").publish(
-                ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objetivos", 20.0)),
-                        List.of(new PenaltyRule("Faltas", 10.0))),
+                ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objetivos", Points.of(20))),
+                        List.of(new PenaltyRule("Faltas", Points.of(10)))),
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal()))));
         RoundId roundId = RoundId.of("round-" + slot);
         rounds.save(Round.of(RoundInfo.of(roundId, "Ronda",

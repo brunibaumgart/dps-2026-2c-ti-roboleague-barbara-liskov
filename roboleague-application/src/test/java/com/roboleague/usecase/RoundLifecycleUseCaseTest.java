@@ -2,6 +2,7 @@ package com.roboleague.usecase;
 
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.Measurements;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.SourceDelivery;
 import com.roboleague.evaluation.TrackPerformance;
@@ -64,7 +65,7 @@ class RoundLifecycleUseCaseTest {
     private final Category maze = category("maze", 1, 4, 14, 25, 2000);
     private final Edition edition = edition("ed-1", DATE, maze);
     private final Challenge challenge = Challenge.draft(ChallengeId.of("ch-1"), edition.getId(), "Laberinto")
-            .publish(ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objetivos", 20.0)), List.of()),
+            .publish(ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objetivos", Points.of(20))), List.of()),
                     new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
 
     RoundLifecycleUseCaseTest() {
