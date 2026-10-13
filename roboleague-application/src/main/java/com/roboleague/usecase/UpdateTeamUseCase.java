@@ -27,12 +27,16 @@ public class UpdateTeamUseCase {
         if (!teamId.equals(candidate.getId())) {
             throw new IllegalArgumentException("A team update cannot change its identity");
         }
-        validateRegistrations(candidate, editions.findByTeamId(teamId));
+        validateRegistrations(candidate, editions.findByTeamId(teamId), teams);
         teams.save(candidate);
         return candidate;
     }
 
-    static void validateRegistrations(Team candidate, List<Edition> registrations) {
+    /**
+     * Checks the candidate against every edition it is registered in: the eligibility of its category there, and
+     * that it shares no participant or robot with another team of that edition. Every reason is named by edition.
+     */
+    static void validateRegistrations(Team candidate, List<Edition> registrations, TeamRepository teams) {
         var violations = new ArrayList<String>();
         for (var edition : registrations) {
             try {
@@ -40,6 +44,8 @@ public class UpdateTeamUseCase {
             } catch (TeamIneligibleException rejected) {
                 rejected.getViolations().forEach(reason -> violations.add("Edition " + edition.getId() + ": " + reason));
             }
+            EditionRosters.of(edition, teams).conflictsWith(candidate)
+                    .forEach(conflict -> violations.add("Edition " + edition.getId() + ": " + conflict));
         }
         if (!violations.isEmpty()) {
             throw new TeamIneligibleException("Team update violates existing registrations", violations);

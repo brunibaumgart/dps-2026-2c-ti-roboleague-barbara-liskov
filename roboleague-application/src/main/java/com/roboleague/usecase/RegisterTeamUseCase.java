@@ -27,6 +27,7 @@ public class RegisterTeamUseCase {
             throw new ConflictException("Team already exists; enroll it by identity or use the controlled update: " + newTeam.getId());
         }
         Edition enrolled = edition.registerTeam(newTeam, categoryId, clock.now());
+        EditionRosters.of(edition, teams).requireNoConflicts(newTeam);
         // Validation is complete before either write. Memory adapters do not provide transactional rollback.
         teams.save(newTeam);
         editions.save(enrolled);
@@ -39,6 +40,7 @@ public class RegisterTeamUseCase {
         Team canonical = teams.findById(teamId)
                 .orElseThrow(() -> new NotFoundException("Team", teamId));
         Edition enrolled = edition.registerTeam(canonical, categoryId, clock.now());
+        EditionRosters.of(edition, teams).requireNoConflicts(canonical);
         editions.save(enrolled);
         return enrolled.registration(teamId).orElseThrow(() -> new InconsistentStateException(
                 "Edition " + editionId + " lost the registration of team " + teamId + " it just saved"));

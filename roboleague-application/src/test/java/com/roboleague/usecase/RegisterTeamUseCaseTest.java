@@ -97,6 +97,35 @@ class RegisterTeamUseCaseTest {
     }
 
     @Test
+    void aNewTeamWithAParticipantOfAnotherTeamOfTheEditionIsRejectedWithoutPartialState() {
+        register.execute(edition.getId(), junior.id(),
+                team("t-1").withMembers(List.of(member("p-shared", LocalDate.of(2011, 1, 1)))));
+        Team candidate = team("t-2").withMembers(List.of(member("p-shared", LocalDate.of(2011, 1, 1))));
+
+        assertThatThrownBy(() -> register.execute(edition.getId(), junior.id(), candidate))
+                .isInstanceOfSatisfying(TeamIneligibleException.class, e -> assertThat(e.getViolations())
+                        .containsExactly("Participant p-shared already competes for team t-1"));
+        assertThat(teams.findById(candidate.getId())).isEmpty();
+        assertThat(editions.findById(edition.getId()).orElseThrow().getRegistrations()).hasSize(1);
+    }
+
+    @Test
+    void aCanonicalTeamWhoseRobotCompetesForAnotherTeamOfTheEditionIsNotEnrolled() {
+        Edition other = edition("ed-2", LocalDate.of(2027, 1, 1), junior);
+        editions.save(other);
+        Team canonical = team("t-1").withMembers(List.of(member("p-1", LocalDate.of(2011, 1, 1))));
+        register.execute(other.getId(), junior.id(), canonical);
+        // The same robot may compete in another edition: t-2 brings it to ed-1, where t-1 is not registered yet.
+        register.execute(edition.getId(), junior.id(), team("t-2")
+                .withMembers(List.of(member("p-2", LocalDate.of(2011, 1, 1)))).withRobot(robot("t-1-robot", 1000)));
+
+        assertThatThrownBy(() -> register.execute(edition.getId(), junior.id(), canonical.getId()))
+                .isInstanceOfSatisfying(TeamIneligibleException.class, e -> assertThat(e.getViolations())
+                        .containsExactly("Robot t-1-robot already competes for team t-2"));
+        assertThat(editions.findById(edition.getId()).orElseThrow().registration(canonical.getId())).isEmpty();
+    }
+
+    @Test
     void anotherEditionUsesTheCanonicalTeamAndItsOwnCategoryAndCalendar() {
         Team canonical = team("t-1").withMembers(List.of(member("m-1", LocalDate.of(2011, 1, 1))));
         Registration first = register.execute(edition.getId(), junior.id(), canonical);

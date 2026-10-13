@@ -28,7 +28,7 @@ public class UpdateRegistrationUseCase {
         teams.findById(teamId).orElseThrow(() -> new NotFoundException("Team", teamId));
         Edition changed = edition.changeRegistrationCategory(candidate, categoryId);
         UpdateTeamUseCase.validateRegistrations(candidate, editions.findByTeamId(teamId).stream()
-                .map(current -> current.getId().equals(editionId) ? changed : current).toList());
+                .map(current -> current.getId().equals(editionId) ? changed : current).toList(), teams);
         teams.save(candidate);
         editions.save(changed);
         Registration saved = changed.registration(teamId).orElseThrow(() -> new InconsistentStateException(
