@@ -14,6 +14,9 @@ public record JudgeScores(Map<JudgeId, Double> byJudge, Map<String, Double> name
     public JudgeScores {
         Objects.requireNonNull(byJudge, "judge scores cannot be null");
         Objects.requireNonNull(named, "named measurements cannot be null");
+        if (byJudge.isEmpty()) {
+            throw new IllegalArgumentException("a judge panel report needs at least one judge score");
+        }
         named.forEach((name, value) -> {
             if (value == null) {
                 throw new IllegalArgumentException("measurement '" + name + "' has no value");

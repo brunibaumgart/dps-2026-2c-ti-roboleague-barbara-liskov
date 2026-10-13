@@ -60,7 +60,8 @@ class BestNOfMTest {
         BestNOfM bestOfTwo = new BestNOfM(1, 2);
         List<RoundScore> three = List.of(round("r1", 1.0), round("r2", 2.0), round("r3", 3.0));
 
-        assertThatThrownBy(() -> bestOfTwo.select(three)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> bestOfTwo.select(three)).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("a team cannot have more than 2 rounds: 3");
     }
 
     @Test
@@ -69,14 +70,16 @@ class BestNOfMTest {
         BestNOfM bestOfThree = new BestNOfM(2, 3);
         List<RoundScore> repeated = List.of(round("r1", 10.0), round("r1", 20.0));
 
-        assertThatThrownBy(() -> bestOfThree.select(repeated)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> bestOfThree.select(repeated)).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("a team cannot have two scores for the same round");
     }
 
     @ParameterizedTest(name = "mejores {0} de {1}")
     @CsvSource({"0,3", "4,3", "2,0"})
     @DisplayName("N y M inválidos se rechazan")
     void givenInvalidNOrMThenTheSelectionIsRejected(int n, int m) {
-        assertThatThrownBy(() -> new BestNOfM(n, m)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new BestNOfM(n, m)).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("considered must be between 1 and outOf: " + n + " of " + m);
     }
 
     @Test

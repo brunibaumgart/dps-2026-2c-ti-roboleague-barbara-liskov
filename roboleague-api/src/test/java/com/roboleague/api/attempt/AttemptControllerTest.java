@@ -242,6 +242,18 @@ class AttemptControllerTest extends ApiTest {
     }
 
     @Test
+    void aJudgePanelWithoutScoresIsABadRequestAndCreatesNoAttempt() throws Exception {
+        scheduleSlot("api-att-slot-empty-panel", RESCUE);
+
+        mvc.perform(judgeScores("api-att-slot-empty-panel-1", RESCUE, "api-j-1", "{}",
+                        "{\"victimas_rescatadas\": 2}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("a judge panel report needs at least one judge score"));
+        mvc.perform(get("/attempts/{attemptId}/breakdown", "api-att-slot-empty-panel-1"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void aFirstCaptureForAnotherChallengeIsAConflictAndCreatesNoAttempt() throws Exception {
         scheduleSlot("api-att-slot-wrong-challenge", MAZE);
         mvc.perform(measurements("api-att-slot-wrong-challenge-1", RESCUE, "api-j-1", 90, 3, 0))

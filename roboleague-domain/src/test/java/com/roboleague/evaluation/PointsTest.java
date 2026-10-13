@@ -98,14 +98,15 @@ class PointsTest {
     @DisplayName("Points reject NaN and infinite doubles")
     void pointsRejectNonFiniteDoubles(double amount) {
         assertThatThrownBy(() -> Points.of(amount)).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("finite");
+                .hasMessage("points must be a finite number: " + amount);
     }
 
     @ParameterizedTest(name = "\"{0}\"")
     @ValueSource(strings = {"", "abc", "NaN", "Infinity", "1,5"})
     @DisplayName("Points reject text that is not a decimal number")
     void pointsRejectTextThatIsNotADecimal(String amount) {
-        assertThatThrownBy(() -> Points.of(amount)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> Points.of(amount)).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("points must be a decimal number: '" + amount + "'");
     }
 
     @ParameterizedTest(name = "{0} fits exactly: {1}")

@@ -11,6 +11,10 @@ public record TimeRuleConfig(TimeTargets targets, TimeAdjustments adjustments) {
     public TimeRuleConfig {
         Objects.requireNonNull(targets, "targets cannot be null");
         Objects.requireNonNull(adjustments, "adjustments cannot be null");
+        if (adjustments.minPoints().isGreaterThan(targets.basePoints())) {
+            throw new IllegalArgumentException("minPoints cannot exceed basePoints: " + adjustments.minPoints()
+                    + " > " + targets.basePoints());
+        }
     }
 
     public static TimeRuleConfig of(TimeTargets targets, TimeAdjustments adjustments) {

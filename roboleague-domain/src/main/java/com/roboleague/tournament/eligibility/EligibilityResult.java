@@ -12,6 +12,12 @@ public record EligibilityResult(
 ) {
     public EligibilityResult {
         reasons = reasons != null ? List.copyOf(reasons) : Collections.emptyList();
+        if (isEligible && !reasons.isEmpty()) {
+            throw new IllegalArgumentException("an eligible result has no reasons against it: " + reasons);
+        }
+        if (!isEligible && reasons.isEmpty()) {
+            throw new IllegalArgumentException("an ineligible result says why");
+        }
     }
 
     public static EligibilityResult eligible() {

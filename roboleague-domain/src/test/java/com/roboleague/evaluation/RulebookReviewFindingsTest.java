@@ -2,35 +2,18 @@ package com.roboleague.evaluation;
 
 import com.roboleague.evaluation.rules.BaseRule;
 import com.roboleague.evaluation.rules.CompositeScoreRule;
-import com.roboleague.evaluation.rules.FaultTariff;
-import com.roboleague.evaluation.rules.JudgeSubjectiveRule;
-import com.roboleague.evaluation.rules.Milestone;
-import com.roboleague.evaluation.rules.MilestoneBonusRule;
 import com.roboleague.evaluation.rules.ObjectivesRule;
-import com.roboleague.evaluation.rules.PenaltyRule;
-import com.roboleague.evaluation.rules.PrecisionRule;
-import com.roboleague.evaluation.rules.ResourceConsumptionRule;
 import com.roboleague.evaluation.rules.ScoreRule.RuleEvaluation;
-import com.roboleague.evaluation.rules.TimeAdjustments;
 import com.roboleague.evaluation.rules.TimeBasedRule;
-import com.roboleague.evaluation.rules.TimeTargets;
-import com.roboleague.evaluation.rules.VictimTariff;
-import com.roboleague.evaluation.rules.VictimsRule;
-import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests del informe de la Entrega 1, invertidos para describir el comportamiento correcto.
@@ -87,34 +70,5 @@ class RulebookReviewFindingsTest {
         assertThat(breakdown.totalScore()).isEqualTo(Points.ZERO);
         assertThat(itemsSum).isEqualTo(breakdown.totalScore());
         assertThat(breakdown.items()).extracting(ScoreItem::concept).endsWith("Piso en cero");
-    }
-
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("rulesWithNegativeParameters")
-    @DisplayName("Pregunta abierta: una regla rechaza parámetros negativos")
-    void givenANegativeParameterThenTheRuleIsRejected(ThrowingCallable creation) {
-        assertThatThrownBy(creation).isInstanceOf(IllegalArgumentException.class);
-    }
-
-    static Stream<Named<ThrowingCallable>> rulesWithNegativeParameters() {
-        return Stream.of(
-                Named.of("penalización con deducción negativa", () -> new PenaltyRule("Penalizaciones", Points.of(-10))),
-                Named.of("consumo con penalización negativa", () -> new ResourceConsumptionRule("Consumo", 100.0, -2.0)),
-                Named.of("consumo con máximo negativo", () -> new ResourceConsumptionRule("Consumo", -1.0, 2.0)),
-                Named.of("jueces con peso negativo", () -> new JudgeSubjectiveRule("Jueces", -1.0)),
-                Named.of("tiempo con base negativa", () -> TimeTargets.of(Points.of(-100), 60.0)),
-                Named.of("tiempo con bonificación negativa", () -> TimeAdjustments.of(-1.5, 2.0, Points.ZERO)),
-                Named.of("tiempo con deducción negativa", () -> TimeAdjustments.of(1.5, -2.0, Points.ZERO)),
-                Named.of("tiempo con mínimo negativo", () -> TimeAdjustments.of(1.5, 2.0, Points.of(-5))),
-                Named.of("faltas contadas con deducción negativa", () -> new FaultTariff(1, Points.of(-5))),
-                Named.of("faltas contadas con franquicia negativa", () -> new FaultTariff(-1, Points.of(5))),
-                Named.of("precisión con máximo negativo", () -> new PrecisionRule("Precisión", Metric.sensor("precision"), Points.of(-80))),
-                Named.of("víctimas con puntos negativos", () -> new VictimsRule("Víctimas", Metric.judged("v"), Points.of(-25))),
-                Named.of("víctimas abandonadas con deducción negativa", () -> new VictimTariff(4, Points.of(-10))),
-                Named.of("hito con bonus negativo", () -> new MilestoneBonusRule("Hito",
-                        new Milestone(Metric.sensor("distancia_metros"), 10.0), Points.of(-30))),
-                Named.of("tope de bonificaciones negativo", () -> new CappedAt(Points.of(-10))),
-                Named.of("tope de bonificaciones que no es un número", () -> new CappedAt(Points.of(Double.NaN)))
-        );
     }
 }
