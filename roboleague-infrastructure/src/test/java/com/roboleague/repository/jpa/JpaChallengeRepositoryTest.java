@@ -29,6 +29,7 @@ import com.roboleague.evaluation.scheme.BestNOfM;
 import com.roboleague.evaluation.scheme.HigherTotal;
 import com.roboleague.evaluation.scheme.LowerTime;
 import com.roboleague.evaluation.scheme.RankingScheme;
+import com.roboleague.repository.ConcurrentModificationConflict;
 import com.roboleague.tournament.Challenge;
 import com.roboleague.tournament.ChallengeId;
 import com.roboleague.tournament.EditionId;
@@ -40,11 +41,15 @@ import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabas
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DataJpaTest(properties = "spring.jpa.hibernate.ddl-auto=validate")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -150,6 +155,31 @@ class JpaChallengeRepositoryTest {
         Challenge reloaded = repository.findById(ChallengeId.of("ch-repo-3")).orElseThrow();
         assertThat(reloaded.currentRulebook().version()).isEqualTo(new RulebookVersion(3));
         assertThat(reloaded.rulebook(RulebookVersion.first())).isPresent();
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("Dos publicaciones sobre el mismo desafío guardado: la segunda se rechaza en lugar de pisar la primera")
+    void givenTwoCopiesOfTheSameChallengeThenTheSecondSaveIsRefused() {
+        repository.save(mazeWithTwoVersions("ch-race"));
+        Challenge first = repository.findById(ChallengeId.of("ch-race")).orElseThrow();
+        Challenge second = repository.findById(ChallengeId.of("ch-race")).orElseThrow();
+
+        first.publish(mazeScoring(60.0), BEST_THREE_OF_FIVE);
+        repository.save(first);
+        second.publish(mazeScoring(80.0), BEST_THREE_OF_FIVE);
+
+        assertThatThrownBy(() -> repository.save(second))
+                .isInstanceOf(ConcurrentModificationConflict.class)
+                .hasMessageContaining("was changed by someone else")
+                .hasCauseInstanceOf(OptimisticLockingFailureException.class);
+        Challenge stored = repository.findById(ChallengeId.of("ch-race")).orElseThrow();
+        assertThat(stored.currentRulebook().version()).isEqualTo(new RulebookVersion(3));
+        assertThat(stored.currentRulebook().definition()).isEqualTo(first.currentRulebook().definition());
+
+        first.publish(mazeScoring(70.0), BEST_THREE_OF_FIVE);
+        repository.save(first);
+        assertThat(repository.findById(ChallengeId.of("ch-race")).orElseThrow().rulebooks()).hasSize(4);
     }
 
     @Test

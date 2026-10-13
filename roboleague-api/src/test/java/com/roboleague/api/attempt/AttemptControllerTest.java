@@ -77,16 +77,16 @@ class AttemptControllerTest extends ApiTest {
 
     @BeforeEach
     void publishTheChallenges() {
-        challenges.save(Challenge.draft(ChallengeId.of(MAZE), EditionId.of("ed-api-att"), "Laberinto").publish(
+        publishOnce(Challenge.draft(ChallengeId.of(MAZE), EditionId.of("ed-api-att"), "Laberinto").publish(
                 ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", Points.of(100), 60.0, 1.0, 2.0, Points.ZERO),
                         new ObjectivesRule("Objetivos", Points.of(20))), List.of(new PenaltyRule("Faltas", Points.of(15)))), RANKING));
-        challenges.save(Challenge.draft(ChallengeId.of(RESCUE), EditionId.of("ed-api-att"), "Rescate").publish(new ScoringScheme(
+        publishOnce(Challenge.draft(ChallengeId.of(RESCUE), EditionId.of("ed-api-att"), "Rescate").publish(new ScoringScheme(
                 new MetricSheet(List.of(new MetricDefinition(RESCUED, MeasurementUnit.COUNT, ValueRange.between(0.0, 4.0)))),
                 new ScoreRules(List.of(new ObjectivesRule("Zonas despejadas", Points.of(15)),
                         new VictimsRule("Víctimas rescatadas", RESCUED, Points.of(25)),
                         new JudgeSubjectiveRule("Panel técnico", 5.0)), List.of(), List.of()),
                 new Unlimited()), RANKING));
-        challenges.save(Challenge.draft(ChallengeId.of(CAPPED), EditionId.of("ed-api-att"), "Hitos con tope").publish(
+        publishOnce(Challenge.draft(ChallengeId.of(CAPPED), EditionId.of("ed-api-att"), "Hitos con tope").publish(
                 new ScoringScheme(new MetricSheet(List.of(
                         new MetricDefinition(ZONE, MeasurementUnit.COUNT, ValueRange.between(0.0, 1.0)),
                         new MetricDefinition(DISTANCE, MeasurementUnit.METERS, ValueRange.atLeast(0.0)))),
@@ -95,6 +95,13 @@ class AttemptControllerTest extends ApiTest {
                                         new MilestoneBonusRule("Bonus por distancia", new Milestone(DISTANCE, 10.0), Points.of(25))),
                                 List.of()),
                         new CappedAt(Points.of(40))), RANKING));
+    }
+
+    /** The challenges are shared by every test of the class: a second save of a new copy would be a conflict. */
+    private void publishOnce(Challenge challenge) {
+        if (challenges.findById(challenge.getId()).isEmpty()) {
+            challenges.save(challenge);
+        }
     }
 
     @Test
