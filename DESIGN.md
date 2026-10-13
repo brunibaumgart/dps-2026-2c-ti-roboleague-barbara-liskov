@@ -685,6 +685,17 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
   antes de guardar. ChangeRegistrationCategoryUseCase modifica una relación y
   conserva sus tiempos. Programación revalida antes de generar ids; rankings
   resuelven los participantes actuales sin cambiar cálculos del frente 4.
+- **Un integrante y un robot por equipo en cada edición**: `EditionRoster`
+  (`tournament.eligibility`) recibe los equipos inscriptos en una edición y nombra
+  cada integrante (`ParticipantId`) o robot (`RobotId`) que un candidato comparte
+  con otro equipo; la propia inscripción del candidato no cuenta. Inscribir un
+  equipo nuevo o canónico y actualizar uno inscripto lo consultan antes de
+  guardar, y los conflictos vuelven como motivos de `TeamIneligibleException`
+  (422), junto con los de elegibilidad en una actualización. No es una
+  especificación más porque mira otros agregados: `EligibilityCandidate` sigue
+  siendo equipo, categoría y fecha. La misma persona o robot puede competir en
+  otra edición. *Límite*: la identidad es el id que manda el cliente; dos ids
+  distintos para la misma persona no se detectan.
 - **Rehidratación**: Edition.restore valida pertenencia, categorías, fecha de
   referencia y unicidad, conservando los tiempos sin reevaluar equipos. Team
   admite construcción completa de su estado; Documentation.restore conserva
