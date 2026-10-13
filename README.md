@@ -472,7 +472,7 @@ El equipo tiene que ser el del intento (si no, **422**); un intento inexistente 
 
 ### Tabla de posiciones
 
-Hay una tabla por desafío y categoría. Cada recálculo agrega una versión; ninguna se edita. El orden sale del `ranking` del reglamento vigente (mejores N de M y la cadena de desempate).
+Hay una tabla por desafío y categoría. Cada recálculo agrega una versión; ninguna se edita. El orden sale del `ranking` del reglamento vigente (mejores N de M y la cadena de desempate), y cada versión dice con cuál se ordenó en `rulebookVersion` (también en la lista `versions`).
 
 `GET /challenges/{id}/standings?categoryId=` → 200 con `{challengeId, categoryId, versions, latest, official, pending}`. Antes del primer cálculo `latest` y `official` son `null`. `pending` dice `{openAppeals, unfinishedTurns, outdated}`. `GET .../standings/versions/{v}` devuelve esa versión con sus filas; sin tabla calculada o sin esa versión, **404** (también al publicarla). Sin `categoryId`, **400**.
 
@@ -484,7 +484,7 @@ Hay una tabla por desafío y categoría. Cada recálculo agrega una versión; ni
 {"publishedBy": "org-1", "notes": "Publicacion definitiva post-arbitraje"}
 ```
 
-Solo se publica la última versión, y solo si no hay apelaciones abiertas, no quedan turnos sin resultado y los resultados no cambiaron desde ese cálculo. Si algo lo bloquea, **409** con cada motivo en `details`. Publicar reemplaza a la oficial anterior, que queda `REPLACED`.
+Solo se publica la última versión, y solo si no hay apelaciones abiertas, no quedan turnos sin resultado, los resultados no cambiaron desde ese cálculo y el desafío no publicó otro reglamento después (`"version 1 was ranked with rulebook v1 and the challenge now ranks with v2; recalculate first"`). Si algo lo bloquea, **409** con cada motivo en `details`. Publicar reemplaza a la oficial anterior, que queda `REPLACED`.
 
 ## Inscripción y cambios de equipo (casos de uso)
 

@@ -80,8 +80,10 @@ Leer también `../AGENTS.md`. Producción en
   si hay apelaciones abiertas, turnos sin resultado o resultados posteriores al
   cálculo. Un bloqueo no guarda nada y devuelve cada motivo.
 - `RecalculateStandingsUseCase` calcula por desafío y categoría con el
-  `RankingScheme` vigente del desafío; cada cálculo agrega una versión y no
-  edita las anteriores.
+  `RankingScheme` vigente del desafío; cada cálculo agrega una versión, que
+  guarda la versión de reglamento que la ordenó, y no edita las anteriores.
+- `PublishRulebookUseCase` rechaza una versión cuya selección de rondas no
+  cuenta una ronda ya programada del desafío (`RoundSelection.allowsRound`).
 
 ## Integración y pruebas
 

@@ -874,6 +874,18 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
     `POST .../publication`. Un bloqueo o una corrección inválida no escriben.
   - **Persistencia**: `JpaStandingsRepository` (migración `V5`) con versión
     optimista, igual que el intento. `Appeal` ya estaba en Postgres.
+  - **Versión del reglamento de cada tabla**: `StandingsTable(rankedWith, filas)`
+    guarda la `RulebookVersion` cuyo `RankingScheme` la ordenó; `CategoryResults`
+    lleva el reglamento vigente completo. Así una versión de la tabla dice con qué
+    reglas se calculó (la consigna pide recalcular con la versión correspondiente),
+    la API la muestra en `rulebookVersion`, y publicar una versión ordenada con un
+    reglamento anterior al vigente se bloquea con su propio motivo: la tabla se
+    recalcula con el nuevo antes de oficializarse. El JSON de `standings` guarda
+    `rankedWith`; la migración `V10` lo completa en las filas existentes con la
+    versión vigente al migrar, que es la que las ordenó salvo que el desafío haya
+    publicado otra después del cálculo (ese caso no se distingue con lo guardado).
+    Se descartó guardar la versión en `StandingsVersion`: es un dato de cómo se
+    ordenó la tabla, y la tabla es lo que `PublicationCheck` compara.
 
 - **Por qué no se reutilizó `Ranking`**: el alcance cambió (desafío, no ronda
   suelta) y el recálculo tenía que ser append-only. Evolucionar el agregado
