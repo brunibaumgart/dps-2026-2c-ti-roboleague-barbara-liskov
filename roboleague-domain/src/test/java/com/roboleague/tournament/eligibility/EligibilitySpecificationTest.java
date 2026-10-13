@@ -1,7 +1,7 @@
-package com.roboleague.tournament;
+package com.roboleague.tournament.eligibility;
 
 import com.roboleague.support.ActorId;
-import com.roboleague.tournament.eligibility.*;
+import com.roboleague.tournament.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

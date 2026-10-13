@@ -103,7 +103,7 @@ class ResolveAppealUseCaseTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 2: aceptar una apelación puntúa con la versión del intento aunque el desafío haya publicado otra")
+    @DisplayName("Aceptar una apelación puntúa con la versión del intento aunque el desafío haya publicado otra")
     void acceptedAppealScoresWithTheAttemptsOwnRulebookVersion() {
         scoredAttempt(40.0, 2, 3);
         challenge.publish(scoringWithFaultsWorth(100.0), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
@@ -171,7 +171,7 @@ class ResolveAppealUseCaseTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 3: con dos apelaciones abiertas, rechazar una deja al intento en apelación")
+    @DisplayName("Con dos apelaciones abiertas, rechazar una deja al intento en apelación")
     void rejectingOneOfTwoOpenAppealsKeepsTheAttemptUnderAppeal() {
         scoredAttempt(55.0, 4, 0);
         FileAppealUseCase fileAppeal = new FileAppealUseCase(attempts, appeals, CLOCK, ids());

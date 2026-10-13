@@ -108,7 +108,7 @@ class ReceiveResultUseCaseTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 4: capturar dos veces el mismo turno no borra el valor original")
+    @DisplayName("Capturar dos veces el mismo turno no borra el valor original")
     void givenACapturedTurnThenASecondCaptureIsRefusedAndTheOriginalStays() {
         receive.execute(new ReceiveResultCommand(MAZE, TURN, sensors(55.0, 4, 0, "judge-1")));
 
@@ -122,7 +122,7 @@ class ReceiveResultUseCaseTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 4: el intento sale del turno: su ronda y su equipo son los del slot")
+    @DisplayName("El intento sale del turno: su ronda y su equipo son los del slot")
     void givenAResultThenTheAttemptBelongsToTheTurnsRoundAndTeam() {
         Reception reception = receive.execute(new ReceiveResultCommand(MAZE, TURN, sensors(55.0, 4, 0, "judge-1")));
 
@@ -134,7 +134,7 @@ class ReceiveResultUseCaseTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 4: un turno que no existe no recibe resultados")
+    @DisplayName("Un turno que no existe no recibe resultados")
     void givenASlotThatDoesNotExistThenTheResultIsRefused() {
         assertThatThrownBy(() -> receive.execute(
                 new ReceiveResultCommand(MAZE, AttemptId.of(SlotId.of("slot-9"), 1), sensors(55.0, 4, 0, "judge-1"))))
@@ -143,7 +143,7 @@ class ReceiveResultUseCaseTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 4: un juez que no está asignado al turno no carga resultados")
+    @DisplayName("Un juez que no está asignado al turno no carga resultados")
     void givenAJudgeNotAssignedToTheSlotThenTheResultIsRejected() {
         Reception reception = receive.execute(new ReceiveResultCommand(MAZE, TURN, sensors(55.0, 4, 0, "judge-9")));
 
@@ -191,7 +191,7 @@ class ReceiveResultUseCaseTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 2: la fuente que llega después de una versión nueva se puntúa con la versión del intento")
+    @DisplayName("La fuente que llega después de una versión nueva se puntúa con la versión del intento")
     void givenANewRulebookVersionThenAPendingAttemptIsStillScoredWithItsOwn() {
         scheduleFor(RESCUE);
         receive.execute(new ReceiveResultCommand(RESCUE, TURN, sensors(90.0, 3, 0, "judge-1")));

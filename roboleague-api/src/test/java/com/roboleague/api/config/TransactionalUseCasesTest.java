@@ -1,4 +1,4 @@
-package com.roboleague.api;
+package com.roboleague.api.config;
 
 import com.roboleague.PostgresContainer;
 import com.roboleague.evaluation.Points;

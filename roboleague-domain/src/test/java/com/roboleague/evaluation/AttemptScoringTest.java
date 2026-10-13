@@ -28,9 +28,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Tests del informe de la Entrega 1 sobre el intento, invertidos para describir el comportamiento correcto.
+ * How an attempt is scored: always by itself with the rulebook version it was opened with, and only while it counts.
  */
-class AttemptReviewFindingsTest {
+class AttemptScoringTest {
 
     private static final Rulebook RULEBOOK = new Rulebook(RulebookVersion.first(),
             ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", Points.of(100), 60.0, 1.0, 2.0, Points.ZERO)),
@@ -38,7 +38,7 @@ class AttemptReviewFindingsTest {
             new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
 
     @Test
-    @DisplayName("Hallazgo 3: ningún método del intento recibe un puntaje; lo calcula él con su reglamento")
+    @DisplayName("Ningún método del intento recibe un puntaje; lo calcula él con su reglamento")
     void givenTheAttemptThenNoPublicMethodTakesAScore() {
         List<String> takingAScore = Arrays.stream(Attempt.class.getMethods())
                 .filter(method -> method.getDeclaringClass() == Attempt.class)
@@ -51,7 +51,7 @@ class AttemptReviewFindingsTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 3: una apelación aceptada trae métricas corregidas y el intento las puntúa")
+    @DisplayName("Una apelación aceptada trae métricas corregidas y el intento las puntúa")
     void givenAnAcceptedAppealThenTheAttemptScoresTheCorrectedMetrics() {
         Attempt attempt = Attempt.of(new AttemptIdentity(AttemptId.of(SlotId.of("slot-1"), 1), RoundId.of("r-1"), TeamId.of("t-1")),
                 RulebookReference.of(ChallengeId.of("ch-maze"), RULEBOOK));
@@ -68,7 +68,7 @@ class AttemptReviewFindingsTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 2: el intento y cada revisión guardan la versión del reglamento con que se puntuaron")
+    @DisplayName("El intento y cada revisión guardan la versión del reglamento con que se puntuaron")
     void givenAScoredAttemptThenItAndEachRevisionKnowTheRulebookVersion() {
         Attempt attempt = scoredAttempt();
         attempt.applyPenaltyAdjustment(1, new AuditNote(ActorId.of("judge-2"), "Falta vista en video"), RULEBOOK, audit());
@@ -80,7 +80,7 @@ class AttemptReviewFindingsTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 2: puntuar un intento con otra versión del reglamento falla en vez de reevaluarlo con reglas ajenas")
+    @DisplayName("Puntuar un intento con otra versión del reglamento falla en vez de reevaluarlo con reglas ajenas")
     void givenAnotherRulebookVersionThenTheAttemptRefusesToBeScoredWithIt() {
         Attempt attempt = scoredAttempt();
         attempt.markUnderAppeal();
@@ -97,7 +97,7 @@ class AttemptReviewFindingsTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 3: un intento descalificado y sin apelación no se ajusta a ningún puntaje")
+    @DisplayName("Un intento descalificado y sin apelación no se ajusta a ningún puntaje")
     void givenADisqualifiedAttemptThenAnAppealCannotAdjustIt() {
         Attempt attempt = scoredAttempt();
         attempt.disqualify(AuditNote.of(JudgeId.of("j-1").asActorId(), "robot fuera de pista"), audit());
@@ -111,7 +111,7 @@ class AttemptReviewFindingsTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 3: con dos apelaciones abiertas, rechazar una deja al intento en apelación")
+    @DisplayName("Con dos apelaciones abiertas, rechazar una deja al intento en apelación")
     void givenTwoOpenAppealsThenRejectingOneKeepsTheAttemptUnderAppeal() {
         Attempt attempt = scoredAttempt();
         attempt.markUnderAppeal();
@@ -125,7 +125,7 @@ class AttemptReviewFindingsTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 3: un intento descalificado no tiene puntaje que cuente para la tabla")
+    @DisplayName("Un intento descalificado no tiene puntaje que cuente para la tabla")
     void givenADisqualifiedAttemptThenItHasNoCountableScore() {
         Attempt attempt = scoredAttempt();
         assertThat(attempt.countableScore()).hasValueSatisfying(score -> assertThat(score.totalScore()).isEqualTo(Points.of(70)));

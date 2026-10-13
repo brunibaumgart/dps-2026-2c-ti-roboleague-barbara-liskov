@@ -93,7 +93,7 @@ class StandingsTableTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 3: a team whose only attempt is disqualified gets no round and goes last")
+    @DisplayName("A team whose only attempt is disqualified gets no round and goes last")
     void aTeamWithOnlyADisqualifiedAttemptGetsNoRoundAndGoesLast() {
         Attempt disqualified = scored("t-a", "r-1", 40, 5, 0);
         disqualified.disqualify(AuditNote.of(JUDGE.asActorId(), "Robot fuera de reglamento"), audit());
@@ -108,7 +108,7 @@ class StandingsTableTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 3: a disqualified attempt does not count even if it scored more than the others")
+    @DisplayName("A disqualified attempt does not count even if it scored more than the others")
     void aDisqualifiedAttemptDoesNotCountEvenWithAHigherScore() {
         Attempt disqualified = scored("t-a", "r-2", 40, 5, 0);
         disqualified.disqualify(AuditNote.of(JUDGE.asActorId(), "Robot fuera de reglamento"), audit());

@@ -1,15 +1,7 @@
-package com.roboleague.support;
+package com.roboleague.scheduling;
 
-import com.roboleague.ranking.appeal.AppealId;
-import com.roboleague.scheduling.JudgeId;
-import com.roboleague.scheduling.RoundId;
-import com.roboleague.scheduling.SlotId;
-import com.roboleague.scheduling.TrackId;
-import com.roboleague.tournament.CategoryId;
-import com.roboleague.tournament.ChallengeId;
-import com.roboleague.tournament.EditionId;
-import com.roboleague.tournament.ParticipantId;
-import com.roboleague.tournament.RobotId;
+import com.roboleague.support.ActorId;
+import com.roboleague.support.IdentityContract;
 import com.roboleague.tournament.TeamId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -26,38 +18,29 @@ import javax.tools.JavaFileObject;
 import javax.tools.ToolProvider;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class TypedIdentitiesTest {
+/**
+ * Identities of scheduling follow the identity contract, and the compiler keeps a judge from standing where a team
+ * is expected.
+ */
+class SchedulingIdentitiesTest {
     @TempDir
     Path output;
 
     static Stream<Function<String, Object>> identities() {
-        return Stream.of(TeamId::of, JudgeId::of, SlotId::of, RoundId::of, EditionId::of,
-                CategoryId::of, AppealId::of, ParticipantId::of, RobotId::of,
-                TrackId::of, ActorId::of, ChallengeId::of);
+        return Stream.of(JudgeId::of, SlotId::of, RoundId::of, TrackId::of);
     }
 
     @ParameterizedTest
     @MethodSource("identities")
     void rejectsMissingValuesAndPreservesHistoricalText(Function<String, Object> identity) {
-        assertThatThrownBy(() -> identity.apply(null)).isInstanceOf(NullPointerException.class);
-        for (String blank : List.of("", " ", "\t\n")) {
-            assertThatThrownBy(() -> identity.apply(blank)).isInstanceOf(IllegalArgumentException.class);
-        }
-        String historical = " Legacy-Id 01 ";
-        assertThat(identity.apply(historical)).hasToString(historical).isEqualTo(identity.apply(historical));
-        assertThat(identity.apply(historical)).isNotEqualTo(identity.apply(historical.toLowerCase()));
+        IdentityContract.rejectsMissingValuesAndPreservesHistoricalText(identity);
     }
 
     @ParameterizedTest
     @MethodSource("identities")
     void acceptsUpToTheStoredColumnLengthAndRejectsLongerValues(Function<String, Object> identity) {
-        String longest = "x".repeat(Identifiers.MAX_LENGTH);
-        assertThat(identity.apply(longest)).hasToString(longest);
-        assertThatThrownBy(() -> identity.apply(longest + "x"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageEndingWith("cannot be longer than 64 characters");
+        IdentityContract.acceptsUpToTheStoredColumnLength(identity);
     }
 
     @Test

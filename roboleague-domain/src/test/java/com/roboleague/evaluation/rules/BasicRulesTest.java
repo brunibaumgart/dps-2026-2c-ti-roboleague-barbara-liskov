@@ -1,21 +1,17 @@
-package com.roboleague.evaluation;
+package com.roboleague.evaluation.rules;
 
 import com.roboleague.support.TestValues;
-import com.roboleague.evaluation.rules.*;
-import com.roboleague.evaluation.scheme.AllRounds;
-import com.roboleague.evaluation.scheme.HigherTotal;
-import com.roboleague.evaluation.scheme.RankingScheme;
+import com.roboleague.evaluation.*;
 import com.roboleague.scheduling.JudgeId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class ScoringEngineTest {
+class BasicRulesTest {
 
     @Test
     @DisplayName("TimeBasedRule awards bonus points for completing under target time")
@@ -116,40 +112,4 @@ class ScoringEngineTest {
         assertThat(item.rawMetric()).contains("Promedio 9.00 (3 jueces)");
     }
 
-    @Test
-    @DisplayName("A rulebook consolidates rules from both sources into an explainable ScoreBreakdown")
-    void rulebookConsolidatesExplainableBreakdown() {
-        BaseRule timeRule = new TimeBasedRule("Tiempo", TimeRuleConfig.of(Points.of(100), 60.0, 1.0, 2.0, Points.ZERO));
-        BaseRule objRule = new ObjectivesRule("Objetivos", Points.of(25));
-        BonusRule allObjectives = new AllObjectivesBonusRule("Todos los objetivos", 4, Points.of(20));
-        DeductionRule penaltyRule = new PenaltyRule("Penalizaciones", Points.of(10));
-        BaseRule judgeRule = new JudgeSubjectiveRule("Jueces", 2.0);
-
-        Rulebook rulebook = new Rulebook(RulebookVersion.first(), new ScoringScheme(MetricSheet.none(),
-                new ScoreRules(List.of(timeRule, objRule, judgeRule), List.of(allObjectives), List.of(penaltyRule)),
-                new Unlimited()), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
-
-        // Time: 50s (+10 bonus => 110)
-        // Objectives: 4 * 25 = 100, plus the all-objectives bonus +20 => 120
-        // Penalties: 2 (-20 => -20)
-        // Judges: avg 8.0 * 2.0 = 16.0
-        // Expected total = 110 + 120 - 20 + 16 = 226.0
-        RawMetrics metrics = new RawMetrics(
-                new TrackPerformance(50.0, 4, 2),
-                new EvaluationFeedback(0.0, Map.of(JudgeId.of("j1"), 8.0, JudgeId.of("j2"), 8.0), Map.of())
-        );
-
-        ScoreBreakdown breakdown = rulebook.evaluate(metrics);
-
-        assertThat(breakdown.items()).hasSize(5);
-        assertThat(breakdown.totalScore()).isEqualTo(Points.of(226));
-        assertThat(breakdown.base().total()).isEqualTo(Points.of(110.0 + 100.0 + 16.0));
-        assertThat(breakdown.bonuses().total()).isEqualTo(Points.of(20));
-        assertThat(breakdown.deductions().total()).isEqualTo(Points.of(-20));
-        assertThat(breakdown.notesAndPenalties()).hasSize(5);
-
-        // Verify each line item exists and is explainable
-        assertThat(breakdown.items()).extracting(ScoreItem::concept)
-                .containsExactly("Tiempo", "Objetivos", "Jueces", "Todos los objetivos", "Penalizaciones");
-    }
 }

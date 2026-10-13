@@ -6,15 +6,22 @@ import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.TrackPerformance;
 import com.roboleague.support.TestValues;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Named;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
@@ -24,6 +31,7 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
  */
 class RuleInvariantsTest {
 
+    private static final List<String> MUTATOR_PREFIXES = List.of("add", "remove", "set", "clear", "replace");
     private static final Metric PRECISION = Metric.sensor("precision");
     private static final Metric RESCUED = Metric.judged("victimas_rescatadas");
     private static final Metric DISTANCE = Metric.sensor("distancia_metros");
@@ -96,6 +104,30 @@ class RuleInvariantsTest {
     void givenParametersOrMeasurementsTheRuleCannotScoreThenTheyAreRejectedWithTheReason(
             ThrowingCallable creation, Class<? extends Throwable> type, String message) {
         assertThatThrownBy(creation).isInstanceOf(type).hasMessage(message);
+    }
+
+    @Test
+    @DisplayName("La regla compuesta del reglamento no expone operaciones para cambiar sus reglas")
+    void givenTheCompositeRuleThenItHasNoPublicMutators() {
+        List<String> mutators = Arrays.stream(CompositeScoreRule.class.getMethods())
+                .filter(method -> method.getDeclaringClass() == CompositeScoreRule.class)
+                .filter(method -> !Modifier.isStatic(method.getModifiers()))
+                .map(Method::getName)
+                .filter(name -> MUTATOR_PREFIXES.stream().anyMatch(name::startsWith))
+                .toList();
+
+        assertThat(mutators).isEmpty();
+    }
+
+    @Test
+    @DisplayName("La regla compuesta copia sus reglas; cambiar la lista recibida no la modifica")
+    void givenTheCompositeRuleThenItsRulesListIsUnmodifiable() {
+        List<BaseRule> received = new ArrayList<>(List.of(TimeBasedRule.standard(Points.of(100), 60.0)));
+        CompositeScoreRule composite = new CompositeScoreRule("Laberinto", received);
+
+        received.add(ObjectivesRule.standard(Points.of(15)));
+
+        assertThat(composite.definition().arguments().rules()).hasSize(1);
     }
 
     private static RawMetrics measured(Metric metric, double value) {

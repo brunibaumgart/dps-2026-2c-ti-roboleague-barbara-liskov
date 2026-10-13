@@ -101,6 +101,8 @@ Corre los tres tipos de test. Todos se llaman `*Test`, así que `mvn test` tambi
 | Repositorio | Que un agregado se guarda y vuelve igual | `@DataJpaTest` contra Postgres en Testcontainers |
 | API | Rutas, códigos HTTP, JSON y el cableado entero | `@SpringBootTest` + MockMvc sobre la app real (subclases de `ApiTest`) |
 
+Cada test vive en el mismo módulo y paquete que la clase que prueba (`evaluation/rules/RuleInvariantsTest` prueba `evaluation/rules`). Las invariantes de los value objects se prueban con tablas `@ParameterizedTest` que comprueban el tipo **y** el mensaje de cada rechazo.
+
 ### Cobertura
 
 `mvn -B verify` mide cobertura con JaCoCo y deja los reportes HTML en:

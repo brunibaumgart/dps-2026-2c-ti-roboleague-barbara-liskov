@@ -2,33 +2,25 @@ package com.roboleague.api.registration;
 
 import com.jayway.jsonpath.JsonPath;
 import com.roboleague.api.ApiTest;
-import com.roboleague.repository.TeamRepository;
-import com.roboleague.tournament.TeamId;
+import com.roboleague.api.EditionRequests;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.ResultActions;
 
-import java.util.List;
-
+import static com.roboleague.api.EditionRequests.enrollment;
+import static com.roboleague.api.EditionRequests.roundBody;
+import static com.roboleague.api.EditionRequests.team;
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-class RegistrationAndSchedulingControllerTest extends ApiTest {
-    @Autowired
-    private TeamRepository teams;
-
-    private static final String RULEBOOK = """
-            {"metrics": [], "scoring": {
-               "rules": [{"type": "objectives", "name": "Objectives", "numbers": {"pointsPerObjective": 10}},
-                         {"type": "judges", "name": "Panel", "numbers": {"weightMultiplier": 5}}],
-               "bonuses": [], "deductions": [], "bonusLimit": {"type": "unlimited"}},
-             "ranking": {"roundSelection": {"type": "all-rounds"}, "criteria": ["higher-total"]}}
-            """;
-
+/**
+ * Registration through HTTP: enrolling, updating and querying teams of an edition, and the full flow from
+ * registration to a scored attempt.
+ */
+class RegistrationControllerTest extends ApiTest {
     @Test
     void registersUpdatesSchedulesAndCapturesUsingOnlyTheHttpContracts() throws Exception {
         String id = "http05-flow";
@@ -222,125 +214,15 @@ class RegistrationAndSchedulingControllerTest extends ApiTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.team.name").value("Original"));
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {"missing-time", "null-track", "missing-active", "no-judge", "duplicate-track", "zero-duration", "negative-interval", "edition-id", "foreign-category"})
-    void invalidSchedulingNeverCreatesAPartialRound(String invalid) throws Exception {
-        String id = "http05-bad-round-" + invalid;
-        edition(id);
-        challenge(id, id + "-challenge");
-        register(id, id + "-team", "Original", 1000).andExpect(status().isCreated());
-        String body = roundBody(id + "-small", 1).replace(id + "-small-", "http05-");
-        body = switch (invalid) {
-            case "missing-time" -> body.replace("\"startTime\": \"2026-11-10T10:00:00\",", "");
-            case "null-track" -> body.replace("\"tracks\": [{", "\"tracks\": [null, {");
-            case "missing-active" -> body.replace(", \"isActive\": true", "");
-            case "no-judge" -> body.replace("[{\"id\": \"http05-j1\", \"fullName\": \"Judge\", \"specialty\": \"General\"}]", "[]");
-            case "duplicate-track" -> body.replace("\"tracks\": [", "\"tracks\": [{\"id\": \"http05-p1\", \"name\": \"Other\", \"surfaceType\": \"Wood\", \"isActive\": true},");
-            case "zero-duration" -> body.replace("\"slotDurationSeconds\": 300", "\"slotDurationSeconds\": 0");
-            case "negative-interval" -> body.replace("\"intervalSeconds\": 60", "\"intervalSeconds\": -1");
-            case "edition-id" -> body.replace("\"categoryId\":", "\"editionId\": \"contradictory\", \"categoryId\":");
-            case "foreign-category" -> body.replace(id + "-small", "foreign");
-            default -> throw new AssertionError(invalid);
-        };
-        mvc.perform(post("/challenges/{id}/rounds", id + "-challenge").contentType(MediaType.APPLICATION_JSON).content(body.replace("\"http05-p1\"", "\"" + id + "-small-p1\"")
-                                .replace("\"http05-j1\"", "\"" + id + "-small-j1\"")))
-                .andExpect(status().isBadRequest());
-        mvc.perform(get("/challenges/{id}/rounds", id + "-challenge")).andExpect(status().isOk()).andExpect(content().json("[]"));
-        mvc.perform(post("/challenges/{id}/rounds", id + "-challenge").contentType(MediaType.APPLICATION_JSON)
-                        .content(roundBody(id + "-small", 1)))
-                .andExpect(status().isCreated());
-    }
-
-    @Test
-    void aRoundOutsideTheEditionDatesIsUnprocessableAndNotSaved() throws Exception {
-        String id = "http05-out-of-dates";
-        edition(id);
-        challenge(id, id + "-challenge");
-        register(id, id + "-team", "Original", 1000).andExpect(status().isCreated());
-
-        mvc.perform(post("/challenges/{id}/rounds", id + "-challenge").contentType(MediaType.APPLICATION_JSON)
-                        .content(roundBody(id + "-small", 1).replace("2026-11-10T10:00:00", "2026-11-13T10:00:00")))
-                .andExpect(status().isUnprocessableContent())
-                .andExpect(jsonPath("$.error").value("Round Round does not fit within the dates of edition " + id
-                        + " (2026-11-10 to 2026-11-12)"));
-        mvc.perform(get("/challenges/{id}/rounds", id + "-challenge")).andExpect(status().isOk()).andExpect(content().json("[]"));
-    }
-
-    @Test
-    void duplicateRoundReturnsConflictAndKeepsThePreviousSchedule() throws Exception {
-        String id = "http05-duplicate-round";
-        edition(id);
-        challenge(id, id + "-challenge");
-        register(id, id + "-team", "Original", 1000).andExpect(status().isCreated());
-        String response = mvc.perform(post("/challenges/{id}/rounds", id + "-challenge").contentType(MediaType.APPLICATION_JSON)
-                        .content(roundBody(id + "-small", 1))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        mvc.perform(post("/challenges/{id}/rounds", id + "-challenge").contentType(MediaType.APPLICATION_JSON)
-                        .content(roundBody(id + "-small", 1))).andExpect(status().isConflict());
-        mvc.perform(get("/rounds/{id}", (String) JsonPath.read(response, "$.roundId")))
-                .andExpect(status().isOk()).andExpect(content().json(response));
-        mvc.perform(get("/challenges/{id}/rounds", id + "-challenge"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$", hasSize(1)));
-    }
-
-    @Test
-    void schedulingRevalidatesCanonicalStateAndLeavesTheEarlierRoundUntouched() throws Exception {
-        String id = "http05-stale-schedule";
-        edition(id);
-        challenge(id, id + "-challenge");
-        register(id, id + "-team", "Original", 1000).andExpect(status().isCreated());
-        String response = mvc.perform(post("/challenges/{id}/rounds", id + "-challenge").contentType(MediaType.APPLICATION_JSON)
-                        .content(roundBody(id + "-small", 1))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        // Simulate stale data introduced by a persistence adapter, bypassing validated application entry points.
-        var stored = teams.findById(TeamId.of(id + "-team")).orElseThrow();
-        teams.save(stored.withMembers(List.of()));
-        mvc.perform(post("/challenges/{id}/rounds", id + "-challenge").contentType(MediaType.APPLICATION_JSON)
-                        .content(roundBody(id + "-small", 2)))
-                .andExpect(status().isUnprocessableContent()).andExpect(jsonPath("$.details", not(empty())));
-        mvc.perform(get("/rounds/{id}", (String) JsonPath.read(response, "$.roundId")))
-                .andExpect(status().isOk()).andExpect(content().json(response));
-        mvc.perform(get("/challenges/{id}/rounds", id + "-challenge"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$", hasSize(1)));
-    }
-
     private void edition(String id) throws Exception {
-        mvc.perform(post("/editions").contentType(MediaType.APPLICATION_JSON).content("""
-                {"id": "%1$s", "name": "Edition", "editionNumber": 1,
-                 "tournament": {"id": "http05-tournament", "name": "RoboLeague",
-                   "season": {"id": "http05-season", "year": 2026, "name": "2026"}},
-                 "startDate": "2026-11-10", "endDate": "2026-11-12",
-                 "categories": [{"id": "%1$s-small", "name": "Small", "minMembers": 1, "maxMembers": 4,
-                    "minAge": 10, "maxAge": 20, "maxWeightGrams": 2000, "maxLengthMm": 300, "maxWidthMm": 300, "maxHeightMm": 300},
-                   {"id": "%1$s-large", "name": "Large", "minMembers": 1, "maxMembers": 4,
-                    "minAge": 10, "maxAge": 20, "maxWeightGrams": 4000}]}
-                """.formatted(id))).andExpect(status().isCreated());
+        mvc.perform(EditionRequests.edition(id)).andExpect(status().isCreated());
     }
+
     private void challenge(String edition, String id) throws Exception {
-        mvc.perform(post("/editions/{id}/challenges", edition).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"id\": \"" + id + "\", \"name\": \"Challenge\", \"rulebook\": " + RULEBOOK + "}"))
-                .andExpect(status().isCreated());
+        mvc.perform(EditionRequests.challenge(edition, id)).andExpect(status().isCreated());
     }
+
     private ResultActions register(String edition, String id, String name, int weight) throws Exception {
-        return mvc.perform(post("/editions/{id}/registrations", edition).contentType(MediaType.APPLICATION_JSON)
-                .content(enrollment(edition + "-small", team(id, name, weight))));
-    }
-    private static String enrollment(String category, String team) {
-        return "{\"categoryId\": \"" + category + "\", \"team\": " + team + "}";
-    }
-    private static String team(String id, String name, int weight) {
-        return """
-                {"id": "%s", "name": "%s", "institution": "University",
-                 "members": [{"id": "member", "fullName": "Student", "birthDate": "2010-01-01", "role": "LEADER"}],
-                 "robot": {"id": "robot", "name": "Bot", "weightGrams": %d,
-                   "lengthMm": 100, "widthMm": 100, "heightMm": 100, "actuatorCount": 2, "sensors": ["LIDAR"]},
-                 "documentation": {"documents": {"consent": "consent.pdf"}, "verifiedBy": "inspector"}}
-                """.formatted(id, name, weight);
-    }
-    private static String roundBody(String category, int number) {
-        return """
-                {"categoryId": "%s", "roundNumber": %d, "roundName": "Round", "startTime": "2026-11-10T10:00:00",
-                 "slotDurationSeconds": 300, "intervalSeconds": 60,
-                 "tracks": [{"id": "http05-p1", "name": "Track", "surfaceType": "Wood", "isActive": true}],
-                 "judges": [{"id": "http05-j1", "fullName": "Judge", "specialty": "General"}]}
-                """.formatted(category, number).replace("http05-p1", category + "-p1").replace("http05-j1", category + "-j1");
+        return mvc.perform(EditionRequests.register(edition, id, name, weight));
     }
 }

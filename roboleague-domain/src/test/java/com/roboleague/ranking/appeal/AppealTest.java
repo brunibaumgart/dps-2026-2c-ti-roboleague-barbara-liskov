@@ -1,10 +1,8 @@
-package com.roboleague.ranking;
+package com.roboleague.ranking.appeal;
 
 import com.roboleague.support.TestValues;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.RawMetrics;
-import com.roboleague.ranking.appeal.Appeal;
-import com.roboleague.ranking.appeal.AppealId;
 import com.roboleague.support.ActorId;
 import com.roboleague.support.ConflictException;
 import com.roboleague.tournament.TeamId;
@@ -15,7 +13,7 @@ import static com.roboleague.support.TestValues.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class AppealStateFlowTest {
+class AppealTest {
 
     @Test
     @DisplayName("Appeal follows valid state transitions: Pending -> UnderReview -> Accepted")

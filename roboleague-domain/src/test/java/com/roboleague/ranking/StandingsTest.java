@@ -65,7 +65,7 @@ class StandingsTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 5: open appeals, turns without an outcome and stale results all block, each with its reason")
+    @DisplayName("Open appeals, turns without an outcome and stale results all block, each with its reason")
     void everyReasonThatBlocksThePublicationComesBack() {
         Standings standings = Standings.first(ID, FIRST, TIME);
 
