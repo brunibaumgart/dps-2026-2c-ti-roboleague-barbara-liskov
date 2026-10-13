@@ -17,6 +17,6 @@ public class QueryEditionsUseCase {
     }
 
     public Edition get(EditionId id) {
-        return editions.findById(id).orElseThrow(() -> new IllegalArgumentException("Edition not found: " + id));
+        return editions.findById(id).orElseThrow(() -> new NotFoundException("Edition", id));
     }
 }

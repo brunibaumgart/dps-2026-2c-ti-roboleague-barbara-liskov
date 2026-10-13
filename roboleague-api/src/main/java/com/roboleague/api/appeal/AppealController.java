@@ -79,7 +79,8 @@ class AppealController {
 
     @PostMapping("/appeals/{appealId}/review")
     AppealDto review(@PathVariable String appealId, @RequestBody ReviewRequest request) {
-        return AppealDto.from(reviewAppeal.execute(AppealId.of(appealId), ActorId.of(request.reviewerId())));
+        ActorId reviewerId = ActorId.of(text(request.reviewerId(), "reviewerId"));
+        return AppealDto.from(reviewAppeal.execute(AppealId.of(appealId), reviewerId));
     }
 
     @PostMapping("/appeals/{appealId}/acceptance")

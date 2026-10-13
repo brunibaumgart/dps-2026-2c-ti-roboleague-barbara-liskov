@@ -1,5 +1,7 @@
 package com.roboleague.evaluation.rules;
 
+import com.roboleague.evaluation.Points;
+
 import java.util.Objects;
 
 /**
@@ -9,14 +11,18 @@ public record TimeRuleConfig(TimeTargets targets, TimeAdjustments adjustments) {
     public TimeRuleConfig {
         Objects.requireNonNull(targets, "targets cannot be null");
         Objects.requireNonNull(adjustments, "adjustments cannot be null");
+        if (adjustments.minPoints().isGreaterThan(targets.basePoints())) {
+            throw new IllegalArgumentException("minPoints cannot exceed basePoints: " + adjustments.minPoints()
+                    + " > " + targets.basePoints());
+        }
     }
 
     public static TimeRuleConfig of(TimeTargets targets, TimeAdjustments adjustments) {
         return new TimeRuleConfig(targets, adjustments);
     }
 
-    public static TimeRuleConfig of(double basePoints, double targetTimeSeconds,
-                                    double pointsPerSecondUnder, double deductionPerSecondOver, double minPoints) {
+    public static TimeRuleConfig of(Points basePoints, double targetTimeSeconds,
+                                    double pointsPerSecondUnder, double deductionPerSecondOver, Points minPoints) {
         return new TimeRuleConfig(
                 new TimeTargets(basePoints, targetTimeSeconds),
                 new TimeAdjustments(pointsPerSecondUnder, deductionPerSecondOver, minPoints)

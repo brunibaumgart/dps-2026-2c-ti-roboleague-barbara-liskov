@@ -1,6 +1,7 @@
 package com.roboleague.api.attempt;
 
 import com.roboleague.evaluation.Attempt;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreBreakdown;
 import com.roboleague.evaluation.SourceDelivery;
@@ -19,6 +20,6 @@ record AttemptDto(String id, String slotId, String roundId, String teamId, Strin
                 attempt.getRulebookReference().challengeId().value(), attempt.getRulebookReference().version().number(),
                 attempt.getStatus().name(),
                 attempt.getDeliveries().stream().map(SourceDelivery::source).toList(),
-                attempt.countableScore().map(ScoreBreakdown::totalScore).orElse(null));
+                attempt.countableScore().map(ScoreBreakdown::totalScore).map(Points::doubleValue).orElse(null));
     }
 }

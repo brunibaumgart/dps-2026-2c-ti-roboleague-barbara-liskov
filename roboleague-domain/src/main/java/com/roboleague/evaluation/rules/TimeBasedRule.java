@@ -4,10 +4,12 @@ import com.roboleague.evaluation.definition.Parameters;
 import com.roboleague.evaluation.definition.RuleArguments;
 import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.Metric;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
 
+import java.math.BigDecimal;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
@@ -28,18 +30,18 @@ public class TimeBasedRule implements BaseRule {
         return new TimeBasedRule(ruleName, config);
     }
 
-    public static TimeBasedRule of(String ruleName, double basePoints, double targetTimeSeconds,
-                                   double pointsPerSecondUnder, double deductionPerSecondOver, double minPoints) {
+    public static TimeBasedRule of(String ruleName, Points basePoints, double targetTimeSeconds,
+                                   double pointsPerSecondUnder, double deductionPerSecondOver, Points minPoints) {
         return new TimeBasedRule(
                 ruleName,
                 TimeRuleConfig.of(basePoints, targetTimeSeconds, pointsPerSecondUnder, deductionPerSecondOver, minPoints)
         );
     }
 
-    public static TimeBasedRule standard(double basePoints, double targetTimeSeconds) {
+    public static TimeBasedRule standard(Points basePoints, double targetTimeSeconds) {
         return new TimeBasedRule(
                 "Regla de Tiempo",
-                TimeRuleConfig.of(basePoints, targetTimeSeconds, 1.5, 2.0, 0.0)
+                TimeRuleConfig.of(basePoints, targetTimeSeconds, 1.5, 2.0, Points.ZERO)
         );
     }
 
@@ -53,9 +55,9 @@ public class TimeBasedRule implements BaseRule {
     public static TimeBasedRule from(RuleDefinition definition) {
         Parameters numbers = definition.arguments().numbers();
         return new TimeBasedRule(definition.name(), TimeRuleConfig.of(
-                numbers.number(BASE_POINTS), numbers.number(TARGET_TIME_SECONDS),
+                numbers.points(BASE_POINTS), numbers.number(TARGET_TIME_SECONDS),
                 numbers.number(POINTS_PER_SECOND_UNDER), numbers.number(DEDUCTION_PER_SECOND_OVER),
-                numbers.number(MIN_POINTS)));
+                numbers.points(MIN_POINTS)));
     }
 
     @Override
@@ -82,29 +84,28 @@ public class TimeBasedRule implements BaseRule {
         return ruleName;
     }
 
-    public TimeRuleConfig getConfig() {
-        return config;
-    }
-
     @Override
     public RuleEvaluation evaluate(RawMetrics metrics) {
         double time = metrics.timeTakenSeconds();
-        double basePoints = config.targets().basePoints();
+        Points basePoints = config.targets().basePoints();
         double targetTimeSeconds = config.targets().targetTimeSeconds();
-        double delta = targetTimeSeconds - time;
-        double subtotal;
+        BigDecimal delta = BigDecimal.valueOf(targetTimeSeconds).subtract(BigDecimal.valueOf(time));
+        Points subtotal;
         String formula;
 
-        if (delta >= 0) {
-            double bonus = delta * config.adjustments().pointsPerSecondUnder();
-            subtotal = basePoints + bonus;
+        if (delta.signum() >= 0) {
+            BigDecimal rate = BigDecimal.valueOf(config.adjustments().pointsPerSecondUnder());
+            Points bonus = Points.of(delta.multiply(rate));
+            subtotal = basePoints.plus(bonus);
             formula = String.format(Locale.US, "Base %.1f + (%.2fs por debajo del objetivo * %.2f)",
-                    basePoints, delta, config.adjustments().pointsPerSecondUnder());
+                    basePoints.toBigDecimal(), delta, config.adjustments().pointsPerSecondUnder());
         } else {
-            double penalty = Math.abs(delta) * config.adjustments().deductionPerSecondOver();
-            subtotal = Math.max(config.adjustments().minPoints(), basePoints - penalty);
+            BigDecimal over = delta.negate();
+            BigDecimal rate = BigDecimal.valueOf(config.adjustments().deductionPerSecondOver());
+            Points penalty = Points.of(over.multiply(rate));
+            subtotal = config.adjustments().minPoints().max(basePoints.minus(penalty));
             formula = String.format(Locale.US, "Base %.1f - (%.2fs por encima del objetivo * %.2f)",
-                    basePoints, Math.abs(delta), config.adjustments().deductionPerSecondOver());
+                    basePoints.toBigDecimal(), over, config.adjustments().deductionPerSecondOver());
         }
 
         ScoreItem item = ScoreItem.of(

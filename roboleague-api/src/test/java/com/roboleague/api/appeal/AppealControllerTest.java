@@ -2,6 +2,7 @@ package com.roboleague.api.appeal;
 
 import com.roboleague.api.ApiTest;
 import com.roboleague.evaluation.AttemptId;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.TimeBasedRule;
@@ -106,10 +107,57 @@ class AppealControllerTest extends ApiTest {
     }
 
     @Test
-    void reviewingAnUnknownAppealIsABadRequest() throws Exception {
+    void reviewingAnUnknownAppealIsNotFound() throws Exception {
         mvc.perform(review("does-not-exist", "arb-1"))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("Appeal not found: does-not-exist"))
+                .andExpect(jsonPath("$.details", hasSize(0)));
+        mvc.perform(get("/appeals/{appealId}", "does-not-exist"))
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("Appeal not found: does-not-exist"));
+        mvc.perform(get("/attempts/{attemptId}/appeals", "api-app-missing-1"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("Attempt not found: api-app-missing-1"));
+    }
+
+    @Test
+    void reviewingWithoutAReviewerIsABadRequest() throws Exception {
+        appeals.save(Appeal.of(AppealId.of("api-app-empty"), AttemptId.parse("att-3"), TeamId.of("team-3"),
+                "Penalizacion inexistente", "Video", TIME));
+
+        mvc.perform(post("/appeals/{appealId}/review", "api-app-empty")
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Missing field 'reviewerId'"));
+        mvc.perform(post("/appeals/{appealId}/review", "api-app-empty")
+                        .contentType(MediaType.APPLICATION_JSON).content(""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Malformed request body"));
+    }
+
+    @Test
+    void onlyTheReviewerWhoTookTheAppealResolvesIt() throws Exception {
+        ScoredAttempt scored = scoredAttempt();
+        mvc.perform(post("/attempts/{attemptId}/appeals", scored.attemptId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"teamId": "%s", "reason": "Faltas", "evidence": "Video"}
+                                """.formatted(TEAM)))
+                .andExpect(status().isCreated());
+        String appealId = appeals.findByAttemptId(AttemptId.parse(scored.attemptId())).getFirst().getAppealId().value();
+        mvc.perform(review(appealId, "arb-api")).andExpect(status().isOk());
+
+        mvc.perform(post("/appeals/{appealId}/rejection", appealId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"reviewerId": "arb-other", "notes": "No corresponde"}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("Appeal " + appealId
+                        + " is under review by arb-api; arb-other cannot resolve it"));
+        mvc.perform(get("/appeals/{appealId}", appealId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UNDER_REVIEW"));
     }
 
     @Test
@@ -189,7 +237,7 @@ class AppealControllerTest extends ApiTest {
                         .content("""
                                 {"teamId": "other-team", "reason": "Ajeno", "evidence": ""}
                                 """))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.error").value("Team other-team does not own attempt " + scored.attemptId()));
     }
 
@@ -199,8 +247,8 @@ class AppealControllerTest extends ApiTest {
         String challenge = "ch-api-app-" + suffix;
         String slot = "slot-api-app-" + suffix;
         challenges.save(Challenge.draft(ChallengeId.of(challenge), EditionId.of(EDITION), "Laberinto").publish(
-                ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0)),
-                        List.of(new PenaltyRule("Faltas", 10.0))),
+                ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", Points.of(100), 60.0, 1.0, 2.0, Points.ZERO)),
+                        List.of(new PenaltyRule("Faltas", Points.of(10)))),
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal()))));
         Round round = Round.of(RoundInfo.of(RoundId.of("round-" + slot), "Ronda",
                 RoundScope.of(ChallengeId.of(challenge), EditionId.of(EDITION), CategoryId.of(CATEGORY), NEXT.incrementAndGet())));

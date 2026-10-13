@@ -35,12 +35,12 @@ class AttemptSourcesTest {
     private static final RankingScheme RANKING = new RankingScheme(new AllRounds(), List.of(new HigherTotal()));
     private static final Rulebook RESCUE = new Rulebook(RulebookVersion.first(), new ScoringScheme(
             new MetricSheet(List.of(new MetricDefinition(RESCUED, MeasurementUnit.COUNT, ValueRange.between(0.0, 4.0)))),
-            new ScoreRules(List.of(new ObjectivesRule("Zonas despejadas", 15.0),
-                    new VictimsRule("Víctimas rescatadas", RESCUED, 25.0),
+            new ScoreRules(List.of(new ObjectivesRule("Zonas despejadas", Points.of(15)),
+                    new VictimsRule("Víctimas rescatadas", RESCUED, Points.of(25)),
                     new JudgeSubjectiveRule("Panel técnico", 5.0)), List.of(), List.of()),
             new Unlimited()), RANKING);
     private static final Rulebook MAZE = new Rulebook(RulebookVersion.first(),
-            ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0)), List.of()),
+            ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", Points.of(100), 60.0, 1.0, 2.0, Points.ZERO)), List.of()),
             RANKING);
 
     // 3 zones => 45; 2 victims => 50; judges 8 and 6 => average 7 * 5 = 35
@@ -71,8 +71,8 @@ class AttemptSourcesTest {
         attempt.receive(PANEL, RESCUE, audit());
 
         assertThat(attempt.getStatus()).isEqualTo(AttemptStatus.EVALUATED);
-        assertThat(attempt.getFinalScore()).isEqualTo(130.0);
-        assertThat(attempt.getOriginalSnapshot().authorOrJudgeId()).isEqualTo(ActorId.of("j-2"));
+        assertThat(attempt.getScoreBreakdown().totalScore()).isEqualTo(Points.of(130));
+        assertThat(attempt.getRevisionHistory().getFirst().authorOrJudgeId()).isEqualTo(ActorId.of("j-2"));
         assertThat(attempt.getEventHistory()).extracting(AttemptEvent::eventType)
                 .containsExactly("SOURCE_RECEIVED", "SOURCE_RECEIVED", "RESULT_REGISTERED");
     }
@@ -100,7 +100,7 @@ class AttemptSourcesTest {
         assertThat(attempt.awaitedSources(RESCUE)).isEmpty();
         assertThat(attempt.contributionsBySource(RESCUE))
                 .extracting(SourceContribution::source, SourceContribution::subtotal)
-                .containsExactly(tuple(ResultSource.AUTOMATIC_MEASUREMENTS, 45.0), tuple(ResultSource.JUDGE_PANEL, 85.0));
+                .containsExactly(tuple(ResultSource.AUTOMATIC_MEASUREMENTS, Points.of(45)), tuple(ResultSource.JUDGE_PANEL, Points.of(85)));
     }
 
     @Test
@@ -110,7 +110,7 @@ class AttemptSourcesTest {
 
         attempt.receive(SENSORS, RESCUE, audit());
 
-        assertThat(attempt.getFinalScore()).isEqualTo(130.0);
+        assertThat(attempt.getScoreBreakdown().totalScore()).isEqualTo(Points.of(130));
         assertThat(attempt.getLatestMetrics().timeTakenSeconds()).isEqualTo(90.0);
         assertThat(attempt.getLatestMetrics().judgeSubjectiveScores()).containsOnlyKeys(JudgeId.of("j-1"), JudgeId.of("j-2"));
     }
@@ -122,7 +122,7 @@ class AttemptSourcesTest {
         attempt.receive(new SourceDelivery(new Measurements(new TrackPerformance(50.0, 0, 0), 0.0, Map.of()), JudgeId.of("j-1")), MAZE, audit());
 
         assertThat(attempt.getStatus()).isEqualTo(AttemptStatus.EVALUATED);
-        assertThat(attempt.getFinalScore()).isEqualTo(110.0);
+        assertThat(attempt.getScoreBreakdown().totalScore()).isEqualTo(Points.of(110));
     }
 
     @Test

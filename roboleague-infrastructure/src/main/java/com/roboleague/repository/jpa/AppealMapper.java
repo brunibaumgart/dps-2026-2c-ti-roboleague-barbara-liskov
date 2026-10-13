@@ -39,6 +39,10 @@ final class AppealMapper {
     }
 
     static Appeal toDomain(AppealJpaEntity entity) {
+        return CorruptDataException.rebuilding("Stored appeal " + entity.id, () -> rebuild(entity));
+    }
+
+    private static Appeal rebuild(AppealJpaEntity entity) {
         return Appeal.restore(
                 AppealTarget.of(AppealId.of(entity.id), AttemptId.parse(entity.attemptId), TeamId.of(entity.teamId)),
                 AppealClaim.of(entity.reason, entity.evidenceDescription),
@@ -57,7 +61,7 @@ final class AppealMapper {
             case "UNDER_REVIEW" -> new UnderReviewAppealState();
             case "ACCEPTED" -> new AcceptedAppealState();
             case "REJECTED" -> new RejectedAppealState();
-            default -> throw new IllegalStateException("Unknown stored appeal status: " + status);
+            default -> throw new CorruptDataException("Unknown stored appeal status: " + status);
         };
     }
 }

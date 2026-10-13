@@ -5,6 +5,7 @@ import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.AttemptIdentity;
 import com.roboleague.evaluation.JudgeScores;
 import com.roboleague.evaluation.Measurements;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookReference;
 import com.roboleague.evaluation.RulebookVersion;
@@ -35,6 +36,8 @@ import com.roboleague.scheduling.RoundInfo;
 import com.roboleague.scheduling.RoundScope;
 import com.roboleague.scheduling.SlotId;
 import com.roboleague.support.ActorId;
+import com.roboleague.support.BusinessRuleViolation;
+import com.roboleague.support.ConflictException;
 import com.roboleague.tournament.Category;
 import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.Challenge;
@@ -95,12 +98,12 @@ class ResolveAppealUseCaseTest {
         assertThat(stored.getStatus()).isEqualTo(Attempt.AttemptStatus.EVALUATED);
         assertThat(stored.getRevisionHistory()).hasSize(1);
         // 40s => 100 + 20 bonus; 3 fouls => -30
-        assertThat(stored.getFinalScore()).isEqualTo(90.0);
+        assertThat(stored.getScoreBreakdown().totalScore()).isEqualTo(Points.of(90));
         assertThat(standings.findById(new StandingsId(challenge.getId(), MAZE))).isEmpty();
     }
 
     @Test
-    @DisplayName("Hallazgo 2: aceptar una apelación puntúa con la versión del intento aunque el desafío haya publicado otra")
+    @DisplayName("Aceptar una apelación puntúa con la versión del intento aunque el desafío haya publicado otra")
     void acceptedAppealScoresWithTheAttemptsOwnRulebookVersion() {
         scoredAttempt(40.0, 2, 3);
         challenge.publish(scoringWithFaultsWorth(100.0), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
@@ -110,7 +113,7 @@ class ResolveAppealUseCaseTest {
 
         Attempt stored = attempts.findById(ATTEMPT).orElseThrow();
         // 40s => 100 + 20; one fault at 10 => 110 with v1 (v2 would charge 100 for it)
-        assertThat(stored.getFinalScore()).isEqualTo(110.0);
+        assertThat(stored.getScoreBreakdown().totalScore()).isEqualTo(Points.of(110));
         assertThat(stored.getLatestSnapshot().rulebookVersion()).isEqualTo(RulebookVersion.first());
         assertThat(result).isInstanceOfSatisfying(AppealAcceptance.Accepted.class, accepted -> {
             assertThat(accepted.appeal().isAccepted()).isTrue();
@@ -149,7 +152,7 @@ class ResolveAppealUseCaseTest {
                 List.of("an accepted appeal needs the corrected report of at least one source")));
         assertThat(wrongSource).isEqualTo(new AppealAcceptance.Invalid(List.of(
                 "ch-1 v1 takes no results from JUDGE_PANEL", "AUTOMATIC_MEASUREMENTS is corrected twice")));
-        assertThat(appeal.isUnderReview()).isTrue();
+        assertThat(appeals.findById(appeal.getAppealId()).orElseThrow().isUnderReview()).isTrue();
         assertThat(attempts.findById(ATTEMPT).orElseThrow().getRevisionHistory()).hasSize(1);
         assertThat(standings.findById(new StandingsId(challenge.getId(), MAZE))).isEmpty();
     }
@@ -162,13 +165,13 @@ class ResolveAppealUseCaseTest {
 
         assertThatThrownBy(() -> useCase.acceptAppeal(appeal.getAppealId(),
                 AuditNote.of(ActorId.of("arb-2"), "Corresponde"), List.of(sensors(40.0, 2, 1))))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("under review by arb-1");
         assertThat(attempts.findById(ATTEMPT).orElseThrow().getRevisionHistory()).hasSize(1);
     }
 
     @Test
-    @DisplayName("Hallazgo 3: con dos apelaciones abiertas, rechazar una deja al intento en apelación")
+    @DisplayName("Con dos apelaciones abiertas, rechazar una deja al intento en apelación")
     void rejectingOneOfTwoOpenAppealsKeepsTheAttemptUnderAppeal() {
         scoredAttempt(55.0, 4, 0);
         FileAppealUseCase fileAppeal = new FileAppealUseCase(attempts, appeals, CLOCK, ids());
@@ -187,8 +190,35 @@ class ResolveAppealUseCaseTest {
     @DisplayName("An appeal that does not exist cannot be resolved")
     void aMissingAppealCannotBeResolved() {
         assertThatThrownBy(() -> useCase.rejectAppeal(AppealId.of("missing"), ONE_FAULT))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(NotFoundException.class)
                 .hasMessage("Appeal not found: missing");
+    }
+
+    @Test
+    @DisplayName("Only the team that ran the attempt can appeal it: another team breaks a business rule")
+    void anotherTeamCannotAppealTheAttempt() {
+        scoredAttempt(40.0, 2, 3);
+        FileAppealUseCase file = new FileAppealUseCase(attempts, appeals, CLOCK, ids());
+
+        assertThatThrownBy(() -> file.execute(ATTEMPT, TeamId.of("t-other"), "Faltas", "Video"))
+                .isInstanceOf(BusinessRuleViolation.class)
+                .hasMessage("Team t-other does not own attempt " + ATTEMPT);
+        assertThat(appeals.findAll()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("An appeal whose attempt is gone is broken stored data, not a missing resource of the request")
+    void anAppealWithoutItsAttemptIsAnInconsistentState() {
+        scoredAttempt(40.0, 2, 3);
+        Appeal appeal = appealUnderReview("Faltas mal contadas", "arb-1");
+        InMemoryAttemptRepository empty = new InMemoryAttemptRepository();
+        ResolveAppealUseCase withoutAttempts = new ResolveAppealUseCase(appeals, empty, challenges, rounds,
+                new RecalculateStandingsUseCase(new CategoryResultsReader(challenges, editions,
+                        new InMemoryTeamRepository(), rounds, empty), standings, CLOCK), CLOCK, ids());
+
+        assertThatThrownBy(() -> withoutAttempts.rejectAppeal(appeal.getAppealId(), ONE_FAULT))
+                .isInstanceOf(InconsistentStateException.class)
+                .hasMessage("Attempt of appeal " + appeal.getAppealId() + " not found: " + ATTEMPT);
     }
 
     private void scoredAttempt(double seconds, int objectives, int faults) {
@@ -202,7 +232,7 @@ class ResolveAppealUseCaseTest {
     private Appeal appealUnderReview(String reason, String reviewer) {
         Appeal appeal = new FileAppealUseCase(attempts, appeals, CLOCK, ids()).execute(ATTEMPT, TeamId.of("t-1"), reason, "Video");
         new ReviewAppealUseCase(appeals).execute(appeal.getAppealId(), ActorId.of(reviewer));
-        return appeal;
+        return appeals.findById(appeal.getAppealId()).orElseThrow();
     }
 
     private static SourceReport sensors(double seconds, int objectives, int faults) {
@@ -210,7 +240,7 @@ class ResolveAppealUseCaseTest {
     }
 
     private static ScoringScheme scoringWithFaultsWorth(double deductionPerFault) {
-        return ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0)),
-                List.of(new PenaltyRule("Faltas", deductionPerFault)));
+        return ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", Points.of(100), 60.0, 1.0, 2.0, Points.ZERO)),
+                List.of(new PenaltyRule("Faltas", Points.of(deductionPerFault))));
     }
 }

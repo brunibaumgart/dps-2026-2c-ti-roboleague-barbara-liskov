@@ -4,6 +4,7 @@ import com.roboleague.evaluation.definition.Parameters;
 import com.roboleague.evaluation.definition.RuleArguments;
 import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.Metric;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
@@ -35,7 +36,7 @@ public final class CountedFaultRule implements DeductionRule {
     public static CountedFaultRule from(RuleDefinition definition) {
         RuleArguments arguments = definition.arguments();
         return new CountedFaultRule(definition.name(), arguments.metric(FAULTS), new FaultTariff(
-                arguments.numbers().whole(FREE_ALLOWANCE), arguments.numbers().number(DEDUCTION_PER_FAULT)));
+                arguments.numbers().whole(FREE_ALLOWANCE), arguments.numbers().points(DEDUCTION_PER_FAULT)));
     }
 
     @Override
@@ -64,17 +65,18 @@ public final class CountedFaultRule implements DeductionRule {
     public RuleEvaluation evaluate(RawMetrics metrics) {
         int counted = metrics.count(faults);
         int charged = Math.max(0, counted - tariff.freeAllowance());
-        double subtotal = -(charged * tariff.deductionPerFault());
+        Points subtotal = tariff.deductionPerFault().times(charged).negate();
 
         ScoreItem item = ScoreItem.of(
                 ruleName,
                 String.format(Locale.US, "%d %s", counted, faults.name()),
                 String.format(Locale.US, "max(0, %d - %d sin cargo) * -%.1f pts",
-                        counted, tariff.freeAllowance(), tariff.deductionPerFault()),
+                        counted, tariff.freeAllowance(), tariff.deductionPerFault().toBigDecimal()),
                 subtotal
         );
         String note = charged > 0
-                ? String.format(Locale.US, "%s: %d con descuento (-%.1f pts)", ruleName, charged, Math.abs(subtotal))
+                ? String.format(Locale.US, "%s: %d con descuento (-%.1f pts)", ruleName, charged,
+                        subtotal.abs().toBigDecimal())
                 : String.format(Locale.US, "%s: dentro de lo tolerado", ruleName);
         return RuleEvaluation.of(item, note);
     }

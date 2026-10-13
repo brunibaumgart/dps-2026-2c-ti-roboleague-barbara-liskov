@@ -3,8 +3,6 @@ package com.roboleague.repository.jpa;
 import com.roboleague.ranking.Standings;
 import com.roboleague.ranking.StandingsId;
 import com.roboleague.repository.StandingsRepository;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collections;
@@ -34,12 +32,9 @@ public class JpaStandingsRepository implements StandingsRepository {
     public void save(Standings standings) {
         StandingsJpaEntity entity = StandingsMapper.toEntity(standings);
         entity.version = loadedVersions.get(standings);
-        try {
-            loadedVersions.put(standings, jpa.saveAndFlush(entity).version);
-        } catch (OptimisticLockingFailureException | DataIntegrityViolationException concurrent) {
-            throw new IllegalStateException("Standings " + standings.getId()
-                    + " were changed by someone else while they were being updated; load them again and retry");
-        }
+        StandingsJpaEntity saved = WriteConflicts.write(() -> jpa.saveAndFlush(entity), "Standings "
+                + standings.getId() + " were changed by someone else while they were being updated; load them again and retry");
+        loadedVersions.put(standings, saved.version);
     }
 
     @Override

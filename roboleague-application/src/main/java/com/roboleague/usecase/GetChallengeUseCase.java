@@ -15,6 +15,6 @@ public class GetChallengeUseCase {
 
     public Challenge execute(ChallengeId challengeId) {
         return challengeRepository.findById(challengeId)
-                .orElseThrow(() -> new IllegalArgumentException("Challenge not found: " + challengeId));
+                .orElseThrow(() -> new NotFoundException("Challenge", challengeId));
     }
 }

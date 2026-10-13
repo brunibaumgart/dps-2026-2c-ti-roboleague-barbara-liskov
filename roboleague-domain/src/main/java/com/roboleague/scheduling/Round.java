@@ -2,12 +2,14 @@ package com.roboleague.scheduling;
 
 import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.ChallengeId;
+import com.roboleague.tournament.DateRange;
 import com.roboleague.tournament.EditionId;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.UnaryOperator;
 
 /** Immutable aggregate root controlling the schedule and lifecycle of its slots. */
 public final class Round {
@@ -65,6 +67,16 @@ public final class Round {
         return slots.stream().filter(slot -> slot.getSlotId().equals(id)).findFirst();
     }
 
+    /**
+     * Whether every turn of the round runs on days within the given dates. Windows are [start, end), so a turn that
+     * ends exactly at midnight belongs to the day before.
+     */
+    public boolean happensWithin(DateRange dates) {
+        Objects.requireNonNull(dates, "dates cannot be null");
+        return slots.stream().allMatch(slot -> dates.includes(slot.getStartTime().toLocalDate())
+                && dates.includes(slot.getEndTime().minusNanos(1).toLocalDate()));
+    }
+
     public Round addSlot(Slot slot) {
         requireStatus(RoundStatus.SCHEDULED);
         Objects.requireNonNull(slot, "slot cannot be null");
@@ -91,24 +103,29 @@ public final class Round {
 
     public Round startSlot(SlotId id) {
         requireStatus(RoundStatus.IN_PROGRESS);
-        return transitionSlot(id, Slot.SlotStatus.IN_PROGRESS);
+        return transitionSlot(id, Slot::start);
     }
 
     public Round completeSlot(SlotId id) {
         requireStatus(RoundStatus.IN_PROGRESS);
-        return transitionSlot(id, Slot.SlotStatus.COMPLETED);
+        return transitionSlot(id, Slot::complete);
     }
 
-    public Round cancelSlot(SlotId id) {
+    /**
+     * Cancels a turn that has not started, for example because its team did not show up: it frees its resources
+     * and the standings no longer wait for its result.
+     */
+    public Round cancelSlot(SlotId id, SlotCancellation cancellation) {
         if (status == RoundStatus.COMPLETED) {
             throw new IllegalStateException("Completed rounds cannot change");
         }
-        return transitionSlot(id, Slot.SlotStatus.CANCELLED);
+        Objects.requireNonNull(cancellation, "cancellation cannot be null");
+        return transitionSlot(id, slot -> slot.cancel(cancellation));
     }
 
-    private Round transitionSlot(SlotId id, Slot.SlotStatus next) {
+    private Round transitionSlot(SlotId id, UnaryOperator<Slot> transition) {
         Slot target = slot(id).orElseThrow(() -> new IllegalArgumentException("Slot not found: " + id));
-        Slot updated = target.transitionTo(next);
+        Slot updated = transition.apply(target);
         return new Round(info, status, slots.stream().map(slot -> slot == target ? updated : slot).toList());
     }
 

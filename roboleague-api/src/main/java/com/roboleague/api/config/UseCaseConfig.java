@@ -16,6 +16,7 @@ import com.roboleague.support.UuidGenerator;
 import com.roboleague.usecase.AddChallengeUseCase;
 import com.roboleague.usecase.CategoryResultsReader;
 import com.roboleague.usecase.ChangeRegistrationCategoryUseCase;
+import com.roboleague.usecase.CorrectAttemptUseCase;
 import com.roboleague.usecase.CreateEditionUseCase;
 import com.roboleague.usecase.FileAppealUseCase;
 import com.roboleague.usecase.GetAttemptBreakdownUseCase;
@@ -34,12 +35,14 @@ import com.roboleague.usecase.ReceiveResultUseCase;
 import com.roboleague.usecase.RegisterTeamUseCase;
 import com.roboleague.usecase.ResolveAppealUseCase;
 import com.roboleague.usecase.ReviewAppealUseCase;
+import com.roboleague.usecase.RoundLifecycleUseCase;
 import com.roboleague.usecase.ScheduleRoundUseCase;
 import com.roboleague.usecase.UpdateRegistrationUseCase;
 import com.roboleague.usecase.UpdateTeamUseCase;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 import java.time.ZoneId;
 
@@ -50,12 +53,15 @@ import java.time.ZoneId;
 @Configuration(proxyBeanMethods = false)
 class UseCaseConfig {
 
+    /** System clock and random ids, except in the demo profile, which brings deterministic ones ({@code DemoConfig}). */
     @Bean
+    @Profile("!demo")
     Clock clock(@Value("${roboleague.time-zone}") String zone) {
         return new SystemClock(ZoneId.of(zone));
     }
 
     @Bean
+    @Profile("!demo")
     IdGenerator idGenerator() {
         return new UuidGenerator();
     }
@@ -168,6 +174,18 @@ class UseCaseConfig {
                                               ChallengeRepository challenges, RoundRepository rounds,
                                               RecalculateStandingsUseCase recalculate, Clock clock, IdGenerator ids) {
         return new ResolveAppealUseCase(appeals, attempts, challenges, rounds, recalculate, clock, ids);
+    }
+
+    @Bean
+    CorrectAttemptUseCase correctAttemptUseCase(AttemptRepository attempts, ChallengeRepository challenges,
+                                                RoundRepository rounds, RecalculateStandingsUseCase recalculate,
+                                                Clock clock, IdGenerator ids) {
+        return new CorrectAttemptUseCase(attempts, challenges, rounds, recalculate, clock, ids);
+    }
+
+    @Bean
+    RoundLifecycleUseCase roundLifecycleUseCase(RoundRepository rounds, AttemptRepository attempts, Clock clock) {
+        return new RoundLifecycleUseCase(rounds, attempts, clock);
     }
 
     @Bean

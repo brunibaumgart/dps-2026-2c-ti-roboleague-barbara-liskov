@@ -50,8 +50,7 @@ public record StandingsTable(List<StandingsEntry> entries) {
         return switch (scheme.decide(previous.score(), current.score())) {
             case TieBreakDecision.Tied() ->
                     new Placement(above, "Empata con el puesto " + above + " en todos los criterios");
-            case TieBreakDecision.DecidedBy decided when Double.compare(previous.score().total(),
-                    current.score().total()) == 0 ->
+            case TieBreakDecision.DecidedBy decided when previous.score().total().equals(current.score().total()) ->
                     new Placement(rank, "Empata en puntaje con el puesto " + above + "; desempata por "
                             + decided.criterion());
             case TieBreakDecision.DecidedBy decided ->

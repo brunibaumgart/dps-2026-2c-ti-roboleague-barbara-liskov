@@ -25,7 +25,7 @@ class RegistrationModelTest {
 
     @Test
     void returnedCandidatesDoNotMutateTheOriginalTeamOrNestedValues() {
-        Team candidate = team.withMembers(List.of()).withRobot(robot.withSpecification(
+        Team candidate = team.withMembers(List.of()).withRobot(new Robot(robot.getId(), robot.getName(),
                 RobotSpecification.of(3000, 100, 100, 100, 1, Set.of())))
                 .withDocumentation(documentation.revokeVerification("Missing consent"));
         assertThat(team.getMembers()).containsExactly(member);
@@ -70,20 +70,24 @@ class RegistrationModelTest {
         assertThat(restored.getRegistrationsByCategory(category.id())).containsExactly(historical);
         assertThat(restored.registration(team.getId()).orElseThrow().registeredAt()).isEqualTo(TIME.minusYears(2));
         assertThatThrownBy(() -> Edition.restore(edition.getContext(), edition.getDates(), edition.getCategories(),
-                List.of(historical, historical))).isInstanceOf(IllegalStateException.class);
+                List.of(historical, historical))).isInstanceOf(IllegalStateException.class)
+                .hasMessage("Team already registered in this edition: team-1");
         Registration foreign = new Registration(team.getId(), EditionId.of("another-edition"), category.id(), DATE, TIME);
         assertThatThrownBy(() -> Edition.restore(edition.getContext(), edition.getDates(), edition.getCategories(), List.of(foreign)))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Registration must belong to the edition and its start date");
         Registration wrongDate = new Registration(team.getId(), edition.getId(), category.id(), DATE.plusDays(1), TIME);
         assertThatThrownBy(() -> Edition.restore(edition.getContext(), edition.getDates(), edition.getCategories(), List.of(wrongDate)))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Registration must belong to the edition and its start date");
     }
 
     @Test
     void publicEnrollmentOperationsValidateAndRejectDuplicatesWithoutMutation() {
         Edition enrolled = edition.registerTeam(team, category.id(), TIME);
         assertThatThrownBy(() -> enrolled.registerTeam(team, category.id(), TIME.plusDays(1)))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Team already registered in this edition: team-1");
         assertThatThrownBy(() -> edition.registerTeam(team, CategoryId.of("foreign"), TIME))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThat(edition.getRegistrations()).isEmpty();

@@ -55,12 +55,18 @@ public class Challenge {
      * A challenge that has not published its first rulebook yet, so it cannot score anything.
      */
     public record Draft(ChallengeId id, EditionId editionId, String name) {
+        public static final int MAX_NAME_LENGTH = 120;
+
         public Draft {
             Objects.requireNonNull(id, "id cannot be null");
             Objects.requireNonNull(editionId, "editionId cannot be null");
             Objects.requireNonNull(name, "name cannot be null");
             if (name.isBlank()) {
                 throw new IllegalArgumentException("challenge name cannot be blank");
+            }
+            if (name.length() > MAX_NAME_LENGTH) {
+                throw new IllegalArgumentException("challenge name cannot be longer than " + MAX_NAME_LENGTH
+                        + " characters");
             }
         }
 

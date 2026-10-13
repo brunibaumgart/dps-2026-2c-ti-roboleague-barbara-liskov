@@ -7,6 +7,7 @@ import com.roboleague.evaluation.MeasurementUnit;
 import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.MetricDefinition;
 import com.roboleague.evaluation.MetricSheet;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.RuleCatalog;
 import com.roboleague.evaluation.Rulebook;
@@ -28,6 +29,7 @@ import com.roboleague.evaluation.scheme.BestNOfM;
 import com.roboleague.evaluation.scheme.HigherTotal;
 import com.roboleague.evaluation.scheme.LowerTime;
 import com.roboleague.evaluation.scheme.RankingScheme;
+import com.roboleague.repository.ConcurrentModificationConflict;
 import com.roboleague.tournament.Challenge;
 import com.roboleague.tournament.ChallengeId;
 import com.roboleague.tournament.EditionId;
@@ -39,11 +41,15 @@ import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabas
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DataJpaTest(properties = "spring.jpa.hibernate.ddl-auto=validate")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -79,7 +85,7 @@ class JpaChallengeRepositoryTest {
     private JpaChallengeRepository repository;
 
     private final RawMetrics run = new RawMetrics(new TrackPerformance(50.0, 5, 1),
-            EvaluationFeedback.withMeasurements(Map.of(COLLISIONS.name(), 3.0, CHECKPOINT.name(), 1.0)));
+            EvaluationFeedback.of(0.0, Map.of(), Map.of(COLLISIONS.name(), 3.0, CHECKPOINT.name(), 1.0)));
 
     private static ScoringScheme mazeScoring(double cap) {
         MetricSheet metrics = new MetricSheet(List.of(
@@ -87,12 +93,12 @@ class JpaChallengeRepositoryTest {
                 new MetricDefinition(CHECKPOINT, MeasurementUnit.COUNT, ValueRange.between(0.0, 1.0))));
         return new ScoringScheme(metrics, new ScoreRules(
                 List.of(new CompositeScoreRule("Desempeño en pista", List.of(
-                        TimeBasedRule.standard(100.0, 60.0), ObjectivesRule.standard(20.0)))),
-                List.of(new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), 30.0),
-                        new AllObjectivesBonusRule("Todos los objetivos", 5, 25.0)),
-                List.of(new PenaltyRule("Faltas", 15.0),
-                        new CountedFaultRule("Colisiones", COLLISIONS, new FaultTariff(1, 5.0)))),
-                new CappedAt(cap));
+                        TimeBasedRule.standard(Points.of(100), 60.0), ObjectivesRule.standard(Points.of(20))))),
+                List.of(new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), Points.of(30)),
+                        new AllObjectivesBonusRule("Todos los objetivos", 5, Points.of(25))),
+                List.of(new PenaltyRule("Faltas", Points.of(15)),
+                        new CountedFaultRule("Colisiones", COLLISIONS, new FaultTariff(1, Points.of(5))))),
+                new CappedAt(Points.of(cap)));
     }
 
     private Challenge mazeWithTwoVersions(String id) {
@@ -133,7 +139,7 @@ class JpaChallengeRepositoryTest {
             assertThat(restored.evaluate(run)).isEqualTo(original.evaluate(run));
         }
         assertThat(stored.currentRulebook().evaluate(run).items())
-                .anyMatch(item -> item.concept().equals("Tope de bonificaciones") && item.subtotal() == -35.0);
+                .anyMatch(item -> item.concept().equals("Tope de bonificaciones") && item.subtotal().equals(Points.of(-35)));
         assertThat(stored.currentRulebook().rankingScheme().roundSelection()).isEqualTo(new BestNOfM(3, 5));
     }
 
@@ -149,6 +155,31 @@ class JpaChallengeRepositoryTest {
         Challenge reloaded = repository.findById(ChallengeId.of("ch-repo-3")).orElseThrow();
         assertThat(reloaded.currentRulebook().version()).isEqualTo(new RulebookVersion(3));
         assertThat(reloaded.rulebook(RulebookVersion.first())).isPresent();
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("Dos publicaciones sobre el mismo desafío guardado: la segunda se rechaza en lugar de pisar la primera")
+    void givenTwoCopiesOfTheSameChallengeThenTheSecondSaveIsRefused() {
+        repository.save(mazeWithTwoVersions("ch-race"));
+        Challenge first = repository.findById(ChallengeId.of("ch-race")).orElseThrow();
+        Challenge second = repository.findById(ChallengeId.of("ch-race")).orElseThrow();
+
+        first.publish(mazeScoring(60.0), BEST_THREE_OF_FIVE);
+        repository.save(first);
+        second.publish(mazeScoring(80.0), BEST_THREE_OF_FIVE);
+
+        assertThatThrownBy(() -> repository.save(second))
+                .isInstanceOf(ConcurrentModificationConflict.class)
+                .hasMessageContaining("was changed by someone else")
+                .hasCauseInstanceOf(OptimisticLockingFailureException.class);
+        Challenge stored = repository.findById(ChallengeId.of("ch-race")).orElseThrow();
+        assertThat(stored.currentRulebook().version()).isEqualTo(new RulebookVersion(3));
+        assertThat(stored.currentRulebook().definition()).isEqualTo(first.currentRulebook().definition());
+
+        first.publish(mazeScoring(70.0), BEST_THREE_OF_FIVE);
+        repository.save(first);
+        assertThat(repository.findById(ChallengeId.of("ch-race")).orElseThrow().rulebooks()).hasSize(4);
     }
 
     @Test

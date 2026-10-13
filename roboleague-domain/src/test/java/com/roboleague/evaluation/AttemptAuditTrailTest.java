@@ -1,5 +1,6 @@
 package com.roboleague.evaluation;
 
+import com.roboleague.evaluation.audit.AttemptDisqualifiedEvent;
 import com.roboleague.evaluation.audit.AttemptScoreSnapshot;
 import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.evaluation.rules.JudgeSubjectiveRule;
@@ -34,8 +35,8 @@ class AttemptAuditTrailTest {
 
     @BeforeEach
     void setUp() {
-        TimeBasedRule timeRule = new TimeBasedRule("Tiempo", TimeRuleConfig.of(100.0, 60.0, 1.0, 2.0, 0.0));
-        PenaltyRule penaltyRule = new PenaltyRule("Penalizaciones", 10.0);
+        TimeBasedRule timeRule = new TimeBasedRule("Tiempo", TimeRuleConfig.of(Points.of(100), 60.0, 1.0, 2.0, Points.ZERO));
+        PenaltyRule penaltyRule = new PenaltyRule("Penalizaciones", Points.of(10));
         standardPolicy = new Rulebook(RulebookVersion.first(),
                 ScoringScheme.withoutBonuses(List.of(timeRule), List.of(penaltyRule)),
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
@@ -51,7 +52,7 @@ class AttemptAuditTrailTest {
 
         assertThat(attempt.getRevisionHistory()).hasSize(1);
         assertThat(attempt.getEventHistory()).hasSize(2); // SourceReceived + ResultRegistered
-        assertThat(attempt.getFinalScore()).isEqualTo(110.0);
+        assertThat(attempt.getScoreBreakdown().totalScore()).isEqualTo(Points.of(110));
         assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.EVALUATED);
 
         // Later, video review identifies 2 track infractions (penalties)
@@ -64,21 +65,21 @@ class AttemptAuditTrailTest {
         assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.ADJUSTED);
 
         // Original revision 1 is untouched
-        AttemptScoreSnapshot rev1 = attempt.getOriginalSnapshot();
+        AttemptScoreSnapshot rev1 = attempt.getRevisionHistory().getFirst();
         assertThat(rev1.revisionNumber()).isEqualTo(1);
         assertThat(rev1.authorOrJudgeId()).isEqualTo(ActorId.of("judge-alfa"));
         assertThat(rev1.metrics().penaltiesCount()).isEqualTo(0);
-        assertThat(rev1.breakdown().totalScore()).isEqualTo(110.0);
+        assertThat(rev1.breakdown().totalScore()).isEqualTo(Points.of(110));
 
         // Latest revision 2 reflects adjustment: 110 - (2 * 10) = 90.0
         AttemptScoreSnapshot rev2 = attempt.getLatestSnapshot();
         assertThat(rev2.revisionNumber()).isEqualTo(2);
         assertThat(rev2.authorOrJudgeId()).isEqualTo(ActorId.of("judge-beta"));
         assertThat(rev2.metrics().penaltiesCount()).isEqualTo(2);
-        assertThat(rev2.breakdown().totalScore()).isEqualTo(90.0);
+        assertThat(rev2.breakdown().totalScore()).isEqualTo(Points.of(90));
         assertThat(rev2.reason()).contains("Toque de bordes verificado");
 
-        assertThat(attempt.getFinalScore()).isEqualTo(90.0);
+        assertThat(attempt.getScoreBreakdown().totalScore()).isEqualTo(Points.of(90));
     }
 
     @Test
@@ -87,9 +88,9 @@ class AttemptAuditTrailTest {
         Metric precision = Metric.sensor("precision");
         Rulebook mixed = new Rulebook(RulebookVersion.first(), new ScoringScheme(
                 new MetricSheet(List.of(new MetricDefinition(precision, MeasurementUnit.RATIO, ValueRange.between(0.0, 1.0)))),
-                new ScoreRules(List.of(TimeBasedRule.standard(100.0, 60.0), new PrecisionRule("Precisión", precision, 50.0),
+                new ScoreRules(List.of(TimeBasedRule.standard(Points.of(100), 60.0), new PrecisionRule("Precisión", precision, Points.of(50)),
                         new JudgeSubjectiveRule("Panel", 1.0)), List.of(),
-                        List.of(new PenaltyRule("Faltas", 10.0), new ResourceConsumptionRule("Consumo", 80.0, 0.5))),
+                        List.of(new PenaltyRule("Faltas", Points.of(10)), new ResourceConsumptionRule("Consumo", 80.0, 0.5))),
                 new Unlimited()), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
         Attempt attempt = newAttempt();
         attempt.receive(new SourceDelivery(new Measurements(new TrackPerformance(50.0, 2, 0), 12.5,
@@ -108,6 +109,44 @@ class AttemptAuditTrailTest {
     }
 
     @Test
+    @DisplayName("A fault adjustment that is not positive is refused before it adds a revision or an event")
+    void nonPositiveFaultAdjustmentChangesNothing() {
+        Attempt attempt = newAttempt();
+        attempt.receive(sensors(50.0, 0, 0, "judge-1"), standardPolicy, audit());
+        AuditNote note = new AuditNote(ActorId.of("judge-2"), "Sin faltas");
+
+        assertThatThrownBy(() -> attempt.applyPenaltyAdjustment(0, note, standardPolicy, audit()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("additionalPenalties must be positive");
+        assertThatThrownBy(() -> attempt.applyPenaltyAdjustment(-1, note, standardPolicy, audit()))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThat(attempt.getRevisionHistory()).hasSize(1);
+        assertThat(attempt.getEventHistory()).hasSize(2);
+        assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.EVALUATED);
+    }
+
+    @Test
+    @DisplayName("A disqualification records who decided it and why, and keeps every revision")
+    void disqualificationRecordsItsAuthorAndReason() {
+        Attempt attempt = newAttempt();
+        attempt.receive(sensors(50.0, 0, 0, "judge-1"), standardPolicy, audit());
+
+        attempt.disqualify(AuditNote.of(JudgeId.of("judge-1").asActorId(), "Robot fuera de reglamento"), audit());
+
+        assertThat(attempt.getEventHistory()).last()
+                .isInstanceOfSatisfying(AttemptDisqualifiedEvent.class, event -> {
+                    assertThat(event.authorId()).isEqualTo(ActorId.of("judge-1"));
+                    assertThat(event.reason()).isEqualTo("Robot fuera de reglamento");
+                });
+        assertThat(attempt.getRevisionHistory()).hasSize(1);
+        assertThat(attempt.countableScore()).isEmpty();
+        assertThatThrownBy(() -> attempt.disqualify(AuditNote.of(ActorId.of("judge-1"), "otra vez"), audit()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("attempt is disqualified: it cannot be disqualified");
+    }
+
+    @Test
     @DisplayName("A scored attempt takes no second result: corrections are audited adjustments")
     void cannotReceiveTheResultTwice() {
         Attempt attempt = newAttempt();
@@ -116,7 +155,7 @@ class AttemptAuditTrailTest {
         assertThatThrownBy(() -> attempt.receive(sensors(40.0, 0, 3, "judge-2"), standardPolicy, audit()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("cannot receive results");
-        assertThat(attempt.getFinalScore()).isEqualTo(110.0);
+        assertThat(attempt.getScoreBreakdown().totalScore()).isEqualTo(Points.of(110));
     }
 
     @Test
@@ -132,7 +171,7 @@ class AttemptAuditTrailTest {
         assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.EVALUATED);
         assertThat(attempt.getRevisionHistory()).hasSize(1);
 
-        attempt.disqualify("Robot abandono la pista", JudgeId.of("judge-2"), audit());
+        attempt.disqualify(AuditNote.of(JudgeId.of("judge-2").asActorId(), "Robot abandono la pista"), audit());
         assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.DISQUALIFIED);
         assertThat(attempt.getEventHistory())
                 .last()

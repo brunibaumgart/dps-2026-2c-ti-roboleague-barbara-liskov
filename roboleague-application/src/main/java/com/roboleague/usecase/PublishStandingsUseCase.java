@@ -26,7 +26,10 @@ public class PublishStandingsUseCase {
 
     public StandingsPublication execute(StandingsId id, int version, AuditNote note) {
         Standings calculated = standings.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Standings not calculated yet: " + id));
+                .orElseThrow(() -> new NotFoundException("Standings", id, "Standings not calculated yet: " + id));
+        if (calculated.version(version).isEmpty()) {
+            throw new NotFoundException("Standings version", version, "Standings " + id + " have no version " + version);
+        }
         StandingsPublication publication = calculated.publish(version, results.read(id).publicationCheck(), note,
                 clock.now());
         switch (publication) {

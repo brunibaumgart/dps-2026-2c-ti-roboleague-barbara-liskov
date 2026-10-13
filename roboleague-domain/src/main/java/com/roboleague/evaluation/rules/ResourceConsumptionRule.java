@@ -4,10 +4,12 @@ import com.roboleague.evaluation.definition.Parameters;
 import com.roboleague.evaluation.definition.RuleArguments;
 import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.Metric;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
 
+import java.math.BigDecimal;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
@@ -66,16 +68,17 @@ public class ResourceConsumptionRule implements DeductionRule {
     @Override
     public RuleEvaluation evaluate(RawMetrics metrics) {
         double consumed = metrics.resourceConsumption();
-        double excess = Math.max(0.0, consumed - maxAllowedConsumption);
-        double subtotal = -(excess * penaltyPerExcessUnit);
+        BigDecimal excess = BigDecimal.valueOf(consumed).subtract(BigDecimal.valueOf(maxAllowedConsumption))
+                .max(BigDecimal.ZERO);
+        Points subtotal = Points.of(excess.multiply(BigDecimal.valueOf(penaltyPerExcessUnit))).negate();
 
         String rawMetric = String.format(Locale.US, "%.2f unidades (máx: %.2f)", consumed, maxAllowedConsumption);
-        String formula = excess > 0
+        String formula = excess.signum() > 0
                 ? String.format(Locale.US, "Exceso %.2f * -%.2f pts", excess, penaltyPerExcessUnit)
                 : "Dentro del límite permitido";
 
         ScoreItem item = ScoreItem.of(ruleName, rawMetric, formula, subtotal);
-        String note = excess > 0
+        String note = excess.signum() > 0
                 ? String.format(Locale.US, "Consumo excesivo: %.2f unidades sobre el límite", excess)
                 : "Consumo de recursos eficiente";
 

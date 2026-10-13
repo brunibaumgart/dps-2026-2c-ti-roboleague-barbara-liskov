@@ -2,7 +2,9 @@ package com.roboleague.api.edition;
 
 import com.roboleague.tournament.Category;
 import com.roboleague.tournament.CategoryId;
+import com.roboleague.tournament.CategoryRestrictions;
 import com.roboleague.tournament.DateRange;
+import com.roboleague.tournament.Dimensions;
 import com.roboleague.tournament.Edition;
 import com.roboleague.tournament.EditionContext;
 import com.roboleague.tournament.EditionHeader;
@@ -23,6 +25,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.roboleague.api.RequestValues.required;
 
 /**
  * Driving adapter for configuring the event: an edition of a tournament with its dates and categories.
@@ -51,13 +55,14 @@ class EditionController {
     @GetMapping("/editions/{editionId}")
     EditionDto get(@PathVariable String editionId) { return EditionDto.from(query.get(EditionId.of(editionId))); }
 
-    record EditionRequest(String id, String name, int editionNumber, TournamentBody tournament,
+    record EditionRequest(String id, String name, Integer editionNumber, TournamentBody tournament,
                           LocalDate startDate, LocalDate endDate, List<CategoryBody> categories) {
 
         CreateEditionCommand toCommand() {
             if (id == null || name == null || tournament == null || startDate == null || endDate == null) {
                 throw new IllegalArgumentException("an edition needs id, name, tournament, startDate and endDate");
             }
+            required(editionNumber, "editionNumber");
             List<Category> parsed = new ArrayList<>();
             for (CategoryBody category : categories == null ? List.<CategoryBody>of() : categories) {
                 if (category == null) {
@@ -81,13 +86,13 @@ class EditionController {
         }
     }
 
-    record SeasonBody(String id, int year, String name) {
+    record SeasonBody(String id, Integer year, String name) {
 
         Season toSeason() {
             if (id == null || name == null) {
                 throw new IllegalArgumentException("a season needs id and name");
             }
-            return new Season(id, year, name);
+            return new Season(id, required(year, "tournament.season.year"), name);
         }
     }
 
@@ -99,31 +104,44 @@ class EditionController {
                 throw new IllegalArgumentException("a category needs id and name");
             }
             return Category.of(CategoryId.of(id), name,
-                    com.roboleague.api.RequestValues.required(minMembers, "category.minMembers"),
-                    com.roboleague.api.RequestValues.required(maxMembers, "category.maxMembers"),
-                    com.roboleague.api.RequestValues.required(minAge, "category.minAge"),
+                    required(minMembers, "category.minMembers"),
+                    required(maxMembers, "category.maxMembers"),
+                    required(minAge, "category.minAge"),
                     maxAge,
-                    com.roboleague.api.RequestValues.required(maxWeightGrams, "category.maxWeightGrams"),
+                    required(maxWeightGrams, "category.maxWeightGrams"),
                     maxLengthMm == null ? 1000.0 : maxLengthMm,
                     maxWidthMm == null ? 1000.0 : maxWidthMm,
                     maxHeightMm == null ? 1000.0 : maxHeightMm);
         }
     }
 
-    record EditionDto(String id, String name, LocalDate startDate, LocalDate endDate, List<String> categories, List<CategoryDto> categoryDetails) {
+    record EditionDto(String id, String name, int editionNumber, TournamentDto tournament, LocalDate startDate,
+                      LocalDate endDate, List<String> categories, List<CategoryDto> categoryDetails) {
 
         static EditionDto from(Edition edition) {
-            return new EditionDto(edition.getId().value(), edition.getName(), edition.getStartDate(), edition.getEndDate(),
+            return new EditionDto(edition.getId().value(), edition.getName(), edition.getEditionNumber(),
+                    TournamentDto.from(edition.getTournament()), edition.getStartDate(), edition.getEndDate(),
                     edition.getCategories().stream().map(category -> category.id().value()).toList(),
                     edition.getCategories().stream().map(CategoryDto::from).toList());
         }
     }
+    record TournamentDto(String id, String name, String description, SeasonDto season) {
+        static TournamentDto from(Tournament tournament) {
+            Season season = tournament.season();
+            return new TournamentDto(tournament.id(), tournament.name(), tournament.description(),
+                    new SeasonDto(season.id(), season.year(), season.name()));
+        }
+    }
+    record SeasonDto(String id, int year, String name) {
+    }
     record CategoryDto(String id, String name, int minMembers, int maxMembers, int minAge, Integer maxAge,
                        double maxWeightGrams, double maxLengthMm, double maxWidthMm, double maxHeightMm) {
         static CategoryDto from(Category category) {
-            return new CategoryDto(category.id().value(), category.name(), category.minTeamMembers(), category.maxTeamMembers(),
-                    category.minAge(), category.maxAge(), category.maxRobotWeightGrams(), category.maxRobotLengthMm(),
-                    category.maxRobotWidthMm(), category.maxRobotHeightMm());
+            CategoryRestrictions limits = category.restrictions();
+            Dimensions robot = limits.robotLimits().maxDimensions();
+            return new CategoryDto(category.id().value(), category.name(), limits.teamSize().minMembers(),
+                    limits.teamSize().maxMembers(), limits.ageRange().minAge(), limits.ageRange().maxAge(),
+                    limits.robotLimits().maxWeight().grams(), robot.lengthMm(), robot.widthMm(), robot.heightMm());
         }
     }
 }

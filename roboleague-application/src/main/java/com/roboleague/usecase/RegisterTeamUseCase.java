@@ -3,6 +3,7 @@ package com.roboleague.usecase;
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.TeamRepository;
 import com.roboleague.support.Clock;
+import com.roboleague.support.ConflictException;
 import com.roboleague.tournament.*;
 
 import java.util.Objects;
@@ -23,25 +24,27 @@ public class RegisterTeamUseCase {
         Objects.requireNonNull(newTeam, "team cannot be null");
         Edition edition = edition(editionId);
         if (teams.findById(newTeam.getId()).isPresent()) {
-            throw new IllegalStateException("Team already exists; enroll it by identity or use the controlled update: " + newTeam.getId());
+            throw new ConflictException("Team already exists; enroll it by identity or use the controlled update: " + newTeam.getId());
         }
         Edition enrolled = edition.registerTeam(newTeam, categoryId, clock.now());
         // Validation is complete before either write. Memory adapters do not provide transactional rollback.
         teams.save(newTeam);
         editions.save(enrolled);
-        return enrolled.registration(newTeam.getId()).orElseThrow();
+        return enrolled.registration(newTeam.getId()).orElseThrow(() -> new InconsistentStateException(
+                "Edition " + editionId + " lost the registration of team " + newTeam.getId() + " it just saved"));
     }
 
     public Registration execute(EditionId editionId, CategoryId categoryId, TeamId teamId) {
         Edition edition = edition(editionId);
         Team canonical = teams.findById(teamId)
-                .orElseThrow(() -> new IllegalArgumentException("Team not found: " + teamId));
+                .orElseThrow(() -> new NotFoundException("Team", teamId));
         Edition enrolled = edition.registerTeam(canonical, categoryId, clock.now());
         editions.save(enrolled);
-        return enrolled.registration(teamId).orElseThrow();
+        return enrolled.registration(teamId).orElseThrow(() -> new InconsistentStateException(
+                "Edition " + editionId + " lost the registration of team " + teamId + " it just saved"));
     }
 
     private Edition edition(EditionId id) {
-        return editions.findById(id).orElseThrow(() -> new IllegalArgumentException("Edition not found: " + id));
+        return editions.findById(id).orElseThrow(() -> new NotFoundException("Edition", id));
     }
 }

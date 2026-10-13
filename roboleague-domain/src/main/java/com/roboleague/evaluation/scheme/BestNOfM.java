@@ -33,6 +33,11 @@ public record BestNOfM(int considered, int outOf) implements RoundSelection {
     }
 
     @Override
+    public boolean allowsRound(int roundNumber) {
+        return roundNumber <= outOf;
+    }
+
+    @Override
     public ChallengeScore select(List<RoundScore> rounds) {
         if (rounds.size() > outOf) {
             throw new IllegalArgumentException("a team cannot have more than " + outOf + " rounds: " + rounds.size());
@@ -42,7 +47,7 @@ public record BestNOfM(int considered, int outOf) implements RoundSelection {
         }
         Set<RoundScore> best = Collections.newSetFromMap(new IdentityHashMap<>());
         rounds.stream()
-                .sorted(Comparator.comparingDouble(RoundScore::total).reversed())
+                .sorted(Comparator.comparing(RoundScore::total).reversed())
                 .limit(considered)
                 .forEach(best::add);
         List<RoundScore> counted = new ArrayList<>();

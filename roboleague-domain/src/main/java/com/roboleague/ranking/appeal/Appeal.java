@@ -3,6 +3,7 @@ package com.roboleague.ranking.appeal;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.support.ActorId;
+import com.roboleague.support.ConflictException;
 import com.roboleague.tournament.TeamId;
 
 import java.time.LocalDateTime;
@@ -45,14 +46,6 @@ public class Appeal {
         return appeal;
     }
 
-    public AppealTarget getTarget() {
-        return target;
-    }
-
-    public AppealClaim getClaim() {
-        return claim;
-    }
-
     public AppealId getAppealId() {
         return target.appealId();
     }
@@ -77,12 +70,15 @@ public class Appeal {
         return submittedAt;
     }
 
-    public AppealState getState() {
-        return state;
-    }
-
     public String getStatusName() {
         return state.getStateName();
+    }
+
+    /**
+     * How far the appeal has gone, as {@link #restore} takes it back.
+     */
+    public AppealProgress progress() {
+        return new AppealProgress(state, submittedAt, reviewerId, resolutionNotes, revisedMetrics, resolvedAt);
     }
 
     public ActorId getReviewerId() {
@@ -117,7 +113,7 @@ public class Appeal {
      */
     void resolve(String resolutionNotes, RawMetrics revisedMetrics, ActorId resolvedBy, LocalDateTime resolvedAt) {
         if (!this.reviewerId.equals(resolvedBy)) {
-            throw new IllegalStateException("Appeal " + getAppealId() + " is under review by " + this.reviewerId
+            throw new ConflictException("Appeal " + getAppealId() + " is under review by " + this.reviewerId
                     + "; " + resolvedBy + " cannot resolve it");
         }
         this.resolutionNotes = resolutionNotes;

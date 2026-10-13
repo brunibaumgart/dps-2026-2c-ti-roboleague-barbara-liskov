@@ -1,6 +1,7 @@
 package com.roboleague.ranking;
 
 import com.roboleague.evaluation.Attempt;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.scheme.ChallengeScore;
 import com.roboleague.evaluation.scheme.RoundScore;
 import com.roboleague.evaluation.scheme.RoundSelection;
@@ -48,7 +49,8 @@ public record TeamAttempts(TeamIdentity team, List<Attempt> attempts) {
         Map<RoundId, Attempt> best = new LinkedHashMap<>();
         for (Attempt attempt : attempts) {
             if (attempt.countableScore().isPresent()) {
-                best.merge(attempt.getRoundId(), attempt, (kept, other) -> totalOf(other) > totalOf(kept) ? other : kept);
+                best.merge(attempt.getRoundId(), attempt,
+                        (kept, other) -> totalOf(other).isGreaterThan(totalOf(kept)) ? other : kept);
             }
         }
         return best;
@@ -62,7 +64,7 @@ public record TeamAttempts(TeamIdentity team, List<Attempt> attempts) {
         return results;
     }
 
-    private static double totalOf(Attempt attempt) {
+    private static Points totalOf(Attempt attempt) {
         return attempt.countableScore().orElseThrow().totalScore();
     }
 

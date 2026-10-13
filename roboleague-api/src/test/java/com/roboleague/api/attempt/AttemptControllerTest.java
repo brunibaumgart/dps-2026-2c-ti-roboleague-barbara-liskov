@@ -1,15 +1,19 @@
 package com.roboleague.api.attempt;
 
 import com.roboleague.api.ApiTest;
+import com.roboleague.evaluation.CappedAt;
 import com.roboleague.evaluation.MeasurementUnit;
 import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.MetricDefinition;
 import com.roboleague.evaluation.MetricSheet;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ScoreRules;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.Unlimited;
 import com.roboleague.evaluation.ValueRange;
 import com.roboleague.evaluation.rules.JudgeSubjectiveRule;
+import com.roboleague.evaluation.rules.Milestone;
+import com.roboleague.evaluation.rules.MilestoneBonusRule;
 import com.roboleague.evaluation.rules.ObjectivesRule;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.TimeBasedRule;
@@ -58,6 +62,9 @@ class AttemptControllerTest extends ApiTest {
 
     private static final String MAZE = "api-att-maze";
     private static final String RESCUE = "api-att-rescue";
+    private static final String CAPPED = "api-att-capped";
+    private static final Metric ZONE = Metric.sensor("zona_alcanzada");
+    private static final Metric DISTANCE = Metric.sensor("distancia_metros");
     private static final Metric RESCUED = Metric.judged("victimas_rescatadas");
     private static final RankingScheme RANKING = new RankingScheme(new AllRounds(), List.of(new HigherTotal()));
     private static final LocalDateTime START = LocalDateTime.of(2026, 11, 10, 9, 0);
@@ -70,15 +77,31 @@ class AttemptControllerTest extends ApiTest {
 
     @BeforeEach
     void publishTheChallenges() {
-        challenges.save(Challenge.draft(ChallengeId.of(MAZE), EditionId.of("ed-api-att"), "Laberinto").publish(
-                ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0),
-                        new ObjectivesRule("Objetivos", 20.0)), List.of(new PenaltyRule("Faltas", 15.0))), RANKING));
-        challenges.save(Challenge.draft(ChallengeId.of(RESCUE), EditionId.of("ed-api-att"), "Rescate").publish(new ScoringScheme(
+        publishOnce(Challenge.draft(ChallengeId.of(MAZE), EditionId.of("ed-api-att"), "Laberinto").publish(
+                ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", Points.of(100), 60.0, 1.0, 2.0, Points.ZERO),
+                        new ObjectivesRule("Objetivos", Points.of(20))), List.of(new PenaltyRule("Faltas", Points.of(15)))), RANKING));
+        publishOnce(Challenge.draft(ChallengeId.of(RESCUE), EditionId.of("ed-api-att"), "Rescate").publish(new ScoringScheme(
                 new MetricSheet(List.of(new MetricDefinition(RESCUED, MeasurementUnit.COUNT, ValueRange.between(0.0, 4.0)))),
-                new ScoreRules(List.of(new ObjectivesRule("Zonas despejadas", 15.0),
-                        new VictimsRule("Víctimas rescatadas", RESCUED, 25.0),
+                new ScoreRules(List.of(new ObjectivesRule("Zonas despejadas", Points.of(15)),
+                        new VictimsRule("Víctimas rescatadas", RESCUED, Points.of(25)),
                         new JudgeSubjectiveRule("Panel técnico", 5.0)), List.of(), List.of()),
                 new Unlimited()), RANKING));
+        publishOnce(Challenge.draft(ChallengeId.of(CAPPED), EditionId.of("ed-api-att"), "Hitos con tope").publish(
+                new ScoringScheme(new MetricSheet(List.of(
+                        new MetricDefinition(ZONE, MeasurementUnit.COUNT, ValueRange.between(0.0, 1.0)),
+                        new MetricDefinition(DISTANCE, MeasurementUnit.METERS, ValueRange.atLeast(0.0)))),
+                        new ScoreRules(List.of(TimeBasedRule.standard(Points.of(100), 60.0)),
+                                List.of(new MilestoneBonusRule("Bonus por zona", new Milestone(ZONE, 1.0), Points.of(30)),
+                                        new MilestoneBonusRule("Bonus por distancia", new Milestone(DISTANCE, 10.0), Points.of(25))),
+                                List.of()),
+                        new CappedAt(Points.of(40))), RANKING));
+    }
+
+    /** The challenges are shared by every test of the class: a second save of a new copy would be a conflict. */
+    private void publishOnce(Challenge challenge) {
+        if (challenges.findById(challenge.getId()).isEmpty()) {
+            challenges.save(challenge);
+        }
     }
 
     @Test
@@ -154,9 +177,33 @@ class AttemptControllerTest extends ApiTest {
     }
 
     @Test
-    void theBreakdownOfAnUnknownAttemptIsABadRequest() throws Exception {
+    void theBreakdownOfACappedRulebookShowsTheCutAsAnItemWithItsFormula() throws Exception {
+        scheduleSlot("api-att-slot-capped", CAPPED);
+        mvc.perform(put("/attempts/{attemptId}/measurements", "api-att-slot-capped-1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"challengeId": "%s", "judgeId": "api-j-1", "timeSeconds": 60, "objectives": 0,
+                                 "penalties": 0, "consumption": 0,
+                                 "measurements": {"zona_alcanzada": 1, "distancia_metros": 12}}
+                                """.formatted(CAPPED)))
+                .andExpect(status().isOk());
+
+        // 100 for the time; the bonuses add 55, the cap keeps 40
+        mvc.perform(get("/attempts/{attemptId}/breakdown", "api-att-slot-capped-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.score").value(140.0))
+                .andExpect(jsonPath("$.items[*].concept", contains("Regla de Tiempo", "Bonus por zona",
+                        "Bonus por distancia", "Tope de bonificaciones")))
+                .andExpect(jsonPath("$.items[3].rawMetric").value("bonificaciones obtenidas 55.0 pts"))
+                .andExpect(jsonPath("$.items[3].formula").value("tope 40.0 pts, recorte -15.0 pts"))
+                .andExpect(jsonPath("$.items[3].subtotal").value(-15.0))
+                .andExpect(jsonPath("$.bySource[0].subtotal").value(155.0));
+    }
+
+    @Test
+    void theBreakdownOfAnUnknownAttemptIsNotFound() throws Exception {
         mvc.perform(get("/attempts/{attemptId}/breakdown", "api-att-nothing-1"))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("Attempt not found: api-att-nothing-1"));
     }
 
@@ -195,9 +242,9 @@ class AttemptControllerTest extends ApiTest {
     }
 
     @Test
-    void aSlotThatWasNotScheduledIsABadRequest() throws Exception {
+    void aSlotThatWasNotScheduledIsNotFound() throws Exception {
         mvc.perform(measurements("api-att-slot-unknown-1", MAZE, "api-j-1", 50.0, 4, 1))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("Slot not found: api-att-slot-unknown"));
     }
 
@@ -241,13 +288,25 @@ class AttemptControllerTest extends ApiTest {
     }
 
     @Test
+    void aJudgePanelWithoutScoresIsABadRequestAndCreatesNoAttempt() throws Exception {
+        scheduleSlot("api-att-slot-empty-panel", RESCUE);
+
+        mvc.perform(judgeScores("api-att-slot-empty-panel-1", RESCUE, "api-j-1", "{}",
+                        "{\"victimas_rescatadas\": 2}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("a judge panel report needs at least one judge score"));
+        mvc.perform(get("/attempts/{attemptId}/breakdown", "api-att-slot-empty-panel-1"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void aFirstCaptureForAnotherChallengeIsAConflictAndCreatesNoAttempt() throws Exception {
         scheduleSlot("api-att-slot-wrong-challenge", MAZE);
         mvc.perform(measurements("api-att-slot-wrong-challenge-1", RESCUE, "api-j-1", 90, 3, 0))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("Round round-api-att-slot-wrong-challenge belongs to challenge " + MAZE + ", not " + RESCUE));
         mvc.perform(get("/attempts/{attemptId}/breakdown", "api-att-slot-wrong-challenge-1"))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("Attempt not found: api-att-slot-wrong-challenge-1"));
     }
 

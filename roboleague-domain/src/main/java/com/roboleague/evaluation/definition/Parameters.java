@@ -1,5 +1,8 @@
 package com.roboleague.evaluation.definition;
 
+import com.roboleague.evaluation.Points;
+
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +34,23 @@ public record Parameters(Map<String, Double> values) {
         Map<String, Double> extended = new HashMap<>(values);
         extended.put(name, value);
         return new Parameters(extended);
+    }
+
+    public Parameters with(String name, Points value) {
+        return with(name, value.doubleValue());
+    }
+
+    /**
+     * A parameter that is an amount of points, such as a bonus or a deduction. It has to fit in hundredths: a
+     * published rulebook is never rounded silently.
+     */
+    public Points points(String name) {
+        BigDecimal value = BigDecimal.valueOf(number(name));
+        if (!Points.fitsExactly(value)) {
+            throw new IllegalArgumentException("parameter '" + name + "' is an amount of points and takes at most "
+                    + Points.SCALE + " decimals: " + value.toPlainString());
+        }
+        return Points.of(value);
     }
 
     public double number(String name) {

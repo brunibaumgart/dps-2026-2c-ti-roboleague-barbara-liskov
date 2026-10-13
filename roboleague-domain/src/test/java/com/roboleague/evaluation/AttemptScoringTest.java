@@ -1,5 +1,6 @@
 package com.roboleague.evaluation;
 
+import com.roboleague.support.TestValues;
 import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.TimeBasedRule;
@@ -27,17 +28,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Tests del informe de la Entrega 1 sobre el intento, invertidos para describir el comportamiento correcto.
+ * How an attempt is scored: always by itself with the rulebook version it was opened with, and only while it counts.
  */
-class AttemptReviewFindingsTest {
+class AttemptScoringTest {
 
     private static final Rulebook RULEBOOK = new Rulebook(RulebookVersion.first(),
-            ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0)),
-                    List.of(new PenaltyRule("Faltas", 10.0))),
+            ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", Points.of(100), 60.0, 1.0, 2.0, Points.ZERO)),
+                    List.of(new PenaltyRule("Faltas", Points.of(10)))),
             new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
 
     @Test
-    @DisplayName("Hallazgo 3: ningún método del intento recibe un puntaje; lo calcula él con su reglamento")
+    @DisplayName("Ningún método del intento recibe un puntaje; lo calcula él con su reglamento")
     void givenTheAttemptThenNoPublicMethodTakesAScore() {
         List<String> takingAScore = Arrays.stream(Attempt.class.getMethods())
                 .filter(method -> method.getDeclaringClass() == Attempt.class)
@@ -50,7 +51,7 @@ class AttemptReviewFindingsTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 3: una apelación aceptada trae métricas corregidas y el intento las puntúa")
+    @DisplayName("Una apelación aceptada trae métricas corregidas y el intento las puntúa")
     void givenAnAcceptedAppealThenTheAttemptScoresTheCorrectedMetrics() {
         Attempt attempt = Attempt.of(new AttemptIdentity(AttemptId.of(SlotId.of("slot-1"), 1), RoundId.of("r-1"), TeamId.of("t-1")),
                 RulebookReference.of(ChallengeId.of("ch-maze"), RULEBOOK));
@@ -58,16 +59,16 @@ class AttemptReviewFindingsTest {
                 RULEBOOK, audit());
         attempt.markUnderAppeal();
 
-        attempt.adjustAfterAppeal(new AppealRevision(AppealId.of("app-1"), RawMetrics.of(50.0, 0, 0),
+        attempt.adjustAfterAppeal(new AppealRevision(AppealId.of("app-1"), TestValues.metrics(50.0, 0, 0),
                 new AuditNote(ActorId.of("arb-1"), "Las faltas no existieron")), RULEBOOK, audit());
 
-        assertThat(attempt.getOriginalSnapshot().breakdown().totalScore()).isEqualTo(70.0);
-        assertThat(attempt.getFinalScore()).isEqualTo(110.0);
+        assertThat(attempt.getRevisionHistory().getFirst().breakdown().totalScore()).isEqualTo(Points.of(70));
+        assertThat(attempt.getScoreBreakdown().totalScore()).isEqualTo(Points.of(110));
         assertThat(attempt.getLatestSnapshot().authorOrJudgeId()).isEqualTo(ActorId.of("arb-1"));
     }
 
     @Test
-    @DisplayName("Hallazgo 2: el intento y cada revisión guardan la versión del reglamento con que se puntuaron")
+    @DisplayName("El intento y cada revisión guardan la versión del reglamento con que se puntuaron")
     void givenAScoredAttemptThenItAndEachRevisionKnowTheRulebookVersion() {
         Attempt attempt = scoredAttempt();
         attempt.applyPenaltyAdjustment(1, new AuditNote(ActorId.of("judge-2"), "Falta vista en video"), RULEBOOK, audit());
@@ -79,16 +80,16 @@ class AttemptReviewFindingsTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 2: puntuar un intento con otra versión del reglamento falla en vez de reevaluarlo con reglas ajenas")
+    @DisplayName("Puntuar un intento con otra versión del reglamento falla en vez de reevaluarlo con reglas ajenas")
     void givenAnotherRulebookVersionThenTheAttemptRefusesToBeScoredWithIt() {
         Attempt attempt = scoredAttempt();
         attempt.markUnderAppeal();
         Rulebook harsher = new Rulebook(RulebookVersion.first().next(),
-                ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0)),
-                        List.of(new PenaltyRule("Faltas", 100.0))),
+                ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", Points.of(100), 60.0, 1.0, 2.0, Points.ZERO)),
+                        List.of(new PenaltyRule("Faltas", Points.of(100)))),
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
 
-        assertThatThrownBy(() -> attempt.adjustAfterAppeal(new AppealRevision(AppealId.of("app-1"), RawMetrics.of(50.0, 0, 1),
+        assertThatThrownBy(() -> attempt.adjustAfterAppeal(new AppealRevision(AppealId.of("app-1"), TestValues.metrics(50.0, 0, 1),
                 new AuditNote(ActorId.of("arb-1"), "Una sola falta")), harsher, audit()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("the attempt is scored with ch-maze v1, not with v2");
@@ -96,12 +97,12 @@ class AttemptReviewFindingsTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 3: un intento descalificado y sin apelación no se ajusta a ningún puntaje")
+    @DisplayName("Un intento descalificado y sin apelación no se ajusta a ningún puntaje")
     void givenADisqualifiedAttemptThenAnAppealCannotAdjustIt() {
         Attempt attempt = scoredAttempt();
-        attempt.disqualify("robot fuera de pista", JudgeId.of("j-1"), audit());
+        attempt.disqualify(AuditNote.of(JudgeId.of("j-1").asActorId(), "robot fuera de pista"), audit());
 
-        assertThatThrownBy(() -> attempt.adjustAfterAppeal(new AppealRevision(AppealId.of("no-existe"), RawMetrics.of(1.0, 5, 0),
+        assertThatThrownBy(() -> attempt.adjustAfterAppeal(new AppealRevision(AppealId.of("no-existe"), TestValues.metrics(1.0, 5, 0),
                 new AuditNote(ActorId.of("cualquiera"), "sin apelación")), RULEBOOK, audit()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("attempt is disqualified: it cannot close an appeal: it has none open");
@@ -110,7 +111,7 @@ class AttemptReviewFindingsTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 3: con dos apelaciones abiertas, rechazar una deja al intento en apelación")
+    @DisplayName("Con dos apelaciones abiertas, rechazar una deja al intento en apelación")
     void givenTwoOpenAppealsThenRejectingOneKeepsTheAttemptUnderAppeal() {
         Attempt attempt = scoredAttempt();
         attempt.markUnderAppeal();
@@ -124,12 +125,12 @@ class AttemptReviewFindingsTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 3: un intento descalificado no tiene puntaje que cuente para la tabla")
+    @DisplayName("Un intento descalificado no tiene puntaje que cuente para la tabla")
     void givenADisqualifiedAttemptThenItHasNoCountableScore() {
         Attempt attempt = scoredAttempt();
-        assertThat(attempt.countableScore()).hasValueSatisfying(score -> assertThat(score.totalScore()).isEqualTo(70.0));
+        assertThat(attempt.countableScore()).hasValueSatisfying(score -> assertThat(score.totalScore()).isEqualTo(Points.of(70)));
 
-        attempt.disqualify("robot fuera de pista", JudgeId.of("j-1"), audit());
+        attempt.disqualify(AuditNote.of(JudgeId.of("j-1").asActorId(), "robot fuera de pista"), audit());
 
         assertThat(attempt.countableScore()).isEmpty();
     }

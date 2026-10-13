@@ -1,5 +1,6 @@
 package com.roboleague.evaluation.scheme;
 
+import com.roboleague.evaluation.Points;
 import com.roboleague.scheduling.RoundId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,7 +33,7 @@ class BestNOfMTest {
 
         assertThat(score.considered()).extracting(RoundScore::roundId).containsExactlyElementsOf(considered.stream().map(RoundId::of).toList());
         assertThat(score.considered().size() + score.discarded().size()).isEqualTo(rounds.size());
-        assertThat(score.total()).isEqualTo(expectedTotal);
+        assertThat(score.total()).isEqualTo(Points.of(expectedTotal));
         assertThat(score.selectionRule()).isEqualTo("mejores " + n + " de " + m + " rondas");
     }
 
@@ -53,13 +54,22 @@ class BestNOfMTest {
         assertThat(score.discarded()).isEmpty();
     }
 
+    @ParameterizedTest(name = "mejores 2 de 3: ronda {0} permitida = {1}")
+    @CsvSource({"1, true", "3, true", "4, false"})
+    @DisplayName("Solo se pueden programar rondas hasta M")
+    void givenARoundNumberThenOnlyTheFirstMAreAllowed(int roundNumber, boolean allowed) {
+        assertThat(new BestNOfM(2, 3).allowsRound(roundNumber)).isEqualTo(allowed);
+        assertThat(new AllRounds().allowsRound(roundNumber)).isTrue();
+    }
+
     @Test
     @DisplayName("Un equipo no puede tener más rondas que las M del reglamento")
     void givenMoreRoundsThanMThenTheSelectionIsRejected() {
         BestNOfM bestOfTwo = new BestNOfM(1, 2);
         List<RoundScore> three = List.of(round("r1", 1.0), round("r2", 2.0), round("r3", 3.0));
 
-        assertThatThrownBy(() -> bestOfTwo.select(three)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> bestOfTwo.select(three)).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("a team cannot have more than 2 rounds: 3");
     }
 
     @Test
@@ -68,14 +78,16 @@ class BestNOfMTest {
         BestNOfM bestOfThree = new BestNOfM(2, 3);
         List<RoundScore> repeated = List.of(round("r1", 10.0), round("r1", 20.0));
 
-        assertThatThrownBy(() -> bestOfThree.select(repeated)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> bestOfThree.select(repeated)).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("a team cannot have two scores for the same round");
     }
 
     @ParameterizedTest(name = "mejores {0} de {1}")
     @CsvSource({"0,3", "4,3", "2,0"})
     @DisplayName("N y M inválidos se rechazan")
     void givenInvalidNOrMThenTheSelectionIsRejected(int n, int m) {
-        assertThatThrownBy(() -> new BestNOfM(n, m)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new BestNOfM(n, m)).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("considered must be between 1 and outOf: " + n + " of " + m);
     }
 
     @Test
@@ -84,7 +96,7 @@ class BestNOfMTest {
         ChallengeScore score = new AllRounds().select(List.of(round("r1", 10.0), round("r2", 20.0)));
 
         assertThat(score.discarded()).isEmpty();
-        assertThat(score.total()).isEqualTo(30.0);
+        assertThat(score.total()).isEqualTo(Points.of(30));
     }
 
     @Test
@@ -92,7 +104,7 @@ class BestNOfMTest {
     void givenNoRoundsThenThereIsNoBestTimeNorJudgeScore() {
         ChallengeScore score = new BestNOfM(2, 3).select(List.of());
 
-        assertThat(score.total()).isZero();
+        assertThat(score.total()).isEqualTo(Points.ZERO);
         assertThat(score.bestTime()).isEmpty();
         assertThat(score.judgeScore()).isEmpty();
     }

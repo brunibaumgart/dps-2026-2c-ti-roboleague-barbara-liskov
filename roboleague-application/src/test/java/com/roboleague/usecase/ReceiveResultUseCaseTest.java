@@ -9,6 +9,7 @@ import com.roboleague.evaluation.Measurements;
 import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.MetricDefinition;
 import com.roboleague.evaluation.MetricSheet;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.ScoreRules;
 import com.roboleague.evaluation.ScoringScheme;
@@ -80,8 +81,8 @@ class ReceiveResultUseCaseTest {
         challenges.save(Challenge.draft(MAZE, EditionId.of("ed-1"), "Laberinto").publish(mazeScoring(), RANKING));
         challenges.save(Challenge.draft(RESCUE, EditionId.of("ed-1"), "Rescate").publish(new ScoringScheme(
                 new MetricSheet(List.of(new MetricDefinition(RESCUED, MeasurementUnit.COUNT, ValueRange.between(0.0, 4.0)))),
-                new ScoreRules(List.of(new ObjectivesRule("Zonas despejadas", 15.0),
-                        new VictimsRule("Víctimas rescatadas", RESCUED, 25.0),
+                new ScoreRules(List.of(new ObjectivesRule("Zonas despejadas", Points.of(15)),
+                        new VictimsRule("Víctimas rescatadas", RESCUED, Points.of(25)),
                         new JudgeSubjectiveRule("Panel técnico", 5.0)), List.of(), List.of()),
                 new Unlimited()), RANKING));
         rounds = new InMemoryRoundRepository();
@@ -107,7 +108,7 @@ class ReceiveResultUseCaseTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 4: capturar dos veces el mismo turno no borra el valor original")
+    @DisplayName("Capturar dos veces el mismo turno no borra el valor original")
     void givenACapturedTurnThenASecondCaptureIsRefusedAndTheOriginalStays() {
         receive.execute(new ReceiveResultCommand(MAZE, TURN, sensors(55.0, 4, 0, "judge-1")));
 
@@ -117,11 +118,11 @@ class ReceiveResultUseCaseTest {
 
         Attempt stored = attempts.findById(TURN).orElseThrow();
         assertThat(stored.getRevisionHistory()).hasSize(1);
-        assertThat(stored.getOriginalSnapshot().metrics().timeTakenSeconds()).isEqualTo(55.0);
+        assertThat(stored.getRevisionHistory().getFirst().metrics().timeTakenSeconds()).isEqualTo(55.0);
     }
 
     @Test
-    @DisplayName("Hallazgo 4: el intento sale del turno: su ronda y su equipo son los del slot")
+    @DisplayName("El intento sale del turno: su ronda y su equipo son los del slot")
     void givenAResultThenTheAttemptBelongsToTheTurnsRoundAndTeam() {
         Reception reception = receive.execute(new ReceiveResultCommand(MAZE, TURN, sensors(55.0, 4, 0, "judge-1")));
 
@@ -133,16 +134,16 @@ class ReceiveResultUseCaseTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 4: un turno que no existe no recibe resultados")
+    @DisplayName("Un turno que no existe no recibe resultados")
     void givenASlotThatDoesNotExistThenTheResultIsRefused() {
         assertThatThrownBy(() -> receive.execute(
                 new ReceiveResultCommand(MAZE, AttemptId.of(SlotId.of("slot-9"), 1), sensors(55.0, 4, 0, "judge-1"))))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(NotFoundException.class)
                 .hasMessage("Slot not found: slot-9");
     }
 
     @Test
-    @DisplayName("Hallazgo 4: un juez que no está asignado al turno no carga resultados")
+    @DisplayName("Un juez que no está asignado al turno no carga resultados")
     void givenAJudgeNotAssignedToTheSlotThenTheResultIsRejected() {
         Reception reception = receive.execute(new ReceiveResultCommand(MAZE, TURN, sensors(55.0, 4, 0, "judge-9")));
 
@@ -162,7 +163,7 @@ class ReceiveResultUseCaseTest {
         Attempt scored = attempts.findById(TURN).orElseThrow();
         assertThat(scored.getStatus()).isEqualTo(AttemptStatus.EVALUATED);
         // 3 zones => 45; 2 victims => 50; judges 8 and 6 => average 7 * 5 = 35
-        assertThat(scored.getFinalScore()).isEqualTo(130.0);
+        assertThat(scored.getScoreBreakdown().totalScore()).isEqualTo(Points.of(130));
     }
 
     @Test
@@ -190,7 +191,7 @@ class ReceiveResultUseCaseTest {
     }
 
     @Test
-    @DisplayName("Hallazgo 2: la fuente que llega después de una versión nueva se puntúa con la versión del intento")
+    @DisplayName("La fuente que llega después de una versión nueva se puntúa con la versión del intento")
     void givenANewRulebookVersionThenAPendingAttemptIsStillScoredWithItsOwn() {
         scheduleFor(RESCUE);
         receive.execute(new ReceiveResultCommand(RESCUE, TURN, sensors(90.0, 3, 0, "judge-1")));
@@ -200,12 +201,12 @@ class ReceiveResultUseCaseTest {
 
         Attempt scored = attempts.findById(TURN).orElseThrow();
         assertThat(scored.getLatestSnapshot().rulebookVersion()).isEqualTo(RulebookVersion.first());
-        assertThat(scored.getFinalScore()).isEqualTo(130.0);
+        assertThat(scored.getScoreBreakdown().totalScore()).isEqualTo(Points.of(130));
     }
 
     private static ScoringScheme mazeScoring() {
-        return ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0),
-                new ObjectivesRule("Objetivos", 20.0)), List.of(new PenaltyRule("Faltas", 10.0)));
+        return ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", Points.of(100), 60.0, 1.0, 2.0, Points.ZERO),
+                new ObjectivesRule("Objetivos", Points.of(20))), List.of(new PenaltyRule("Faltas", Points.of(10))));
     }
 
     private static SourceDelivery sensors(double seconds, int objectives, int faults, String judgeId) {

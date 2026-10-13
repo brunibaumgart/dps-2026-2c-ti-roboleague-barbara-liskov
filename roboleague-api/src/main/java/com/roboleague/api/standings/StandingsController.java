@@ -5,7 +5,6 @@ import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.ranking.Standings;
 import com.roboleague.ranking.StandingsId;
 import com.roboleague.ranking.StandingsPublication;
-import com.roboleague.ranking.StandingsVersion;
 import com.roboleague.support.ActorId;
 import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.ChallengeId;
@@ -52,12 +51,8 @@ class StandingsController {
     @GetMapping("/versions/{version}")
     StandingsVersionDto version(@PathVariable String challengeId, @PathVariable int version,
                                 @RequestParam String categoryId) {
-        StandingsId id = id(challengeId, categoryId);
-        Standings standings = queryStandings.execute(id).standings()
-                .orElseThrow(() -> new IllegalArgumentException("Standings not calculated yet: " + id));
-        StandingsVersion found = standings.version(version)
-                .orElseThrow(() -> new IllegalArgumentException("Standings " + id + " have no version " + version));
-        return StandingsVersionDto.from(standings, found);
+        QueryStandingsUseCase.CalculatedVersion found = queryStandings.version(id(challengeId, categoryId), version);
+        return StandingsVersionDto.from(found.standings(), found.version());
     }
 
     @PostMapping("/versions")

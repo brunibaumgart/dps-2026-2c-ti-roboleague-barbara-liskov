@@ -4,6 +4,7 @@ import com.roboleague.evaluation.definition.Parameters;
 import com.roboleague.evaluation.definition.RuleArguments;
 import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.Metric;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
@@ -18,17 +19,17 @@ import java.util.Set;
  */
 public class ObjectivesRule implements BaseRule {
     private final String ruleName;
-    private final double pointsPerObjective;
+    private final Points pointsPerObjective;
 
-    public ObjectivesRule(String ruleName, double pointsPerObjective) {
-        if (pointsPerObjective < 0) {
+    public ObjectivesRule(String ruleName, Points pointsPerObjective) {
+        if (pointsPerObjective.isNegative()) {
             throw new IllegalArgumentException("pointsPerObjective cannot be negative");
         }
         this.ruleName = Objects.requireNonNull(ruleName, "ruleName cannot be null");
         this.pointsPerObjective = pointsPerObjective;
     }
 
-    public static ObjectivesRule standard(double pointsPerObjective) {
+    public static ObjectivesRule standard(Points pointsPerObjective) {
         return new ObjectivesRule("Objetivos", pointsPerObjective);
     }
 
@@ -36,7 +37,7 @@ public class ObjectivesRule implements BaseRule {
     private static final String POINTS_PER_OBJECTIVE = "pointsPerObjective";
 
     public static ObjectivesRule from(RuleDefinition definition) {
-        return new ObjectivesRule(definition.name(), definition.arguments().numbers().number(POINTS_PER_OBJECTIVE));
+        return new ObjectivesRule(definition.name(), definition.arguments().numbers().points(POINTS_PER_OBJECTIVE));
     }
 
     @Override
@@ -66,8 +67,8 @@ public class ObjectivesRule implements BaseRule {
         ScoreItem item = ScoreItem.of(
                 ruleName,
                 String.format(Locale.US, "%d objetivos", completed),
-                String.format(Locale.US, "%d obj * %.1f pts", completed, pointsPerObjective),
-                completed * pointsPerObjective
+                String.format(Locale.US, "%d obj * %.1f pts", completed, pointsPerObjective.toBigDecimal()),
+                pointsPerObjective.times(completed)
         );
         return RuleEvaluation.of(item, String.format(Locale.US, "Objetivos completados: %d", completed));
     }

@@ -101,18 +101,4 @@ public record RawMetrics(
     public static RawMetrics of(TrackPerformance performance, EvaluationFeedback feedback) {
         return new RawMetrics(performance, feedback);
     }
-
-    public static RawMetrics of(double timeTakenSeconds, int objectivesCompleted, int penaltiesCount) {
-        return new RawMetrics(
-                new TrackPerformance(timeTakenSeconds, objectivesCompleted, penaltiesCount),
-                EvaluationFeedback.empty()
-        );
-    }
-
-    public static RawMetrics of(double timeTakenSeconds, int objectivesCompleted, int penaltiesCount, Map<JudgeId, Double> judgeScores) {
-        return new RawMetrics(
-                new TrackPerformance(timeTakenSeconds, objectivesCompleted, penaltiesCount),
-                EvaluationFeedback.withJudgeScores(judgeScores)
-        );
-    }
 }

@@ -1,7 +1,7 @@
-package com.roboleague.tournament;
+package com.roboleague.tournament.eligibility;
 
 import com.roboleague.support.ActorId;
-import com.roboleague.tournament.eligibility.*;
+import com.roboleague.tournament.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,6 +13,7 @@ import java.util.Set;
 
 import static com.roboleague.support.TestValues.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class EligibilitySpecificationTest {
 
@@ -57,6 +58,20 @@ class EligibilitySpecificationTest {
     }
 
     @Test
+    void anIneligibleRegistrationIsRejectedWithEveryReason() {
+        Team unverified = createValidTeam().withMembers(List.of())
+                .withDocumentation(new Documentation().withDocument("CONSENT", "consent.pdf"));
+
+        assertThatThrownBy(() -> RegistrationEligibility.requireEligible(unverified, sumoCategory, tournamentDate))
+                .isInstanceOfSatisfying(TeamIneligibleException.class, rejected -> {
+                    assertThat(rejected).hasMessage("Team Los Titanes failed eligibility requirements: "
+                            + "Team has fewer members than required: 0 < 2; Team documentation has not been verified");
+                    assertThat(rejected.getViolations()).containsExactlyInAnyOrder(
+                            "Team has fewer members than required: 0 < 2", "Team documentation has not been verified");
+                });
+    }
+
+    @Test
     void minimumOnlyAgeLimitAcceptsThirteenAndOlderAndRejectsTwelve() {
         var category = Category.of(CategoryId.of("cat-open-age"), "Open age", 2, 4, 13, null, 3000.0);
         var specification = new AgeLimitSpecification();
@@ -66,7 +81,7 @@ class EligibilitySpecificationTest {
             var team = createValidTeam().withMembers(List.of(member));
             var result = specification.isSatisfiedBy(new EligibilityCandidate(team, category, tournamentDate));
             assertThat(result.isEligible()).as("age %s", age).isEqualTo(age > 12);
-            assertThat(category.allowsAge(age)).isEqualTo(age > 12);
+            assertThat(category.restrictions().ageRange().contains(age)).isEqualTo(age > 12);
         }
     }
 
@@ -98,6 +113,23 @@ class EligibilitySpecificationTest {
 
         assertThat(result.isEligible()).isFalse();
         assertThat(result.reasons()).anyMatch(r -> r.contains("under the minimum age limit"));
+    }
+
+    @Test
+    @DisplayName("The age limits are the category's inclusive AgeRange, and each side explains itself")
+    void ageLimitsFollowTheCategoryAgeRange() {
+        Team team = createValidTeam().withMembers(List.of(
+                TeamMember.of(ParticipantId.of("m-14"), "Justo Catorce", tournamentDate.minusYears(14), "M", DATE),
+                TeamMember.of(ParticipantId.of("m-18"), "Justa Dieciocho", tournamentDate.minusYears(18), "M", DATE),
+                TeamMember.of(ParticipantId.of("m-13"), "Nene", tournamentDate.minusYears(13), "M", DATE),
+                TeamMember.of(ParticipantId.of("m-19"), "Mayor", tournamentDate.minusYears(19), "M", DATE)));
+
+        EligibilityResult result = new AgeLimitSpecification()
+                .isSatisfiedBy(new EligibilityCandidate(team, sumoCategory, tournamentDate));
+
+        assertThat(result.reasons()).containsExactly(
+                "Member Nene is under the minimum age limit (13 < 14)",
+                "Member Mayor exceeds the maximum age limit (19 > 18)");
     }
 
     @Test

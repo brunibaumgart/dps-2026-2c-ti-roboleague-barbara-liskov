@@ -2,6 +2,7 @@ package com.roboleague.usecase;
 
 import com.roboleague.repository.memory.InMemoryEditionRepository;
 import com.roboleague.repository.memory.InMemoryTeamRepository;
+import com.roboleague.support.ConflictException;
 import com.roboleague.tournament.*;
 import com.roboleague.tournament.eligibility.TeamIneligibleException;
 import org.junit.jupiter.api.Test;
@@ -54,7 +55,7 @@ class RegisterTeamUseCaseTest {
         assertThatThrownBy(() -> register.execute(edition.getId(), CategoryId.of("foreign"), candidate))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("not offered");
         assertThatThrownBy(() -> register.execute(EditionId.of("missing"), junior.id(), candidate))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Edition not found");
+                .isInstanceOf(NotFoundException.class).hasMessageContaining("Edition not found");
         assertThat(teams.findAll()).isEmpty();
     }
 
@@ -90,7 +91,7 @@ class RegisterTeamUseCaseTest {
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("already registered");
         Team maliciousReplacement = canonical.withRobot(robot(9999));
         assertThatThrownBy(() -> register.execute(edition.getId(), junior.id(), maliciousReplacement))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("already exists");
+                .isInstanceOf(ConflictException.class).hasMessageContaining("already exists");
         assertThat(teams.findById(canonical.getId())).containsSame(canonical);
         assertThat(editions.findById(edition.getId()).orElseThrow().getRegistrations()).containsExactly(first);
     }
@@ -109,6 +110,6 @@ class RegisterTeamUseCaseTest {
         assertThat(teams.findAll()).containsExactly(canonical);
         assertThat(editions.findByTeamId(canonical.getId())).hasSize(2);
         assertThatThrownBy(() -> register.execute(second.getId(), senior.id(), TeamId.of("missing")))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Team not found");
+                .isInstanceOf(NotFoundException.class).hasMessageContaining("Team not found");
     }
 }

@@ -24,17 +24,17 @@ public class QueryRegistrationsUseCase {
 
     public RegistrationView get(EditionId editionId, TeamId teamId) {
         Registration registration = edition(editionId).registration(teamId)
-                .orElseThrow(() -> new IllegalArgumentException("Registration not found: " + teamId + " in " + editionId));
+                .orElseThrow(() -> new NotFoundException("Registration", teamId + " in " + editionId));
         return view(registration);
     }
 
     private Edition edition(EditionId id) {
-        return editions.findById(id).orElseThrow(() -> new IllegalArgumentException("Edition not found: " + id));
+        return editions.findById(id).orElseThrow(() -> new NotFoundException("Edition", id));
     }
 
     private RegistrationView view(Registration registration) {
         Team team = teams.findById(registration.teamId())
-                .orElseThrow(() -> new IllegalStateException("Registered team not found: " + registration.teamId()));
+                .orElseThrow(() -> new InconsistentStateException("Registered team not found: " + registration.teamId()));
         return new RegistrationView(registration, team);
     }
 }

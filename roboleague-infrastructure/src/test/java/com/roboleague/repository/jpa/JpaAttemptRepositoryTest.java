@@ -14,6 +14,7 @@ import com.roboleague.evaluation.Measurements;
 import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.MetricDefinition;
 import com.roboleague.evaluation.MetricSheet;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookReference;
 import com.roboleague.evaluation.RulebookVersion;
@@ -33,6 +34,7 @@ import com.roboleague.evaluation.scheme.AllRounds;
 import com.roboleague.evaluation.scheme.HigherTotal;
 import com.roboleague.evaluation.scheme.RankingScheme;
 import com.roboleague.ranking.appeal.AppealId;
+import com.roboleague.repository.ConcurrentModificationConflict;
 import com.roboleague.scheduling.JudgeId;
 import com.roboleague.scheduling.RoundId;
 import com.roboleague.scheduling.SlotId;
@@ -45,6 +47,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,11 +69,11 @@ class JpaAttemptRepositoryTest {
     private static final Metric RESCUED = Metric.judged("victimas_rescatadas");
     private static final Rulebook RESCUE = new Rulebook(RulebookVersion.first(), new ScoringScheme(
             new MetricSheet(List.of(new MetricDefinition(RESCUED, MeasurementUnit.COUNT, ValueRange.between(0.0, 4.0)))),
-            new ScoreRules(List.of(new ObjectivesRule("Zonas despejadas", 15.0),
-                    new VictimsRule("Víctimas rescatadas", RESCUED, 25.0), new JudgeSubjectiveRule("Panel técnico", 5.0)),
-                    List.of(new AllObjectivesBonusRule("Todas las zonas", 4, 20.0)),
-                    List.of(new PenaltyRule("Faltas", 10.0))),
-            new CappedAt(10.0)), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
+            new ScoreRules(List.of(new ObjectivesRule("Zonas despejadas", Points.of(15)),
+                    new VictimsRule("Víctimas rescatadas", RESCUED, Points.of(25)), new JudgeSubjectiveRule("Panel técnico", 5.0)),
+                    List.of(new AllObjectivesBonusRule("Todas las zonas", 4, Points.of(20))),
+                    List.of(new PenaltyRule("Faltas", Points.of(10)))),
+            new CappedAt(Points.of(10))), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
     private static final SourceDelivery SENSORS = new SourceDelivery(
             new Measurements(new TrackPerformance(90.0, 4, 1), 12.5, Map.of()), JudgeId.of("j-1"));
     private static final SourceDelivery PANEL = new SourceDelivery(
@@ -99,8 +103,9 @@ class JpaAttemptRepositoryTest {
         second.receive(PANEL, RESCUE, audit());
 
         assertThatThrownBy(() -> repository.save(second))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("was changed by someone else");
+                .isInstanceOf(ConcurrentModificationConflict.class)
+                .hasMessageContaining("was changed by someone else")
+                .hasCauseInstanceOf(OptimisticLockingFailureException.class);
         assertThat(repository.findById(awaiting.getId()).orElseThrow().getStatus()).isEqualTo(AttemptStatus.EVALUATED);
     }
 
@@ -115,7 +120,8 @@ class JpaAttemptRepositoryTest {
 
         repository.save(bySensors);
 
-        assertThatThrownBy(() -> repository.save(byPanel)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> repository.save(byPanel)).isInstanceOf(ConcurrentModificationConflict.class)
+                .hasCauseInstanceOf(DataIntegrityViolationException.class);
         assertThat(repository.findById(bySensors.getId()).orElseThrow().getDeliveries()).containsExactly(SENSORS);
     }
 
@@ -167,7 +173,7 @@ class JpaAttemptRepositoryTest {
         assertThat(stored.getRulebookReference()).isEqualTo(new RulebookReference(ChallengeId.of("ch-rescue"), RulebookVersion.first()));
         stored.receive(PANEL, RESCUE, audit());
         // 4 zones => 60; 2 victims => 50; judges 7 * 5 => 35; bonus 20 capped at 10; 1 fault => -10
-        assertThat(stored.getFinalScore()).isEqualTo(145.0);
+        assertThat(stored.getScoreBreakdown().totalScore()).isEqualTo(Points.of(145));
     }
 
     @Test
@@ -192,7 +198,7 @@ class JpaAttemptRepositoryTest {
         assertThat(stored.getEventHistory()).extracting(AttemptEvent::eventType).containsExactly(
                 "SOURCE_RECEIVED", "SOURCE_RECEIVED", "RESULT_REGISTERED", "PENALTY_APPLIED", "SCORE_ADJUSTED",
                 "APPEAL_ACCEPTED", "SCORE_ADJUSTED");
-        assertThat(stored.getFinalScore()).isEqualTo(155.0);
+        assertThat(stored.getScoreBreakdown().totalScore()).isEqualTo(Points.of(155));
     }
 
     @Test
@@ -201,7 +207,7 @@ class JpaAttemptRepositoryTest {
         Attempt attempt = attempt("slot-3", "r-1", "t-1");
         attempt.receive(SENSORS, RESCUE, audit());
         attempt.receive(PANEL, RESCUE, audit());
-        attempt.disqualify("Robot fuera de pista", JudgeId.of("j-1"), audit());
+        attempt.disqualify(AuditNote.of(JudgeId.of("j-1").asActorId(), "Robot fuera de pista"), audit());
 
         repository.save(attempt);
         Attempt stored = repository.findById(attempt.getId()).orElseThrow();
@@ -257,6 +263,32 @@ class JpaAttemptRepositoryTest {
         assertThat(stored).containsExactly("legacy-slot-with-dashes-2", "legacy-slot-with-dashes",
                 "Legacy Round", "Legacy Team", "Legacy Challenge", "j-1");
         assertThat(repository.findById(id).orElseThrow().getDeliveries()).containsExactly(SENSORS);
+    }
+
+    @Test
+    @DisplayName("A stored attempt with an unknown status or event cannot be rebuilt: corrupt data, with its cause")
+    void givenUnknownStoredValuesThenTheMapperReportsCorruptData() {
+        Attempt received = attempt("slot-corrupt", "r-corrupt", "t-corrupt");
+        received.receive(SENSORS, RESCUE, audit());
+        received.receive(PANEL, RESCUE, audit());
+
+        AttemptJpaEntity unknownStatus = AttemptMapper.toEntity(received);
+        unknownStatus.status = "EXPLODED";
+        assertThatThrownBy(() -> AttemptMapper.toDomain(unknownStatus))
+                .isInstanceOf(CorruptDataException.class)
+                .hasMessageContaining("Stored attempt slot-corrupt-1 cannot be rebuilt")
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+
+        AttemptJpaEntity unknownEvent = AttemptMapper.toEntity(received);
+        AttemptJpaEntity.EventJson event = unknownEvent.history.events().getFirst();
+        List<AttemptJpaEntity.EventJson> events = new java.util.ArrayList<>(unknownEvent.history.events());
+        events.set(0, new AttemptJpaEntity.EventJson("TELEPORTED", event.eventId(), event.timestamp(), event.actorId(),
+                event.source(), event.reason(), event.number(), event.appealId(), event.teamId(), event.evaluation()));
+        unknownEvent.history = new AttemptJpaEntity.HistoryJson(unknownEvent.history.deliveries(),
+                unknownEvent.history.revisions(), events);
+        assertThatThrownBy(() -> AttemptMapper.toDomain(unknownEvent))
+                .isInstanceOf(CorruptDataException.class)
+                .hasMessage("Unknown stored attempt event: TELEPORTED");
     }
 
     private static Attempt attempt(String slotId, String roundId, String teamId) {

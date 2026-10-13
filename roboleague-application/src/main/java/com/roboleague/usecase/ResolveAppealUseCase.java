@@ -68,10 +68,10 @@ public class ResolveAppealUseCase {
         Attempt attempt = attemptOf(appeal);
         RulebookReference scoredWith = attempt.getRulebookReference();
         Challenge challenge = challengeRepository.findById(scoredWith.challengeId())
-                .orElseThrow(() -> new IllegalStateException("Challenge of attempt " + attempt.getId()
+                .orElseThrow(() -> new InconsistentStateException("Challenge of attempt " + attempt.getId()
                         + " not found: " + scoredWith.challengeId()));
         Rulebook rulebook = challenge.rulebook(scoredWith.version())
-                .orElseThrow(() -> new IllegalStateException("Rulebook " + scoredWith + " not found"));
+                .orElseThrow(() -> new InconsistentStateException("Rulebook " + scoredWith + " not found"));
         List<String> problems = problemsOf(corrections, rulebook, scoredWith);
         if (!problems.isEmpty()) {
             return new AppealAcceptance.Invalid(problems);
@@ -88,7 +88,7 @@ public class ResolveAppealUseCase {
         appealRepository.save(appeal);
 
         Round round = roundRepository.findById(attempt.getRoundId())
-                .orElseThrow(() -> new IllegalStateException("Round of attempt " + attempt.getId()
+                .orElseThrow(() -> new InconsistentStateException("Round of attempt " + attempt.getId()
                         + " not found: " + attempt.getRoundId()));
         Standings standings = recalculateStandings.execute(new StandingsId(challenge.getId(), round.getCategoryId()));
         return new AppealAcceptance.Accepted(appeal, standings.latest());
@@ -109,12 +109,12 @@ public class ResolveAppealUseCase {
 
     private Appeal appeal(AppealId appealId) {
         return appealRepository.findById(appealId)
-                .orElseThrow(() -> new IllegalArgumentException("Appeal not found: " + appealId));
+                .orElseThrow(() -> new NotFoundException("Appeal", appealId));
     }
 
     private Attempt attemptOf(Appeal appeal) {
         return attemptRepository.findById(appeal.getAttemptId())
-                .orElseThrow(() -> new IllegalStateException("Attempt of appeal " + appeal.getAppealId()
+                .orElseThrow(() -> new InconsistentStateException("Attempt of appeal " + appeal.getAppealId()
                         + " not found: " + appeal.getAttemptId()));
     }
 

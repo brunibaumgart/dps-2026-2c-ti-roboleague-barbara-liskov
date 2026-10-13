@@ -2,6 +2,7 @@ package com.roboleague.usecase;
 
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.Measurements;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.SourceDelivery;
 import com.roboleague.evaluation.TrackPerformance;
@@ -76,7 +77,7 @@ class StandingsUseCasesTest {
     private final Category rescue = category("rescue", 1, 4, 14, 25, 2000);
     private final Edition edition = edition("ed-1", DATE, maze, rescue);
     private final Challenge challenge = Challenge.draft(ChallengeId.of("ch-1"), edition.getId(), "Laberinto")
-            .publish(ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objetivos", 20.0)), List.of()),
+            .publish(ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objetivos", Points.of(20))), List.of()),
                     new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
     private final StandingsId mazeStandings = new StandingsId(challenge.getId(), maze.id());
 
@@ -98,7 +99,7 @@ class StandingsUseCasesTest {
     void theStandingsTakeTheRegisteredTeamsOfTheCategory() {
         assertThat(recalculate.execute(mazeStandings).latest().table().entries())
                 .extracting(entry -> entry.team().teamId(), StandingsEntry::total)
-                .containsExactly(tuple(TeamId.of("team-a"), 40.0), tuple(TeamId.of("team-b"), 0.0));
+                .containsExactly(tuple(TeamId.of("team-a"), Points.of(40)), tuple(TeamId.of("team-b"), Points.ZERO));
     }
 
     @Test
@@ -118,7 +119,7 @@ class StandingsUseCasesTest {
     @DisplayName("A challenge that does not exist, or a category its edition does not offer, has no standings")
     void unknownChallengesAndCategoriesHaveNoStandings() {
         assertThatThrownBy(() -> recalculate.execute(new StandingsId(ChallengeId.of("missing"), maze.id())))
-                .isInstanceOf(IllegalArgumentException.class).hasMessage("Challenge not found: missing");
+                .isInstanceOf(NotFoundException.class).hasMessage("Challenge not found: missing");
         assertThatThrownBy(() -> query.execute(new StandingsId(challenge.getId(), CategoryId.of("sumo"))))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("not offered");
     }
@@ -146,8 +147,22 @@ class StandingsUseCasesTest {
     @DisplayName("Standings that were never calculated cannot be published")
     void standingsNeverCalculatedCannotBePublished() {
         assertThatThrownBy(() -> publish.execute(mazeStandings, 1, CLOSING))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(NotFoundException.class)
                 .hasMessage("Standings not calculated yet: ch-1/maze");
+    }
+
+    @Test
+    @DisplayName("A calculated version is read by its number; standings or versions that do not exist are not found")
+    void versionsAreReadByNumberAndMissingOnesAreNotFound() {
+        assertThatThrownBy(() -> query.version(mazeStandings, 1))
+                .isInstanceOf(NotFoundException.class).hasMessage("Standings not calculated yet: ch-1/maze");
+        recalculate.execute(mazeStandings);
+
+        assertThat(query.version(mazeStandings, 1).version().number()).isEqualTo(1);
+        assertThatThrownBy(() -> query.version(mazeStandings, 2))
+                .isInstanceOf(NotFoundException.class).hasMessage("Standings ch-1/maze have no version 2");
+        assertThatThrownBy(() -> publish.execute(mazeStandings, 2, CLOSING))
+                .isInstanceOf(NotFoundException.class).hasMessage("Standings ch-1/maze have no version 2");
     }
 
     @Test
@@ -173,11 +188,13 @@ class StandingsUseCasesTest {
         Appeal second = fileAppeal.execute(mazeAttempt, TeamId.of("team-a"), "Objetivos", "Video");
         fileAppeal.execute(attemptIn("r-rescue", "team-c"), TeamId.of("team-c"), "Otra categoria", "Video");
 
-        assertThat(queryAppeals.ofCategory(mazeStandings)).containsExactly(first, second);
-        assertThat(queryAppeals.ofAttempt(mazeAttempt)).containsExactly(first, second);
-        assertThat(queryAppeals.get(second.getAppealId())).isSameAs(second);
+        assertThat(queryAppeals.ofCategory(mazeStandings)).extracting(Appeal::getAppealId)
+                .containsExactly(first.getAppealId(), second.getAppealId());
+        assertThat(queryAppeals.ofAttempt(mazeAttempt)).extracting(Appeal::getAppealId)
+                .containsExactly(first.getAppealId(), second.getAppealId());
+        assertThat(queryAppeals.get(second.getAppealId()).getReason()).isEqualTo("Objetivos");
         assertThatThrownBy(() -> queryAppeals.ofAttempt(AttemptId.of(SlotId.of("missing"), 1)))
-                .isInstanceOf(IllegalArgumentException.class).hasMessage("Attempt not found: missing-1");
+                .isInstanceOf(NotFoundException.class).hasMessage("Attempt not found: missing-1");
     }
 
     private void score(String roundId, String teamId, int objectives) {

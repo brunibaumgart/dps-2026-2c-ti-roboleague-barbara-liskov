@@ -1,5 +1,7 @@
 package com.roboleague.ranking;
 
+import com.roboleague.evaluation.Points;
+
 import java.util.List;
 import java.util.Objects;
 
@@ -14,10 +16,10 @@ public record TeamRounds(List<RoundResult> considered, List<RoundResult> discard
         Objects.requireNonNull(selectionRule, "selectionRule cannot be null");
     }
 
-    public double total() {
-        double total = 0.0;
+    public Points total() {
+        Points total = Points.ZERO;
         for (RoundResult round : considered) {
-            total += round.total();
+            total = total.plus(round.total());
         }
         return total;
     }

@@ -1,5 +1,7 @@
 package com.roboleague.tournament;
 
+import com.roboleague.evaluation.Points;
+import com.roboleague.support.TestValues;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookVersion;
@@ -22,7 +24,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ChallengeTest {
 
-    private final RawMetrics tenSecondsUnderTarget = RawMetrics.of(50.0, 0, 0);
+    private final RawMetrics tenSecondsUnderTarget = TestValues.metrics(50.0, 0, 0);
     private final RankingScheme allRounds = new RankingScheme(new AllRounds(), List.of(new HigherTotal()));
 
     private Challenge mazeWithBase(double basePoints) {
@@ -31,7 +33,7 @@ class ChallengeTest {
     }
 
     private static TimeBasedRule timeRuleWithBase(double basePoints) {
-        return new TimeBasedRule("Tiempo", TimeRuleConfig.of(basePoints, 60.0, 1.0, 1.0, 0.0));
+        return new TimeBasedRule("Tiempo", TimeRuleConfig.of(Points.of(basePoints), 60.0, 1.0, 1.0, Points.ZERO));
     }
 
     @Test
@@ -57,14 +59,14 @@ class ChallengeTest {
     @DisplayName("Publicar una versión nueva no cambia cómo puntúa la anterior")
     void givenANewVersionThenThePreviousOneStillScoresAsBefore() {
         Challenge maze = mazeWithBase(100.0);
-        double v1ScoreBefore = maze.currentRulebook().evaluate(tenSecondsUnderTarget).totalScore();
+        Points v1ScoreBefore = maze.currentRulebook().evaluate(tenSecondsUnderTarget).totalScore();
 
         maze.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(150.0)), List.of()), allRounds);
 
         Rulebook v1 = maze.rulebook(new RulebookVersion(1)).orElseThrow();
         Rulebook v2 = maze.rulebook(new RulebookVersion(2)).orElseThrow();
-        assertThat(v1.evaluate(tenSecondsUnderTarget).totalScore()).isEqualTo(v1ScoreBefore).isEqualTo(110.0);
-        assertThat(v2.evaluate(tenSecondsUnderTarget).totalScore()).isEqualTo(160.0);
+        assertThat(v1.evaluate(tenSecondsUnderTarget).totalScore()).isEqualTo(v1ScoreBefore).isEqualTo(Points.of(110));
+        assertThat(v2.evaluate(tenSecondsUnderTarget).totalScore()).isEqualTo(Points.of(160));
     }
 
     @Test
@@ -96,7 +98,7 @@ class ChallengeTest {
         Rulebook third = restored.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(200.0)), List.of()), allRounds);
 
         assertThat(restored.rulebook(RulebookVersion.first()).orElseThrow().evaluate(tenSecondsUnderTarget).totalScore())
-                .isEqualTo(110.0);
+                .isEqualTo(Points.of(110));
         assertThat(third.version()).isEqualTo(new RulebookVersion(3));
     }
 
@@ -107,8 +109,10 @@ class ChallengeTest {
         Rulebook v2 = original.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(150.0)), List.of()), allRounds);
         Challenge.Draft draft = Challenge.draft(ChallengeId.of("ch-maze"), EditionId.of("ed-2026"), "Laberinto");
 
-        assertThatThrownBy(() -> Challenge.restore(draft, List.of(v2))).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> Challenge.restore(draft, List.of())).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> Challenge.restore(draft, List.of(v2))).isInstanceOf(IllegalStateException.class)
+                .hasMessage("stored rulebooks of ch-maze skip version v1");
+        assertThatThrownBy(() -> Challenge.restore(draft, List.of())).isInstanceOf(IllegalStateException.class)
+                .hasMessage("a stored challenge has at least one rulebook: ch-maze");
     }
 
     @Test
@@ -143,5 +147,15 @@ class ChallengeTest {
         assertThatThrownBy(() -> Challenge.draft(ChallengeId.of("ch-maze"), EditionId.of(editionId), name))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage(problem);
+    }
+
+    @Test
+    @DisplayName("Un desafío acepta hasta 120 caracteres de nombre, el tamaño de su columna")
+    void givenANameLongerThanItsColumnThenTheDraftIsRejected() {
+        EditionId edition = EditionId.of("ed-2026");
+        assertThat(Challenge.draft(ChallengeId.of("ch-maze"), edition, "L".repeat(120)).name()).hasSize(120);
+        assertThatThrownBy(() -> Challenge.draft(ChallengeId.of("ch-maze"), edition, "L".repeat(121)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("challenge name cannot be longer than 120 characters");
     }
 }

@@ -1,8 +1,6 @@
 package com.roboleague.evaluation.audit;
 
 import com.roboleague.evaluation.AttemptId;
-import com.roboleague.evaluation.RawMetrics;
-import com.roboleague.evaluation.ScoreBreakdown;
 import com.roboleague.scheduling.JudgeId;
 import com.roboleague.tournament.TeamId;
 
@@ -47,14 +45,6 @@ public record ResultRegisteredEvent(
         return binding.judgeId();
     }
 
-    public RawMetrics metrics() {
-        return evaluation.metrics();
-    }
-
-    public ScoreBreakdown scoreBreakdown() {
-        return evaluation.breakdown();
-    }
-
     @Override
     public String eventType() {
         return "RESULT_REGISTERED";
@@ -62,7 +52,7 @@ public record ResultRegisteredEvent(
 
     @Override
     public String description() {
-        return "Initial result registered by judge " + judgeId() + " with score " + scoreBreakdown().totalScore();
+        return "Initial result registered by judge " + judgeId() + " with score " + evaluation.breakdown().totalScore();
     }
 
     public static ResultRegisteredEvent create(EventMetadata metadata, TeamId teamId, EvaluationSnapshot evaluation, JudgeId judgeId) {

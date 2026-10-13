@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.rules.ObjectivesRule;
 import com.roboleague.evaluation.scheme.AllRounds;
@@ -91,7 +92,7 @@ class UpdateTeamUseCaseTest {
             assertThat(editions.findById(edition.getId())).containsSame(edition);
             Registration registration = edition.registration(canonical.getId()).orElseThrow();
             Challenge challenge = Challenge.draft(ChallengeId.of("ch-" + edition.getId()), edition.getId(), "Laberinto")
-                    .publish(ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objetivos", 20.0)), List.of()),
+                    .publish(ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objetivos", Points.of(20))), List.of()),
                             new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
             challenges.save(challenge);
             assertThat(standings.execute(new StandingsId(challenge.getId(), registration.categoryId()))
@@ -133,7 +134,7 @@ class UpdateTeamUseCaseTest {
     @Test
     void updateCannotCreateTeamsOrChangeTheirIdentity() {
         assertThatThrownBy(() -> update.execute(TeamId.of("missing"), canonical))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Team not found");
+                .isInstanceOf(NotFoundException.class).hasMessageContaining("Team not found");
         assertThatThrownBy(() -> update.execute(canonical.getId(), team("different")))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("cannot change its identity");
         assertThatThrownBy(() -> canonical.withProfile(TeamProfile.of(TeamId.of("different"), "Name", "School")))

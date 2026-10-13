@@ -4,10 +4,12 @@ import com.roboleague.evaluation.definition.Parameters;
 import com.roboleague.evaluation.definition.RuleArguments;
 import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.Metric;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
 
+import java.math.BigDecimal;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
@@ -25,10 +27,6 @@ public class JudgeSubjectiveRule implements BaseRule {
         }
         this.ruleName = Objects.requireNonNull(ruleName, "ruleName cannot be null");
         this.weightMultiplier = weightMultiplier;
-    }
-
-    public static JudgeSubjectiveRule standard(double weightMultiplier) {
-        return new JudgeSubjectiveRule("Evaluación de Jueces", weightMultiplier);
     }
 
     public static final String TYPE = "judges";
@@ -61,7 +59,7 @@ public class JudgeSubjectiveRule implements BaseRule {
     @Override
     public RuleEvaluation evaluate(RawMetrics metrics) {
         double avg = metrics.getAverageJudgeScore();
-        double subtotal = avg * weightMultiplier;
+        Points subtotal = Points.of(BigDecimal.valueOf(avg).multiply(BigDecimal.valueOf(weightMultiplier)));
         int judgeCount = metrics.judgeSubjectiveScores().size();
 
         String rawMetric = String.format(Locale.US, "Promedio %.2f (%d jueces)", avg, judgeCount);
@@ -74,7 +72,7 @@ public class JudgeSubjectiveRule implements BaseRule {
                 subtotal
         );
 
-        String note = String.format(Locale.US, "Puntuación subjetiva de jueces: %.2f pts", subtotal);
+        String note = String.format(Locale.US, "Puntuación subjetiva de jueces: %.2f pts", subtotal.toBigDecimal());
         return RuleEvaluation.of(item, note);
     }
 }

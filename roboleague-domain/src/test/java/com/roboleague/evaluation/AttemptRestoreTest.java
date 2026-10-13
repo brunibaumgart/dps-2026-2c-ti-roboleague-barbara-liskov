@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class AttemptRestoreTest {
 
     private static final Rulebook MAZE = new Rulebook(RulebookVersion.first(),
-            ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0)), List.of()),
+            ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", Points.of(100), 60.0, 1.0, 2.0, Points.ZERO)), List.of()),
             new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
     private static final AttemptIdentity IDENTITY = new AttemptIdentity(AttemptId.of(SlotId.of("slot-1"), 1), RoundId.of("r-1"), TeamId.of("t-1"));
     private static final RulebookReference REFERENCE = RulebookReference.of(ChallengeId.of("ch-maze"), MAZE);

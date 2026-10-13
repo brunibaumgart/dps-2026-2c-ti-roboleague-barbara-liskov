@@ -2,7 +2,6 @@ package com.roboleague.evaluation;
 
 import com.roboleague.evaluation.audit.*;
 import com.roboleague.ranking.appeal.AppealId;
-import com.roboleague.scheduling.JudgeId;
 import com.roboleague.scheduling.RoundId;
 import com.roboleague.scheduling.SlotId;
 import com.roboleague.support.ActorId;
@@ -118,21 +117,9 @@ public class Attempt {
         return revisionHistory.get(revisionHistory.size() - 1);
     }
 
-    public AttemptScoreSnapshot getOriginalSnapshot() {
-        if (revisionHistory.isEmpty()) {
-            return null;
-        }
-        return revisionHistory.get(0);
-    }
-
     public ScoreBreakdown getScoreBreakdown() {
         AttemptScoreSnapshot latest = getLatestSnapshot();
         return latest != null ? latest.breakdown() : ScoreBreakdown.empty();
-    }
-
-    public double getFinalScore() {
-        ScoreBreakdown breakdown = getScoreBreakdown();
-        return breakdown != null ? breakdown.totalScore() : 0.0;
     }
 
     /**
@@ -235,18 +222,23 @@ public class Attempt {
         return metrics;
     }
 
+    /**
+     * Charges faults seen after the capture (for example on video): a new revision scores the latest metrics with
+     * the extra faults, using the attempt's own rulebook. A count that is not positive is refused before anything
+     * changes.
+     */
     public void applyPenaltyAdjustment(int additionalPenalties, AuditNote note, Rulebook rulebook, OperationAudit audit) {
+        Objects.requireNonNull(note, "note cannot be null");
         Objects.requireNonNull(audit, "audit cannot be null");
+        PenaltyDetail penalty = PenaltyDetail.of(additionalPenalties, note.reason());
         AttemptState next = state.faultsAdjusted();
-        String reason = note.reason();
-        ActorId authorId = note.authorId();
         RawMetrics currentMetrics = getLatestMetrics();
         RawMetrics updatedMetrics = currentMetrics.withPenalties(currentMetrics.penaltiesCount() + additionalPenalties);
 
         EvaluationSnapshot evaluation = scored(updatedMetrics, rulebook);
 
-        int revision = addRevision(evaluation, note.authorId(), "Penalty applied: " + reason, audit);
-        eventHistory.add(PenaltyAppliedEvent.create(audit.firstEvent(getId()), additionalPenalties, reason, authorId));
+        int revision = addRevision(evaluation, note.authorId(), "Penalty applied: " + note.reason(), audit);
+        eventHistory.add(new PenaltyAppliedEvent(audit.firstEvent(getId()), penalty, note.authorId()));
         eventHistory.add(ScoreAdjustedEvent.create(audit.secondEvent(getId()), revision, evaluation, note));
         this.state = next;
     }
@@ -279,12 +271,14 @@ public class Attempt {
         this.state = next;
     }
 
-    public void disqualify(String reason, JudgeId judgeId, OperationAudit audit) {
+    /**
+     * Disqualifies a scored attempt: its revisions stay as they were, but it no longer counts for the standings.
+     */
+    public void disqualify(AuditNote note, OperationAudit audit) {
+        Objects.requireNonNull(note, "note cannot be null");
         Objects.requireNonNull(audit, "audit cannot be null");
-        Objects.requireNonNull(reason, "reason cannot be null");
-        Objects.requireNonNull(judgeId, "judgeId cannot be null");
         AttemptState next = state.disqualified();
-        eventHistory.add(AttemptDisqualifiedEvent.create(audit.firstEvent(getId()), reason, judgeId));
+        eventHistory.add(AttemptDisqualifiedEvent.create(audit.firstEvent(getId()), note));
         this.state = next;
     }
 

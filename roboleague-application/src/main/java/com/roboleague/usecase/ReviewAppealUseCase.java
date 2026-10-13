@@ -20,7 +20,7 @@ public class ReviewAppealUseCase {
     public Appeal execute(AppealId appealId, ActorId reviewerId) {
         Objects.requireNonNull(reviewerId, "reviewerId cannot be null");
         Appeal appeal = appealRepository.findById(appealId)
-                .orElseThrow(() -> new IllegalArgumentException("Appeal not found: " + appealId));
+                .orElseThrow(() -> new NotFoundException("Appeal", appealId));
 
         appeal.beginReview(reviewerId);
         appealRepository.save(appeal);

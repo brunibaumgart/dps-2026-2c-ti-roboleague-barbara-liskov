@@ -1,14 +1,11 @@
 package com.roboleague.scheduling;
 
-import java.util.Objects;
+import com.roboleague.support.Identifiers;
 
 /** Textual identity of a track; preserves the supplied external value. */
 public record TrackId(String value) {
     public TrackId {
-        Objects.requireNonNull(value, "trackId cannot be null");
-        if (value.isBlank()) {
-            throw new IllegalArgumentException("trackId cannot be blank");
-        }
+        Identifiers.validate(value, "trackId");
     }
 
     public static TrackId of(String value) {

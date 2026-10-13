@@ -1,14 +1,11 @@
 package com.roboleague.tournament;
 
-import java.util.Objects;
+import com.roboleague.support.Identifiers;
 
 /** Textual identity of a team; preserves the supplied external value. */
 public record TeamId(String value) implements Comparable<TeamId> {
     public TeamId {
-        Objects.requireNonNull(value, "teamId cannot be null");
-        if (value.isBlank()) {
-            throw new IllegalArgumentException("teamId cannot be blank");
-        }
+        Identifiers.validate(value, "teamId");
     }
 
     public static TeamId of(String value) {

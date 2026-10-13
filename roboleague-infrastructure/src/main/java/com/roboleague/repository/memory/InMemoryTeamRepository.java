@@ -7,6 +7,7 @@ import com.roboleague.tournament.TeamId;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+/** Same queries and ordering (by TeamId) as JpaTeamRepository, without durability or concurrency checks. */
 public class InMemoryTeamRepository implements TeamRepository {
     private final Map<TeamId, Team> storage = new ConcurrentHashMap<>();
 
@@ -23,7 +24,6 @@ public class InMemoryTeamRepository implements TeamRepository {
 
     @Override
     public List<Team> findAll() {
-        return new ArrayList<>(storage.values());
+        return storage.values().stream().sorted(Comparator.comparing(team -> team.getId().value())).toList();
     }
-
 }

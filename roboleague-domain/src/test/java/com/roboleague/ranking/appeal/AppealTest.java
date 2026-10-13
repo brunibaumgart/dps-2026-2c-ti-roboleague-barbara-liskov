@@ -1,10 +1,10 @@
-package com.roboleague.ranking;
+package com.roboleague.ranking.appeal;
 
+import com.roboleague.support.TestValues;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.RawMetrics;
-import com.roboleague.ranking.appeal.Appeal;
-import com.roboleague.ranking.appeal.AppealId;
 import com.roboleague.support.ActorId;
+import com.roboleague.support.ConflictException;
 import com.roboleague.tournament.TeamId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,7 +13,7 @@ import static com.roboleague.support.TestValues.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class AppealStateFlowTest {
+class AppealTest {
 
     @Test
     @DisplayName("Appeal follows valid state transitions: Pending -> UnderReview -> Accepted")
@@ -24,7 +24,7 @@ class AppealStateFlowTest {
         assertThat(appeal.isPending()).isTrue();
 
         // Cannot accept while PENDING without review
-        assertThatThrownBy(() -> appeal.accept("Ok", RawMetrics.of(40.0, 1, 0), ActorId.of("judge-arb"), TIME))
+        assertThatThrownBy(() -> appeal.accept("Ok", TestValues.metrics(40.0, 1, 0), ActorId.of("judge-arb"), TIME))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("must be placed under review");
 
@@ -39,7 +39,7 @@ class AppealStateFlowTest {
                 .hasMessageContaining("already under review");
 
         // Accept with revised metrics
-        RawMetrics revisedMetrics = RawMetrics.of(42.0, 1, 0);
+        RawMetrics revisedMetrics = TestValues.metrics(42.0, 1, 0);
         appeal.accept("Se comprueba cronometro defectuoso en 5s", revisedMetrics, ActorId.of("arb-chief"), TIME);
 
         assertThat(appeal.getStatusName()).isEqualTo("ACCEPTED");
@@ -71,7 +71,7 @@ class AppealStateFlowTest {
         // Terminal state: cannot begin review or accept
         assertThatThrownBy(() -> appeal.beginReview(ActorId.of("arb-2")))
                 .isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> appeal.accept("Changed mind", RawMetrics.of(10, 0, 0), ActorId.of("arb-2"), TIME))
+        assertThatThrownBy(() -> appeal.accept("Changed mind", TestValues.metrics(10, 0, 0), ActorId.of("arb-2"), TIME))
                 .isInstanceOf(IllegalStateException.class);
     }
 
@@ -82,10 +82,10 @@ class AppealStateFlowTest {
         appeal.beginReview(ActorId.of("arb-1"));
 
         assertThatThrownBy(() -> appeal.reject("No corresponde", ActorId.of("arb-2"), TIME))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(ConflictException.class)
                 .hasMessage("Appeal app-3 is under review by arb-1; arb-2 cannot resolve it");
-        assertThatThrownBy(() -> appeal.accept("Corresponde", RawMetrics.of(10, 0, 0), ActorId.of("arb-2"), TIME))
-                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> appeal.accept("Corresponde", TestValues.metrics(10, 0, 0), ActorId.of("arb-2"), TIME))
+                .isInstanceOf(ConflictException.class);
         assertThat(appeal.getStatusName()).isEqualTo("UNDER_REVIEW");
         assertThat(appeal.getResolvedAt()).isNull();
     }

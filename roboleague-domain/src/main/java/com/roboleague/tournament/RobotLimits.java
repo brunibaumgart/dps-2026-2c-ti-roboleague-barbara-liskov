@@ -14,11 +14,9 @@ public record RobotLimits(Weight maxWeight, Dimensions maxDimensions) {
         Objects.requireNonNull(maxDimensions, "maxDimensions cannot be null");
     }
 
-    public boolean allows(RobotSpecification spec) {
-        Objects.requireNonNull(spec, "spec cannot be null");
-        return !spec.weight().isGreaterThan(maxWeight) && spec.dimensions().fitsWithin(maxDimensions);
-    }
-
+    /**
+     * Every limit the robot exceeds, explained; none when it fits the category.
+     */
     public List<String> checkViolations(RobotSpecification spec) {
         Objects.requireNonNull(spec, "spec cannot be null");
         List<String> violations = new ArrayList<>();

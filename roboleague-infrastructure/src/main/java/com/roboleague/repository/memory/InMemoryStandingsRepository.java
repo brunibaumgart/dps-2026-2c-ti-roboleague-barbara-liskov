@@ -15,11 +15,19 @@ public class InMemoryStandingsRepository implements StandingsRepository {
     @Override
     public void save(Standings standings) {
         Objects.requireNonNull(standings, "standings cannot be null");
-        storage.put(standings.getId(), standings);
+        storage.put(standings.getId(), copy(standings));
     }
 
     @Override
     public Optional<Standings> findById(StandingsId id) {
-        return Optional.ofNullable(storage.get(id));
+        return Optional.ofNullable(storage.get(id)).map(InMemoryStandingsRepository::copy);
+    }
+
+    /**
+     * Stores and hands out copies, like a database would: a use case that recalculates or publishes standings and
+     * forgets to save them leaves the stored ones as they were, so its test fails.
+     */
+    private static Standings copy(Standings standings) {
+        return Standings.restore(standings.getId(), standings.versions(), standings.publications());
     }
 }

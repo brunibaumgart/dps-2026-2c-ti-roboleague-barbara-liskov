@@ -18,11 +18,12 @@ public class ChangeRegistrationCategoryUseCase {
 
     public Registration execute(EditionId editionId, TeamId teamId, CategoryId categoryId) {
         Edition edition = editions.findById(editionId)
-                .orElseThrow(() -> new IllegalArgumentException("Edition not found: " + editionId));
+                .orElseThrow(() -> new NotFoundException("Edition", editionId));
         Team team = teams.findById(teamId)
-                .orElseThrow(() -> new IllegalArgumentException("Team not found: " + teamId));
+                .orElseThrow(() -> new NotFoundException("Team", teamId));
         Edition changed = edition.changeRegistrationCategory(team, categoryId);
         editions.save(changed);
-        return changed.registration(teamId).orElseThrow();
+        return changed.registration(teamId).orElseThrow(() -> new InconsistentStateException(
+                "Edition " + editionId + " lost the registration of team " + teamId + " it just saved"));
     }
 }

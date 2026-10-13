@@ -46,7 +46,7 @@ record StandingsVersionDto(int number, LocalDateTime calculatedAt, String status
 
         static EntryDto from(StandingsEntry entry) {
             return new EntryDto(entry.position(), entry.placement().explanation(), entry.team().teamId().value(),
-                    entry.team().teamName(), entry.total(), entry.rounds().selectionRule(),
+                    entry.team().teamName(), entry.total().doubleValue(), entry.rounds().selectionRule(),
                     entry.rounds().considered().stream().map(RoundDto::from).toList(),
                     entry.rounds().discarded().stream().map(RoundDto::from).toList());
         }
@@ -55,7 +55,7 @@ record StandingsVersionDto(int number, LocalDateTime calculatedAt, String status
     record RoundDto(String roundId, String attemptId, double total) {
 
         static RoundDto from(RoundResult round) {
-            return new RoundDto(round.roundId().value(), round.attemptId().value(), round.total());
+            return new RoundDto(round.roundId().value(), round.attemptId().value(), round.total().doubleValue());
         }
     }
 }

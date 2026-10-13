@@ -5,6 +5,9 @@ import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.RoundRepository;
 import com.roboleague.repository.TeamRepository;
 import com.roboleague.scheduling.*;
+import com.roboleague.evaluation.scheme.RoundSelection;
+import com.roboleague.support.BusinessRuleViolation;
+import com.roboleague.support.ConflictException;
 import com.roboleague.support.IdGenerator;
 import com.roboleague.tournament.Challenge;
 import com.roboleague.tournament.Edition;
@@ -17,7 +20,8 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Use case to schedule a competition round and assign slots, tracks, and judges.
+ * Use case to schedule a competition round and assign slots, tracks, and judges. Every turn has to fall within the
+ * dates of the edition.
  */
 public class ScheduleRoundUseCase {
     private final IdGenerator ids;
@@ -41,16 +45,21 @@ public class ScheduleRoundUseCase {
     public Round execute(ScheduleRoundCommand command) {
         Objects.requireNonNull(command, "command cannot be null");
         Edition edition = editionRepository.findById(command.editionId())
-                .orElseThrow(() -> new IllegalArgumentException("Edition not found: " + command.editionId()));
+                .orElseThrow(() -> new NotFoundException("Edition", command.editionId()));
 
         Challenge challenge = challengeRepository.findById(command.challengeId())
-                .orElseThrow(() -> new IllegalArgumentException("Challenge not found: " + command.challengeId()));
+                .orElseThrow(() -> new NotFoundException("Challenge", command.challengeId()));
         if (!challenge.getEditionId().equals(edition.getId())) {
             throw new IllegalArgumentException("Challenge belongs to another edition");
         }
         RoundScope scope = RoundScope.of(command.challengeId(), command.editionId(), command.categoryId(), command.roundNumber());
+        RoundSelection selection = challenge.currentRulebook().rankingScheme().roundSelection();
+        if (!selection.allowsRound(scope.roundNumber())) {
+            throw new BusinessRuleViolation("Round " + scope.roundNumber() + " cannot be scheduled: the rulebook of "
+                    + challenge.getId() + " counts " + selection.describe());
+        }
         if (roundRepository.findByScope(scope).isPresent()) {
-            throw new IllegalStateException("Round scope already exists: " + scope);
+            throw new ConflictException("Round scope already exists: " + scope);
         }
         RoundResources resources = RoundResources.of(command.tracks(), command.judges());
         RoundScheduleTiming timing = RoundScheduleTiming.of(command.startTime(), command.slotDuration(), command.interval());
@@ -59,7 +68,7 @@ public class ScheduleRoundUseCase {
                 .sorted(Comparator.comparing(Registration::registeredAt).thenComparing(Registration::teamId))
                 .map(registration -> {
                     Team team = teamRepository.findById(registration.teamId())
-                            .orElseThrow(() -> new IllegalStateException("Registered team not found: " + registration.teamId()));
+                            .orElseThrow(() -> new InconsistentStateException("Registered team not found: " + registration.teamId()));
                     edition.requireEligible(team);
                     return team.getId();
                 })
@@ -75,6 +84,10 @@ public class ScheduleRoundUseCase {
         RoundScheduleRequest request = RoundScheduleRequest.of(info, resources, timing);
 
         Round round = schedulerService.scheduleRound(request, teamIds, roundRepository.findAll());
+        if (!round.happensWithin(edition.getDates())) {
+            throw new BusinessRuleViolation("Round " + command.roundName() + " does not fit within the dates of edition "
+                    + edition.getId() + " (" + edition.getStartDate() + " to " + edition.getEndDate() + ")");
+        }
         roundRepository.save(round);
         return round;
     }

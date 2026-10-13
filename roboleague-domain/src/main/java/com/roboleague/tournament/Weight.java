@@ -13,8 +13,4 @@ public record Weight(double grams) {
     public boolean isGreaterThan(Weight other) {
         return this.grams > other.grams;
     }
-
-    public static Weight ofGrams(double grams) {
-        return new Weight(grams);
-    }
 }

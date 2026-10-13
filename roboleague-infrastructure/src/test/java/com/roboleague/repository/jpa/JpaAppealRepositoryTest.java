@@ -2,9 +2,12 @@ package com.roboleague.repository.jpa;
 
 import com.roboleague.PostgresContainer;
 import com.roboleague.evaluation.AttemptId;
+import com.roboleague.evaluation.EvaluationFeedback;
 import com.roboleague.evaluation.RawMetrics;
+import com.roboleague.evaluation.TrackPerformance;
 import com.roboleague.ranking.appeal.Appeal;
 import com.roboleague.ranking.appeal.AppealId;
+import com.roboleague.repository.ConcurrentModificationConflict;
 import com.roboleague.scheduling.JudgeId;
 import com.roboleague.support.ActorId;
 import com.roboleague.tournament.TeamId;
@@ -14,12 +17,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
 import static com.roboleague.support.TestValues.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
 @DataJpaTest(properties = "spring.jpa.hibernate.ddl-auto=validate")
@@ -52,7 +59,8 @@ class JpaAppealRepositoryTest {
     void acceptedAppealRoundTrip() {
         Appeal appeal = Appeal.of(AppealId.of("app-2"), AttemptId.parse("att-2"), TeamId.of("team-2"), "Penalizacion inexistente", "Video pista", TIME);
         appeal.beginReview(ActorId.of("arb-1"));
-        RawMetrics revised = RawMetrics.of(45.0, 5, 0, Map.of(JudgeId.of("diseño"), 8.5));
+        RawMetrics revised = RawMetrics.of(new TrackPerformance(45.0, 5, 0),
+                EvaluationFeedback.of(0.0, Map.of(JudgeId.of("diseño"), 8.5), Map.of()));
         appeal.accept("Penalizaciones corregidas", revised, ActorId.of("arb-1"), TIME);
 
         repository.save(appeal);
@@ -77,6 +85,31 @@ class JpaAppealRepositoryTest {
         repository.save(stored);
 
         assertThat(repository.findById(AppealId.of("app-3")).orElseThrow().isRejected()).isTrue();
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("Two reviews of the same stored appeal: the second save is refused instead of losing the first")
+    void givenTwoCopiesOfTheSameAppealThenTheSecondSaveIsRefused() {
+        repository.save(Appeal.of(AppealId.of("app-race"), AttemptId.parse("att-race-1"), TeamId.of("team-race"),
+                "Motivo", "", TIME));
+        Appeal first = repository.findById(AppealId.of("app-race")).orElseThrow();
+        Appeal second = repository.findById(AppealId.of("app-race")).orElseThrow();
+
+        first.beginReview(ActorId.of("arb-1"));
+        repository.save(first);
+        second.beginReview(ActorId.of("arb-2"));
+
+        assertThatThrownBy(() -> repository.save(second))
+                .isInstanceOf(ConcurrentModificationConflict.class)
+                .hasMessageContaining("was changed by someone else")
+                .hasCauseInstanceOf(OptimisticLockingFailureException.class);
+        assertThat(repository.findById(AppealId.of("app-race")).orElseThrow().getReviewerId())
+                .isEqualTo(ActorId.of("arb-1"));
+
+        first.reject("Las grabaciones confirman la falta", ActorId.of("arb-1"), TIME);
+        repository.save(first);
+        assertThat(repository.findById(AppealId.of("app-race")).orElseThrow().isRejected()).isTrue();
     }
 
     @Test

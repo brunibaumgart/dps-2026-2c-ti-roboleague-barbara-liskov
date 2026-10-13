@@ -1,14 +1,11 @@
 package com.roboleague.ranking.appeal;
 
-import java.util.Objects;
+import com.roboleague.support.Identifiers;
 
 /** Textual identity of a appeal; preserves the supplied external value. */
 public record AppealId(String value) {
     public AppealId {
-        Objects.requireNonNull(value, "appealId cannot be null");
-        if (value.isBlank()) {
-            throw new IllegalArgumentException("appealId cannot be blank");
-        }
+        Identifiers.validate(value, "appealId");
     }
 
     public static AppealId of(String value) {

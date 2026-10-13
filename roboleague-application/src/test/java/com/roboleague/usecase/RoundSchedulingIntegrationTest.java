@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.rules.ObjectivesRule;
 import com.roboleague.evaluation.scheme.AllRounds;
@@ -7,6 +8,7 @@ import com.roboleague.evaluation.scheme.HigherTotal;
 import com.roboleague.evaluation.scheme.RankingScheme;
 import com.roboleague.repository.memory.*;
 import com.roboleague.scheduling.*;
+import com.roboleague.support.ConflictException;
 import com.roboleague.support.IdGenerator;
 import com.roboleague.tournament.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,7 +49,7 @@ class RoundSchedulingIntegrationTest {
         }
         editions.save(edition);
         challenges.save(Challenge.draft(challengeId, editionId, "Challenge").publish(
-                ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objectives", 1)), List.of()),
+                ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objectives", Points.of(1))), List.of()),
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal()))));
     }
 
@@ -67,7 +69,7 @@ class RoundSchedulingIntegrationTest {
     void rejectsDuplicateScopeBeforeGeneratingIdsOrSaving() {
         Round first = useCase.execute(validCommand());
         int before = generated.get();
-        assertThatThrownBy(() -> useCase.execute(validCommand())).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> useCase.execute(validCommand())).isInstanceOf(ConflictException.class);
         assertThat(generated).hasValue(before);
         assertThat(rounds.findAll()).containsExactly(first);
     }
@@ -86,7 +88,7 @@ class RoundSchedulingIntegrationTest {
             case "missing-challenge" -> challenge = ChallengeId.of("missing");
             case "foreign-edition" -> {
                 challenges.save(Challenge.draft(ChallengeId.of("foreign"), EditionId.of("foreign-edition"), "Foreign").publish(
-                        ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objectives", 1)), List.of()),
+                        ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objectives", Points.of(1))), List.of()),
                         new RankingScheme(new AllRounds(), List.of(new HigherTotal()))));
                 challenge = ChallengeId.of("foreign");
             }
@@ -101,7 +103,8 @@ class RoundSchedulingIntegrationTest {
             default -> throw new AssertionError(invalid);
         }
         ScheduleRoundCommand command = command(challenge, categoryId, number, tracks, judges, duration, interval);
-        assertThatThrownBy(() -> useCase.execute(command)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> useCase.execute(command))
+                .isInstanceOf(invalid.equals("missing-challenge") ? NotFoundException.class : IllegalArgumentException.class);
         assertThat(generated).hasValue(0);
         assertThat(rounds.findAll()).isEmpty();
         assertThat(editions.findById(editionId).orElseThrow().getRegistrations()).hasSize(4);

@@ -1,6 +1,7 @@
 package com.roboleague.usecase;
 
 import com.roboleague.repository.EditionRepository;
+import com.roboleague.support.ConflictException;
 import com.roboleague.tournament.Category;
 import com.roboleague.tournament.Edition;
 import com.roboleague.tournament.EditionId;
@@ -21,7 +22,7 @@ public class CreateEditionUseCase {
         Objects.requireNonNull(command, "command cannot be null");
         EditionId id = command.context().header().id();
         if (editionRepository.findById(id).isPresent()) {
-            throw new IllegalStateException("Edition already exists: " + id);
+            throw new ConflictException("Edition already exists: " + id);
         }
         Edition edition = Edition.of(command.context(), command.dates());
         for (Category category : command.categories()) {

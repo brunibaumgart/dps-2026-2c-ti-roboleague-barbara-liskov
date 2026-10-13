@@ -5,8 +5,6 @@ import com.roboleague.evaluation.AttemptId;
 import com.roboleague.repository.AttemptRepository;
 import com.roboleague.scheduling.RoundId;
 import com.roboleague.tournament.TeamId;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collections;
@@ -38,12 +36,9 @@ public class JpaAttemptRepository implements AttemptRepository {
     public void save(Attempt attempt) {
         AttemptJpaEntity entity = AttemptMapper.toEntity(attempt);
         entity.version = loadedVersions.get(attempt);
-        try {
-            loadedVersions.put(attempt, jpa.saveAndFlush(entity).version);
-        } catch (OptimisticLockingFailureException | DataIntegrityViolationException concurrent) {
-            throw new IllegalStateException("Attempt " + attempt.getId()
-                    + " was changed by someone else while it was being updated; load it again and retry");
-        }
+        AttemptJpaEntity saved = WriteConflicts.write(() -> jpa.saveAndFlush(entity), "Attempt " + attempt.getId()
+                + " was changed by someone else while it was being updated; load it again and retry");
+        loadedVersions.put(attempt, saved.version);
     }
 
     @Override

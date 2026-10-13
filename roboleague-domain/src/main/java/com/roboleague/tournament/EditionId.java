@@ -1,14 +1,11 @@
 package com.roboleague.tournament;
 
-import java.util.Objects;
+import com.roboleague.support.Identifiers;
 
 /** Textual identity of a edition; preserves the supplied external value. */
 public record EditionId(String value) {
     public EditionId {
-        Objects.requireNonNull(value, "edition id cannot be null");
-        if (value.isBlank()) {
-            throw new IllegalArgumentException("edition id cannot be blank");
-        }
+        Identifiers.validate(value, "edition id");
     }
 
     public static EditionId of(String value) {

@@ -6,6 +6,9 @@ public record TrackPerformance(
         int penaltiesCount
 ) {
     public TrackPerformance {
+        if (!Double.isFinite(timeTakenSeconds)) {
+            throw new IllegalArgumentException("timeTakenSeconds must be a finite number: " + timeTakenSeconds);
+        }
         if (timeTakenSeconds < 0) {
             throw new IllegalArgumentException("timeTakenSeconds cannot be negative");
         }

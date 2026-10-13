@@ -1,6 +1,7 @@
 package com.roboleague.repository.memory;
 
 import com.roboleague.repository.RoundRepository;
+import com.roboleague.support.ConflictException;
 import com.roboleague.scheduling.Round;
 import com.roboleague.scheduling.RoundId;
 import com.roboleague.scheduling.RoundScope;
@@ -24,10 +25,10 @@ public class InMemoryRoundRepository implements RoundRepository {
             if (stored.getChallengeId().equals(round.getChallengeId())
                     && stored.getCategoryId().equals(round.getCategoryId())
                     && stored.getRoundNumber() == round.getRoundNumber()) {
-                throw new IllegalStateException("Round scope already exists: " + round.getInfo().scope());
+                throw new ConflictException("Round scope already exists: " + round.getInfo().scope());
             }
             if (round.getSlots().stream().anyMatch(slot -> stored.slot(slot.getSlotId()).isPresent())) {
-                throw new IllegalStateException("Slot id already belongs to another round");
+                throw new ConflictException("Slot id already belongs to another round");
             }
         }
         storage.put(round.getId(), round);

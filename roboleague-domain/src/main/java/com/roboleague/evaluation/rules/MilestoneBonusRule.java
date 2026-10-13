@@ -4,6 +4,7 @@ import com.roboleague.evaluation.definition.Parameters;
 import com.roboleague.evaluation.definition.RuleArguments;
 import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.Metric;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
@@ -18,10 +19,10 @@ import java.util.Set;
 public final class MilestoneBonusRule implements BonusRule {
     private final String ruleName;
     private final Milestone milestone;
-    private final double bonus;
+    private final Points bonus;
 
-    public MilestoneBonusRule(String ruleName, Milestone milestone, double bonus) {
-        if (bonus < 0) {
+    public MilestoneBonusRule(String ruleName, Milestone milestone, Points bonus) {
+        if (bonus.isNegative()) {
             throw new IllegalArgumentException("bonus cannot be negative");
         }
         this.ruleName = Objects.requireNonNull(ruleName, "ruleName cannot be null");
@@ -38,7 +39,7 @@ public final class MilestoneBonusRule implements BonusRule {
         RuleArguments arguments = definition.arguments();
         return new MilestoneBonusRule(definition.name(),
                 new Milestone(arguments.metric(METRIC), arguments.numbers().number(THRESHOLD)),
-                arguments.numbers().number(BONUS));
+                arguments.numbers().points(BONUS));
     }
 
     @Override
@@ -67,13 +68,13 @@ public final class MilestoneBonusRule implements BonusRule {
     public RuleEvaluation evaluate(RawMetrics metrics) {
         double measured = metrics.measurement(milestone.metric());
         boolean reached = milestone.reachedWith(measured);
-        double subtotal = reached ? bonus : 0.0;
+        Points subtotal = reached ? bonus : Points.ZERO;
 
         ScoreItem item = ScoreItem.of(
                 ruleName,
                 String.format(Locale.US, "%s = %.2f (umbral %.2f)", milestone.metric().name(), measured, milestone.threshold()),
                 reached
-                        ? String.format(Locale.US, "hito alcanzado: +%.1f pts", bonus)
+                        ? String.format(Locale.US, "hito alcanzado: +%.1f pts", bonus.toBigDecimal())
                         : "hito no alcanzado: 0 pts",
                 subtotal
         );

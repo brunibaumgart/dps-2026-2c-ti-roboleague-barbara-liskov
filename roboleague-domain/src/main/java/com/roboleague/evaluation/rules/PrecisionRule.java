@@ -4,10 +4,12 @@ import com.roboleague.evaluation.definition.Parameters;
 import com.roboleague.evaluation.definition.RuleArguments;
 import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.Metric;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
 
+import java.math.BigDecimal;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
@@ -18,10 +20,10 @@ import java.util.Set;
 public final class PrecisionRule implements BaseRule {
     private final String ruleName;
     private final Metric accuracy;
-    private final double maxPoints;
+    private final Points maxPoints;
 
-    public PrecisionRule(String ruleName, Metric accuracy, double maxPoints) {
-        if (maxPoints < 0) {
+    public PrecisionRule(String ruleName, Metric accuracy, Points maxPoints) {
+        if (maxPoints.isNegative()) {
             throw new IllegalArgumentException("maxPoints cannot be negative");
         }
         this.ruleName = Objects.requireNonNull(ruleName, "ruleName cannot be null");
@@ -35,7 +37,7 @@ public final class PrecisionRule implements BaseRule {
 
     public static PrecisionRule from(RuleDefinition definition) {
         RuleArguments arguments = definition.arguments();
-        return new PrecisionRule(definition.name(), arguments.metric(ACCURACY), arguments.numbers().number(MAX_POINTS));
+        return new PrecisionRule(definition.name(), arguments.metric(ACCURACY), arguments.numbers().points(MAX_POINTS));
     }
 
     @Override
@@ -64,14 +66,15 @@ public final class PrecisionRule implements BaseRule {
         if (precision < 0 || precision > 1) {
             throw new IllegalArgumentException("precision must be between 0 and 1: " + precision);
         }
-        double subtotal = maxPoints * precision;
+        Points subtotal = maxPoints.times(BigDecimal.valueOf(precision));
 
         ScoreItem item = ScoreItem.of(
                 ruleName,
                 String.format(Locale.US, "%.0f%% de precisión", precision * 100),
-                String.format(Locale.US, "%.1f pts * %.2f", maxPoints, precision),
+                String.format(Locale.US, "%.1f pts * %.2f", maxPoints.toBigDecimal(), precision),
                 subtotal
         );
-        return RuleEvaluation.of(item, String.format(Locale.US, "%s: %.1f de %.1f pts", ruleName, subtotal, maxPoints));
+        return RuleEvaluation.of(item, String.format(Locale.US, "%s: %.1f de %.1f pts", ruleName,
+                subtotal.toBigDecimal(), maxPoints.toBigDecimal()));
     }
 }

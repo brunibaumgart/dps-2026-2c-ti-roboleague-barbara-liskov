@@ -6,6 +6,7 @@ import com.roboleague.ranking.appeal.Appeal;
 import com.roboleague.ranking.appeal.AppealId;
 import com.roboleague.repository.AppealRepository;
 import com.roboleague.repository.AttemptRepository;
+import com.roboleague.support.BusinessRuleViolation;
 import com.roboleague.support.Clock;
 import com.roboleague.support.IdGenerator;
 import com.roboleague.tournament.TeamId;
@@ -31,10 +32,10 @@ public class FileAppealUseCase {
 
     public Appeal execute(AttemptId attemptId, TeamId teamId, String reason, String evidenceDescription) {
         Attempt attempt = attemptRepository.findById(attemptId)
-                .orElseThrow(() -> new IllegalArgumentException("Attempt not found: " + attemptId));
+                .orElseThrow(() -> new NotFoundException("Attempt", attemptId));
 
         if (!attempt.getTeamId().equals(teamId)) {
-            throw new IllegalArgumentException("Team " + teamId + " does not own attempt " + attemptId);
+            throw new BusinessRuleViolation("Team " + teamId + " does not own attempt " + attemptId);
         }
 
         AppealId appealId = AppealId.of(ids.nextId());

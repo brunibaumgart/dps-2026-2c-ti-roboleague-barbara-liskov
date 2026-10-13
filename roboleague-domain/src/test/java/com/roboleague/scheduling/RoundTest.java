@@ -1,10 +1,13 @@
 package com.roboleague.scheduling;
 
+import com.roboleague.support.ActorId;
 import com.roboleague.tournament.CategoryId;
+import com.roboleague.tournament.DateRange;
 import com.roboleague.tournament.EditionId;
 import com.roboleague.tournament.TeamId;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -14,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class RoundTest {
 
     private static final LocalDateTime START = LocalDateTime.of(2026, 11, 10, 9, 0);
+    private static final SlotCancellation NO_SHOW = new SlotCancellation(ActorId.of("org-1"), "El equipo no se presentó", START);
 
     @Test
     void givenASlotOfTheRoundThenItIsFoundByItsId() {
@@ -45,7 +49,7 @@ class RoundTest {
         assertThat(done.getSlots().getFirst().getStatus()).isEqualTo(Slot.SlotStatus.COMPLETED);
         assertThatThrownBy(done::start).isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(done::complete).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> done.cancelSlot(SlotId.of("slot-1"))).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> done.cancelSlot(SlotId.of("slot-1"), NO_SHOW)).isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -61,7 +65,7 @@ class RoundTest {
         assertThatThrownBy(() -> started.addSlot(round.getSlots().getFirst())).isInstanceOf(IllegalStateException.class);
         Round running = started.startSlot(SlotId.of("slot-1"));
         assertThatThrownBy(() -> running.startSlot(SlotId.of("slot-1"))).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> running.cancelSlot(SlotId.of("slot-1"))).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> running.cancelSlot(SlotId.of("slot-1"), NO_SHOW)).isInstanceOf(IllegalStateException.class);
         Round completedSlot = running.completeSlot(SlotId.of("slot-1"));
         assertThatThrownBy(() -> completedSlot.completeSlot(SlotId.of("slot-1"))).isInstanceOf(IllegalStateException.class);
     }
@@ -69,10 +73,46 @@ class RoundTest {
     @Test
     void scheduledSlotsCanBeCancelledAndTerminalSlotsAllowRoundCompletion() {
         Round original = roundWith(slot("slot-1", Judge.of(JudgeId.of("j-1"), "Judge", "General")));
-        Round cancelled = original.cancelSlot(SlotId.of("slot-1"));
-        assertThatThrownBy(() -> cancelled.cancelSlot(SlotId.of("slot-1"))).isInstanceOf(IllegalStateException.class);
+        Round cancelled = original.cancelSlot(SlotId.of("slot-1"), NO_SHOW);
+        assertThatThrownBy(() -> cancelled.cancelSlot(SlotId.of("slot-1"), NO_SHOW)).isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> cancelled.start().startSlot(SlotId.of("slot-1"))).isInstanceOf(IllegalStateException.class);
         assertThat(cancelled.start().complete().getStatus()).isEqualTo(Round.RoundStatus.COMPLETED);
+    }
+
+    @Test
+    void aRoundHappensWithinDatesWhenEveryTurnStartsAndEndsOnThoseDays() {
+        Round round = roundWith(slot("slot-1", Judge.of(JudgeId.of("j-1"), "Judge", "General")));
+        LocalDate day = START.toLocalDate();
+
+        assertThat(round.happensWithin(new DateRange(day, day))).isTrue();
+        assertThat(round.happensWithin(new DateRange(day.plusDays(1), day.plusDays(2)))).isFalse();
+        assertThat(round.happensWithin(new DateRange(day.minusDays(2), day.minusDays(1)))).isFalse();
+
+        Round untilMidnight = roundWith(Slot.of(SlotIdentity.of(SlotId.of("slot-1"), RoundId.of("r-1"), TeamId.of("t-1")),
+                SlotAssignment.of(Track.active(TrackId.of("trk-1"), "Pista 1", "Madera"),
+                        List.of(Judge.of(JudgeId.of("j-1"), "Judge", "General"))),
+                new TimeWindow(day.atTime(23, 50), day.plusDays(1).atStartOfDay())));
+        assertThat(untilMidnight.happensWithin(new DateRange(day, day))).isTrue();
+    }
+
+    @Test
+    void aCancelledSlotRecordsWhoCancelledItAndWhyAndOnlyCancelledSlotsDo() {
+        Round original = roundWith(slot("slot-1", Judge.of(JudgeId.of("j-1"), "Judge", "General")));
+
+        Slot cancelled = original.cancelSlot(SlotId.of("slot-1"), NO_SHOW).getSlots().getFirst();
+
+        assertThat(cancelled.getStatus()).isEqualTo(Slot.SlotStatus.CANCELLED);
+        assertThat(cancelled.getCancellation()).contains(NO_SHOW);
+        assertThat(original.getSlots().getFirst().getCancellation()).isEmpty();
+        SlotAssignment assignment = new SlotAssignment(cancelled.getTrack(), cancelled.getAssignedJudges());
+        assertThatThrownBy(() -> Slot.restore(cancelled.getIdentity(), assignment, cancelled.getTimeWindow(),
+                cancelled.getTrackInterval(), Slot.SlotStatus.CANCELLED, null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> Slot.restore(cancelled.getIdentity(), assignment, cancelled.getTimeWindow(),
+                cancelled.getTrackInterval(), Slot.SlotStatus.SCHEDULED, NO_SHOW))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new SlotCancellation(ActorId.of("org-1"), " ", START))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -113,7 +153,7 @@ class RoundTest {
                 .start().startSlot(SlotId.of("slot-1")).completeSlot(SlotId.of("slot-1")).complete();
         Slot original = completed.getSlots().getFirst();
         Slot restoredSlot = Slot.restore(original.getIdentity(), new SlotAssignment(original.getTrack(), original.getAssignedJudges()),
-                original.getTimeWindow(), original.getTrackInterval(), original.getStatus());
+                original.getTimeWindow(), original.getTrackInterval(), original.getStatus(), null);
         var slots = new java.util.ArrayList<>(List.of(restoredSlot));
         Round restored = Round.restore(completed.getInfo(), completed.getStatus(), slots);
         slots.clear();

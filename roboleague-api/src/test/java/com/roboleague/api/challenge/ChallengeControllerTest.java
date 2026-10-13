@@ -1,16 +1,31 @@
 package com.roboleague.api.challenge;
 
 import com.roboleague.api.ApiTest;
+import com.roboleague.evaluation.Points;
+import com.roboleague.evaluation.ScoringScheme;
+import com.roboleague.evaluation.rules.JudgeSubjectiveRule;
+import com.roboleague.evaluation.rules.ObjectivesRule;
+import com.roboleague.evaluation.scheme.AllRounds;
+import com.roboleague.evaluation.scheme.HigherTotal;
+import com.roboleague.evaluation.scheme.RankingScheme;
+import com.roboleague.repository.ChallengeRepository;
+import com.roboleague.tournament.Challenge;
+import com.roboleague.tournament.ChallengeId;
+import com.roboleague.tournament.EditionId;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.RequestBuilder;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.util.List;
+
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -18,6 +33,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class ChallengeControllerTest extends ApiTest {
+
+    @Autowired
+    private ChallengeRepository challenges;
 
     private static final String EDITION = """
             {"id": "%s", "name": "RoboLeague 2026", "editionNumber": 1,
@@ -178,7 +196,7 @@ class ChallengeControllerTest extends ApiTest {
 
         mvc.perform(addChallenge("api-ed-ch", "api-ch-unknown-key", misspelled))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Unknown field 'penalties'"))
+                .andExpect(jsonPath("$.error").value("Unknown field 'rulebook.scoring.penalties'"))
                 .andExpect(jsonPath("$.details[0]").value(containsString("deductions")));
     }
 
@@ -214,13 +232,13 @@ class ChallengeControllerTest extends ApiTest {
     }
 
     @Test
-    @DisplayName("Una edición o un desafío que no existen son un pedido inválido")
-    void unknownEditionOrChallengeIsABadRequest() throws Exception {
+    @DisplayName("Una edición o un desafío que no existen no se encuentran")
+    void unknownEditionOrChallengeIsNotFound() throws Exception {
         mvc.perform(addChallenge("api-ed-none", "api-ch-5", rulebook("penalty", 40)))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("Edition not found: api-ed-none"));
         mvc.perform(get("/challenges/{id}", "api-ch-none"))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("Challenge not found: api-ch-none"));
     }
 
@@ -233,5 +251,27 @@ class ChallengeControllerTest extends ApiTest {
 
         mvc.perform(post("/editions").contentType(MediaType.APPLICATION_JSON).content(EDITION.formatted("api-ed-twice")))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void readsHistoricalSourcesAfterANewVersionWithoutChangingTheChallenge() throws Exception {
+        ChallengeId id = ChallengeId.of("web06-historical");
+        var ranking = new RankingScheme(new AllRounds(), List.of(new HigherTotal()));
+        var challenge = Challenge.draft(id, EditionId.of("web06-edition"), "Historical challenge").publish(
+                ScoringScheme.withoutBonuses(List.of(new JudgeSubjectiveRule("Panel", 5)), List.of()), ranking);
+        challenge.publish(ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objectives", Points.of(20))), List.of()), ranking);
+        challenges.save(challenge);
+        mvc.perform(get("/challenges/{id}/rulebook/versions/1", id.value())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(1))
+                .andExpect(jsonPath("$.requiredSources", contains("JUDGE_PANEL")))
+                .andExpect(jsonPath("$.scoring.rules[0].type").value("judges"));
+        mvc.perform(get("/challenges/{id}", id.value())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentRulebook.version").value(2))
+                .andExpect(jsonPath("$.currentRulebook.requiredSources", contains("AUTOMATIC_MEASUREMENTS")));
+        for (String version : List.of("0", "not-a-number")) {
+            mvc.perform(get("/challenges/{id}/rulebook/versions/{version}", id.value(), version)).andExpect(status().isBadRequest());
+        }
+        mvc.perform(get("/challenges/{id}/rulebook/versions/{version}", id.value(), "3")).andExpect(status().isNotFound());
+        mvc.perform(get("/challenges/unknown-web06/rulebook/versions/1")).andExpect(status().isNotFound());
     }
 }

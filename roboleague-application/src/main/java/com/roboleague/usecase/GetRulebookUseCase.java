@@ -17,8 +17,9 @@ public class GetRulebookUseCase {
 
     public Rulebook execute(ChallengeId challengeId, RulebookVersion version) {
         var challenge = challenges.findById(challengeId)
-                .orElseThrow(() -> new IllegalArgumentException("Challenge not found: " + challengeId));
+                .orElseThrow(() -> new NotFoundException("Challenge", challengeId));
         return challenge.rulebook(version)
-                .orElseThrow(() -> new IllegalArgumentException("Rulebook " + version + " not found for challenge " + challengeId));
+                .orElseThrow(() -> new NotFoundException("Rulebook", version,
+                        "Rulebook " + version + " not found for challenge " + challengeId));
     }
 }

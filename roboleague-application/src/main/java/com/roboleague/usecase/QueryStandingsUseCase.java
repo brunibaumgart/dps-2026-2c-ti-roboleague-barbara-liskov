@@ -1,6 +1,8 @@
 package com.roboleague.usecase;
 
+import com.roboleague.ranking.Standings;
 import com.roboleague.ranking.StandingsId;
+import com.roboleague.ranking.StandingsVersion;
 import com.roboleague.repository.StandingsRepository;
 
 import java.util.Objects;
@@ -20,5 +22,24 @@ public class QueryStandingsUseCase {
 
     public StandingsOverview execute(StandingsId id) {
         return new StandingsOverview(standings.findById(id), results.read(id).publicationCheck());
+    }
+
+    /**
+     * One calculated version, next to the standings it belongs to (they know whether it is official).
+     */
+    public CalculatedVersion version(StandingsId id, int number) {
+        Standings calculated = standings.findById(id)
+                .orElseThrow(() -> new NotFoundException("Standings", id, "Standings not calculated yet: " + id));
+        StandingsVersion version = calculated.version(number)
+                .orElseThrow(() -> new NotFoundException("Standings version", number,
+                        "Standings " + id + " have no version " + number));
+        return new CalculatedVersion(calculated, version);
+    }
+
+    public record CalculatedVersion(Standings standings, StandingsVersion version) {
+        public CalculatedVersion {
+            Objects.requireNonNull(standings, "standings cannot be null");
+            Objects.requireNonNull(version, "version cannot be null");
+        }
     }
 }
