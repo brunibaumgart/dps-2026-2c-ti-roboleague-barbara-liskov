@@ -3,6 +3,7 @@ package com.roboleague.repository.jpa;
 import com.roboleague.PostgresContainer;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.Points;
+import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.ranking.Placement;
 import com.roboleague.ranking.PublicationCheck;
@@ -59,6 +60,7 @@ class JpaStandingsRepositoryTest {
         Standings stored = repository.findById(id).orElseThrow();
 
         assertThat(stored.versions()).isEqualTo(standings.versions());
+        assertThat(stored.latest().table().rankedWith()).isEqualTo(new RulebookVersion(2));
         assertThat(stored.publications()).isEqualTo(standings.publications());
         assertThat(stored.statusOf(stored.version(1).orElseThrow())).isEqualTo(StandingsVersion.Status.OFFICIAL);
         assertThat(stored.latest().table().entries().getFirst().rounds().discarded()).singleElement()
@@ -100,7 +102,7 @@ class JpaStandingsRepositoryTest {
                 List.of(new RoundResult(RoundId.of("r1"), AttemptId.of(SlotId.of("slot-r1-a"), 1), Points.of(20))),
                 "mejores 1 de 2 rondas");
         TeamRounds beta = new TeamRounds(List.of(), List.of(), "mejores 1 de 2 rondas");
-        return new StandingsTable(List.of(
+        return new StandingsTable(new RulebookVersion(2), List.of(
                 new StandingsEntry(new Placement(1, "Primer puesto"), TeamIdentity.of(TeamId.of("t-a"), "Alpha"), alpha),
                 new StandingsEntry(new Placement(2, "Debajo del puesto 1 por Mayor puntaje total"),
                         TeamIdentity.of(TeamId.of("t-b"), "Beta"), beta)));

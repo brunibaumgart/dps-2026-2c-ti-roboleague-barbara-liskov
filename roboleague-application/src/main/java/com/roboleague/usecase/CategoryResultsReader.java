@@ -66,7 +66,7 @@ public class CategoryResultsReader {
                 .map(Registration::teamId)
                 .map(teamId -> new TeamAttempts(identity(teamId), attemptsOf(teamId, runs)))
                 .toList();
-        return new CategoryResults(challenge.currentRulebook().rankingScheme(), registered, categoryRounds);
+        return new CategoryResults(challenge.currentRulebook(), registered, categoryRounds);
     }
 
     private TeamIdentity identity(TeamId teamId) {

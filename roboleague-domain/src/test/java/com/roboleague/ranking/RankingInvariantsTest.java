@@ -2,6 +2,7 @@ package com.roboleague.ranking;
 
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.Points;
+import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.scheduling.RoundId;
 import com.roboleague.scheduling.SlotId;
@@ -25,7 +26,7 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
  */
 class RankingInvariantsTest {
 
-    private static final StandingsTable EMPTY = new StandingsTable(List.of());
+    private static final StandingsTable EMPTY = new StandingsTable(RulebookVersion.first(), List.of());
     private static final StandingsId ID = StandingsId.of(StandingsFixtures.CHALLENGE, CategoryId.of("cat-1"));
     private static final AuditNote NOTE = AuditNote.of(ActorId.of("org-1"), "Publicación oficial");
     private static final AttemptId ATTEMPT = AttemptId.of(SlotId.of("slot-1"), 1);
@@ -43,6 +44,8 @@ class RankingInvariantsTest {
                 invalid("attempt of another team", () -> new TeamAttempts(StandingsFixtures.team("t-2"),
                                 List.of(StandingsFixtures.opened("t-1", "r-1", 1))),
                         "attempt slot-r-1-t-1-1 belongs to t-1, not to t-2"),
+                missing("table without the rulebook version that ranked it", () -> new StandingsTable(null, List.of()),
+                        "rankedWith cannot be null"),
                 missing("round result without round", () -> new RoundResult(null, ATTEMPT, Points.ZERO),
                         "roundId cannot be null"),
                 missing("round result without attempt", () -> new RoundResult(RoundId.of("r-1"), null, Points.ZERO),

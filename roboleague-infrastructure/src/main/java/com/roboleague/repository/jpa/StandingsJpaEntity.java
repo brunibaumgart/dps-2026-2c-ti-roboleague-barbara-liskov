@@ -37,7 +37,7 @@ class StandingsJpaEntity {
         // required by JPA
     }
 
-    record VersionJson(int number, String calculatedAt, List<EntryJson> entries) {
+    record VersionJson(int number, String calculatedAt, int rankedWith, List<EntryJson> entries) {
     }
 
     record EntryJson(int position, String explanation, String teamId, String teamName, List<RoundJson> considered,

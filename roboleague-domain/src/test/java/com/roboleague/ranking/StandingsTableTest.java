@@ -47,7 +47,7 @@ class StandingsTableTest {
         TeamAttempts alpha = new TeamAttempts(team("t-a"), List.of(
                 scored("t-a", "r-1", 50, 3, 0), scored("t-a", "r-2", 50, 5, 0), scored("t-a", "r-3", 50, 4, 0)));
 
-        StandingsEntry row = StandingsTable.rank(BEST_2_OF_3, List.of(alpha)).entries().getFirst();
+        StandingsEntry row = StandingsTable.rank(RulebookVersion.first(), BEST_2_OF_3, List.of(alpha)).entries().getFirst();
 
         assertThat(row.total()).isEqualTo(Points.of(180));
         assertThat(row.rounds().considered()).extracting(RoundResult::roundId)
@@ -72,7 +72,7 @@ class StandingsTableTest {
         TeamAttempts leader = new TeamAttempts(team("t-a"), List.of(scored("t-a", "r-1", 50, 5, 0)));
         TeamAttempts other = new TeamAttempts(team("t-b"), List.of(scored("t-b", "r-1", seconds, objectives, faults)));
 
-        List<StandingsEntry> rows = StandingsTable.rank(BEST_2_OF_3, List.of(other, leader)).entries();
+        List<StandingsEntry> rows = StandingsTable.rank(RulebookVersion.first(), BEST_2_OF_3, List.of(other, leader)).entries();
 
         assertThat(rows.getFirst().team()).isEqualTo(team("t-a"));
         assertThat(rows.getFirst().placement()).isEqualTo(new Placement(1, "Primer puesto"));
@@ -82,7 +82,7 @@ class StandingsTableTest {
     @Test
     @DisplayName("Teams tied on every criterion share the position and the next one skips it")
     void aFullTieSharesThePositionAndTheNextTeamSkipsIt() {
-        List<StandingsEntry> rows = StandingsTable.rank(BEST_2_OF_3, List.of(
+        List<StandingsEntry> rows = StandingsTable.rank(RulebookVersion.first(), BEST_2_OF_3, List.of(
                 new TeamAttempts(team("t-c"), List.of(scored("t-c", "r-1", 50, 2, 0))),
                 new TeamAttempts(team("t-b"), List.of(scored("t-b", "r-1", 50, 5, 0))),
                 new TeamAttempts(team("t-a"), List.of(scored("t-a", "r-1", 50, 5, 0))))).entries();
@@ -98,7 +98,7 @@ class StandingsTableTest {
         Attempt disqualified = scored("t-a", "r-1", 40, 5, 0);
         disqualified.disqualify(AuditNote.of(JUDGE.asActorId(), "Robot fuera de reglamento"), audit());
 
-        List<StandingsEntry> rows = StandingsTable.rank(BEST_2_OF_3, List.of(
+        List<StandingsEntry> rows = StandingsTable.rank(RulebookVersion.first(), BEST_2_OF_3, List.of(
                 new TeamAttempts(team("t-a"), List.of(disqualified)),
                 new TeamAttempts(team("t-b"), List.of(scored("t-b", "r-1", 50, 1, 0))))).entries();
 
@@ -113,7 +113,7 @@ class StandingsTableTest {
         Attempt disqualified = scored("t-a", "r-2", 40, 5, 0);
         disqualified.disqualify(AuditNote.of(JUDGE.asActorId(), "Robot fuera de reglamento"), audit());
 
-        StandingsEntry row = StandingsTable.rank(BEST_2_OF_3, List.of(new TeamAttempts(team("t-a"),
+        StandingsEntry row = StandingsTable.rank(RulebookVersion.first(), BEST_2_OF_3, List.of(new TeamAttempts(team("t-a"),
                 List.of(scored("t-a", "r-1", 50, 2, 0), disqualified)))).entries().getFirst();
 
         assertThat(row.total()).isEqualTo(Points.of(40));
@@ -125,7 +125,7 @@ class StandingsTableTest {
     void anAttemptAwaitingASourceGivesNoRound() {
         Attempt awaiting = opened("t-a", "r-1", 1);
 
-        StandingsEntry row = StandingsTable.rank(BEST_2_OF_3,
+        StandingsEntry row = StandingsTable.rank(RulebookVersion.first(), BEST_2_OF_3,
                 List.of(new TeamAttempts(team("t-a"), List.of(awaiting)))).entries().getFirst();
 
         assertThat(row.rounds().considered()).isEmpty();
@@ -138,7 +138,7 @@ class StandingsTableTest {
         Attempt second = opened("t-a", "r-1", 2);
         second.receive(new SourceDelivery(run(50, 5, 0), JUDGE), RULEBOOK, audit());
 
-        StandingsEntry row = StandingsTable.rank(BEST_2_OF_3, List.of(new TeamAttempts(team("t-a"),
+        StandingsEntry row = StandingsTable.rank(RulebookVersion.first(), BEST_2_OF_3, List.of(new TeamAttempts(team("t-a"),
                 List.of(scored("t-a", "r-1", 50, 1, 0), second)))).entries().getFirst();
 
         assertThat(row.rounds().considered()).singleElement()
@@ -172,7 +172,7 @@ class StandingsTableTest {
                 scoredWith(rulebook, "t-b", "r-2", 60, Map.of(precision.name(), 0.202)),
                 scoredWith(rulebook, "t-b", "r-3", 60, Map.of(precision.name(), 0.101))));
 
-        List<StandingsEntry> rows = StandingsTable.rank(rulebook.rankingScheme(), List.of(descending, ascending)).entries();
+        List<StandingsEntry> rows = StandingsTable.rank(RulebookVersion.first(), rulebook.rankingScheme(), List.of(descending, ascending)).entries();
 
         assertThat(rows).extracting(StandingsEntry::total).containsOnly(Points.of("60.60"));
         assertThat(rows).extracting(row -> row.team().teamId()).containsExactly(TeamId.of("t-a"), TeamId.of("t-b"));
