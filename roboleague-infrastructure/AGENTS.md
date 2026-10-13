@@ -11,9 +11,11 @@ a sus implementaciones.
 
 ## Estado actual y convenciones
 
-- Postgres persiste `Appeal`, `Challenge`, `Attempt` y `Standings`; hay adaptadores
-  en memoria para los siete puertos. La API selecciona cuáles usar. `JpaStandingsRepository`
-  conserva la versión leída y rechaza escrituras concurrentes, como el de intentos.
+- Postgres persiste los siete agregados; los adaptadores en memoria de los siete
+  puertos quedan para tests de casos de uso. Los adaptadores de intentos,
+  standings, desafíos y apelaciones (mutables) conservan la versión leída por
+  instancia y rechazan escrituras concurrentes; `challenges` y `appeals` tienen
+  `version` desde la migración `V9`.
 - Respetar el contrato observable de cada puerto: identidad, resultado de
   búsquedas, errores y efectos de guardar. Las consultas no deben efectuar
   transiciones de negocio ni escrituras inesperadas. Documentar diferencias de
@@ -23,8 +25,9 @@ a sus implementaciones.
 - Mantener entidad JPA propia, interfaz `SpringDataXxx`, mapper en ambos sentidos
   y `JpaXxxRepository implements XxxRepository`. Entidades y detalles de JSON
   quedan dentro del adaptador; no anotar agregados con JPA/Jackson.
-- Rehidratar con `restore(...)`. Conservar estado, ids, tiempos, métricas,
-  entregas, revisiones y eventos originales sin recrear acciones de negocio.
+- Rehidratar con `restore(...)` (o el constructor completo de `Team`). Conservar
+  estado, ids, tiempos, métricas, entregas, revisiones y eventos originales sin
+  recrear acciones de negocio.
 - ChallengeRepository.findByEditionId filtra por edición y ordena por ChallengeId
   tanto en memory como en JPA. SpringDataChallenges hace la consulta por edition_id;
   el mapper preserva todos los reglamentos, igual que en findById. Consultar una
@@ -34,38 +37,50 @@ a sus implementaciones.
   un reglamento por defecto. Preservar todas sus versiones.
 - Los JSONB de historial y reglamentos son contratos persistidos. Al cambiar
   su forma o discriminadores, considerar lectura de datos existentes y migración.
-- `JpaAttemptRepository` conserva la versión leída fuera del agregado y usa
+- `JpaAttemptRepository`, `JpaStandingsRepository`, `JpaChallengeRepository` y
+  `JpaAppealRepository` conservan la versión leída fuera del agregado y usan
   `saveAndFlush` con control optimista. Preservar rechazo de escrituras obsoletas
-  y creaciones concurrentes del mismo intento; no convertirlas en sobrescrituras.
+  y creaciones concurrentes del mismo agregado; no convertirlas en sobrescrituras.
+- Todo `save` JPA pasa por `WriteConflicts`: versión vieja o clave repetida →
+  `ConcurrentModificationConflict` con la causa; otra violación de integridad
+  se propaga (500). Todo `toDomain` pasa por `CorruptDataException.rebuilding`:
+  un dato guardado irreconstruible es `CorruptDataException`, nunca IAE/ISE.
 
-## Team, Edition y Registration (memoria)
+## Team, Edition y Registration
 
 TeamRepository es canónico y ya no consulta categoría: pertenece a Registration.
 EditionRepository.findByTeamId busca ediciones con esa relación; guardar una
-nueva versión inmutable reemplaza el snapshot del mismo id. Un getter no permite
-modificar el objeto guardado. Esto evita aliases y cambios parciales por
-validación, sin agregar garantías transaccionales ni de concurrencia.
+nueva versión inmutable reemplaza el snapshot del mismo id. findAll y
+findByTeamId ordenan por id en memory y en JPA. Un getter no permite modificar
+el objeto guardado.
 
-Para los futuros mappers de frente 5: Edition.restore recibe context, fechas,
-categorías e inscripciones completas; conservar TeamId/EditionId/CategoryId,
-referenceDate y registeredAt. La clave de inscripción es edición/equipo. Team
-se reconstruye con profile, robot, members y documentation; no lleva categoría
-ni fecha de inscripción. Documentation.restore conserva documentos y metadatos
-sin repetir verify. No replay de inscripción ni consulta del reloj al leer.
+Tablas `editions` (V6) y `teams` (V7): columnas para cabecera/perfil y JSONB para
+torneo, categorías e inscripciones, o robot, integrantes y documentación.
+`EditionMapper` usa Edition.restore con TeamId/EditionId/CategoryId,
+referenceDate y registeredAt; `TeamMapper` reconstruye Team con profile, robot,
+members y Documentation.restore, sin repetir verify. No replay de inscripción
+ni consulta del reloj al leer.
 
-## Round y Slot (memoria)
+## Round y Slot
 
 RoundRepository guarda el agregado completo e incluye findById, findByScope,
-findByChallengeId, findAll y findBySlotId. InMemoryRoundRepository reemplaza el
-snapshot del mismo RoundId sin duplicar slots y rechaza scopes o SlotIds usados
-por otra ronda. Estas validaciones son secuenciales: ConcurrentHashMap no hace
-atómica una programación completa ni evita dos escritores concurrentes.
+findByChallengeId, findAll y findBySlotId (orden por RoundId). Ambos adaptadores
+reemplazan el snapshot del mismo RoundId sin duplicar slots y rechazan scopes o
+SlotIds usados por otra ronda. Tabla `rounds` (V8): scope y estado en columnas,
+slots en JSONB con pista, jueces, ventana, trackInterval y estado; Round.restore
+y Slot.restore los rehidratan. Postgres asegura el scope único
+(desafío/categoría/número); el SlotId global se comprueba con una consulta del
+adaptador. No crear un repositorio de Slot independiente.
 
-Para frente 5: usar Round.restore y Slot.restore con scope, estados y slots
-completos. Conservar Slot.trackInterval además de ventana, pista y jueces: la
-pausa afecta ocupaciones de otras rondas. Definir restricciones únicas de scope
-(desafío/categoría/número) y SlotId global, y coordinación de recursos entre
-programaciones concurrentes. No crear un repositorio de Slot independiente.
+## Versiones de agregados inmutables
+
+Edition, Team y Round son inmutables: lo guardado nunca es la instancia leída,
+así que no se guarda la versión por instancia como en intentos. Su `save` toma
+la versión de la fila que el contexto de persistencia leyó en la misma
+transacción y usa `saveAndFlush`: si otro pedido la guardó en el medio, se
+rechaza con `ConcurrentModificationConflict` (409, vía `WriteConflicts`). Si la fila no se leyó en la
+transacción, se escribe sobre la versión actual. No se coordinan recursos entre
+programaciones concurrentes de rondas distintas.
 
 ## Esquema y selección de adaptadores
 
@@ -74,10 +89,12 @@ Agregar una nueva migración para cambios de esquema; no editar migraciones
 ya integradas. Hibernate usa `ddl-auto=validate`; no reemplazarlo por generación
 automática para ocultar desajustes.
 
-Al agregar persistencia para otro agregado, registrar su adaptador y retirar
-el bean correspondiente de `InMemoryRepositoryConfig` en API. Evitar dos beans
-para el mismo puerto. Revisar también el comportamiento de su adaptador en
-memoria, utilizado por los tests de casos de uso.
+La API descubre los `@Repository` JPA por escaneo y no registra adaptadores en
+memoria. Evitar dos beans para el mismo puerto. Al cambiar un contrato, revisar
+también el adaptador en memoria, utilizado por los tests de casos de uso. Los de
+`Attempt`, `Appeal`, `Standings` y `Challenge` (agregados mutables) guardan y
+devuelven copias armadas con `restore`, como una base: un caso de uso que muta
+y no guarda no pasa su test.
 
 ## Verificación
 

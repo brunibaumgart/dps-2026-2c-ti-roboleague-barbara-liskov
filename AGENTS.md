@@ -42,16 +42,17 @@ Application usa infrastructure **solo en tests**, para los adaptadores en memori
 Mantener las dependencias hacia el dominio; no introducir HTTP, Spring, JPA o
 Jackson en domain/application.
 
-Persistencia actual: `Attempt`, `Challenge`, `Appeal` y `Standings` tienen adaptadores JPA.
-`Edition`, `Team` y `Round` siguen en memoria, cableados por
-`InMemoryRepositoryConfig`. No asumir persistencia completa ni rollback de los
-repositorios en memoria. Flyway administra el esquema y Hibernate lo valida.
+Persistencia actual: los siete agregados (`Edition`, `Team`, `Round`, `Challenge`,
+`Attempt`, `Appeal` y `Standings`) tienen adaptadores JPA que la API descubre por
+escaneo. Los repositorios en memoria quedan para tests de casos de uso y no
+ofrecen rollback. Flyway administra el esquema y Hibernate lo valida.
 
 `support.Clock` e `support.IdGenerator` son puertos del dominio. Infrastructure
-provee `SystemClock` y `UuidGenerator`, ensamblados en API. No usar reloj del
-sistema ni UUID aleatorios desde domain/application: los casos de uso obtienen
-valores por los puertos y pasan fechas/metadatos a los agregados. Conservar ids
-derivados y tiempos persistidos durante la rehidratación.
+provee `SystemClock` y `UuidGenerator`, ensamblados en API; el perfil `demo` los
+reemplaza por `DemoClock` y `DemoIds` (secuenciales) para que la demo se repita.
+No usar reloj del sistema ni UUID aleatorios desde domain/application: los casos
+de uso obtienen valores por los puertos y pasan fechas/metadatos a los
+agregados. Conservar ids derivados y tiempos persistidos durante la rehidratación.
 
 `Team`, `Robot`, `Documentation` y `Edition` son inmutables. Edition contiene
 Registration por edición/equipo, con CategoryId, fecha de inicio como referencia
@@ -68,8 +69,9 @@ por rechazo. No reintroducir mutadores o categoría/fecha global en Team.
 slots: conservar el valor devuelto y guardar la ronda completa. Su scope incluye
 ChallengeId/EditionId/CategoryId/número. Programación asigna un juez por slot,
 respeta ocupaciones de otras rondas y conserva la pausa de pista en cada slot.
-RoundRepository sigue en memoria: no garantiza exclusión de programaciones
-concurrentes ni rollback. No crear un SlotRepository independiente.
+JpaRoundRepository rechaza escrituras obsoletas de la misma ronda, pero no
+garantiza exclusión de recursos entre programaciones concurrentes de rondas
+distintas. No crear un SlotRepository independiente.
 
 ## Criterios SOLID
 

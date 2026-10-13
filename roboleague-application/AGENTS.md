@@ -15,9 +15,14 @@ Leer también `../AGENTS.md`. Producción en
   mantener válido un agregado. No incorporar aquí validaciones de formato JSON.
 - Usar commands/records y resultados `sealed` existentes cuando correspondan
   (`Reception`, `Publication`). No introducir DTOs HTTP ni códigos de respuesta.
-- Preservar la distinción actual entre `IllegalArgumentException` para datos
-  inválidos/ids inexistentes, `IllegalStateException` para conflictos y rechazos
-  detallados de negocio. La API realiza su traducción HTTP.
+- Un id recibido que no existe lanza `NotFoundException(recurso, id)`; una
+  referencia rota entre agregados guardados (reglamento, equipo o edición que
+  deberían existir) lanza `InconsistentStateException`, nunca un "not found"
+  del pedido. Duplicados y conflictos usan `ConflictException`; reglas de
+  negocio que el pedido incumple, `BusinessRuleViolation`; datos mal formados
+  siguen como `IllegalArgumentException` y transiciones como
+  `IllegalStateException`. No usar `orElseThrow()` sin excepción explícita.
+  La API realiza su traducción HTTP.
 
 ## Inscripción y actualización
 
@@ -60,6 +65,13 @@ Leer también `../AGENTS.md`. Producción en
   categoría al aceptar. Al rechazar, restaura el estado del intento mediante
   su transición de dominio. Correcciones que no caben en el reglamento vuelven
   como `AppealAcceptance.Invalid` y no escriben.
+- `CorrectAttemptUseCase` ajusta faltas (con el reglamento del intento) o
+  descalifica (juez asignado al turno) y recalcula las standings de su desafío y
+  categoría, como la aceptación de una apelación.
+- `RoundLifecycleUseCase` mueve ronda y turnos por su ciclo de vida. Cancelar un
+  turno exige que no tenga intento y registra autor/motivo/hora; un turno con
+  resultados se corrige descalificando su intento. `ReceiveResultUseCase`
+  rechaza resultados de un turno cancelado.
 - `PublishStandingsUseCase` publica solo la última versión. El agregado bloquea
   si hay apelaciones abiertas, turnos sin resultado o resultados posteriores al
   cálculo. Un bloqueo no guarda nada y devuelve cada motivo.

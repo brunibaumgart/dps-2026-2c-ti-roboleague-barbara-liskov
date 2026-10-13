@@ -13,9 +13,15 @@ controllers, DTOs, config y demo bajo `src/main/java/com/roboleague/api`.
   del núcleo. Invocar casos de uso para operaciones de negocio; no acceder desde
   controllers a repositorios JPA para evitar ese flujo. Las invariantes permanecen
   en domain y la coordinación en application, aunque la API traduzca sus errores.
-- Mantener `ErrorDto {error, details}` y `ApiExceptionHandler`: datos inválidos
-  e ids inexistentes → 400; conflictos/transiciones no permitidas → 409;
-  equipos inelegibles → 422 con motivos. Conflictos de persistencia → 409.
+- Mantener `ErrorDto {error, details}` y `ApiExceptionHandler` (extiende
+  `ResponseEntityExceptionHandler`, así los errores de Spring MVC también usan
+  ErrorDto): datos mal formados (`IllegalArgumentException`, parámetro faltante
+  o de otro tipo, JSON inválido) → 400; `NotFoundException` → 404;
+  `ConflictException`/`ConcurrentModificationConflict`/`IllegalStateException`
+  → 409; `BusinessRuleViolation` y `TeamIneligibleException` → 422 con motivos.
+  Fallas técnicas (`CorruptDataException`, `InconsistentStateException`,
+  `DataIntegrityViolationException`, inesperadas) → 500 genérico con la causa en
+  el log; base caída → 503. No exponer mensajes internos en 5xx.
 - Traducir resultados `sealed` en el controller con un switch, preservando sus
   códigos específicos. Consultar las tablas y ejemplos de README antes de
   modificar respuestas; no uniformar automáticamente todo rechazo.
@@ -38,14 +44,16 @@ controllers, DTOs, config y demo bajo `src/main/java/com/roboleague/api`.
   verificación. verifiedBy omitido/null deja documentación sin verificar (422
   cuando el dominio rechaza elegibilidad). Respuestas incluyen datos de auditoría
   de solo lectura; no asumir que un DTO de respuesta puede enviarse como request.
-- EditionDto conserva categories como ids y agrega categoryDetails con límites.
+- EditionDto conserva categories como ids y agrega categoryDetails con límites,
+  editionNumber y tournament (con season). Los números obligatorios del body
+  son wrappers validados con RequestValues.required, nunca primitivos.
   maxAge omitido/null significa sin edad máxima; minAge es inclusivo y se evalúa
   en años cumplidos al inicio de la edición. La demo admite desde 13 años.
   Dimensiones máximas opcionales en alta conservan default 1000 mm por eje.
 - RoundController deriva EditionId del desafío; el body no acepta edición.
   Duraciones son segundos y startTime local ISO sin offset. RoundDto ordena
   slots por horario/TrackId/SlotId. Filtro categoryId ajeno → 400; válido sin
-  rondas → 200 con []; los padres de cada consulta deben existir.
+  rondas → 200 con []; los padres de cada consulta deben existir (si no, 404).
 - RequestValues comprueba presencia y texto en transporte, usando wrappers para
   distinguir campos numéricos/booleanos faltantes. Las reglas de elegibilidad,
   estado y recursos siguen en dominio. Rechazar elementos null de colecciones
@@ -75,7 +83,7 @@ controllers, DTOs, config y demo bajo `src/main/java/com/roboleague/api`.
 - Apelaciones y tabla consumen los contratos del frente 4 (`/attempts/{id}/appeals`,
   `/appeals/{id}/review|acceptance|rejection`, `/challenges/{id}/standings`).
   No calcular posiciones, desempates ni transiciones en JS.
-- Tests de módulos JS: node --experimental-default-type=module --test
+- Tests de módulos JS: node --test
   roboleague-api/src/test/frontend/*.test.mjs (Node 20+, sin paquetes). Maven
   comprueba entrega de assets y HTTP; no atribuir a estos tests validación visual
   o de interacción de navegador. Registrar pendientes por separado.
@@ -84,32 +92,36 @@ controllers, DTOs, config y demo bajo `src/main/java/com/roboleague/api`.
 
 - Registrar casos de uso y servicios en `config/UseCaseConfig` sin agregar Spring
   a domain/application.
-- Ensamblar Clock/IdGenerator en esa configuración. `roboleague.time-zone`
-  usa `ROBOLEAGUE_TIME_ZONE`, con default `America/Argentina/Buenos_Aires`.
+- Ensamblar Clock/IdGenerator en esa configuración, con `@Profile("!demo")`:
+  el perfil demo usa `DemoClock` y `DemoIds` de `DemoConfig`.
+  `roboleague.time-zone` usa `ROBOLEAGUE_TIME_ZONE`, con default `America/Argentina/Buenos_Aires`.
   Pasar valores explícitos al dominio también desde fixtures de demo; no
   incorporar un reloj global ni usar la zona implícita del host.
 - `TransactionalUseCases` intercepta beans del paquete exacto
   `com.roboleague.usecase` mediante proxies de clase. Preservar interceptación
   de los métodos y rollback sobre Postgres; comprobarla si cambia el wiring.
 - RegisterTeamUseCase, UpdateTeamUseCase y ChangeRegistrationCategoryUseCase
-  están ensamblados en UseCaseConfig y reciben proxies transaccionales. Team y
-  Edition siguen en memoria. RegistrationController expone altas, consultas y
-  PUT completo mediante UpdateRegistrationUseCase, validando equipo/categoría
-  juntos antes de guardar. No encadenar UpdateTeam y ChangeRegistrationCategory
-  desde el controller; la transacción no cubre los repositorios en memoria.
-- ScheduleRoundUseCase recibe ChallengeRepository y tiene proxy transaccional;
-  las rondas siguen en memoria. Captura conserva challengeId en el request por
-  compatibilidad y rechaza desafío distinto al de la ronda con 409. El juez
-  asignado puede enviar ambas fuentes; las notas del panel no asignan jueces.
-- `InMemoryRepositoryConfig` registra teams, editions y rounds; attempts,
-  challenges, appeals y standings usan JPA. Al persistir otro agregado, quitar
-  su bean en memoria. No prometer rollback ni durabilidad de todos los agregados.
+  están ensamblados en UseCaseConfig y reciben proxies transaccionales.
+  RegistrationController expone altas, consultas y PUT completo mediante
+  UpdateRegistrationUseCase, validando equipo/categoría juntos antes de guardar.
+  No encadenar UpdateTeam y ChangeRegistrationCategory desde el controller: serían
+  dos transacciones.
+- ScheduleRoundUseCase recibe ChallengeRepository y tiene proxy transaccional.
+  Captura conserva challengeId en el request por compatibilidad y rechaza
+  desafío distinto al de la ronda con 409. El juez asignado puede enviar ambas
+  fuentes; las notas del panel no asignan jueces. Dos programaciones concurrentes
+  de rondas distintas no se excluyen por pista/juez.
+- Los siete puertos usan los `Jpa*Repository` de infrastructure, descubiertos
+  por escaneo; no hay beans de repositorios en memoria en la API. No registrar
+  un segundo bean para el mismo puerto.
 - `application.yml` configura datasource con `DB_URL`, `DB_PORT`, `DB_USER` y
   `DB_PASSWORD`, desactiva Open Session in View y valida esquema con Hibernate.
   Mantener Flyway como propietario del esquema.
 - `demo/DemoConfig` activa `flyway.clean()` con el perfil `demo`.
-  `DemoFixture` carga el escenario a través de casos de uso. No activar ese
-  perfil para verificar cambios sobre datos que deban conservarse.
+  `DemoFixture` carga el escenario a través de casos de uso, con ids y horas
+  fijos; si cambia la carga, actualizar los ids que citan README y
+  `DemoFixtureTest`. No activar ese perfil para verificar cambios sobre datos
+  que deban conservarse.
 
 ## Pruebas y documentación
 
@@ -117,7 +129,9 @@ Los tests de controllers extienden `src/test/java/com/roboleague/api/ApiTest`:
 SpringBootTest + MockMvc + Postgres en Testcontainers. Comparten contexto/base;
 usar ids propios y no depender de una base vacía ni del orden de ejecución.
 Referencias: `appeal/AppealControllerTest`, `challenge/ChallengeControllerTest`
-y `TransactionalUseCasesTest` para rollback y proxies.
+y `config/TransactionalUseCasesTest` para rollback y proxies. Cada test vive en
+el paquete del controller que prueba; `EditionRequests` arma el escenario HTTP
+compartido de inscripción y rondas.
 
 Verificar códigos, JSON y efectos observables, incluyendo rechazos. Ejecutar
 desde la raíz con Docker `mvn -B -pl roboleague-api -am test`; la comprobación

@@ -44,6 +44,7 @@ constructor de valor permite rehidratar sin consultar el calendario actual.
 - Ventanas [inicio, fin): jueces/equipos se liberan al fin, pistas tras
   Slot.trackInterval. Conservar esa pausa para comparar rondas distintas.
   CANCELLED libera recursos; COMPLETED conserva la ocupación histórica.
+  Solo un slot CANCELLED lleva `SlotCancellation` (actor, motivo, hora).
 - Round.restore y Slot.restore preservan identidad, asignaciones, horarios,
   pausa y estados sin repetir transiciones ni generar ids. Validan estructura;
   no usarlos como entrada de negocio para saltear el ciclo de vida.
@@ -74,8 +75,12 @@ constructor de valor permite rehidratar sin consultar el calendario actual.
 - Las identidades de equipos, participantes, robots, categorías y ediciones
   viven en tournament; las de jueces, pistas, rondas y slots en scheduling;
   StandingsId y AppealId en sus contextos. Todas conservan el texto y rechazan
-  null/blanco. `StandingsId` se deriva de desafío y categoría; no inventar un
-  id textual aparte.
+  null/blanco y más de 64 caracteres (`support.Identifiers`, igual que las
+  columnas). Fallas de negocio esperables extienden `support.DomainException`:
+  `BusinessRuleViolation` (422) o `ConflictException` (409); los puertos lanzan
+  `repository.ConcurrentModificationConflict` ante escrituras concurrentes.
+  `StandingsId` se deriva de desafío y categoría; no inventar un id textual
+  aparte.
 - `AttemptId` contiene `SlotId` y número de intento. `RulebookReference` fija el
   desafío y versión usados: capturas posteriores y correcciones deben conservarlos.
 - `Attempt.receive` valida la fuente y las métricas antes de aceptar la captura;
@@ -111,8 +116,12 @@ cada puesto con `decide`. No reintroducir `TieBreakerChain` ni `TeamScore`.
 
 ## Verificación
 
-Tests en `src/test/java/com/roboleague`, con JUnit, AssertJ y Mockito según el
-caso. Ejecutar desde la raíz `mvn -B -pl roboleague-domain test`.
+Tests en `src/test/java/com/roboleague`, con JUnit y AssertJ, en el mismo
+paquete que la clase probada. Cada rechazo de un constructor o transición se
+prueba con su tipo y mensaje (tablas `@ParameterizedTest`, como
+`TournamentInvariantsTest` o `AttemptStateTest`). Ejecutar desde la
+raíz `mvn -B -pl roboleague-domain test`; `verify` exige además la cobertura
+mínima de `pom.xml` (reporte en `target/site/jacoco`).
 Probar el comportamiento modificado y sus límites: rechazo sin mutación,
 versionado, desglose, estados, auditoría o desempates según corresponda.
 Si cambia una definición serializable o un puerto, verificar sus consumidores
