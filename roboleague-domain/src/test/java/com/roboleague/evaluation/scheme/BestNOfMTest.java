@@ -54,6 +54,14 @@ class BestNOfMTest {
         assertThat(score.discarded()).isEmpty();
     }
 
+    @ParameterizedTest(name = "mejores 2 de 3: ronda {0} permitida = {1}")
+    @CsvSource({"1, true", "3, true", "4, false"})
+    @DisplayName("Solo se pueden programar rondas hasta M")
+    void givenARoundNumberThenOnlyTheFirstMAreAllowed(int roundNumber, boolean allowed) {
+        assertThat(new BestNOfM(2, 3).allowsRound(roundNumber)).isEqualTo(allowed);
+        assertThat(new AllRounds().allowsRound(roundNumber)).isTrue();
+    }
+
     @Test
     @DisplayName("Un equipo no puede tener más rondas que las M del reglamento")
     void givenMoreRoundsThanMThenTheSelectionIsRejected() {

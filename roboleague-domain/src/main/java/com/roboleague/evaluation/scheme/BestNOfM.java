@@ -33,6 +33,11 @@ public record BestNOfM(int considered, int outOf) implements RoundSelection {
     }
 
     @Override
+    public boolean allowsRound(int roundNumber) {
+        return roundNumber <= outOf;
+    }
+
+    @Override
     public ChallengeScore select(List<RoundScore> rounds) {
         if (rounds.size() > outOf) {
             throw new IllegalArgumentException("a team cannot have more than " + outOf + " rounds: " + rounds.size());

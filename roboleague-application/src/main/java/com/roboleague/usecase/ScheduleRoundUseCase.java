@@ -5,6 +5,7 @@ import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.RoundRepository;
 import com.roboleague.repository.TeamRepository;
 import com.roboleague.scheduling.*;
+import com.roboleague.evaluation.scheme.RoundSelection;
 import com.roboleague.support.BusinessRuleViolation;
 import com.roboleague.support.ConflictException;
 import com.roboleague.support.IdGenerator;
@@ -52,6 +53,11 @@ public class ScheduleRoundUseCase {
             throw new IllegalArgumentException("Challenge belongs to another edition");
         }
         RoundScope scope = RoundScope.of(command.challengeId(), command.editionId(), command.categoryId(), command.roundNumber());
+        RoundSelection selection = challenge.currentRulebook().rankingScheme().roundSelection();
+        if (!selection.allowsRound(scope.roundNumber())) {
+            throw new BusinessRuleViolation("Round " + scope.roundNumber() + " cannot be scheduled: the rulebook of "
+                    + challenge.getId() + " counts " + selection.describe());
+        }
         if (roundRepository.findByScope(scope).isPresent()) {
             throw new ConflictException("Round scope already exists: " + scope);
         }

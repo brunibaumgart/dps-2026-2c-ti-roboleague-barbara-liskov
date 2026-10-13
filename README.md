@@ -185,7 +185,7 @@ Todas las respuestas de error usan `ErrorDto {error, details}`. Además de los c
 | POST | `/editions/{id}/registrations` | 201 `RegistrationDto` | 400; 404; 409 duplicada o equipo existente; 422 inelegible |
 | GET | `/editions/{id}/registrations` · `/editions/{id}/registrations/{teamId}` | 200 lista / `RegistrationDto` | 404 |
 | PUT | `/editions/{id}/registrations/{teamId}` | 200 `RegistrationDto` | 400; 404; 422 inelegible |
-| POST | `/challenges/{id}/rounds` | 201 `RoundDto` | 400 recursos o categoría ajena; 404; 409 scope repetido; 422 inelegible o fuera de fechas |
+| POST | `/challenges/{id}/rounds` | 201 `RoundDto` | 400 recursos o categoría ajena; 404; 409 scope repetido; 422 inelegible, fuera de fechas o ronda más allá de M |
 | GET | `/challenges/{id}/rounds[?categoryId=]` · `/rounds/{id}` | 200 lista / `RoundDto` | 400 categoría ajena; 404 |
 | POST | `/rounds/{id}/start` · `/rounds/{id}/completion` | 200 `RoundDto` | 404; 409 transición no permitida |
 | POST | `/rounds/{id}/slots/{slotId}/start` · `/completion` | 200 `RoundDto` | 404; 409 transición no permitida |

@@ -32,12 +32,48 @@ class ScheduleRoundUseCaseTest {
     }
 
     private static Challenge challenge(String id, String edition) {
+        return challenge(id, edition, new com.roboleague.evaluation.scheme.AllRounds());
+    }
+
+    private static Challenge challenge(String id, String edition, com.roboleague.evaluation.scheme.RoundSelection selection) {
         return Challenge.draft(ChallengeId.of(id), EditionId.of(edition), "Challenge").publish(
                 com.roboleague.evaluation.ScoringScheme.withoutBonuses(
                         List.of(new com.roboleague.evaluation.rules.ObjectivesRule("Objectives",
                                 com.roboleague.evaluation.Points.of(1))), List.of()),
-                new com.roboleague.evaluation.scheme.RankingScheme(new com.roboleague.evaluation.scheme.AllRounds(),
+                new com.roboleague.evaluation.scheme.RankingScheme(selection,
                         List.of(new com.roboleague.evaluation.scheme.HigherTotal())));
+    }
+
+    @Test
+    @DisplayName("A best-N-of-M challenge refuses round M+1 before generating or saving any slot")
+    void rejectsARoundBeyondMForABestNOfMChallenge() {
+        var challenges = new com.roboleague.repository.memory.InMemoryChallengeRepository();
+        challenges.save(challenge("ch-best", "ed-1", new com.roboleague.evaluation.scheme.BestNOfM(1, 2)));
+        InMemoryEditionRepository editions = new InMemoryEditionRepository();
+        InMemoryTeamRepository teams = new InMemoryTeamRepository();
+        InMemoryRoundRepository rounds = new InMemoryRoundRepository();
+        Category category = RegistrationFixtures.category("cat-sumo", 1, 4, 10, 25, 2500);
+        Edition edition = Edition.of(EditionId.of("ed-1"), Tournament.of("t-1", "Torneo", "Desc", new Season("s-1", 2026, "2026")),
+                1, "Edicion 1", LocalDate.of(2026, 10, 8), LocalDate.of(2026, 10, 9), List.of(category));
+        Team team = RegistrationFixtures.team("t-1");
+        teams.save(team);
+        editions.save(edition.registerTeam(team, category.id(), TIME));
+        ScheduleRoundUseCase useCase = new ScheduleRoundUseCase(challenges, editions, teams, rounds,
+                new RoundSchedulerService(ids()), ids());
+        List<Track> tracks = List.of(Track.active(TrackId.of("trk-1"), "Pista 1", "Piedra"));
+        List<Judge> judges = List.of(Judge.of(JudgeId.of("j-1"), "Juez Uno", "General"));
+
+        assertThatThrownBy(() -> useCase.execute(ScheduleRoundCommand.of(ChallengeId.of("ch-best"), edition.getId(),
+                category.id(), 3, "Ronda 3", tracks, judges, LocalDate.of(2026, 10, 8).atTime(10, 0),
+                Duration.ofMinutes(10), Duration.ZERO)))
+                .isInstanceOf(com.roboleague.support.BusinessRuleViolation.class)
+                .hasMessage("Round 3 cannot be scheduled: the rulebook of ch-best counts mejores 1 de 2 rondas");
+        assertThat(rounds.findAll()).isEmpty();
+
+        Round second = useCase.execute(ScheduleRoundCommand.of(ChallengeId.of("ch-best"), edition.getId(),
+                category.id(), 2, "Ronda 2", tracks, judges, LocalDate.of(2026, 10, 8).atTime(10, 0),
+                Duration.ofMinutes(10), Duration.ZERO));
+        assertThat(rounds.findById(second.getId())).isPresent();
     }
 
     @Test
