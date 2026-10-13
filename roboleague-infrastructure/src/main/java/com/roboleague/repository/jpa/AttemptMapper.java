@@ -8,6 +8,7 @@ import com.roboleague.evaluation.AttemptProgress;
 import com.roboleague.evaluation.AttemptStage;
 import com.roboleague.evaluation.JudgeScores;
 import com.roboleague.evaluation.Measurements;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.RulebookReference;
@@ -144,13 +145,14 @@ final class AttemptMapper {
 
     private static SectionJson toJson(RuleEvaluation section) {
         return new SectionJson(section.items().stream()
-                .map(item -> new ItemJson(item.concept(), item.rawMetric(), item.appliedFormula(), item.subtotal()))
+                .map(item -> new ItemJson(item.concept(), item.rawMetric(), item.appliedFormula(),
+                        item.subtotal().toBigDecimal()))
                 .toList(), section.notes());
     }
 
     private static RuleEvaluation toSection(SectionJson json) {
         return new RuleEvaluation(json.items().stream()
-                .map(item -> ScoreItem.of(item.concept(), item.rawMetric(), item.formula(), item.subtotal()))
+                .map(item -> ScoreItem.of(item.concept(), item.rawMetric(), item.formula(), Points.of(item.subtotal())))
                 .toList(), json.notes());
     }
 

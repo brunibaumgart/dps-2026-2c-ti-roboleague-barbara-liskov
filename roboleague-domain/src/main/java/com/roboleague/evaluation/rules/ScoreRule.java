@@ -1,6 +1,7 @@
 package com.roboleague.evaluation.rules;
 
 import com.roboleague.evaluation.Metric;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
@@ -33,10 +34,10 @@ public interface ScoreRule {
             return new RuleEvaluation(List.of(), List.of());
         }
 
-        public double total() {
-            double total = 0.0;
+        public Points total() {
+            Points total = Points.ZERO;
             for (ScoreItem item : items) {
-                total += item.subtotal();
+                total = total.plus(item.subtotal());
             }
             return total;
         }

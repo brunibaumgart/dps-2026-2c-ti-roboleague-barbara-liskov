@@ -54,9 +54,9 @@ class RulebookReviewFindingsTest {
     @Test
     @DisplayName("Hallazgo 1: la lista de reglas que expone la regla compuesta no se puede modificar")
     void givenTheCompositeRuleThenItsRulesListIsUnmodifiable() {
-        CompositeScoreRule composite = new CompositeScoreRule("Laberinto", List.of(TimeBasedRule.standard(100.0, 60.0)));
+        CompositeScoreRule composite = new CompositeScoreRule("Laberinto", List.of(TimeBasedRule.standard(Points.of(100), 60.0)));
 
-        assertThatThrownBy(() -> composite.getRules().add(ObjectivesRule.standard(15.0)))
+        assertThatThrownBy(() -> composite.getRules().add(ObjectivesRule.standard(Points.of(15))))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 
@@ -64,24 +64,24 @@ class RulebookReviewFindingsTest {
     @DisplayName("Pregunta abierta: el total de un desglose es la suma de sus ítems, no un dato aparte que pueda diferir")
     void givenABreakdownThenItsTotalIsTheSumOfItsItems() {
         ScoreBreakdown breakdown = new ScoreBreakdown(
-                RuleEvaluation.of(ScoreItem.of("Tiempo", "50s", "formula", 100.0)),
-                RuleEvaluation.of(ScoreItem.of("Checkpoint", "1", "formula", 30.0)),
-                RuleEvaluation.of(ScoreItem.of("Penalizaciones", "2 faltas", "formula", -30.0)));
+                RuleEvaluation.of(ScoreItem.of("Tiempo", "50s", "formula", Points.of(100))),
+                RuleEvaluation.of(ScoreItem.of("Checkpoint", "1", "formula", Points.of(30))),
+                RuleEvaluation.of(ScoreItem.of("Penalizaciones", "2 faltas", "formula", Points.of(-30))));
 
-        double itemsSum = breakdown.items().stream().mapToDouble(ScoreItem::subtotal).sum();
-        assertThat(breakdown.totalScore()).isEqualTo(100.0).isEqualTo(itemsSum);
+        Points itemsSum = breakdown.items().stream().map(ScoreItem::subtotal).reduce(Points.ZERO, Points::plus);
+        assertThat(breakdown.totalScore()).isEqualTo(Points.of(100)).isEqualTo(itemsSum);
     }
 
     @Test
     @DisplayName("Pregunta abierta: el piso en cero aparece en el desglose y la explicación suma el total")
     void givenItemsBelowZeroThenTheFloorIsAnItemAndTheItemsAddUpToTheTotal() {
         ScoreBreakdown breakdown = new ScoreBreakdown(
-                RuleEvaluation.of(ScoreItem.of("Tiempo", "90s", "formula", 10.0)),
+                RuleEvaluation.of(ScoreItem.of("Tiempo", "90s", "formula", Points.of(10))),
                 RuleEvaluation.empty(),
-                RuleEvaluation.of(ScoreItem.of("Penalizaciones", "2 faltas", "formula", -30.0)));
+                RuleEvaluation.of(ScoreItem.of("Penalizaciones", "2 faltas", "formula", Points.of(-30))));
 
-        double itemsSum = breakdown.items().stream().mapToDouble(ScoreItem::subtotal).sum();
-        assertThat(breakdown.totalScore()).isZero();
+        Points itemsSum = breakdown.items().stream().map(ScoreItem::subtotal).reduce(Points.ZERO, Points::plus);
+        assertThat(breakdown.totalScore()).isEqualTo(Points.ZERO);
         assertThat(itemsSum).isEqualTo(breakdown.totalScore());
         assertThat(breakdown.items()).extracting(ScoreItem::concept).endsWith("Piso en cero");
     }
@@ -95,23 +95,23 @@ class RulebookReviewFindingsTest {
 
     static Stream<Named<ThrowingCallable>> rulesWithNegativeParameters() {
         return Stream.of(
-                Named.of("penalización con deducción negativa", () -> new PenaltyRule("Penalizaciones", -10.0)),
+                Named.of("penalización con deducción negativa", () -> new PenaltyRule("Penalizaciones", Points.of(-10))),
                 Named.of("consumo con penalización negativa", () -> new ResourceConsumptionRule("Consumo", 100.0, -2.0)),
                 Named.of("consumo con máximo negativo", () -> new ResourceConsumptionRule("Consumo", -1.0, 2.0)),
                 Named.of("jueces con peso negativo", () -> new JudgeSubjectiveRule("Jueces", -1.0)),
-                Named.of("tiempo con base negativa", () -> TimeTargets.of(-100.0, 60.0)),
-                Named.of("tiempo con bonificación negativa", () -> TimeAdjustments.of(-1.5, 2.0, 0.0)),
-                Named.of("tiempo con deducción negativa", () -> TimeAdjustments.of(1.5, -2.0, 0.0)),
-                Named.of("tiempo con mínimo negativo", () -> TimeAdjustments.of(1.5, 2.0, -5.0)),
-                Named.of("faltas contadas con deducción negativa", () -> new FaultTariff(1, -5.0)),
-                Named.of("faltas contadas con franquicia negativa", () -> new FaultTariff(-1, 5.0)),
-                Named.of("precisión con máximo negativo", () -> new PrecisionRule("Precisión", Metric.sensor("precision"), -80.0)),
-                Named.of("víctimas con puntos negativos", () -> new VictimsRule("Víctimas", Metric.judged("v"), -25.0)),
-                Named.of("víctimas abandonadas con deducción negativa", () -> new VictimTariff(4, -10.0)),
+                Named.of("tiempo con base negativa", () -> TimeTargets.of(Points.of(-100), 60.0)),
+                Named.of("tiempo con bonificación negativa", () -> TimeAdjustments.of(-1.5, 2.0, Points.ZERO)),
+                Named.of("tiempo con deducción negativa", () -> TimeAdjustments.of(1.5, -2.0, Points.ZERO)),
+                Named.of("tiempo con mínimo negativo", () -> TimeAdjustments.of(1.5, 2.0, Points.of(-5))),
+                Named.of("faltas contadas con deducción negativa", () -> new FaultTariff(1, Points.of(-5))),
+                Named.of("faltas contadas con franquicia negativa", () -> new FaultTariff(-1, Points.of(5))),
+                Named.of("precisión con máximo negativo", () -> new PrecisionRule("Precisión", Metric.sensor("precision"), Points.of(-80))),
+                Named.of("víctimas con puntos negativos", () -> new VictimsRule("Víctimas", Metric.judged("v"), Points.of(-25))),
+                Named.of("víctimas abandonadas con deducción negativa", () -> new VictimTariff(4, Points.of(-10))),
                 Named.of("hito con bonus negativo", () -> new MilestoneBonusRule("Hito",
-                        new Milestone(Metric.sensor("distancia_metros"), 10.0), -30.0)),
-                Named.of("tope de bonificaciones negativo", () -> new CappedAt(-10.0)),
-                Named.of("tope de bonificaciones que no es un número", () -> new CappedAt(Double.NaN))
+                        new Milestone(Metric.sensor("distancia_metros"), 10.0), Points.of(-30))),
+                Named.of("tope de bonificaciones negativo", () -> new CappedAt(Points.of(-10))),
+                Named.of("tope de bonificaciones que no es un número", () -> new CappedAt(Points.of(Double.NaN)))
         );
     }
 }

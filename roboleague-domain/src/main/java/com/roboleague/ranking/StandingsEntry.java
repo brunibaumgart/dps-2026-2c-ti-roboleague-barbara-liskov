@@ -1,5 +1,7 @@
 package com.roboleague.ranking;
 
+import com.roboleague.evaluation.Points;
+
 import java.util.Objects;
 
 /**
@@ -16,7 +18,7 @@ public record StandingsEntry(Placement placement, TeamIdentity team, TeamRounds 
         return placement.position();
     }
 
-    public double total() {
+    public Points total() {
         return rounds.total();
     }
 }

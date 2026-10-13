@@ -1,7 +1,12 @@
 package com.roboleague.evaluation.scheme;
 
+import com.roboleague.evaluation.Points;
+
+import java.math.BigDecimal;
+import java.math.MathContext;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.OptionalDouble;
 
 /**
@@ -14,10 +19,10 @@ public record ChallengeScore(List<RoundScore> considered, List<RoundScore> disca
         Objects.requireNonNull(selectionRule, "selectionRule cannot be null");
     }
 
-    public double total() {
-        double total = 0.0;
+    public Points total() {
+        Points total = Points.ZERO;
         for (RoundScore round : considered) {
-            total += round.total();
+            total = total.plus(round.total());
         }
         return total;
     }
@@ -29,15 +34,24 @@ public record ChallengeScore(List<RoundScore> considered, List<RoundScore> disca
     /**
      * Points the deductions took away in the considered rounds; nothing without rounds.
      */
-    public OptionalDouble deducted() {
-        return considered.stream().mapToDouble(RoundScore::deducted).reduce(Double::sum);
+    public Optional<Points> deducted() {
+        return considered.stream().map(RoundScore::deducted).reduce(Points::plus);
     }
 
+    /**
+     * The average of the judges' averages in the considered rounds, added up in decimal so that the order of the
+     * rounds does not change it.
+     */
     public OptionalDouble judgeScore() {
-        return considered.stream()
+        List<BigDecimal> scores = considered.stream()
                 .map(RoundScore::judgeScore)
                 .filter(OptionalDouble::isPresent)
-                .mapToDouble(OptionalDouble::getAsDouble)
-                .average();
+                .map(score -> BigDecimal.valueOf(score.getAsDouble()))
+                .toList();
+        if (scores.isEmpty()) {
+            return OptionalDouble.empty();
+        }
+        BigDecimal sum = scores.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        return OptionalDouble.of(sum.divide(BigDecimal.valueOf(scores.size()), MathContext.DECIMAL64).doubleValue());
     }
 }

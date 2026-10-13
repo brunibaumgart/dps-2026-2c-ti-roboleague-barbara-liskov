@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.rules.ObjectivesRule;
 import com.roboleague.evaluation.scheme.AllRounds;
@@ -48,7 +49,7 @@ class RoundSchedulingIntegrationTest {
         }
         editions.save(edition);
         challenges.save(Challenge.draft(challengeId, editionId, "Challenge").publish(
-                ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objectives", 1)), List.of()),
+                ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objectives", Points.of(1))), List.of()),
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal()))));
     }
 
@@ -87,7 +88,7 @@ class RoundSchedulingIntegrationTest {
             case "missing-challenge" -> challenge = ChallengeId.of("missing");
             case "foreign-edition" -> {
                 challenges.save(Challenge.draft(ChallengeId.of("foreign"), EditionId.of("foreign-edition"), "Foreign").publish(
-                        ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objectives", 1)), List.of()),
+                        ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objectives", Points.of(1))), List.of()),
                         new RankingScheme(new AllRounds(), List.of(new HigherTotal()))));
                 challenge = ChallengeId.of("foreign");
             }

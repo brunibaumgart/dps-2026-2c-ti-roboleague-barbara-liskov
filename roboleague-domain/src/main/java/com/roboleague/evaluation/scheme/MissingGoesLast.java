@@ -1,5 +1,6 @@
 package com.roboleague.evaluation.scheme;
 
+import java.util.Optional;
 import java.util.OptionalDouble;
 
 /**
@@ -10,11 +11,15 @@ final class MissingGoesLast {
     private MissingGoesLast() {
     }
 
-    static int lowerFirst(OptionalDouble a, OptionalDouble b) {
+    static <T extends Comparable<? super T>> int lowerFirst(Optional<T> a, Optional<T> b) {
         if (a.isPresent() && b.isPresent()) {
-            return Double.compare(a.getAsDouble(), b.getAsDouble());
+            return a.get().compareTo(b.get());
         }
         return Boolean.compare(a.isEmpty(), b.isEmpty());
+    }
+
+    static int lowerFirst(OptionalDouble a, OptionalDouble b) {
+        return lowerFirst(boxed(a), boxed(b));
     }
 
     static int higherFirst(OptionalDouble a, OptionalDouble b) {
@@ -22,5 +27,9 @@ final class MissingGoesLast {
             return Double.compare(b.getAsDouble(), a.getAsDouble());
         }
         return Boolean.compare(a.isEmpty(), b.isEmpty());
+    }
+
+    private static Optional<Double> boxed(OptionalDouble value) {
+        return value.isPresent() ? Optional.of(value.getAsDouble()) : Optional.empty();
     }
 }

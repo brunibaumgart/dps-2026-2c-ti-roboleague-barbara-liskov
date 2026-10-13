@@ -1,5 +1,6 @@
 package com.roboleague.api;
 
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.rules.JudgeSubjectiveRule;
 import com.roboleague.evaluation.rules.ObjectivesRule;
@@ -46,7 +47,7 @@ class WebFrontendTest extends ApiTest {
         var ranking = new RankingScheme(new AllRounds(), List.of(new HigherTotal()));
         var challenge = Challenge.draft(id, EditionId.of("web06-edition"), "Historical challenge").publish(
                 ScoringScheme.withoutBonuses(List.of(new JudgeSubjectiveRule("Panel", 5)), List.of()), ranking);
-        challenge.publish(ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objectives", 20)), List.of()), ranking);
+        challenge.publish(ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objectives", Points.of(20))), List.of()), ranking);
         challenges.save(challenge);
         mvc.perform(get("/challenges/{id}/rulebook/versions/1", id.value())).andExpect(status().isOk())
                 .andExpect(jsonPath("$.version").value(1))

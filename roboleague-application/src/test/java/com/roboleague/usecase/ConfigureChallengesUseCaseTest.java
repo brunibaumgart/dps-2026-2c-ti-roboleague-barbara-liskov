@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RuleCatalog;
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookVersion;
@@ -66,7 +67,7 @@ class ConfigureChallengesUseCaseTest {
     private static RulebookDefinition penaltyRulebook(double deduction) {
         return new RulebookDefinition(List.of(),
                 new RulebookDefinition.Scoring(List.of(), NO_BONUSES,
-                        List.of(new PenaltyRule("Faltas", deduction).definition())),
+                        List.of(new PenaltyRule("Faltas", Points.of(deduction)).definition())),
                 new RulebookDefinition.Ranking(new StrategyDefinition(AllRounds.TYPE, Parameters.none()),
                         List.of("higher-total")));
     }

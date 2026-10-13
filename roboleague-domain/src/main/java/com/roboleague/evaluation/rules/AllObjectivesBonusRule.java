@@ -4,6 +4,7 @@ import com.roboleague.evaluation.definition.Parameters;
 import com.roboleague.evaluation.definition.RuleArguments;
 import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.Metric;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
@@ -19,13 +20,13 @@ import java.util.Set;
 public final class AllObjectivesBonusRule implements BonusRule {
     private final String ruleName;
     private final int totalObjectives;
-    private final double bonus;
+    private final Points bonus;
 
-    public AllObjectivesBonusRule(String ruleName, int totalObjectives, double bonus) {
+    public AllObjectivesBonusRule(String ruleName, int totalObjectives, Points bonus) {
         if (totalObjectives < 1) {
             throw new IllegalArgumentException("totalObjectives must be positive");
         }
-        if (bonus < 0) {
+        if (bonus.isNegative()) {
             throw new IllegalArgumentException("bonus cannot be negative");
         }
         this.ruleName = Objects.requireNonNull(ruleName, "ruleName cannot be null");
@@ -39,7 +40,7 @@ public final class AllObjectivesBonusRule implements BonusRule {
 
     public static AllObjectivesBonusRule from(RuleDefinition definition) {
         Parameters numbers = definition.arguments().numbers();
-        return new AllObjectivesBonusRule(definition.name(), numbers.whole(TOTAL_OBJECTIVES), numbers.number(BONUS));
+        return new AllObjectivesBonusRule(definition.name(), numbers.whole(TOTAL_OBJECTIVES), numbers.points(BONUS));
     }
 
     @Override
@@ -72,9 +73,9 @@ public final class AllObjectivesBonusRule implements BonusRule {
                 ruleName,
                 String.format(Locale.US, "%d / %d objetivos", completed, totalObjectives),
                 allDone
-                        ? String.format(Locale.US, "todos los objetivos: +%.1f pts", bonus)
+                        ? String.format(Locale.US, "todos los objetivos: +%.1f pts", bonus.toBigDecimal())
                         : "faltan objetivos: 0 pts",
-                allDone ? bonus : 0.0
+                allDone ? bonus : Points.ZERO
         );
         return RuleEvaluation.of(item, String.format(Locale.US, "%s: %d de %d objetivos",
                 ruleName, completed, totalObjectives));

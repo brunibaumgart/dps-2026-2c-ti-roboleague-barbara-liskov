@@ -5,6 +5,7 @@ import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.AttemptIdentity;
 import com.roboleague.evaluation.JudgeScores;
 import com.roboleague.evaluation.Measurements;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookReference;
 import com.roboleague.evaluation.RulebookVersion;
@@ -97,7 +98,7 @@ class ResolveAppealUseCaseTest {
         assertThat(stored.getStatus()).isEqualTo(Attempt.AttemptStatus.EVALUATED);
         assertThat(stored.getRevisionHistory()).hasSize(1);
         // 40s => 100 + 20 bonus; 3 fouls => -30
-        assertThat(stored.getFinalScore()).isEqualTo(90.0);
+        assertThat(stored.getScoreBreakdown().totalScore()).isEqualTo(Points.of(90));
         assertThat(standings.findById(new StandingsId(challenge.getId(), MAZE))).isEmpty();
     }
 
@@ -112,7 +113,7 @@ class ResolveAppealUseCaseTest {
 
         Attempt stored = attempts.findById(ATTEMPT).orElseThrow();
         // 40s => 100 + 20; one fault at 10 => 110 with v1 (v2 would charge 100 for it)
-        assertThat(stored.getFinalScore()).isEqualTo(110.0);
+        assertThat(stored.getScoreBreakdown().totalScore()).isEqualTo(Points.of(110));
         assertThat(stored.getLatestSnapshot().rulebookVersion()).isEqualTo(RulebookVersion.first());
         assertThat(result).isInstanceOfSatisfying(AppealAcceptance.Accepted.class, accepted -> {
             assertThat(accepted.appeal().isAccepted()).isTrue();
@@ -239,7 +240,7 @@ class ResolveAppealUseCaseTest {
     }
 
     private static ScoringScheme scoringWithFaultsWorth(double deductionPerFault) {
-        return ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0)),
-                List.of(new PenaltyRule("Faltas", deductionPerFault)));
+        return ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", Points.of(100), 60.0, 1.0, 2.0, Points.ZERO)),
+                List.of(new PenaltyRule("Faltas", Points.of(deductionPerFault))));
     }
 }

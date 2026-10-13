@@ -8,7 +8,7 @@ import com.roboleague.evaluation.rules.ScoreRule.RuleEvaluation;
  */
 public interface BonusLimit {
 
-    RuleEvaluation limit(double obtainedBonuses);
+    RuleEvaluation limit(Points obtainedBonuses);
 
     StrategyDefinition definition();
 }

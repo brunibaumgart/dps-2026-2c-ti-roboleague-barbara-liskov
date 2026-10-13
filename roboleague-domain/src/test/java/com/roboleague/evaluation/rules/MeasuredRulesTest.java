@@ -2,6 +2,7 @@ package com.roboleague.evaluation.rules;
 
 import com.roboleague.evaluation.EvaluationFeedback;
 import com.roboleague.evaluation.Metric;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.TrackPerformance;
 import org.junit.jupiter.api.DisplayName;
@@ -25,7 +26,7 @@ class MeasuredRulesTest {
         return new RawMetrics(new TrackPerformance(60.0, 0, 0), EvaluationFeedback.withMeasurements(Map.of(metric.name(), value)));
     }
 
-    private static double subtotal(ScoreRule rule, RawMetrics metrics) {
+    private static Points subtotal(ScoreRule rule, RawMetrics metrics) {
         return rule.evaluate(metrics).total();
     }
 
@@ -34,24 +35,24 @@ class MeasuredRulesTest {
     @DisplayName("Las primeras faltas toleradas no descuentan; cada una extra descuenta la tarifa")
     void givenCountedFaultsThenOnlyThoseBeyondTheAllowanceAreDeducted(int exits, int free, double deduction,
                                                                      double expected) {
-        CountedFaultRule lineExits = new CountedFaultRule("Salidas de línea", LINE_EXITS, new FaultTariff(free, deduction));
+        CountedFaultRule lineExits = new CountedFaultRule("Salidas de línea", LINE_EXITS, new FaultTariff(free, Points.of(deduction)));
 
-        assertThat(subtotal(lineExits, measuring(LINE_EXITS, exits))).isEqualTo(expected);
+        assertThat(subtotal(lineExits, measuring(LINE_EXITS, exits))).isEqualTo(Points.of(expected));
     }
 
     @ParameterizedTest(name = "precisión {0} → {1} pts")
     @CsvSource({"0.0, 0.0", "0.5, 40.0", "1.0, 80.0"})
     @DisplayName("La precisión escala el máximo de puntos")
     void givenAPrecisionThenItScalesTheMaximumPoints(double precision, double expected) {
-        PrecisionRule rule = new PrecisionRule("Precisión", PRECISION, 80.0);
+        PrecisionRule rule = new PrecisionRule("Precisión", PRECISION, Points.of(80));
 
-        assertThat(subtotal(rule, measuring(PRECISION, precision))).isEqualTo(expected);
+        assertThat(subtotal(rule, measuring(PRECISION, precision))).isEqualTo(Points.of(expected));
     }
 
     @Test
     @DisplayName("Una precisión fuera de 0 a 1 se rechaza")
     void givenAPrecisionOutOfRangeThenTheEvaluationIsRejected() {
-        PrecisionRule rule = new PrecisionRule("Precisión", PRECISION, 80.0);
+        PrecisionRule rule = new PrecisionRule("Precisión", PRECISION, Points.of(80));
         RawMetrics outOfRange = measuring(PRECISION, 1.2);
 
         assertThatThrownBy(() -> rule.evaluate(outOfRange)).isInstanceOf(IllegalArgumentException.class);
@@ -61,24 +62,24 @@ class MeasuredRulesTest {
     @CsvSource({"4, 100.0", "3, 75.0", "0, 0.0"})
     @DisplayName("Cada víctima rescatada suma")
     void givenRescuedVictimsThenEachRescuedAdds(int rescued, double expected) {
-        VictimsRule rule = new VictimsRule("Víctimas rescatadas", RESCUED, 25.0);
+        VictimsRule rule = new VictimsRule("Víctimas rescatadas", RESCUED, Points.of(25));
 
-        assertThat(subtotal(rule, measuring(RESCUED, rescued))).isEqualTo(expected);
+        assertThat(subtotal(rule, measuring(RESCUED, rescued))).isEqualTo(Points.of(expected));
     }
 
     @ParameterizedTest(name = "{0} de 4 rescatadas → {1} pts")
     @CsvSource({"4, 0.0", "3, -10.0", "0, -40.0"})
     @DisplayName("Cada víctima que no se rescató resta, en una regla aparte")
     void givenRescuedVictimsThenEachAbandonedDeducts(int rescued, double expected) {
-        AbandonedVictimsRule rule = new AbandonedVictimsRule("Víctimas abandonadas", RESCUED, new VictimTariff(4, 10.0));
+        AbandonedVictimsRule rule = new AbandonedVictimsRule("Víctimas abandonadas", RESCUED, new VictimTariff(4, Points.of(10)));
 
-        assertThat(subtotal(rule, measuring(RESCUED, rescued))).isEqualTo(expected);
+        assertThat(subtotal(rule, measuring(RESCUED, rescued))).isEqualTo(Points.of(expected));
     }
 
     @Test
     @DisplayName("No se pueden rescatar más víctimas que las que hay en la pista")
     void givenMoreRescuedThanPlacedThenTheEvaluationIsRejected() {
-        AbandonedVictimsRule rule = new AbandonedVictimsRule("Víctimas abandonadas", RESCUED, new VictimTariff(4, 10.0));
+        AbandonedVictimsRule rule = new AbandonedVictimsRule("Víctimas abandonadas", RESCUED, new VictimTariff(4, Points.of(10)));
         RawMetrics fiveRescued = measuring(RESCUED, 5.0);
 
         assertThatThrownBy(() -> rule.evaluate(fiveRescued)).isInstanceOf(IllegalArgumentException.class);
@@ -88,16 +89,16 @@ class MeasuredRulesTest {
     @CsvSource({"12.0, 30.0", "10.0, 30.0", "9.5, 0.0"})
     @DisplayName("El hito alcanzado otorga el bonus completo; sin alcanzarlo, nada")
     void givenAMeasurementThenTheBonusIsGrantedOnlyFromTheThreshold(double meters, double expected) {
-        MilestoneBonusRule rule = new MilestoneBonusRule("Bonus por hito", new Milestone(DISTANCE, 10.0), 30.0);
+        MilestoneBonusRule rule = new MilestoneBonusRule("Bonus por hito", new Milestone(DISTANCE, 10.0), Points.of(30));
 
-        assertThat(subtotal(rule, measuring(DISTANCE, meters))).isEqualTo(expected);
+        assertThat(subtotal(rule, measuring(DISTANCE, meters))).isEqualTo(Points.of(expected));
     }
 
     @ParameterizedTest(name = "{0} víctimas")
     @CsvSource({"2.7", "-1.0", "NaN"})
     @DisplayName("Un conteo que no es un número entero no negativo se rechaza en vez de truncarse")
     void givenACountThatIsNotAWholeNumberThenTheEvaluationIsRejected(double rescued) {
-        VictimsRule rule = new VictimsRule("Víctimas rescatadas", RESCUED, 25.0);
+        VictimsRule rule = new VictimsRule("Víctimas rescatadas", RESCUED, Points.of(25));
         RawMetrics invalid = measuring(RESCUED, rescued);
 
         assertThatThrownBy(() -> rule.evaluate(invalid)).isInstanceOf(IllegalArgumentException.class);
@@ -106,7 +107,7 @@ class MeasuredRulesTest {
     @Test
     @DisplayName("Una precisión que no es un número se rechaza")
     void givenANotANumberPrecisionThenTheEvaluationIsRejected() {
-        PrecisionRule rule = new PrecisionRule("Precisión", PRECISION, 80.0);
+        PrecisionRule rule = new PrecisionRule("Precisión", PRECISION, Points.of(80));
         RawMetrics notANumber = measuring(PRECISION, Double.NaN);
 
         assertThatThrownBy(() -> rule.evaluate(notANumber)).isInstanceOf(IllegalArgumentException.class);
@@ -115,7 +116,7 @@ class MeasuredRulesTest {
     @Test
     @DisplayName("Sin la medición capturada la regla no inventa un cero: falla nombrando la métrica")
     void givenAMissingMeasurementThenTheRuleFailsNamingTheMetric() {
-        CountedFaultRule lineExits = new CountedFaultRule("Salidas de línea", LINE_EXITS, new FaultTariff(0, 5.0));
+        CountedFaultRule lineExits = new CountedFaultRule("Salidas de línea", LINE_EXITS, new FaultTariff(0, Points.of(5)));
         RawMetrics withoutExits = RawMetrics.of(60.0, 0, 0);
 
         assertThatThrownBy(() -> lineExits.evaluate(withoutExits))

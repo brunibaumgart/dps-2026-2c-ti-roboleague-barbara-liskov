@@ -3,6 +3,7 @@ package com.roboleague.api.demo;
 import com.roboleague.PostgresContainer;
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.MeasurementCheck;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.SourceDelivery;
@@ -65,16 +66,16 @@ class DemoFixtureTest {
         assertThat(official.official().orElseThrow().table().entries().getFirst().team().teamId())
                 .isEqualTo(TeamId.of("t-b"));
         assertThat(mazeAttemptOf("t-b").getOriginalSnapshot().breakdown().totalScore())
-                .isEqualTo(197.5);
-        assertThat(mazeAttemptOf("t-b").getFinalScore()).isEqualTo(257.5);
-        assertThat(mazeAttemptOf("t-a").getFinalScore()).isEqualTo(235.0);
+                .isEqualTo(Points.of(197.5));
+        assertThat(mazeAttemptOf("t-b").getScoreBreakdown().totalScore()).isEqualTo(Points.of(257.5));
+        assertThat(mazeAttemptOf("t-a").getScoreBreakdown().totalScore()).isEqualTo(Points.of(235));
     }
 
     @Test
     void theAppealLowersWhatTheDeductionsTookFromTitanTeam() {
         assertThat(mazeAttemptOf("t-b").getOriginalSnapshot().breakdown().deducted())
-                .isEqualTo(65.0);
-        assertThat(mazeAttemptOf("t-b").getScoreBreakdown().deducted()).isEqualTo(5.0);
+                .isEqualTo(Points.of(65));
+        assertThat(mazeAttemptOf("t-b").getScoreBreakdown().deducted()).isEqualTo(Points.of(5));
     }
 
     @Test
@@ -96,9 +97,9 @@ class DemoFixtureTest {
     @Test
     void theMazeAttemptsShowTheBonusCapInTheirBreakdown() {
         assertThat(mazeAttemptOf("t-a").getScoreBreakdown().items())
-                .anyMatch(item -> item.concept().equals("Tope de bonificaciones") && item.subtotal() == -10.0);
+                .anyMatch(item -> item.concept().equals("Tope de bonificaciones") && item.subtotal().equals(Points.of(-10)));
         assertThat(mazeAttemptOf("t-b").getOriginalSnapshot().breakdown().items())
-                .anyMatch(item -> item.concept().equals("Tope de bonificaciones") && item.subtotal() == -35.0);
+                .anyMatch(item -> item.concept().equals("Tope de bonificaciones") && item.subtotal().equals(Points.of(-35)));
     }
 
     @Test
@@ -108,7 +109,7 @@ class DemoFixtureTest {
         assertThat(scored.getDeliveries()).extracting(SourceDelivery::source)
                 .containsExactly(ResultSource.AUTOMATIC_MEASUREMENTS, ResultSource.JUDGE_PANEL);
         // 3 zones => 45; 3 victims => 75; judges 8 and 7 => 7.5 * 5 = 37.5; one victim abandoned => -10
-        assertThat(scored.countableScore()).hasValueSatisfying(score -> assertThat(score.totalScore()).isEqualTo(147.5));
+        assertThat(scored.countableScore()).hasValueSatisfying(score -> assertThat(score.totalScore()).isEqualTo(Points.of(147.5)));
 
         Attempt awaiting = attemptOf("t-b", "ch-rescue");
         assertThat(awaiting.getStatus()).isEqualTo(Attempt.AttemptStatus.AWAITING_SOURCES);

@@ -24,10 +24,10 @@ class BonusCapTest {
 
     private static final Metric ZONE = Metric.sensor("zona_alcanzada");
     private static final Metric DISTANCE = Metric.sensor("distancia_metros");
-    private static final BonusRule ZONE_BONUS = new MilestoneBonusRule("Bonus por zona", new Milestone(ZONE, 1.0), 30.0);
+    private static final BonusRule ZONE_BONUS = new MilestoneBonusRule("Bonus por zona", new Milestone(ZONE, 1.0), Points.of(30));
     private static final BonusRule DISTANCE_BONUS =
-            new MilestoneBonusRule("Bonus por distancia", new Milestone(DISTANCE, 10.0), 25.0);
-    private static final BaseRule TIME = TimeBasedRule.standard(100.0, 60.0);
+            new MilestoneBonusRule("Bonus por distancia", new Milestone(DISTANCE, 10.0), Points.of(25));
+    private static final BaseRule TIME = TimeBasedRule.standard(Points.of(100), 60.0);
     private static final MetricSheet MILESTONES = new MetricSheet(List.of(
             new MetricDefinition(ZONE, MeasurementUnit.COUNT, ValueRange.between(0.0, 1.0)),
             new MetricDefinition(DISTANCE, MeasurementUnit.METERS, ValueRange.atLeast(0.0))));
@@ -56,27 +56,27 @@ class BonusCapTest {
     @CsvSource({"40.0, 15.0, 140.0", "55.0, 0.0, 155.0", "100.0, 0.0, 155.0", "0.0, 55.0, 100.0"})
     @DisplayName("El tope recorta solo lo que la suma de bonificaciones supera y no toca las reglas base")
     void givenACapThenOnlyTheExcessOfTheBonusesIsCut(double cap, double expectedCut, double expectedTotal) {
-        ScoreBreakdown breakdown = rulebook(new CappedAt(cap)).evaluate(bothMilestonesAt60Seconds);
+        ScoreBreakdown breakdown = rulebook(new CappedAt(Points.of(cap))).evaluate(bothMilestonesAt60Seconds);
 
-        assertThat(capItem(breakdown).subtotal()).isEqualTo(-expectedCut);
-        assertThat(breakdown.totalScore()).isEqualTo(expectedTotal);
+        assertThat(capItem(breakdown).subtotal()).isEqualTo(Points.of(-expectedCut));
+        assertThat(breakdown.totalScore()).isEqualTo(Points.of(expectedTotal));
     }
 
     @Test
     @DisplayName("El tope se aplica sobre el conjunto: dos bonificaciones menores al tope se recortan si juntas lo superan")
     void givenBonusesEachUnderTheCapThenTheirSumIsStillCapped() {
-        ScoreBreakdown breakdown = rulebook(new CappedAt(40.0)).evaluate(bothMilestonesAt60Seconds);
+        ScoreBreakdown breakdown = rulebook(new CappedAt(Points.of(40))).evaluate(bothMilestonesAt60Seconds);
 
         assertThat(breakdown.items()).filteredOn(BonusCapTest::isBonus)
                 .extracting(ScoreItem::subtotal)
-                .containsExactly(30.0, 25.0);
-        assertThat(capItem(breakdown).subtotal()).isEqualTo(-15.0);
+                .containsExactly(Points.of(30), Points.of(25));
+        assertThat(capItem(breakdown).subtotal()).isEqualTo(Points.of(-15));
     }
 
     @Test
     @DisplayName("La explicación muestra las bonificaciones obtenidas, el tope aplicado y el recorte")
     void givenACapThenTheBreakdownShowsObtainedCapAndCut() {
-        ScoreItem cap = capItem(rulebook(new CappedAt(40.0)).evaluate(bothMilestonesAt60Seconds));
+        ScoreItem cap = capItem(rulebook(new CappedAt(Points.of(40))).evaluate(bothMilestonesAt60Seconds));
 
         assertThat(cap.rawMetric()).contains("55.0");
         assertThat(cap.appliedFormula()).contains("tope 40.0").contains("recorte -15.0");
@@ -85,7 +85,7 @@ class BonusCapTest {
     @Test
     @DisplayName("Agregar el tope no cambia lo que da cada regla de bonificación")
     void givenACapThenEachBonusRuleScoresTheSameAsWithoutIt() {
-        ScoreBreakdown capped = rulebook(new CappedAt(40.0)).evaluate(bothMilestonesAt60Seconds);
+        ScoreBreakdown capped = rulebook(new CappedAt(Points.of(40))).evaluate(bothMilestonesAt60Seconds);
         ScoreBreakdown uncapped = rulebook(new Unlimited()).evaluate(bothMilestonesAt60Seconds);
 
         List<ScoreItem> uncappedBonuses = uncapped.items().stream()
@@ -100,9 +100,9 @@ class BonusCapTest {
     @Test
     @DisplayName("Sin recorte, el tope aparece igual en la explicación con cero puntos")
     void givenBonusesUnderTheCapThenTheCapItemShowsNoCut() {
-        ScoreItem cap = capItem(rulebook(new CappedAt(100.0)).evaluate(bothMilestonesAt60Seconds));
+        ScoreItem cap = capItem(rulebook(new CappedAt(Points.of(100))).evaluate(bothMilestonesAt60Seconds));
 
-        assertThat(cap.subtotal()).isEqualTo(0.0).isNotNegative();
+        assertThat(cap.subtotal()).isEqualTo(Points.ZERO);
         assertThat(cap.appliedFormula()).contains("sin recorte");
     }
 
@@ -110,16 +110,16 @@ class BonusCapTest {
     @DisplayName("El tope se aplica antes del piso en cero: una penalización grande sigue llevando el total a cero")
     void givenACappedBonusAndALargePenaltyThenTheFloorAppliesAfterTheCap() {
         Rulebook rulebook = new Rulebook(RulebookVersion.first(), new ScoringScheme(MILESTONES,
-                new ScoreRules(List.of(), List.of(ZONE_BONUS, DISTANCE_BONUS), List.of(new PenaltyRule("Faltas", 100.0))),
-                new CappedAt(40.0)),
+                new ScoreRules(List.of(), List.of(ZONE_BONUS, DISTANCE_BONUS), List.of(new PenaltyRule("Faltas", Points.of(100)))),
+                new CappedAt(Points.of(40))),
                 ANY_RANKING);
         RawMetrics threeFaults = new RawMetrics(new TrackPerformance(60.0, 0, 3),
                 EvaluationFeedback.withMeasurements(Map.of(ZONE.name(), 1.0, DISTANCE.name(), 12.0)));
 
         ScoreBreakdown breakdown = rulebook.evaluate(threeFaults);
 
-        assertThat(capItem(breakdown).subtotal()).isEqualTo(-15.0);
-        assertThat(breakdown.totalScore()).isZero();
+        assertThat(capItem(breakdown).subtotal()).isEqualTo(Points.of(-15));
+        assertThat(breakdown.totalScore()).isEqualTo(Points.ZERO);
         assertThat(breakdown.items()).extracting(ScoreItem::concept).endsWith("Piso en cero");
     }
 
@@ -128,33 +128,33 @@ class BonusCapTest {
     @DisplayName("El bono por completar todos los objetivos es una bonificación más: el tope también lo recorta")
     void givenTheAllObjectivesBonusThenTheCapIncludesIt(int objectives, double expectedCut) {
         Rulebook rulebook = new Rulebook(RulebookVersion.first(), new ScoringScheme(MILESTONES, new ScoreRules(
-                List.of(TIME), List.of(ZONE_BONUS, DISTANCE_BONUS, new AllObjectivesBonusRule("Todos", 5, 25.0)),
-                List.of()), new CappedAt(40.0)), ANY_RANKING);
+                List.of(TIME), List.of(ZONE_BONUS, DISTANCE_BONUS, new AllObjectivesBonusRule("Todos", 5, Points.of(25))),
+                List.of()), new CappedAt(Points.of(40))), ANY_RANKING);
         RawMetrics run = new RawMetrics(new TrackPerformance(60.0, objectives, 0),
                 EvaluationFeedback.withMeasurements(Map.of(ZONE.name(), 1.0, DISTANCE.name(), 12.0)));
 
-        assertThat(capItem(rulebook.evaluate(run)).subtotal()).isEqualTo(-expectedCut);
+        assertThat(capItem(rulebook.evaluate(run)).subtotal()).isEqualTo(Points.of(-expectedCut));
     }
 
     @Test
     @DisplayName("Las deducciones no cuentan para el tope: se restan aparte de lo que se recorta")
     void givenDeductionsThenTheCapOnlyLooksAtTheBonuses() {
         Rulebook rulebook = new Rulebook(RulebookVersion.first(), new ScoringScheme(MILESTONES,
-                new ScoreRules(List.of(TIME), List.of(ZONE_BONUS, DISTANCE_BONUS), List.of(new PenaltyRule("Faltas", 10.0))),
-                new CappedAt(40.0)), ANY_RANKING);
+                new ScoreRules(List.of(TIME), List.of(ZONE_BONUS, DISTANCE_BONUS), List.of(new PenaltyRule("Faltas", Points.of(10)))),
+                new CappedAt(Points.of(40))), ANY_RANKING);
         RawMetrics twoFaults = new RawMetrics(new TrackPerformance(60.0, 0, 2),
                 EvaluationFeedback.withMeasurements(Map.of(ZONE.name(), 1.0, DISTANCE.name(), 12.0)));
 
         ScoreBreakdown breakdown = rulebook.evaluate(twoFaults);
 
-        assertThat(capItem(breakdown).subtotal()).isEqualTo(-15.0);
-        assertThat(breakdown.totalScore()).isEqualTo(100.0 + 55.0 - 15.0 - 20.0);
+        assertThat(capItem(breakdown).subtotal()).isEqualTo(Points.of(-15));
+        assertThat(breakdown.totalScore()).isEqualTo(Points.of(100.0 + 55.0 - 15.0 - 20.0));
     }
 
     @Test
     @DisplayName("El recorte del tope no pertenece a ninguna fuente")
     void givenACapThenTheCutIsNotPartOfAnySourceContribution() {
-        Rulebook capped = rulebook(new CappedAt(40.0));
+        Rulebook capped = rulebook(new CappedAt(Points.of(40)));
 
         assertThat(capped.contributions(bothMilestonesAt60Seconds))
                 .flatExtracting(SourceContribution::items)

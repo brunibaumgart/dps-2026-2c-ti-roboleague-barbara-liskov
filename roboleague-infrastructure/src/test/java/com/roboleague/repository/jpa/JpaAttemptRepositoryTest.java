@@ -14,6 +14,7 @@ import com.roboleague.evaluation.Measurements;
 import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.MetricDefinition;
 import com.roboleague.evaluation.MetricSheet;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookReference;
 import com.roboleague.evaluation.RulebookVersion;
@@ -68,11 +69,11 @@ class JpaAttemptRepositoryTest {
     private static final Metric RESCUED = Metric.judged("victimas_rescatadas");
     private static final Rulebook RESCUE = new Rulebook(RulebookVersion.first(), new ScoringScheme(
             new MetricSheet(List.of(new MetricDefinition(RESCUED, MeasurementUnit.COUNT, ValueRange.between(0.0, 4.0)))),
-            new ScoreRules(List.of(new ObjectivesRule("Zonas despejadas", 15.0),
-                    new VictimsRule("Víctimas rescatadas", RESCUED, 25.0), new JudgeSubjectiveRule("Panel técnico", 5.0)),
-                    List.of(new AllObjectivesBonusRule("Todas las zonas", 4, 20.0)),
-                    List.of(new PenaltyRule("Faltas", 10.0))),
-            new CappedAt(10.0)), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
+            new ScoreRules(List.of(new ObjectivesRule("Zonas despejadas", Points.of(15)),
+                    new VictimsRule("Víctimas rescatadas", RESCUED, Points.of(25)), new JudgeSubjectiveRule("Panel técnico", 5.0)),
+                    List.of(new AllObjectivesBonusRule("Todas las zonas", 4, Points.of(20))),
+                    List.of(new PenaltyRule("Faltas", Points.of(10)))),
+            new CappedAt(Points.of(10))), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
     private static final SourceDelivery SENSORS = new SourceDelivery(
             new Measurements(new TrackPerformance(90.0, 4, 1), 12.5, Map.of()), JudgeId.of("j-1"));
     private static final SourceDelivery PANEL = new SourceDelivery(
@@ -172,7 +173,7 @@ class JpaAttemptRepositoryTest {
         assertThat(stored.getRulebookReference()).isEqualTo(new RulebookReference(ChallengeId.of("ch-rescue"), RulebookVersion.first()));
         stored.receive(PANEL, RESCUE, audit());
         // 4 zones => 60; 2 victims => 50; judges 7 * 5 => 35; bonus 20 capped at 10; 1 fault => -10
-        assertThat(stored.getFinalScore()).isEqualTo(145.0);
+        assertThat(stored.getScoreBreakdown().totalScore()).isEqualTo(Points.of(145));
     }
 
     @Test
@@ -197,7 +198,7 @@ class JpaAttemptRepositoryTest {
         assertThat(stored.getEventHistory()).extracting(AttemptEvent::eventType).containsExactly(
                 "SOURCE_RECEIVED", "SOURCE_RECEIVED", "RESULT_REGISTERED", "PENALTY_APPLIED", "SCORE_ADJUSTED",
                 "APPEAL_ACCEPTED", "SCORE_ADJUSTED");
-        assertThat(stored.getFinalScore()).isEqualTo(155.0);
+        assertThat(stored.getScoreBreakdown().totalScore()).isEqualTo(Points.of(155));
     }
 
     @Test

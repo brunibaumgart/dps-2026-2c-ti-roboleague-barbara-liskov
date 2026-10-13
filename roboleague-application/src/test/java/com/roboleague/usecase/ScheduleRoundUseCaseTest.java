@@ -34,7 +34,8 @@ class ScheduleRoundUseCaseTest {
     private static Challenge challenge(String id, String edition) {
         return Challenge.draft(ChallengeId.of(id), EditionId.of(edition), "Challenge").publish(
                 com.roboleague.evaluation.ScoringScheme.withoutBonuses(
-                        List.of(new com.roboleague.evaluation.rules.ObjectivesRule("Objectives", 1)), List.of()),
+                        List.of(new com.roboleague.evaluation.rules.ObjectivesRule("Objectives",
+                                com.roboleague.evaluation.Points.of(1))), List.of()),
                 new com.roboleague.evaluation.scheme.RankingScheme(new com.roboleague.evaluation.scheme.AllRounds(),
                         List.of(new com.roboleague.evaluation.scheme.HigherTotal())));
     }

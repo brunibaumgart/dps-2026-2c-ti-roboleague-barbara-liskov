@@ -4,6 +4,7 @@ import com.roboleague.evaluation.definition.Parameters;
 import com.roboleague.evaluation.definition.RuleArguments;
 import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.Metric;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
@@ -36,7 +37,7 @@ public final class AbandonedVictimsRule implements DeductionRule {
         RuleArguments arguments = definition.arguments();
         Parameters numbers = arguments.numbers();
         return new AbandonedVictimsRule(definition.name(), arguments.metric(RESCUED),
-                new VictimTariff(numbers.whole(TOTAL_VICTIMS), numbers.number(DEDUCTION_PER_ABANDONED)));
+                new VictimTariff(numbers.whole(TOTAL_VICTIMS), numbers.points(DEDUCTION_PER_ABANDONED)));
     }
 
     @Override
@@ -72,8 +73,8 @@ public final class AbandonedVictimsRule implements DeductionRule {
         ScoreItem item = ScoreItem.of(
                 ruleName,
                 String.format(Locale.US, "%d / %d abandonadas", abandoned, tariff.totalVictims()),
-                String.format(Locale.US, "%d * -%.1f pts", abandoned, tariff.deductionPerAbandoned()),
-                -(abandoned * tariff.deductionPerAbandoned())
+                String.format(Locale.US, "%d * -%.1f pts", abandoned, tariff.deductionPerAbandoned().toBigDecimal()),
+                tariff.deductionPerAbandoned().times(abandoned).negate()
         );
         return RuleEvaluation.of(item, String.format(Locale.US, "%s: %d abandonadas", ruleName, abandoned));
     }

@@ -7,6 +7,7 @@ import com.roboleague.evaluation.MeasurementUnit;
 import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.MetricDefinition;
 import com.roboleague.evaluation.MetricSheet;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.RuleCatalog;
 import com.roboleague.evaluation.Rulebook;
@@ -87,12 +88,12 @@ class JpaChallengeRepositoryTest {
                 new MetricDefinition(CHECKPOINT, MeasurementUnit.COUNT, ValueRange.between(0.0, 1.0))));
         return new ScoringScheme(metrics, new ScoreRules(
                 List.of(new CompositeScoreRule("Desempeño en pista", List.of(
-                        TimeBasedRule.standard(100.0, 60.0), ObjectivesRule.standard(20.0)))),
-                List.of(new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), 30.0),
-                        new AllObjectivesBonusRule("Todos los objetivos", 5, 25.0)),
-                List.of(new PenaltyRule("Faltas", 15.0),
-                        new CountedFaultRule("Colisiones", COLLISIONS, new FaultTariff(1, 5.0)))),
-                new CappedAt(cap));
+                        TimeBasedRule.standard(Points.of(100), 60.0), ObjectivesRule.standard(Points.of(20))))),
+                List.of(new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), Points.of(30)),
+                        new AllObjectivesBonusRule("Todos los objetivos", 5, Points.of(25))),
+                List.of(new PenaltyRule("Faltas", Points.of(15)),
+                        new CountedFaultRule("Colisiones", COLLISIONS, new FaultTariff(1, Points.of(5))))),
+                new CappedAt(Points.of(cap)));
     }
 
     private Challenge mazeWithTwoVersions(String id) {
@@ -133,7 +134,7 @@ class JpaChallengeRepositoryTest {
             assertThat(restored.evaluate(run)).isEqualTo(original.evaluate(run));
         }
         assertThat(stored.currentRulebook().evaluate(run).items())
-                .anyMatch(item -> item.concept().equals("Tope de bonificaciones") && item.subtotal() == -35.0);
+                .anyMatch(item -> item.concept().equals("Tope de bonificaciones") && item.subtotal().equals(Points.of(-35)));
         assertThat(stored.currentRulebook().rankingScheme().roundSelection()).isEqualTo(new BestNOfM(3, 5));
     }
 

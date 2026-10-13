@@ -8,6 +8,7 @@ import jakarta.persistence.Version;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -43,7 +44,7 @@ class StandingsJpaEntity {
                      List<RoundJson> discarded, String selectionRule) {
     }
 
-    record RoundJson(String roundId, String attemptId, double total) {
+    record RoundJson(String roundId, String attemptId, BigDecimal total) {
     }
 
     record PublicationJson(int version, String publishedAt, String authorId, String reason) {

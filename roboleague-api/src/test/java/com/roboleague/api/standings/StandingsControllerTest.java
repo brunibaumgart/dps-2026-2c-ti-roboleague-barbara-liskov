@@ -1,6 +1,7 @@
 package com.roboleague.api.standings;
 
 import com.roboleague.api.ApiTest;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.rules.ObjectivesRule;
 import com.roboleague.evaluation.scheme.AllRounds;
@@ -186,7 +187,7 @@ class StandingsControllerTest extends ApiTest {
     private String openChallenge(String suffix) {
         String challenge = "ch-api-std-" + suffix + "-" + NEXT.incrementAndGet();
         challenges.save(Challenge.draft(ChallengeId.of(challenge), EditionId.of(EDITION), "Laberinto").publish(
-                ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objetivos", 20.0)), List.of()),
+                ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objetivos", Points.of(20))), List.of()),
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal()))));
         schedule(challenge, "slot-api-std-" + suffix + "-a", TEAM_A, 0);
         schedule(challenge, "slot-api-std-" + suffix + "-b", TEAM_B, 1);

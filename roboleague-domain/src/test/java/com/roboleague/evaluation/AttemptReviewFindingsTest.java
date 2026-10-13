@@ -32,8 +32,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class AttemptReviewFindingsTest {
 
     private static final Rulebook RULEBOOK = new Rulebook(RulebookVersion.first(),
-            ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0)),
-                    List.of(new PenaltyRule("Faltas", 10.0))),
+            ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", Points.of(100), 60.0, 1.0, 2.0, Points.ZERO)),
+                    List.of(new PenaltyRule("Faltas", Points.of(10)))),
             new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
 
     @Test
@@ -61,8 +61,8 @@ class AttemptReviewFindingsTest {
         attempt.adjustAfterAppeal(new AppealRevision(AppealId.of("app-1"), RawMetrics.of(50.0, 0, 0),
                 new AuditNote(ActorId.of("arb-1"), "Las faltas no existieron")), RULEBOOK, audit());
 
-        assertThat(attempt.getOriginalSnapshot().breakdown().totalScore()).isEqualTo(70.0);
-        assertThat(attempt.getFinalScore()).isEqualTo(110.0);
+        assertThat(attempt.getOriginalSnapshot().breakdown().totalScore()).isEqualTo(Points.of(70));
+        assertThat(attempt.getScoreBreakdown().totalScore()).isEqualTo(Points.of(110));
         assertThat(attempt.getLatestSnapshot().authorOrJudgeId()).isEqualTo(ActorId.of("arb-1"));
     }
 
@@ -84,8 +84,8 @@ class AttemptReviewFindingsTest {
         Attempt attempt = scoredAttempt();
         attempt.markUnderAppeal();
         Rulebook harsher = new Rulebook(RulebookVersion.first().next(),
-                ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0)),
-                        List.of(new PenaltyRule("Faltas", 100.0))),
+                ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", Points.of(100), 60.0, 1.0, 2.0, Points.ZERO)),
+                        List.of(new PenaltyRule("Faltas", Points.of(100)))),
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
 
         assertThatThrownBy(() -> attempt.adjustAfterAppeal(new AppealRevision(AppealId.of("app-1"), RawMetrics.of(50.0, 0, 1),
@@ -127,7 +127,7 @@ class AttemptReviewFindingsTest {
     @DisplayName("Hallazgo 3: un intento descalificado no tiene puntaje que cuente para la tabla")
     void givenADisqualifiedAttemptThenItHasNoCountableScore() {
         Attempt attempt = scoredAttempt();
-        assertThat(attempt.countableScore()).hasValueSatisfying(score -> assertThat(score.totalScore()).isEqualTo(70.0));
+        assertThat(attempt.countableScore()).hasValueSatisfying(score -> assertThat(score.totalScore()).isEqualTo(Points.of(70)));
 
         attempt.disqualify("robot fuera de pista", JudgeId.of("j-1"), audit());
 

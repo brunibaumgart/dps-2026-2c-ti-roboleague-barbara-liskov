@@ -1,6 +1,7 @@
 package com.roboleague.api;
 
 import com.roboleague.PostgresContainer;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.rules.TimeBasedRule;
 import com.roboleague.evaluation.scheme.AllRounds;
@@ -83,7 +84,7 @@ class TransactionalUseCasesTest {
     @DisplayName("Si un caso de uso falla después de guardar, no queda nada guardado")
     void givenAUseCaseThatFailsAfterSavingThenNothingIsSaved() {
         Challenge maze = Challenge.draft(ChallengeId.of("tx-ch-1"), EditionId.of("ed-tx"), "Laberinto").publish(
-                ScoringScheme.withoutBonuses(List.of(TimeBasedRule.standard(100.0, 60.0)), List.of()),
+                ScoringScheme.withoutBonuses(List.of(TimeBasedRule.standard(Points.of(100), 60.0)), List.of()),
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
 
         assertThatThrownBy(() -> saveThenFail.execute(maze)).hasMessage("the second save failed");

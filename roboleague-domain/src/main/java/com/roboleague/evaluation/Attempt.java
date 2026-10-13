@@ -130,11 +130,6 @@ public class Attempt {
         return latest != null ? latest.breakdown() : ScoreBreakdown.empty();
     }
 
-    public double getFinalScore() {
-        ScoreBreakdown breakdown = getScoreBreakdown();
-        return breakdown != null ? breakdown.totalScore() : 0.0;
-    }
-
     /**
      * The score that counts for the standings: the latest revision while the attempt is scored, nothing before
      * it is scored or once it is disqualified.

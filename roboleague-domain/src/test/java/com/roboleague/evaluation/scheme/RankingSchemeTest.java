@@ -5,6 +5,7 @@ import com.roboleague.evaluation.MeasurementUnit;
 import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.MetricDefinition;
 import com.roboleague.evaluation.MetricSheet;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.ScoreRules;
@@ -112,10 +113,10 @@ class RankingSchemeTest {
                 new MetricDefinition(precision, MeasurementUnit.RATIO, ValueRange.between(0.0, 1.0)),
                 new MetricDefinition(lineExits, MeasurementUnit.COUNT, ValueRange.atLeast(0.0)))),
                 new ScoreRules(
-                        List.of(TimeBasedRule.of("Tiempo de vuelta", 100.0, 90.0, 1.0, 1.0, 0.0),
-                                new PrecisionRule("Precisión", precision, 50.0)),
+                        List.of(TimeBasedRule.of("Tiempo de vuelta", Points.of(100), 90.0, 1.0, 1.0, Points.ZERO),
+                                new PrecisionRule("Precisión", precision, Points.of(50))),
                         List.of(),
-                        List.of(new CountedFaultRule("Salidas de línea", lineExits, new FaultTariff(2, 10.0)))),
+                        List.of(new CountedFaultRule("Salidas de línea", lineExits, new FaultTariff(2, Points.of(10))))),
                 new Unlimited());
         ChallengeScore fastWithExits = allOf(scoredRound(lineFollower, 80.0,
                 Map.of(precision.name(), 0.8, lineExits.name(), 3.0)));
@@ -124,7 +125,7 @@ class RankingSchemeTest {
         RankingScheme scheme = new RankingScheme(new AllRounds(),
                 List.of(new HigherTotal(), new LowerDeductions(), new LowerTime()));
 
-        assertThat(fastWithExits.total()).isEqualTo(140.0).isEqualTo(slowClean.total());
+        assertThat(fastWithExits.total()).isEqualTo(Points.of(140)).isEqualTo(slowClean.total());
         assertThat(scheme.decide(slowClean, fastWithExits))
                 .isEqualTo(new TieBreakDecision.DecidedBy("Menor descuento por penalizaciones", -1));
     }

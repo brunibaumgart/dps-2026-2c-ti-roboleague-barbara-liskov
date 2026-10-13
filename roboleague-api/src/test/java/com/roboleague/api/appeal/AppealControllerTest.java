@@ -2,6 +2,7 @@ package com.roboleague.api.appeal;
 
 import com.roboleague.api.ApiTest;
 import com.roboleague.evaluation.AttemptId;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.TimeBasedRule;
@@ -246,8 +247,8 @@ class AppealControllerTest extends ApiTest {
         String challenge = "ch-api-app-" + suffix;
         String slot = "slot-api-app-" + suffix;
         challenges.save(Challenge.draft(ChallengeId.of(challenge), EditionId.of(EDITION), "Laberinto").publish(
-                ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0)),
-                        List.of(new PenaltyRule("Faltas", 10.0))),
+                ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", Points.of(100), 60.0, 1.0, 2.0, Points.ZERO)),
+                        List.of(new PenaltyRule("Faltas", Points.of(10)))),
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal()))));
         Round round = Round.of(RoundInfo.of(RoundId.of("round-" + slot), "Ronda",
                 RoundScope.of(ChallengeId.of(challenge), EditionId.of(EDITION), CategoryId.of(CATEGORY), NEXT.incrementAndGet())));

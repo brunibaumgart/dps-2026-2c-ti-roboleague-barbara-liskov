@@ -84,7 +84,7 @@ class RuleCatalogTest {
 
     private static RulebookDefinition declaring(List<MetricDeclaration> metrics) {
         return new RulebookDefinition(metrics, new RulebookDefinition.Scoring(
-                List.of(), NO_BONUSES, List.of(new PenaltyRule("Faltas", 10.0).definition())),
+                List.of(), NO_BONUSES, List.of(new PenaltyRule("Faltas", Points.of(10)).definition())),
                 new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("higher-total")));
     }
 
@@ -113,8 +113,8 @@ class RuleCatalogTest {
     }
 
     static Stream<Arguments> everyRuleType() {
-        TimeBasedRule time = TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.5, 2.0, 0.0);
-        ObjectivesRule objectives = new ObjectivesRule("Objetivos", 20.0);
+        TimeBasedRule time = TimeBasedRule.of("Tiempo", Points.of(100), 60.0, 1.5, 2.0, Points.ZERO);
+        ObjectivesRule objectives = new ObjectivesRule("Objetivos", Points.of(20));
         Named<Function<RuleDefinition, RulebookDefinition>> base = Named.of("base", RuleCatalogTest::withRule);
         Named<Function<RuleDefinition, RulebookDefinition>> bonus = Named.of("bonificación", RuleCatalogTest::withBonus);
         Named<Function<RuleDefinition, RulebookDefinition>> deduction =
@@ -123,20 +123,20 @@ class RuleCatalogTest {
                 Arguments.of(Named.of("tiempo", time), base),
                 Arguments.of(Named.of("objetivos", objectives), base),
                 Arguments.of(Named.of("panel de jueces", new JudgeSubjectiveRule("Jueces", 5.0)), base),
-                Arguments.of(Named.of("precisión", new PrecisionRule("Precisión", PRECISION, 50.0)), base),
-                Arguments.of(Named.of("víctimas", new VictimsRule("Víctimas", RESCUED, 25.0)), base),
+                Arguments.of(Named.of("precisión", new PrecisionRule("Precisión", PRECISION, Points.of(50))), base),
+                Arguments.of(Named.of("víctimas", new VictimsRule("Víctimas", RESCUED, Points.of(25))), base),
                 Arguments.of(Named.of("compuesta", new CompositeScoreRule("Desempeño en pista",
                         List.of(time, objectives))), base),
                 Arguments.of(Named.of("hito", new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0),
-                        30.0)), bonus),
+                        Points.of(30))), bonus),
                 Arguments.of(Named.of("todos los objetivos", new AllObjectivesBonusRule("Todos los objetivos", 5,
-                        25.0)), bonus),
-                Arguments.of(Named.of("faltas", new PenaltyRule("Faltas", 15.0)), deduction),
+                        Points.of(25))), bonus),
+                Arguments.of(Named.of("faltas", new PenaltyRule("Faltas", Points.of(15))), deduction),
                 Arguments.of(Named.of("faltas contadas", new CountedFaultRule("Colisiones", COLLISIONS,
-                        new FaultTariff(1, 5.0))), deduction),
+                        new FaultTariff(1, Points.of(5)))), deduction),
                 Arguments.of(Named.of("consumo", new ResourceConsumptionRule("Consumo", 80.0, 0.5)), deduction),
                 Arguments.of(Named.of("víctimas abandonadas", new AbandonedVictimsRule("Víctimas abandonadas",
-                        RESCUED, new VictimTariff(4, 10.0))), deduction)
+                        RESCUED, new VictimTariff(4, Points.of(10)))), deduction)
         );
     }
 
@@ -148,9 +148,9 @@ class RuleCatalogTest {
     }
 
     static Stream<Arguments> misplacedRules() {
-        RuleDefinition penalty = new PenaltyRule("Faltas", 15.0).definition();
-        RuleDefinition milestone = new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), 30.0).definition();
-        RuleDefinition time = TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.5, 2.0, 0.0).definition();
+        RuleDefinition penalty = new PenaltyRule("Faltas", Points.of(15)).definition();
+        RuleDefinition milestone = new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), Points.of(30)).definition();
+        RuleDefinition time = TimeBasedRule.of("Tiempo", Points.of(100), 60.0, 1.5, 2.0, Points.ZERO).definition();
         return Stream.of(
                 Arguments.of(Named.of("penalización entre las bonificaciones", withBonus(penalty)),
                         "rule 'Faltas': type 'penalty' is a deduction, not a bonus"),
@@ -168,9 +168,9 @@ class RuleCatalogTest {
     @DisplayName("El tope, la selección de rondas y los criterios también se describen y se reconstruyen")
     void givenSchemesThenTheirDefinitionsRebuildEqualSchemes() {
         ScoringScheme scoring = new ScoringScheme(DECLARED, new ScoreRules(
-                List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.5, 2.0, 0.0)),
-                List.of(new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), 30.0)),
-                List.of(new PenaltyRule("Faltas", 10.0))), new CappedAt(40.0));
+                List.of(TimeBasedRule.of("Tiempo", Points.of(100), 60.0, 1.5, 2.0, Points.ZERO)),
+                List.of(new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), Points.of(30))),
+                List.of(new PenaltyRule("Faltas", Points.of(10)))), new CappedAt(Points.of(40)));
         RankingScheme ranking = new RankingScheme(new BestNOfM(3, 5),
                 List.of(new HigherTotal(), new LowerTime(), new LowerDeductions(), new HigherJudgeScore()));
 
@@ -207,7 +207,7 @@ class RuleCatalogTest {
     }
 
     static Stream<Arguments> invalidRulebooks() {
-        RuleDefinition time = TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.5, 2.0, 0.0).definition();
+        RuleDefinition time = TimeBasedRule.of("Tiempo", Points.of(100), 60.0, 1.5, 2.0, Points.ZERO).definition();
         Parameters timeNumbers = time.arguments().numbers();
         return Stream.of(
                 Arguments.of(Named.of("tipo de regla desconocido",
@@ -223,6 +223,10 @@ class RuleCatalogTest {
                 Arguments.of(Named.of("base negativa", withRule(new RuleDefinition("time", "Tiempo",
                                 RuleArguments.of(timeNumbers.with("basePoints", -100.0))))),
                         "rule 'Tiempo': basePoints cannot be negative"),
+                Arguments.of(Named.of("puntos con más de dos decimales", withDeduction(new RuleDefinition("penalty",
+                                "Faltas", RuleArguments.of(Parameters.none().with("deductionPerPenalty", 12.345))))),
+                        "rule 'Faltas': parameter 'deductionPerPenalty' is an amount of points and takes at most "
+                                + "2 decimals: 12.345"),
                 Arguments.of(Named.of("métrica faltante",
                         withRule(new RuleDefinition("precision", "Precisión",
                                 RuleArguments.of(Parameters.none().with("maxPoints", 50.0))))),
@@ -262,7 +266,7 @@ class RuleCatalogTest {
                                         .with("deductionPerPenaltyy", 7.0))))),
                         "rule 'Faltas': unknown parameter 'deductionPerPenaltyy'"),
                 Arguments.of(Named.of("rol de métrica desconocido", withDeduction(new RuleDefinition("counted-fault",
-                                "Colisiones", new CountedFaultRule("Colisiones", COLLISIONS, new FaultTariff(1, 5.0))
+                                "Colisiones", new CountedFaultRule("Colisiones", COLLISIONS, new FaultTariff(1, Points.of(5)))
                                         .definition().arguments().withMetric("collisions", COLLISIONS)))),
                         "rule 'Colisiones': unknown metric 'collisions'"),
                 Arguments.of(Named.of("reglas dentro de una regla que no las lleva", withRule(new RuleDefinition("time",
@@ -288,11 +292,11 @@ class RuleCatalogTest {
                                 collisionsWithin(Parameters.none().with("min", 0.0).with("maximum", 4.0))))),
                         "metric 'colisiones': unknown parameter 'maximum'"),
                 Arguments.of(Named.of("métrica no declarada", withDeduction(new CountedFaultRule("Colisiones",
-                                Metric.sensor("colision"), new FaultTariff(1, 5.0)).definition())),
+                                Metric.sensor("colision"), new FaultTariff(1, Points.of(5))).definition())),
                         "scoring: rule 'Colisiones' reads metric 'colision' (AUTOMATIC_MEASUREMENTS), "
                                 + "which the rulebook does not declare"),
                 Arguments.of(Named.of("métrica de otra fuente", withDeduction(new CountedFaultRule("Colisiones",
-                                Metric.judged("colisiones"), new FaultTariff(1, 5.0)).definition())),
+                                Metric.judged("colisiones"), new FaultTariff(1, Points.of(5))).definition())),
                         "scoring: rule 'Colisiones' reads metric 'colisiones' (JUDGE_PANEL), "
                                 + "which the rulebook does not declare")
         );
@@ -325,7 +329,7 @@ class RuleCatalogTest {
     @DisplayName("Una regla compuesta se reconstruye con sus hijas")
     void givenACompositeThenItsChildrenAreRebuilt() {
         CompositeScoreRule track = new CompositeScoreRule("Desempeño en pista", List.of(
-                TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.5, 2.0, 0.0), new ObjectivesRule("Objetivos", 20.0)));
+                TimeBasedRule.of("Tiempo", Points.of(100), 60.0, 1.5, 2.0, Points.ZERO), new ObjectivesRule("Objetivos", Points.of(20))));
 
         RulebookDefinition.Scoring rebuilt = scoringOf(catalog.assemble(withRule(track.definition())));
 

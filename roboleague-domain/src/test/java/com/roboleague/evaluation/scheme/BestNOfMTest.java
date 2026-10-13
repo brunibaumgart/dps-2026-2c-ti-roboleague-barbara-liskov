@@ -1,5 +1,6 @@
 package com.roboleague.evaluation.scheme;
 
+import com.roboleague.evaluation.Points;
 import com.roboleague.scheduling.RoundId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,7 +33,7 @@ class BestNOfMTest {
 
         assertThat(score.considered()).extracting(RoundScore::roundId).containsExactlyElementsOf(considered.stream().map(RoundId::of).toList());
         assertThat(score.considered().size() + score.discarded().size()).isEqualTo(rounds.size());
-        assertThat(score.total()).isEqualTo(expectedTotal);
+        assertThat(score.total()).isEqualTo(Points.of(expectedTotal));
         assertThat(score.selectionRule()).isEqualTo("mejores " + n + " de " + m + " rondas");
     }
 
@@ -84,7 +85,7 @@ class BestNOfMTest {
         ChallengeScore score = new AllRounds().select(List.of(round("r1", 10.0), round("r2", 20.0)));
 
         assertThat(score.discarded()).isEmpty();
-        assertThat(score.total()).isEqualTo(30.0);
+        assertThat(score.total()).isEqualTo(Points.of(30));
     }
 
     @Test
@@ -92,7 +93,7 @@ class BestNOfMTest {
     void givenNoRoundsThenThereIsNoBestTimeNorJudgeScore() {
         ChallengeScore score = new BestNOfM(2, 3).select(List.of());
 
-        assertThat(score.total()).isZero();
+        assertThat(score.total()).isEqualTo(Points.ZERO);
         assertThat(score.bestTime()).isEmpty();
         assertThat(score.judgeScore()).isEmpty();
     }

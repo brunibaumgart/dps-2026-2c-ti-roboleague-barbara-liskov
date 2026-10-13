@@ -2,6 +2,7 @@ package com.roboleague.usecase;
 
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.Measurements;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.SourceDelivery;
 import com.roboleague.evaluation.TrackPerformance;
@@ -76,7 +77,7 @@ class StandingsUseCasesTest {
     private final Category rescue = category("rescue", 1, 4, 14, 25, 2000);
     private final Edition edition = edition("ed-1", DATE, maze, rescue);
     private final Challenge challenge = Challenge.draft(ChallengeId.of("ch-1"), edition.getId(), "Laberinto")
-            .publish(ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objetivos", 20.0)), List.of()),
+            .publish(ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objetivos", Points.of(20))), List.of()),
                     new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
     private final StandingsId mazeStandings = new StandingsId(challenge.getId(), maze.id());
 
@@ -98,7 +99,7 @@ class StandingsUseCasesTest {
     void theStandingsTakeTheRegisteredTeamsOfTheCategory() {
         assertThat(recalculate.execute(mazeStandings).latest().table().entries())
                 .extracting(entry -> entry.team().teamId(), StandingsEntry::total)
-                .containsExactly(tuple(TeamId.of("team-a"), 40.0), tuple(TeamId.of("team-b"), 0.0));
+                .containsExactly(tuple(TeamId.of("team-a"), Points.of(40)), tuple(TeamId.of("team-b"), Points.ZERO));
     }
 
     @Test

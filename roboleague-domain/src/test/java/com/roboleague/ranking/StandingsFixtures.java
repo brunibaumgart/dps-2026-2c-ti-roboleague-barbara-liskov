@@ -4,6 +4,7 @@ import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.AttemptIdentity;
 import com.roboleague.evaluation.Measurements;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookReference;
 import com.roboleague.evaluation.RulebookVersion;
@@ -38,7 +39,7 @@ final class StandingsFixtures {
     static final RankingScheme BEST_2_OF_3 = new RankingScheme(new BestNOfM(2, 3),
             List.of(new HigherTotal(), new LowerTime(), new LowerDeductions()));
     static final Rulebook RULEBOOK = new Rulebook(RulebookVersion.first(), ScoringScheme.withoutBonuses(
-            List.of(new ObjectivesRule("Objetivos", 20.0)), List.of(new PenaltyRule("Faltas", 10.0))), BEST_2_OF_3);
+            List.of(new ObjectivesRule("Objetivos", Points.of(20))), List.of(new PenaltyRule("Faltas", Points.of(10)))), BEST_2_OF_3);
 
     private StandingsFixtures() {
     }

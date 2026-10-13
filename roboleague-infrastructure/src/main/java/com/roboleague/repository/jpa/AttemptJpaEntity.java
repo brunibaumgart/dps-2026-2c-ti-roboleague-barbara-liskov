@@ -8,6 +8,7 @@ import jakarta.persistence.Version;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -60,7 +61,7 @@ class AttemptJpaEntity {
     record SectionJson(List<ItemJson> items, List<String> notes) {
     }
 
-    record ItemJson(String concept, String rawMetric, String formula, double subtotal) {
+    record ItemJson(String concept, String rawMetric, String formula, BigDecimal subtotal) {
     }
 
     /** One event of any kind; the fields it does not use stay null. */

@@ -42,7 +42,7 @@ public record BestNOfM(int considered, int outOf) implements RoundSelection {
         }
         Set<RoundScore> best = Collections.newSetFromMap(new IdentityHashMap<>());
         rounds.stream()
-                .sorted(Comparator.comparingDouble(RoundScore::total).reversed())
+                .sorted(Comparator.comparing(RoundScore::total).reversed())
                 .limit(considered)
                 .forEach(best::add);
         List<RoundScore> counted = new ArrayList<>();

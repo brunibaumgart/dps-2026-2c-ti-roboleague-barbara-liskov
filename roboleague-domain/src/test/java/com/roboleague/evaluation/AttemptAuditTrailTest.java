@@ -34,8 +34,8 @@ class AttemptAuditTrailTest {
 
     @BeforeEach
     void setUp() {
-        TimeBasedRule timeRule = new TimeBasedRule("Tiempo", TimeRuleConfig.of(100.0, 60.0, 1.0, 2.0, 0.0));
-        PenaltyRule penaltyRule = new PenaltyRule("Penalizaciones", 10.0);
+        TimeBasedRule timeRule = new TimeBasedRule("Tiempo", TimeRuleConfig.of(Points.of(100), 60.0, 1.0, 2.0, Points.ZERO));
+        PenaltyRule penaltyRule = new PenaltyRule("Penalizaciones", Points.of(10));
         standardPolicy = new Rulebook(RulebookVersion.first(),
                 ScoringScheme.withoutBonuses(List.of(timeRule), List.of(penaltyRule)),
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
@@ -51,7 +51,7 @@ class AttemptAuditTrailTest {
 
         assertThat(attempt.getRevisionHistory()).hasSize(1);
         assertThat(attempt.getEventHistory()).hasSize(2); // SourceReceived + ResultRegistered
-        assertThat(attempt.getFinalScore()).isEqualTo(110.0);
+        assertThat(attempt.getScoreBreakdown().totalScore()).isEqualTo(Points.of(110));
         assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.EVALUATED);
 
         // Later, video review identifies 2 track infractions (penalties)
@@ -68,17 +68,17 @@ class AttemptAuditTrailTest {
         assertThat(rev1.revisionNumber()).isEqualTo(1);
         assertThat(rev1.authorOrJudgeId()).isEqualTo(ActorId.of("judge-alfa"));
         assertThat(rev1.metrics().penaltiesCount()).isEqualTo(0);
-        assertThat(rev1.breakdown().totalScore()).isEqualTo(110.0);
+        assertThat(rev1.breakdown().totalScore()).isEqualTo(Points.of(110));
 
         // Latest revision 2 reflects adjustment: 110 - (2 * 10) = 90.0
         AttemptScoreSnapshot rev2 = attempt.getLatestSnapshot();
         assertThat(rev2.revisionNumber()).isEqualTo(2);
         assertThat(rev2.authorOrJudgeId()).isEqualTo(ActorId.of("judge-beta"));
         assertThat(rev2.metrics().penaltiesCount()).isEqualTo(2);
-        assertThat(rev2.breakdown().totalScore()).isEqualTo(90.0);
+        assertThat(rev2.breakdown().totalScore()).isEqualTo(Points.of(90));
         assertThat(rev2.reason()).contains("Toque de bordes verificado");
 
-        assertThat(attempt.getFinalScore()).isEqualTo(90.0);
+        assertThat(attempt.getScoreBreakdown().totalScore()).isEqualTo(Points.of(90));
     }
 
     @Test
@@ -87,9 +87,9 @@ class AttemptAuditTrailTest {
         Metric precision = Metric.sensor("precision");
         Rulebook mixed = new Rulebook(RulebookVersion.first(), new ScoringScheme(
                 new MetricSheet(List.of(new MetricDefinition(precision, MeasurementUnit.RATIO, ValueRange.between(0.0, 1.0)))),
-                new ScoreRules(List.of(TimeBasedRule.standard(100.0, 60.0), new PrecisionRule("Precisión", precision, 50.0),
+                new ScoreRules(List.of(TimeBasedRule.standard(Points.of(100), 60.0), new PrecisionRule("Precisión", precision, Points.of(50)),
                         new JudgeSubjectiveRule("Panel", 1.0)), List.of(),
-                        List.of(new PenaltyRule("Faltas", 10.0), new ResourceConsumptionRule("Consumo", 80.0, 0.5))),
+                        List.of(new PenaltyRule("Faltas", Points.of(10)), new ResourceConsumptionRule("Consumo", 80.0, 0.5))),
                 new Unlimited()), new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
         Attempt attempt = newAttempt();
         attempt.receive(new SourceDelivery(new Measurements(new TrackPerformance(50.0, 2, 0), 12.5,
@@ -116,7 +116,7 @@ class AttemptAuditTrailTest {
         assertThatThrownBy(() -> attempt.receive(sensors(40.0, 0, 3, "judge-2"), standardPolicy, audit()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("cannot receive results");
-        assertThat(attempt.getFinalScore()).isEqualTo(110.0);
+        assertThat(attempt.getScoreBreakdown().totalScore()).isEqualTo(Points.of(110));
     }
 
     @Test

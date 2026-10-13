@@ -4,6 +4,7 @@ import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.JudgeScores;
 import com.roboleague.evaluation.Measurements;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.SourceDelivery;
 import com.roboleague.evaluation.TrackPerformance;
 import com.roboleague.evaluation.audit.AuditNote;
@@ -108,9 +109,10 @@ class DemoFixture implements ApplicationRunner {
         Category junior = Category.of(CategoryId.of("cat-junior"), "Junior", 2, 4, 13, null, 2500.0, 300.0, 300.0, 300.0);
         Edition edition = createEdition(junior);
         Challenge maze = addChallenge(edition, "ch-maze", "Laberinto", DemoRulebooks.maze());
-        addChallenge(edition, "ch-line", "Seguidor de línea", DemoRulebooks.lineFollower(25.0));
+        addChallenge(edition, "ch-line", "Seguidor de línea", DemoRulebooks.lineFollower(Points.of(25)));
         Challenge rescue = addChallenge(edition, "ch-rescue", "Rescate", DemoRulebooks.rescue());
-        published(useCases.publishRulebook().execute(ChallengeId.of("ch-line"), DemoRulebooks.lineFollower(30.0)));
+        published(useCases.publishRulebook().execute(ChallengeId.of("ch-line"),
+                DemoRulebooks.lineFollower(Points.of(30))));
 
         Team cyber = team("t-a", "CyberTeam", junior, new Robot(RobotId.of("r-a"), "CyberBot", robotSpec()),
                 TeamMember.of(ParticipantId.of("m-1"), "Alice Leader", LocalDate.of(2004, 1, 1), "LEADER", clock.today()),

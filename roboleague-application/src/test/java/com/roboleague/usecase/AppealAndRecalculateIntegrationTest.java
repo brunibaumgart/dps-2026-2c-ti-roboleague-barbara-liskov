@@ -1,6 +1,7 @@
 package com.roboleague.usecase;
 
 import com.roboleague.evaluation.*;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.rules.AllObjectivesBonusRule;
 import com.roboleague.evaluation.rules.ObjectivesRule;
 import com.roboleague.evaluation.rules.PenaltyRule;
@@ -119,10 +120,10 @@ class AppealAndRecalculateIntegrationTest {
         // Maze challenge rulebook v1: Time + Objectives + Penalties
         maze = Challenge.draft(ChallengeId.of("ch-maze"), edition2026.getId(), "Laberinto").publish(
                 new ScoringScheme(MetricSheet.none(), new ScoreRules(
-                        List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0),
-                                new ObjectivesRule("Objetivos", 20.0)),
-                        List.of(new AllObjectivesBonusRule("Todos los objetivos", 5, 25.0)),
-                        List.of(new PenaltyRule("Penalizaciones", 15.0))), new Unlimited()),
+                        List.of(TimeBasedRule.of("Tiempo", Points.of(100), 60.0, 1.0, 2.0, Points.ZERO),
+                                new ObjectivesRule("Objetivos", Points.of(20))),
+                        List.of(new AllObjectivesBonusRule("Todos los objetivos", 5, Points.of(25))),
+                        List.of(new PenaltyRule("Penalizaciones", Points.of(15)))), new Unlimited()),
                 new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
         challengeRepository.save(maze);
     }
@@ -193,7 +194,7 @@ class AppealAndRecalculateIntegrationTest {
         // Position 1: Team Alpha (185.0)
         // Position 2: Team Beta (175.0), placed by the first criterion of the chain
         assertThat(first.table().entries()).extracting(entry -> entry.team().teamId(), StandingsEntry::total)
-                .containsExactly(tuple(TeamId.of("t-alpha"), 185.0), tuple(TeamId.of("t-beta"), 175.0));
+                .containsExactly(tuple(TeamId.of("t-alpha"), Points.of(185)), tuple(TeamId.of("t-beta"), Points.of(175)));
         assertThat(first.table().entries().getLast().placement())
                 .isEqualTo(new Placement(2, "Debajo del puesto 1 por Mayor puntaje total"));
 
@@ -236,9 +237,9 @@ class AppealAndRecalculateIntegrationTest {
         // 9. Verify Attempt Beta Audit Trail
         Attempt auditedAttemptBeta = attemptRepository.findById(attemptBeta.getId()).orElseThrow();
         assertThat(auditedAttemptBeta.getRevisionHistory()).hasSize(2);
-        assertThat(auditedAttemptBeta.getOriginalSnapshot().breakdown().totalScore()).isEqualTo(175.0);
-        assertThat(auditedAttemptBeta.getLatestSnapshot().breakdown().totalScore()).isEqualTo(235.0);
-        assertThat(auditedAttemptBeta.getFinalScore()).isEqualTo(235.0);
+        assertThat(auditedAttemptBeta.getOriginalSnapshot().breakdown().totalScore()).isEqualTo(Points.of(175));
+        assertThat(auditedAttemptBeta.getLatestSnapshot().breakdown().totalScore()).isEqualTo(Points.of(235));
+        assertThat(auditedAttemptBeta.getScoreBreakdown().totalScore()).isEqualTo(Points.of(235));
         assertThat(appealBeta.getResolvedAt()).isEqualTo(operationTime);
         assertThat(auditedAttemptBeta.getRevisionHistory().getLast().timestamp()).isEqualTo(operationTime);
         assertThat(auditedAttemptBeta.getEventHistory()).extracting(event -> event.eventId())
@@ -250,7 +251,7 @@ class AppealAndRecalculateIntegrationTest {
         assertThat(corrected.number()).isEqualTo(2);
         assertThat(corrected.calculatedAt()).isEqualTo(operationTime);
         assertThat(corrected.table().entries()).extracting(entry -> entry.team().teamId(), StandingsEntry::total)
-                .containsExactly(tuple(TeamId.of("t-beta"), 235.0), tuple(TeamId.of("t-alpha"), 185.0));
+                .containsExactly(tuple(TeamId.of("t-beta"), Points.of(235)), tuple(TeamId.of("t-alpha"), Points.of(185)));
         assertThat(standings.version(1)).contains(first);
 
         // 11. Version 1 is outdated now; version 2 is published because every appeal is resolved

@@ -1,5 +1,6 @@
 package com.roboleague.evaluation.scheme;
 
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.audit.EvaluationSnapshot;
 import com.roboleague.scheduling.RoundId;
 
@@ -15,7 +16,7 @@ public record RoundScore(RoundId roundId, EvaluationSnapshot evaluation) {
         Objects.requireNonNull(evaluation, "evaluation cannot be null");
     }
 
-    public double total() {
+    public Points total() {
         return evaluation.breakdown().totalScore();
     }
 
@@ -23,7 +24,7 @@ public record RoundScore(RoundId roundId, EvaluationSnapshot evaluation) {
         return evaluation.metrics().timeTakenSeconds();
     }
 
-    public double deducted() {
+    public Points deducted() {
         return evaluation.breakdown().deducted();
     }
 

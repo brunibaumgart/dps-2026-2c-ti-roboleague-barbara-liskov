@@ -14,7 +14,7 @@ public final class Unlimited implements BonusLimit {
     }
 
     @Override
-    public RuleEvaluation limit(double obtainedBonuses) {
+    public RuleEvaluation limit(Points obtainedBonuses) {
         return RuleEvaluation.empty();
     }
 }

@@ -29,9 +29,10 @@ public record ScoreBreakdown(RuleEvaluation base, RuleEvaluation bonuses, RuleEv
         List<ScoreItem> items = new ArrayList<>(base.items());
         items.addAll(bonuses.items());
         items.addAll(deductions.items());
-        double sum = sumOfSections();
-        if (sum < 0) {
-            items.add(ScoreItem.of(FLOOR_CONCEPT, String.format(Locale.US, "suma %.2f", sum), "max(0, suma)", -sum));
+        Points sum = sumOfSections();
+        if (sum.isNegative()) {
+            items.add(ScoreItem.of(FLOOR_CONCEPT, String.format(Locale.US, "suma %.2f", sum.toBigDecimal()),
+                    "max(0, suma)", sum.negate()));
         }
         return List.copyOf(items);
     }
@@ -46,15 +47,15 @@ public record ScoreBreakdown(RuleEvaluation base, RuleEvaluation bonuses, RuleEv
     /**
      * Points the deductions took away, as a positive amount.
      */
-    public double deducted() {
-        return Math.abs(deductions.total());
+    public Points deducted() {
+        return deductions.total().abs();
     }
 
-    public double totalScore() {
-        return Math.max(0.0, sumOfSections());
+    public Points totalScore() {
+        return sumOfSections().max(Points.ZERO);
     }
 
-    private double sumOfSections() {
-        return base.total() + bonuses.total() + deductions.total();
+    private Points sumOfSections() {
+        return base.total().plus(bonuses.total()).plus(deductions.total());
     }
 }

@@ -1,5 +1,6 @@
 package com.roboleague.tournament;
 
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookVersion;
@@ -31,7 +32,7 @@ class ChallengeTest {
     }
 
     private static TimeBasedRule timeRuleWithBase(double basePoints) {
-        return new TimeBasedRule("Tiempo", TimeRuleConfig.of(basePoints, 60.0, 1.0, 1.0, 0.0));
+        return new TimeBasedRule("Tiempo", TimeRuleConfig.of(Points.of(basePoints), 60.0, 1.0, 1.0, Points.ZERO));
     }
 
     @Test
@@ -57,14 +58,14 @@ class ChallengeTest {
     @DisplayName("Publicar una versión nueva no cambia cómo puntúa la anterior")
     void givenANewVersionThenThePreviousOneStillScoresAsBefore() {
         Challenge maze = mazeWithBase(100.0);
-        double v1ScoreBefore = maze.currentRulebook().evaluate(tenSecondsUnderTarget).totalScore();
+        Points v1ScoreBefore = maze.currentRulebook().evaluate(tenSecondsUnderTarget).totalScore();
 
         maze.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(150.0)), List.of()), allRounds);
 
         Rulebook v1 = maze.rulebook(new RulebookVersion(1)).orElseThrow();
         Rulebook v2 = maze.rulebook(new RulebookVersion(2)).orElseThrow();
-        assertThat(v1.evaluate(tenSecondsUnderTarget).totalScore()).isEqualTo(v1ScoreBefore).isEqualTo(110.0);
-        assertThat(v2.evaluate(tenSecondsUnderTarget).totalScore()).isEqualTo(160.0);
+        assertThat(v1.evaluate(tenSecondsUnderTarget).totalScore()).isEqualTo(v1ScoreBefore).isEqualTo(Points.of(110));
+        assertThat(v2.evaluate(tenSecondsUnderTarget).totalScore()).isEqualTo(Points.of(160));
     }
 
     @Test
@@ -96,7 +97,7 @@ class ChallengeTest {
         Rulebook third = restored.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(200.0)), List.of()), allRounds);
 
         assertThat(restored.rulebook(RulebookVersion.first()).orElseThrow().evaluate(tenSecondsUnderTarget).totalScore())
-                .isEqualTo(110.0);
+                .isEqualTo(Points.of(110));
         assertThat(third.version()).isEqualTo(new RulebookVersion(3));
     }
 

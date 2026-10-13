@@ -1,6 +1,7 @@
 package com.roboleague.repository.jpa;
 
 import com.roboleague.evaluation.AttemptId;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.ranking.OfficialPublication;
 import com.roboleague.ranking.Placement;
@@ -67,7 +68,7 @@ final class StandingsMapper {
     }
 
     private static RoundJson toJson(RoundResult round) {
-        return new RoundJson(round.roundId().value(), round.attemptId().value(), round.total());
+        return new RoundJson(round.roundId().value(), round.attemptId().value(), round.total().toBigDecimal());
     }
 
     private static PublicationJson toJson(OfficialPublication publication) {
@@ -89,7 +90,7 @@ final class StandingsMapper {
     private static List<RoundResult> toRounds(List<RoundJson> rounds) {
         return rounds.stream()
                 .map(round -> new RoundResult(RoundId.of(round.roundId()), AttemptId.parse(round.attemptId()),
-                        round.total()))
+                        Points.of(round.total())))
                 .toList();
     }
 

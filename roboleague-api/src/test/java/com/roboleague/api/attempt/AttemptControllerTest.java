@@ -5,6 +5,7 @@ import com.roboleague.evaluation.MeasurementUnit;
 import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.MetricDefinition;
 import com.roboleague.evaluation.MetricSheet;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ScoreRules;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.Unlimited;
@@ -71,12 +72,12 @@ class AttemptControllerTest extends ApiTest {
     @BeforeEach
     void publishTheChallenges() {
         challenges.save(Challenge.draft(ChallengeId.of(MAZE), EditionId.of("ed-api-att"), "Laberinto").publish(
-                ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.0, 2.0, 0.0),
-                        new ObjectivesRule("Objetivos", 20.0)), List.of(new PenaltyRule("Faltas", 15.0))), RANKING));
+                ScoringScheme.withoutBonuses(List.of(TimeBasedRule.of("Tiempo", Points.of(100), 60.0, 1.0, 2.0, Points.ZERO),
+                        new ObjectivesRule("Objetivos", Points.of(20))), List.of(new PenaltyRule("Faltas", Points.of(15)))), RANKING));
         challenges.save(Challenge.draft(ChallengeId.of(RESCUE), EditionId.of("ed-api-att"), "Rescate").publish(new ScoringScheme(
                 new MetricSheet(List.of(new MetricDefinition(RESCUED, MeasurementUnit.COUNT, ValueRange.between(0.0, 4.0)))),
-                new ScoreRules(List.of(new ObjectivesRule("Zonas despejadas", 15.0),
-                        new VictimsRule("Víctimas rescatadas", RESCUED, 25.0),
+                new ScoreRules(List.of(new ObjectivesRule("Zonas despejadas", Points.of(15)),
+                        new VictimsRule("Víctimas rescatadas", RESCUED, Points.of(25)),
                         new JudgeSubjectiveRule("Panel técnico", 5.0)), List.of(), List.of()),
                 new Unlimited()), RANKING));
     }

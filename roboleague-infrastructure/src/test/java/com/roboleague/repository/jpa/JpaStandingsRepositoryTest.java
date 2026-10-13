@@ -2,6 +2,7 @@ package com.roboleague.repository.jpa;
 
 import com.roboleague.PostgresContainer;
 import com.roboleague.evaluation.AttemptId;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.ranking.Placement;
 import com.roboleague.ranking.PublicationCheck;
@@ -95,8 +96,8 @@ class JpaStandingsRepositoryTest {
 
     private static StandingsTable table(double best) {
         TeamRounds alpha = new TeamRounds(
-                List.of(new RoundResult(RoundId.of("r2"), AttemptId.of(SlotId.of("slot-r2-a"), 1), best)),
-                List.of(new RoundResult(RoundId.of("r1"), AttemptId.of(SlotId.of("slot-r1-a"), 1), 20.0)),
+                List.of(new RoundResult(RoundId.of("r2"), AttemptId.of(SlotId.of("slot-r2-a"), 1), Points.of(best))),
+                List.of(new RoundResult(RoundId.of("r1"), AttemptId.of(SlotId.of("slot-r1-a"), 1), Points.of(20))),
                 "mejores 1 de 2 rondas");
         TeamRounds beta = new TeamRounds(List.of(), List.of(), "mejores 1 de 2 rondas");
         return new StandingsTable(List.of(

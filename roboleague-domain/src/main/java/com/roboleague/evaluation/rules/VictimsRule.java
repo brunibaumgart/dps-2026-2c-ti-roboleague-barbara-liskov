@@ -4,6 +4,7 @@ import com.roboleague.evaluation.definition.Parameters;
 import com.roboleague.evaluation.definition.RuleArguments;
 import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.Metric;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
@@ -19,10 +20,10 @@ import java.util.Set;
 public final class VictimsRule implements BaseRule {
     private final String ruleName;
     private final Metric rescued;
-    private final double pointsPerRescued;
+    private final Points pointsPerRescued;
 
-    public VictimsRule(String ruleName, Metric rescued, double pointsPerRescued) {
-        if (pointsPerRescued < 0) {
+    public VictimsRule(String ruleName, Metric rescued, Points pointsPerRescued) {
+        if (pointsPerRescued.isNegative()) {
             throw new IllegalArgumentException("pointsPerRescued cannot be negative");
         }
         this.ruleName = Objects.requireNonNull(ruleName, "ruleName cannot be null");
@@ -37,7 +38,7 @@ public final class VictimsRule implements BaseRule {
     public static VictimsRule from(RuleDefinition definition) {
         RuleArguments arguments = definition.arguments();
         return new VictimsRule(definition.name(), arguments.metric(RESCUED),
-                arguments.numbers().number(POINTS_PER_RESCUED));
+                arguments.numbers().points(POINTS_PER_RESCUED));
     }
 
     @Override
@@ -68,8 +69,8 @@ public final class VictimsRule implements BaseRule {
         ScoreItem item = ScoreItem.of(
                 ruleName,
                 String.format(Locale.US, "%d rescatadas", saved),
-                String.format(Locale.US, "%d * %.1f pts", saved, pointsPerRescued),
-                saved * pointsPerRescued
+                String.format(Locale.US, "%d * %.1f pts", saved, pointsPerRescued.toBigDecimal()),
+                pointsPerRescued.times(saved)
         );
         return RuleEvaluation.of(item, String.format(Locale.US, "%s: %d rescatadas", ruleName, saved));
     }

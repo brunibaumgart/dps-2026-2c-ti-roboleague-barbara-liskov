@@ -1,5 +1,6 @@
 package com.roboleague.evaluation.scheme;
 
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.ScoreBreakdown;
@@ -31,9 +32,9 @@ final class RoundScores {
     static RoundScore withJudges(String roundId, double total, double seconds, double deducted,
                                  Map<JudgeId, Double> judgeScores) {
         ScoreBreakdown breakdown = new ScoreBreakdown(
-                RuleEvaluation.of(ScoreItem.of("Puntaje", "-", "-", total + deducted)),
+                RuleEvaluation.of(ScoreItem.of("Puntaje", "-", "-", Points.of(total).plus(Points.of(deducted)))),
                 RuleEvaluation.empty(),
-                RuleEvaluation.of(ScoreItem.of("Descuentos", "-", "-", -deducted)));
+                RuleEvaluation.of(ScoreItem.of("Descuentos", "-", "-", Points.of(deducted).negate())));
         RawMetrics metrics = RawMetrics.of(seconds, 0, 0, judgeScores);
         return new RoundScore(RoundId.of(roundId), new EvaluationSnapshot(RulebookVersion.first(), metrics, breakdown));
     }

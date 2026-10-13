@@ -2,6 +2,7 @@ package com.roboleague.evaluation.rules;
 
 import com.roboleague.evaluation.EvaluationFeedback;
 import com.roboleague.evaluation.Metric;
+import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.TrackPerformance;
 import com.roboleague.scheduling.JudgeId;
@@ -48,50 +49,50 @@ class ScoreRuleSectionsTest {
     }
 
     static Stream<Arguments> baseRules() {
-        TimeBasedRule time = TimeBasedRule.of("Tiempo", 100.0, 60.0, 1.5, 2.0, 0.0);
-        ObjectivesRule objectives = new ObjectivesRule("Objetivos", 20.0);
+        TimeBasedRule time = TimeBasedRule.of("Tiempo", Points.of(100), 60.0, 1.5, 2.0, Points.ZERO);
+        ObjectivesRule objectives = new ObjectivesRule("Objetivos", Points.of(20));
         return inEveryRun(List.of(
                 Named.of("tiempo", time),
                 Named.of("objetivos", objectives),
                 Named.of("panel de jueces", new JudgeSubjectiveRule("Jueces", 5.0)),
-                Named.of("precisión", new PrecisionRule("Precisión", PRECISION, 50.0)),
-                Named.of("víctimas", new VictimsRule("Víctimas", RESCUED, 25.0)),
+                Named.of("precisión", new PrecisionRule("Precisión", PRECISION, Points.of(50))),
+                Named.of("víctimas", new VictimsRule("Víctimas", RESCUED, Points.of(25))),
                 Named.of("compuesta", new CompositeScoreRule("Desempeño en pista", List.of(time, objectives)))));
     }
 
     static Stream<Arguments> bonusRules() {
         return inEveryRun(List.of(
-                Named.of("hito", new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), 30.0)),
-                Named.of("todos los objetivos", new AllObjectivesBonusRule("Todos los objetivos", 5, 25.0))));
+                Named.of("hito", new MilestoneBonusRule("Checkpoint", new Milestone(CHECKPOINT, 1.0), Points.of(30))),
+                Named.of("todos los objetivos", new AllObjectivesBonusRule("Todos los objetivos", 5, Points.of(25)))));
     }
 
     static Stream<Arguments> deductionRules() {
         return inEveryRun(List.of(
-                Named.of("faltas", new PenaltyRule("Faltas", 15.0)),
-                Named.of("faltas contadas", new CountedFaultRule("Colisiones", COLLISIONS, new FaultTariff(1, 5.0))),
+                Named.of("faltas", new PenaltyRule("Faltas", Points.of(15))),
+                Named.of("faltas contadas", new CountedFaultRule("Colisiones", COLLISIONS, new FaultTariff(1, Points.of(5)))),
                 Named.of("consumo", new ResourceConsumptionRule("Consumo", 80.0, 0.5)),
                 Named.of("víctimas abandonadas", new AbandonedVictimsRule("Víctimas abandonadas", RESCUED,
-                        new VictimTariff(4, 10.0)))));
+                        new VictimTariff(4, Points.of(10))))));
     }
 
     @ParameterizedTest(name = "{0}, {1}")
     @MethodSource("baseRules")
     @DisplayName("Una regla base nunca resta")
     void givenABaseRuleThenItNeverSubtracts(BaseRule rule, RawMetrics run) {
-        assertThat(rule.evaluate(run).total()).isGreaterThanOrEqualTo(0.0);
+        assertThat(rule.evaluate(run).total()).isGreaterThanOrEqualTo(Points.ZERO);
     }
 
     @ParameterizedTest(name = "{0}, {1}")
     @MethodSource("bonusRules")
     @DisplayName("Una bonificación nunca resta")
     void givenABonusRuleThenItNeverSubtracts(BonusRule rule, RawMetrics run) {
-        assertThat(rule.evaluate(run).total()).isGreaterThanOrEqualTo(0.0);
+        assertThat(rule.evaluate(run).total()).isGreaterThanOrEqualTo(Points.ZERO);
     }
 
     @ParameterizedTest(name = "{0}, {1}")
     @MethodSource("deductionRules")
     @DisplayName("Una deducción nunca suma")
     void givenADeductionRuleThenItNeverAdds(DeductionRule rule, RawMetrics run) {
-        assertThat(rule.evaluate(run).total()).isLessThanOrEqualTo(0.0);
+        assertThat(rule.evaluate(run).total()).isLessThanOrEqualTo(Points.ZERO);
     }
 }

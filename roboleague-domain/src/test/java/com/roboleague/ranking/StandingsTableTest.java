@@ -2,7 +2,27 @@ package com.roboleague.ranking;
 
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.AttemptId;
+import com.roboleague.evaluation.AttemptIdentity;
+import com.roboleague.evaluation.MeasurementUnit;
+import com.roboleague.evaluation.Measurements;
+import com.roboleague.evaluation.Metric;
+import com.roboleague.evaluation.MetricDefinition;
+import com.roboleague.evaluation.MetricSheet;
+import com.roboleague.evaluation.Points;
+import com.roboleague.evaluation.Rulebook;
+import com.roboleague.evaluation.RulebookReference;
+import com.roboleague.evaluation.RulebookVersion;
+import com.roboleague.evaluation.ScoreRules;
+import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.SourceDelivery;
+import com.roboleague.evaluation.TrackPerformance;
+import com.roboleague.evaluation.Unlimited;
+import com.roboleague.evaluation.ValueRange;
+import com.roboleague.evaluation.rules.PrecisionRule;
+import com.roboleague.evaluation.scheme.AllRounds;
+import com.roboleague.evaluation.scheme.HigherTotal;
+import com.roboleague.evaluation.scheme.LowerTime;
+import com.roboleague.evaluation.scheme.RankingScheme;
 import com.roboleague.scheduling.RoundId;
 import com.roboleague.tournament.TeamId;
 import org.junit.jupiter.api.DisplayName;
@@ -11,6 +31,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 import java.util.List;
+import java.util.Map;
 
 import static com.roboleague.ranking.StandingsFixtures.*;
 import static com.roboleague.support.TestValues.audit;
@@ -27,13 +48,13 @@ class StandingsTableTest {
 
         StandingsEntry row = StandingsTable.rank(BEST_2_OF_3, List.of(alpha)).entries().getFirst();
 
-        assertThat(row.total()).isEqualTo(180.0);
+        assertThat(row.total()).isEqualTo(Points.of(180));
         assertThat(row.rounds().considered()).extracting(RoundResult::roundId)
                 .containsExactly(RoundId.of("r-2"), RoundId.of("r-3"));
         assertThat(row.rounds().discarded()).singleElement().satisfies(discarded -> {
             assertThat(discarded.roundId()).isEqualTo(RoundId.of("r-1"));
             assertThat(discarded.attemptId()).isEqualTo(AttemptId.of(slotOf("t-a", "r-1"), 1));
-            assertThat(discarded.total()).isEqualTo(60.0);
+            assertThat(discarded.total()).isEqualTo(Points.of(60));
         });
         assertThat(row.rounds().selectionRule()).isEqualTo("mejores 2 de 3 rondas");
     }
@@ -81,7 +102,7 @@ class StandingsTableTest {
                 new TeamAttempts(team("t-b"), List.of(scored("t-b", "r-1", 50, 1, 0))))).entries();
 
         assertThat(rows.getLast().team()).isEqualTo(team("t-a"));
-        assertThat(rows.getLast().total()).isZero();
+        assertThat(rows.getLast().total()).isEqualTo(Points.ZERO);
         assertThat(rows.getLast().rounds().considered()).isEmpty();
     }
 
@@ -94,7 +115,7 @@ class StandingsTableTest {
         StandingsEntry row = StandingsTable.rank(BEST_2_OF_3, List.of(new TeamAttempts(team("t-a"),
                 List.of(scored("t-a", "r-1", 50, 2, 0), disqualified)))).entries().getFirst();
 
-        assertThat(row.total()).isEqualTo(40.0);
+        assertThat(row.total()).isEqualTo(Points.of(40));
         assertThat(row.rounds().considered()).extracting(RoundResult::roundId).containsExactly(RoundId.of("r-1"));
     }
 
@@ -121,7 +142,7 @@ class StandingsTableTest {
 
         assertThat(row.rounds().considered()).singleElement()
                 .satisfies(round -> assertThat(round.attemptId()).isEqualTo(second.getId()));
-        assertThat(row.total()).isEqualTo(100.0);
+        assertThat(row.total()).isEqualTo(Points.of(100));
     }
 
     @Test
@@ -130,5 +151,40 @@ class StandingsTableTest {
         assertThatThrownBy(() -> new TeamAttempts(team("t-a"), List.of(scored("t-b", "r-1", 50, 1, 0))))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("belongs to t-b");
+    }
+
+    @Test
+    @DisplayName("Teams with the same round scores in another order tie on the total and the next criterion decides")
+    void theSameRoundScoresInAnotherOrderTieOnTheTotal() {
+        assertThat(10.1 + 20.2 + 30.3).as("as doubles the order changes the sum").isNotEqualTo(30.3 + 20.2 + 10.1);
+        Metric precision = Metric.sensor("precision");
+        Rulebook rulebook = new Rulebook(RulebookVersion.first(), new ScoringScheme(
+                new MetricSheet(List.of(new MetricDefinition(precision, MeasurementUnit.RATIO, ValueRange.between(0.0, 1.0)))),
+                new ScoreRules(List.of(new PrecisionRule("Precisión", precision, Points.of(100))), List.of(), List.of()),
+                new Unlimited()), new RankingScheme(new AllRounds(), List.of(new HigherTotal(), new LowerTime())));
+        TeamAttempts ascending = new TeamAttempts(team("t-a"), List.of(
+                scoredWith(rulebook, "t-a", "r-1", 50, Map.of(precision.name(), 0.101)),
+                scoredWith(rulebook, "t-a", "r-2", 50, Map.of(precision.name(), 0.202)),
+                scoredWith(rulebook, "t-a", "r-3", 50, Map.of(precision.name(), 0.303))));
+        TeamAttempts descending = new TeamAttempts(team("t-b"), List.of(
+                scoredWith(rulebook, "t-b", "r-1", 60, Map.of(precision.name(), 0.303)),
+                scoredWith(rulebook, "t-b", "r-2", 60, Map.of(precision.name(), 0.202)),
+                scoredWith(rulebook, "t-b", "r-3", 60, Map.of(precision.name(), 0.101))));
+
+        List<StandingsEntry> rows = StandingsTable.rank(rulebook.rankingScheme(), List.of(descending, ascending)).entries();
+
+        assertThat(rows).extracting(StandingsEntry::total).containsOnly(Points.of("60.60"));
+        assertThat(rows).extracting(row -> row.team().teamId()).containsExactly(TeamId.of("t-a"), TeamId.of("t-b"));
+        assertThat(rows.getLast().placement())
+                .isEqualTo(new Placement(2, "Empata en puntaje con el puesto 1; desempata por Menor tiempo"));
+    }
+
+    private static Attempt scoredWith(Rulebook rulebook, String teamId, String roundId, double seconds,
+                                      Map<String, Double> measured) {
+        Attempt attempt = Attempt.of(AttemptIdentity.of(AttemptId.of(slotOf(teamId, roundId), 1), RoundId.of(roundId),
+                TeamId.of(teamId)), RulebookReference.of(CHALLENGE, rulebook));
+        attempt.receive(new SourceDelivery(new Measurements(new TrackPerformance(seconds, 0, 0), 0.0, measured), JUDGE),
+                rulebook, audit());
+        return attempt;
     }
 }

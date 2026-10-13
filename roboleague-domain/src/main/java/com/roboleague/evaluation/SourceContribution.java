@@ -18,7 +18,7 @@ public record SourceContribution(ResultSource source, RuleEvaluation evaluation)
         return evaluation.items();
     }
 
-    public double subtotal() {
+    public Points subtotal() {
         return evaluation.total();
     }
 }
