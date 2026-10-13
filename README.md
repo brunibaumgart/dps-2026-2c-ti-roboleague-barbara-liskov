@@ -180,7 +180,7 @@ Todas las respuestas de error usan `ErrorDto {error, details}`. Además de los c
 | GET | `/editions/{id}/challenges` | 200 lista de `ChallengeDto` | 404 |
 | POST | `/editions/{id}/challenges` | 201 `ChallengeDto` con v1 | 400 id o nombre inválido; 404 edición; 409 id repetido; 422 reglamento |
 | GET | `/challenges/{id}` | 200 `ChallengeDto` | 404 |
-| POST | `/challenges/{id}/rulebook/versions` | 201 `RulebookDto` | 404; 422 reglamento |
+| POST | `/challenges/{id}/rulebook/versions` | 201 `RulebookDto` | 404; 422 reglamento o ronda ya programada que la versión no cuenta |
 | GET | `/challenges/{id}/rulebook/versions/{version}` | 200 `RulebookDto` | 400 número inválido; 404 |
 | POST | `/editions/{id}/registrations` | 201 `RegistrationDto` | 400; 404; 409 duplicada o equipo existente; 422 inelegible |
 | GET | `/editions/{id}/registrations` · `/editions/{id}/registrations/{teamId}` | 200 lista / `RegistrationDto` | 404 |
@@ -222,7 +222,7 @@ La demo requiere ser mayor de 12 años (desde 13), sin límite superior.
                  "minAge": 12, "maxAge": 17, "maxWeightGrams": 2500}]}
 ```
 
-`POST /editions/{id}/challenges` con `{"id", "name", "rulebook"}` → 201 con el desafío y su reglamento v1. `POST /challenges/{id}/rulebook/versions` con un `rulebook` → 201 con la versión nueva. Un reglamento con problemas es **422** con cada problema en `details` (`"rule 'Faltas': missing parameter 'deductionPerPenalty'"`). Edición o desafío inexistente: 404; id repetido: 409. Una edición sin un dato obligatorio (`editionNumber`, id o nombre del torneo, id, nombre o año de la temporada, id o nombre de una categoría), con un id o nombre en blanco o con dos categorías del mismo id: 400. Un número omitido no se toma como 0: el error nombra el campo (`Missing field 'tournament.season.year'`).
+`POST /editions/{id}/challenges` con `{"id", "name", "rulebook"}` → 201 con el desafío y su reglamento v1. `POST /challenges/{id}/rulebook/versions` con un `rulebook` → 201 con la versión nueva. Una versión cuya selección de rondas no puede contar una ronda ya programada del desafío (por ejemplo `best-n-of-m` con `outOf: 3` cuando existe la ronda 4) es **422**, con una línea por ronda (`"round 4 of category cat-junior is already scheduled and the new rulebook counts mejores 2 de 3 rondas"`). Un reglamento con problemas es **422** con cada problema en `details` (`"rule 'Faltas': missing parameter 'deductionPerPenalty'"`). Edición o desafío inexistente: 404; id repetido: 409. Una edición sin un dato obligatorio (`editionNumber`, id o nombre del torneo, id, nombre o año de la temporada, id o nombre de una categoría), con un id o nombre en blanco o con dos categorías del mismo id: 400. Un número omitido no se toma como 0: el error nombra el campo (`Missing field 'tournament.season.year'`).
 
 Un reglamento en JSON (lo que se manda es lo que `GET /challenges/{id}` devuelve en `currentRulebook`):
 
@@ -317,7 +317,11 @@ Para inscribir el estado canónico existente, enviar **exactamente una** alterna
 Enviar `team` y `teamId` juntos, ninguno, o un dato requerido faltante → **400**.
 Un objeto `team` cuyo id ya existe no sobrescribe el equipo → **409**, al igual
 que una inscripción duplicada. Referencias inexistentes → **404**. Elegibilidad
-rechazada → **422** con motivos en `ErrorDto.details`.
+rechazada → **422** con motivos en `ErrorDto.details`. Un integrante o un robot
+compite para un solo equipo por edición: un equipo que comparte alguno (por id)
+con otro equipo inscripto en la edición es **422**, con un motivo por cada uno
+(`"Participant p-1 already competes for team team-a"`). Lo mismo vale para el PUT
+de una inscripción, en cada edición del equipo.
 
 La respuesta de inscripción es `{editionId, teamId, categoryId, registeredAt,
 referenceDate, team}`. `team` contiene id/nombre/institución, miembros y robot
@@ -468,7 +472,7 @@ El equipo tiene que ser el del intento (si no, **422**); un intento inexistente 
 
 ### Tabla de posiciones
 
-Hay una tabla por desafío y categoría. Cada recálculo agrega una versión; ninguna se edita. El orden sale del `ranking` del reglamento vigente (mejores N de M y la cadena de desempate).
+Hay una tabla por desafío y categoría. Cada recálculo agrega una versión; ninguna se edita. El orden sale del `ranking` del reglamento vigente (mejores N de M y la cadena de desempate), y cada versión dice con cuál se ordenó en `rulebookVersion` (también en la lista `versions`).
 
 `GET /challenges/{id}/standings?categoryId=` → 200 con `{challengeId, categoryId, versions, latest, official, pending}`. Antes del primer cálculo `latest` y `official` son `null`. `pending` dice `{openAppeals, unfinishedTurns, outdated}`. `GET .../standings/versions/{v}` devuelve esa versión con sus filas; sin tabla calculada o sin esa versión, **404** (también al publicarla). Sin `categoryId`, **400**.
 
@@ -480,7 +484,7 @@ Hay una tabla por desafío y categoría. Cada recálculo agrega una versión; ni
 {"publishedBy": "org-1", "notes": "Publicacion definitiva post-arbitraje"}
 ```
 
-Solo se publica la última versión, y solo si no hay apelaciones abiertas, no quedan turnos sin resultado y los resultados no cambiaron desde ese cálculo. Si algo lo bloquea, **409** con cada motivo en `details`. Publicar reemplaza a la oficial anterior, que queda `REPLACED`.
+Solo se publica la última versión, y solo si no hay apelaciones abiertas, no quedan turnos sin resultado, los resultados no cambiaron desde ese cálculo y el desafío no publicó otro reglamento después (`"version 1 was ranked with rulebook v1 and the challenge now ranks with v2; recalculate first"`). Si algo lo bloquea, **409** con cada motivo en `details`. Publicar reemplaza a la oficial anterior, que queda `REPLACED`.
 
 ## Inscripción y cambios de equipo (casos de uso)
 

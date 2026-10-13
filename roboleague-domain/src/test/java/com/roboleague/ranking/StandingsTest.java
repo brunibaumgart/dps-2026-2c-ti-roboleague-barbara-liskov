@@ -1,5 +1,6 @@
 package com.roboleague.ranking;
 
+import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.ranking.StandingsVersion.Status;
 import com.roboleague.support.ActorId;
@@ -80,6 +81,19 @@ class StandingsTest {
     }
 
     @Test
+    @DisplayName("A version ranked with an older rulebook cannot be published until it is recalculated")
+    void aVersionRankedWithAnOlderRulebookCannotBePublished() {
+        Standings standings = Standings.first(ID, FIRST, TIME);
+        StandingsTable sameResultsUnderV2 = new StandingsTable(new RulebookVersion(2), FIRST.entries());
+
+        StandingsPublication result = standings.publish(1, clean(sameResultsUnderV2), NOTE, TIME);
+
+        assertThat(result).isEqualTo(new StandingsPublication.Blocked(List.of("version 1 was ranked with rulebook v1 "
+                + "and the challenge now ranks with v2; recalculate first")));
+        assertThat(standings.latest().table().rankedWith()).isEqualTo(RulebookVersion.first());
+    }
+
+    @Test
     @DisplayName("An outdated version cannot be published once a newer one exists")
     void anOutdatedVersionCannotBePublished() {
         Standings standings = Standings.first(ID, FIRST, TIME);
@@ -137,7 +151,7 @@ class StandingsTest {
     }
 
     private static StandingsTable table(int objectives) {
-        return StandingsTable.rank(BEST_2_OF_3,
+        return StandingsTable.rank(RulebookVersion.first(), BEST_2_OF_3,
                 List.of(new TeamAttempts(team("t-a"), List.of(scored("t-a", "r-1", 50, objectives, 0)))));
     }
 

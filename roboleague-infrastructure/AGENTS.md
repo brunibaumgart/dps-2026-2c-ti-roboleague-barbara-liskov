@@ -37,6 +37,8 @@ a sus implementaciones.
   un reglamento por defecto. Preservar todas sus versiones.
 - Los JSONB de historial y reglamentos son contratos persistidos. Al cambiar
   su forma o discriminadores, considerar lectura de datos existentes y migración.
+  Ejemplo: cada versión de `standings` guarda `rankedWith` y `V10` lo completó
+  en las filas anteriores.
 - `JpaAttemptRepository`, `JpaStandingsRepository`, `JpaChallengeRepository` y
   `JpaAppealRepository` conservan la versión leída fuera del agregado y usan
   `saveAndFlush` con control optimista. Preservar rechazo de escrituras obsoletas

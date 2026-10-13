@@ -1,6 +1,7 @@
 package com.roboleague.ranking;
 
 import com.roboleague.evaluation.Attempt;
+import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.scheduling.Judge;
 import com.roboleague.scheduling.Round;
@@ -30,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class PublicationCheckTest {
 
-    private static final StandingsTable EMPTY = StandingsTable.rank(BEST_2_OF_3, List.of());
+    private static final StandingsTable EMPTY = StandingsTable.rank(RulebookVersion.first(), BEST_2_OF_3, List.of());
 
     @Test
     @DisplayName("A turn without an attempt, or whose attempt awaits a source, has no outcome yet")

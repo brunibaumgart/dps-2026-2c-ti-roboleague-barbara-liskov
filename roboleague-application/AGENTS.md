@@ -39,6 +39,10 @@ Leer también `../AGENTS.md`. Producción en
   Validar contra la categoría anterior rechazaría cambios conjuntos válidos.
   Comparte validateRegistrations con UpdateTeamUseCase; ninguna escritura sucede
   antes de validar. Esto no garantiza rollback técnico de dos escrituras memory.
+- Altas y actualizaciones consultan `EditionRoster` (armado con `EditionRosters`
+  desde TeamRepository): un integrante o robot de otro equipo de la edición es
+  un motivo de inelegibilidad. Los fixtures de tests dan a cada equipo sus
+  propios ids de integrantes y robot.
 - GetRulebookUseCase lee una versión publicada por ChallengeId/RulebookVersion,
   sin generar versiones ni cambiar historial; el front usa las métricas fijadas
   de los intentos pendientes aunque se publique otro reglamento.
@@ -76,8 +80,10 @@ Leer también `../AGENTS.md`. Producción en
   si hay apelaciones abiertas, turnos sin resultado o resultados posteriores al
   cálculo. Un bloqueo no guarda nada y devuelve cada motivo.
 - `RecalculateStandingsUseCase` calcula por desafío y categoría con el
-  `RankingScheme` vigente del desafío; cada cálculo agrega una versión y no
-  edita las anteriores.
+  `RankingScheme` vigente del desafío; cada cálculo agrega una versión, que
+  guarda la versión de reglamento que la ordenó, y no edita las anteriores.
+- `PublishRulebookUseCase` rechaza una versión cuya selección de rondas no
+  cuenta una ronda ya programada del desafío (`RoundSelection.allowsRound`).
 
 ## Integración y pruebas
 

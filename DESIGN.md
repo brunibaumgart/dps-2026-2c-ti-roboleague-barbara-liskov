@@ -331,7 +331,7 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
 - **Pros**:  
   - El recálculo es barato y determinista: la tabla sigue a la fotografía vigente, no reinterpreta la pista.  
   - La versión del reglamento queda fijada cuando nace el snapshot. La edición 2027 no reescribe la 2026.  
-  - Encaja la corrección por apelación: primero se evalúa de nuevo (métricas revisadas + reglamento vigente del desafío), después se reconstruye el ranking.
+  - Encaja la corrección por apelación: primero se evalúa de nuevo (métricas revisadas + la versión del reglamento que el intento guardó al abrirse, 2.18), después se reconstruye el ranking.
 
 - **Contras**:  
   - Si un desafío publica una versión nueva, los intentos ya abiertos siguen con la suya: es lo que pide la consigna, pero una corrección del reglamento no alcanza a intentos anteriores.
@@ -358,6 +358,7 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
 - **F1: deuda que decidimos no resolver en este paso**:
   - ~~La tabla de posiciones todavía no usa el esquema.~~ Cerrada en 2.26: `StandingsTable` arma por equipo las rondas que el reglamento cuenta, ordena con `rulebook.rankingScheme()` y explica cada posición con `decide`. `TieBreakerChain` y `TeamScore` se eliminaron (regla #27).
   - ~~M no se valida contra las rondas programadas.~~ Resuelta: `RoundSelection.allowsRound(n)` (`BestNOfM` acepta hasta M) y `ScheduleRoundUseCase` rechaza con `BusinessRuleViolation` (422) la ronda M+1 antes de generar turnos; `BestNOfM.select` conserva su chequeo como red de seguridad.
+  - ~~Una versión nueva del reglamento con una M menor que las rondas ya programadas se publicaba, y desde ahí todo recálculo de la tabla (también el de una apelación aceptada o una corrección) fallaba en `BestNOfM.select`.~~ Resuelta: `PublishRulebookUseCase` consulta `allowsRound` con cada ronda guardada del desafío y devuelve `Publication.Rejected` (422) con una línea por ronda que la versión nueva no podría contar.
   - ~~Elegir el intento que representa a un equipo en una ronda queda en quien arma los `RoundScore`.~~ Cerrada en 2.26: `TeamAttempts` toma, por ronda, el mejor intento cuyo puntaje cuenta (`countableScore()`); uno descalificado o que espera una fuente no da ronda.
 - **Patrones no aplicados**: Decorator sobre `RoundSelection` (no hay variación que lo pida). Los criterios por nombre llegaron después, con la configuración por API (`RuleCatalog`, 2.13).
 
@@ -684,6 +685,17 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
   antes de guardar. ChangeRegistrationCategoryUseCase modifica una relación y
   conserva sus tiempos. Programación revalida antes de generar ids; rankings
   resuelven los participantes actuales sin cambiar cálculos del frente 4.
+- **Un integrante y un robot por equipo en cada edición**: `EditionRoster`
+  (`tournament.eligibility`) recibe los equipos inscriptos en una edición y nombra
+  cada integrante (`ParticipantId`) o robot (`RobotId`) que un candidato comparte
+  con otro equipo; la propia inscripción del candidato no cuenta. Inscribir un
+  equipo nuevo o canónico y actualizar uno inscripto lo consultan antes de
+  guardar, y los conflictos vuelven como motivos de `TeamIneligibleException`
+  (422), junto con los de elegibilidad en una actualización. No es una
+  especificación más porque mira otros agregados: `EligibilityCandidate` sigue
+  siendo equipo, categoría y fecha. La misma persona o robot puede competir en
+  otra edición. *Límite*: la identidad es el id que manda el cliente; dos ids
+  distintos para la misma persona no se detectan.
 - **Rehidratación**: Edition.restore valida pertenencia, categorías, fecha de
   referencia y unicidad, conservando los tiempos sin reevaluar equipos. Team
   admite construcción completa de su estado; Documentation.restore conserva
@@ -862,6 +874,18 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
     `POST .../publication`. Un bloqueo o una corrección inválida no escriben.
   - **Persistencia**: `JpaStandingsRepository` (migración `V5`) con versión
     optimista, igual que el intento. `Appeal` ya estaba en Postgres.
+  - **Versión del reglamento de cada tabla**: `StandingsTable(rankedWith, filas)`
+    guarda la `RulebookVersion` cuyo `RankingScheme` la ordenó; `CategoryResults`
+    lleva el reglamento vigente completo. Así una versión de la tabla dice con qué
+    reglas se calculó (la consigna pide recalcular con la versión correspondiente),
+    la API la muestra en `rulebookVersion`, y publicar una versión ordenada con un
+    reglamento anterior al vigente se bloquea con su propio motivo: la tabla se
+    recalcula con el nuevo antes de oficializarse. El JSON de `standings` guarda
+    `rankedWith`; la migración `V10` lo completa en las filas existentes con la
+    versión vigente al migrar, que es la que las ordenó salvo que el desafío haya
+    publicado otra después del cálculo (ese caso no se distingue con lo guardado).
+    Se descartó guardar la versión en `StandingsVersion`: es un dato de cómo se
+    ordenó la tabla, y la tabla es lo que `PublicationCheck` compara.
 
 - **Por qué no se reutilizó `Ranking`**: el alcance cambió (desafío, no ronda
   suelta) y el recálculo tenía que ser append-only. Evolucionar el agregado
@@ -1342,6 +1366,7 @@ Lista consolidada con los nombres actuales del código. El detalle y la historia
 
 **Deuda técnica que se decidió no resolver**
 - ~~M no se valida al programar.~~ Resuelta: `ScheduleRoundUseCase` consulta `RoundSelection.allowsRound` y rechaza la ronda M+1 con 422 (2.10).
+- ~~Una versión nueva podía bajar M por debajo de las rondas ya programadas.~~ Resuelta: `PublishRulebookUseCase` la rechaza con 422 (2.10).
 - Un criterio de desempate que mire otra métrica exige exponerla primero en `ChallengeScore` (2.10).
 - Los empates entre rondas con el mismo puntaje se resuelven por la más temprana, sin criterio configurable.
 
@@ -1386,7 +1411,8 @@ Lista consolidada con los nombres actuales del código. El detalle y la historia
 
 **Deuda técnica que se decidió no resolver**
 - Tiempo, objetivos, faltas, consumo y notas de jueces siguen siendo campos fijos y no métricas declaradas; por eso `PenaltyRule` y `CountedFaultRule` sin franquicia calculan lo mismo (2.11, 2.16).
-- Del panel solo se valida al juez que carga, no a cada juez que puntúa; no se valida el horario del turno y un turno `SCHEDULED` acepta resultados (2.18, 2.29).
+- Del panel solo se valida al juez que carga, no a cada juez que puntúa; no se valida el horario del turno y un turno `SCHEDULED` acepta resultados (2.18, 2.29). Validar a cada juez exige que la ronda conozca su panel: hoy guarda solo el juez asignado a cada turno, y los jueces nombrados al programar que no recibieron turnos se pierden.
+- Las notas de los jueces no tienen escala ni máximo: `JudgeScores` solo exige que sean finitas y no negativas, así que una nota de 9999 se acepta y se multiplica por `weightMultiplier`. La salida sería declarar la escala en la regla `judges` (un `maxScore` opcional) y revisarla al capturar el panel y al corregirlo en una apelación.
 - `ScoreRule.source()` admite una sola fuente: una regla que combine sensores y panel no se puede expresar (2.11).
 - Una métrica declarada que ninguna regla lee igual se exige en la captura, y su rango no se cruza con los parámetros de la regla (2.16).
 - Dos fuentes simultáneas se resuelven con bloqueo optimista: la segunda recibe 409 y el cliente tiene que reintentar; no hay reintento automático (2.18).

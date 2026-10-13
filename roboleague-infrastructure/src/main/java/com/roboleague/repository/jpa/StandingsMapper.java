@@ -2,6 +2,7 @@ package com.roboleague.repository.jpa;
 
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.Points;
+import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.ranking.OfficialPublication;
 import com.roboleague.ranking.Placement;
@@ -57,6 +58,7 @@ final class StandingsMapper {
 
     private static VersionJson toJson(StandingsVersion version) {
         return new VersionJson(version.number(), version.calculatedAt().toString(),
+                version.table().rankedWith().number(),
                 version.table().entries().stream().map(StandingsMapper::toJson).toList());
     }
 
@@ -78,7 +80,8 @@ final class StandingsMapper {
 
     private static StandingsVersion toVersion(VersionJson json) {
         return new StandingsVersion(json.number(), LocalDateTime.parse(json.calculatedAt()),
-                new StandingsTable(json.entries().stream().map(StandingsMapper::toEntry).toList()));
+                new StandingsTable(new RulebookVersion(json.rankedWith()),
+                        json.entries().stream().map(StandingsMapper::toEntry).toList()));
     }
 
     private static StandingsEntry toEntry(EntryJson json) {

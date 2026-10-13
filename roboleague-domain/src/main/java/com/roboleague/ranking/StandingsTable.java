@@ -1,5 +1,6 @@
 package com.roboleague.ranking;
 
+import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.scheme.RankingScheme;
 import com.roboleague.evaluation.scheme.TieBreakDecision;
 import com.roboleague.ranking.TeamAttempts.ScoredTeam;
@@ -12,14 +13,16 @@ import java.util.Objects;
 /**
  * The ordered rows of a challenge's standings in one category. Each team's total comes from the rounds its
  * rulebook counts (F1) and the order from the rulebook's chain of criteria; each row says which criterion placed
- * it below the previous one, or that they tie on every criterion and share the position.
+ * it below the previous one, or that they tie on every criterion and share the position. The table remembers the
+ * rulebook version whose ranking scheme ordered it, so a calculation can be told apart from one under other rules.
  */
-public record StandingsTable(List<StandingsEntry> entries) {
+public record StandingsTable(RulebookVersion rankedWith, List<StandingsEntry> entries) {
     public StandingsTable {
+        Objects.requireNonNull(rankedWith, "rankedWith cannot be null");
         entries = List.copyOf(Objects.requireNonNull(entries, "entries cannot be null"));
     }
 
-    public static StandingsTable rank(RankingScheme scheme, List<TeamAttempts> teams) {
+    public static StandingsTable rank(RulebookVersion rankedWith, RankingScheme scheme, List<TeamAttempts> teams) {
         Objects.requireNonNull(scheme, "scheme cannot be null");
         List<ScoredTeam> scored = new ArrayList<>();
         for (TeamAttempts team : teams) {
@@ -41,7 +44,7 @@ public record StandingsTable(List<StandingsEntry> entries) {
             previous = current;
             previousPlacement = placement;
         }
-        return new StandingsTable(entries);
+        return new StandingsTable(rankedWith, entries);
     }
 
     private static Placement placed(RankingScheme scheme, ScoredTeam previous, Placement previousPlacement,

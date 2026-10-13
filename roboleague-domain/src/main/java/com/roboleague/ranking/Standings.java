@@ -89,7 +89,10 @@ public class Standings {
             reasons.add("only the latest version (" + latest.number() + ") can be published; version " + number
                     + " is outdated");
         }
-        if (!check.current().equals(latest.table())) {
+        if (!check.current().rankedWith().equals(latest.table().rankedWith())) {
+            reasons.add("version " + latest.number() + " was ranked with rulebook " + latest.table().rankedWith()
+                    + " and the challenge now ranks with " + check.current().rankedWith() + "; recalculate first");
+        } else if (!check.current().equals(latest.table())) {
             reasons.add("results changed since version " + latest.number() + " was calculated; recalculate first");
         }
         if (check.openAppeals() > 0) {

@@ -76,6 +76,18 @@ class UpdateTeamUseCaseTest {
     }
 
     @Test
+    void takingAParticipantOfAnotherTeamOfTheEditionIsRejectedAndKeepsTheCanonicalTeam() {
+        Team rival = team("team-2");
+        register.execute(first.getId(), broad.id(), rival);
+        Team candidate = canonical.withMembers(List.of(canonical.getMembers().getFirst(), rival.getMembers().getFirst()));
+
+        assertThatThrownBy(() -> update.execute(canonical.getId(), candidate))
+                .isInstanceOfSatisfying(TeamIneligibleException.class, e -> assertThat(e.getViolations())
+                        .containsExactly("Edition ed-1: Participant team-2-m-1 already competes for team team-2"));
+        assertThat(teams.findById(canonical.getId())).containsSame(canonical);
+    }
+
+    @Test
     void validUpdateIsCanonicalForBothEditionsAndTheirRankings() {
         var before = editions.findByTeamId(canonical.getId());
         Team changed = canonical.withRobot(robot(1100))

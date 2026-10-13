@@ -1,6 +1,7 @@
 package com.roboleague.api.challenge;
 
 import com.roboleague.api.ApiTest;
+import com.roboleague.api.EditionRequests;
 import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.rules.JudgeSubjectiveRule;
@@ -219,6 +220,30 @@ class ChallengeControllerTest extends ApiTest {
 
         mvc.perform(publish("api-ch-3", rulebook("teleport", 40))).andExpect(status().isUnprocessableContent());
         mvc.perform(get("/challenges/{id}", "api-ch-3")).andExpect(jsonPath("$.currentRulebook.version").value(1));
+    }
+
+    @Test
+    @DisplayName("Una versión que no puede contar una ronda ya programada es 422 y no cambia la vigente")
+    void aVersionThatCannotCountAScheduledRoundIsUnprocessable() throws Exception {
+        String edition = "api-ed-uncounted";
+        mvc.perform(EditionRequests.edition(edition)).andExpect(status().isCreated());
+        mvc.perform(EditionRequests.challenge(edition, "api-ch-uncounted")).andExpect(status().isCreated());
+        mvc.perform(EditionRequests.register(edition, "api-team-uncounted", "Team", 1000)).andExpect(status().isCreated());
+        mvc.perform(post("/challenges/{id}/rounds", "api-ch-uncounted").contentType(MediaType.APPLICATION_JSON)
+                        .content(EditionRequests.roundBody(edition + "-small", 3)))
+                .andExpect(status().isCreated());
+
+        mvc.perform(publish("api-ch-uncounted", """
+                        {"metrics": [], "scoring": {
+                           "rules": [{"type": "objectives", "name": "Objectives", "numbers": {"pointsPerObjective": 10}}],
+                           "bonuses": [], "deductions": [], "bonusLimit": {"type": "unlimited"}},
+                         "ranking": {"roundSelection": {"type": "best-n-of-m", "numbers": {"considered": 1, "outOf": 2}},
+                                     "criteria": ["higher-total"]}}
+                        """))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.details", contains("round 3 of category " + edition
+                        + "-small is already scheduled and the new rulebook counts mejores 1 de 2 rondas")));
+        mvc.perform(get("/challenges/{id}", "api-ch-uncounted")).andExpect(jsonPath("$.currentRulebook.version").value(1));
     }
 
     @Test
