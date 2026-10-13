@@ -12,8 +12,14 @@ import com.roboleague.evaluation.definition.RulebookDefinition;
 import com.roboleague.evaluation.definition.StrategyDefinition;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.scheme.AllRounds;
+import com.roboleague.evaluation.scheme.BestNOfM;
 import com.roboleague.repository.memory.InMemoryChallengeRepository;
 import com.roboleague.repository.memory.InMemoryEditionRepository;
+import com.roboleague.repository.memory.InMemoryRoundRepository;
+import com.roboleague.scheduling.Round;
+import com.roboleague.scheduling.RoundId;
+import com.roboleague.scheduling.RoundInfo;
+import com.roboleague.scheduling.RoundScope;
 import com.roboleague.support.ConflictException;
 import com.roboleague.tournament.Category;
 import com.roboleague.tournament.CategoryId;
@@ -39,6 +45,7 @@ class ConfigureChallengesUseCaseTest {
 
     private InMemoryEditionRepository editions;
     private InMemoryChallengeRepository challenges;
+    private InMemoryRoundRepository rounds;
     private CreateEditionUseCase createEdition;
     private AddChallengeUseCase addChallenge;
     private PublishRulebookUseCase publishRulebook;
@@ -47,10 +54,11 @@ class ConfigureChallengesUseCaseTest {
     void setUp() {
         editions = new InMemoryEditionRepository();
         challenges = new InMemoryChallengeRepository();
+        rounds = new InMemoryRoundRepository();
         RuleCatalog catalog = RuleCatalog.standard();
         createEdition = new CreateEditionUseCase(editions);
         addChallenge = new AddChallengeUseCase(editions, challenges, catalog);
-        publishRulebook = new PublishRulebookUseCase(challenges, catalog);
+        publishRulebook = new PublishRulebookUseCase(challenges, rounds, catalog);
         createEdition.execute(editionCommand("ed-2026"));
     }
 
@@ -65,11 +73,23 @@ class ConfigureChallengesUseCaseTest {
             new RulebookDefinition.Bonuses(List.of(), new StrategyDefinition(Unlimited.TYPE, Parameters.none()));
 
     private static RulebookDefinition penaltyRulebook(double deduction) {
+        return penaltyRulebook(deduction, new StrategyDefinition(AllRounds.TYPE, Parameters.none()));
+    }
+
+    private static RulebookDefinition penaltyRulebook(double deduction, StrategyDefinition roundSelection) {
         return new RulebookDefinition(List.of(),
                 new RulebookDefinition.Scoring(List.of(), NO_BONUSES,
                         List.of(new PenaltyRule("Faltas", Points.of(deduction)).definition())),
-                new RulebookDefinition.Ranking(new StrategyDefinition(AllRounds.TYPE, Parameters.none()),
-                        List.of("higher-total")));
+                new RulebookDefinition.Ranking(roundSelection, List.of("higher-total")));
+    }
+
+    private static StrategyDefinition bestOf(int considered, int outOf) {
+        return new BestNOfM(considered, outOf).definition();
+    }
+
+    private void scheduledMazeRound(int number) {
+        rounds.save(Round.of(RoundInfo.of(RoundId.of("r-maze-" + number), "Ronda " + number,
+                RoundScope.of(ChallengeId.of("ch-maze"), EditionId.of("ed-2026"), CategoryId.of("cat-junior"), number))));
     }
 
     private static RulebookDefinition unknownRuleRulebook() {
@@ -153,6 +173,35 @@ class ConfigureChallengesUseCaseTest {
         assertThat(publication).isInstanceOf(Publication.Rejected.class);
         assertThat(challenges.findById(ChallengeId.of("ch-maze")).orElseThrow().currentRulebook().version())
                 .isEqualTo(RulebookVersion.first());
+    }
+
+    @Test
+    @DisplayName("Una versión que no puede contar una ronda ya programada se rechaza y el desafío sigue en la v1")
+    void givenARoundBeyondTheNewMThenTheVersionIsRejected() {
+        addChallenge.execute(maze(penaltyRulebook(10.0)));
+        scheduledMazeRound(3);
+        scheduledMazeRound(4);
+
+        Publication<Rulebook> publication = publishRulebook.execute(ChallengeId.of("ch-maze"),
+                penaltyRulebook(10.0, bestOf(2, 3)));
+
+        assertThat(publication).isInstanceOf(Publication.Rejected.class);
+        assertThat(((Publication.Rejected<Rulebook>) publication).problems()).containsExactly(
+                "round 4 of category cat-junior is already scheduled and the new rulebook counts mejores 2 de 3 rondas");
+        assertThat(challenges.findById(ChallengeId.of("ch-maze")).orElseThrow().currentRulebook().version())
+                .isEqualTo(RulebookVersion.first());
+    }
+
+    @Test
+    @DisplayName("Una versión cuya M alcanza a todas las rondas programadas se publica")
+    void givenRoundsUpToTheNewMThenTheVersionIsPublished() {
+        addChallenge.execute(maze(penaltyRulebook(10.0)));
+        scheduledMazeRound(3);
+
+        Publication<Rulebook> publication = publishRulebook.execute(ChallengeId.of("ch-maze"),
+                penaltyRulebook(10.0, bestOf(2, 3)));
+
+        assertThat(((Publication.Published<Rulebook>) publication).value().version()).isEqualTo(new RulebookVersion(2));
     }
 
     @Test

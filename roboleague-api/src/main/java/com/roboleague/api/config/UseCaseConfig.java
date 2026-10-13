@@ -83,8 +83,9 @@ class UseCaseConfig {
     }
 
     @Bean
-    PublishRulebookUseCase publishRulebookUseCase(ChallengeRepository challenges, RuleCatalog catalog) {
-        return new PublishRulebookUseCase(challenges, catalog);
+    PublishRulebookUseCase publishRulebookUseCase(ChallengeRepository challenges, RoundRepository rounds,
+                                                  RuleCatalog catalog) {
+        return new PublishRulebookUseCase(challenges, rounds, catalog);
     }
 
     @Bean
