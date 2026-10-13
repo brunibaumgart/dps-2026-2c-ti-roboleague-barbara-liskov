@@ -87,7 +87,7 @@ Arquitectura hexagonal: todas las dependencias apuntan hacia adentro.
 | --- | --- | --- |
 | `roboleague-domain` | Agregados, value objects, servicios de dominio y puertos (`*Repository`). Java plano, sin Spring. | nada |
 | `roboleague-application` | Casos de uso. Java plano, sin Spring. | domain |
-| `roboleague-infrastructure` | Adaptadores de salida: Postgres (entidad JPA propia + mapper + migración Flyway) y repositorios en memoria. | domain |
+| `roboleague-infrastructure` | Adaptadores de salida: Postgres para los siete agregados (entidad JPA propia + mapper + migración Flyway) y repositorios en memoria para tests de casos de uso. | domain |
 | `roboleague-api` | Composition root de Spring Boot, controllers REST, DTOs, manejo de errores, `DemoFixture`. | application, infrastructure |
 
 Los paquetes no cambiaron al separar módulos (`com.roboleague.usecase`, `com.roboleague.repository.memory`, …).
@@ -108,7 +108,7 @@ Los paquetes no cambiaron al separar módulos (`com.roboleague.usecase`, `com.ro
   | Otro pedido guardó lo mismo a la vez (versión vieja o id repetido al confirmar) | 409, para volver a cargar y reintentar |
 
   Un caso de uso que devuelva un resultado `sealed` se traduce en su controller con un `switch` (por ejemplo `Published → 200`, `Rejected → 409`).
-- Cada caso de uso corre en una transacción (`TransactionalUseCases`) que cubre Postgres. Los repositorios en memoria no ofrecen rollback ante fallos técnicos entre escrituras; los rechazos de validación se comprueban antes de guardar.
+- Cada caso de uso corre en una transacción (`TransactionalUseCases`) que cubre todos los repositorios: todos los agregados se guardan en Postgres. Los repositorios en memoria solo se usan en tests de casos de uso y no ofrecen rollback.
 - Referencia: `AppealController` y `AppealControllerTest`.
 
 ### Contratos
@@ -402,10 +402,10 @@ otro valor con autor y hora explícitos. Conservar siempre los valores devueltos
 
 Programación revalida participantes; programación y standings resuelven el
 estado actual desde TeamRepository. Rechazos de validación no dejan cambios
-parciales en memoria. Team/Edition/Registration todavía no tienen persistencia
-Postgres: sus datos se pierden al reiniciar y no hay rollback en memoria ante
-fallos técnicos entre escrituras. Su JPA corresponde al frente 5; los endpoints
-HTTP de estos flujos están implementados en la spec 05.
+parciales. Team y Edition (con sus Registration) se guardan en Postgres
+(migraciones `V6`/`V7`) y sobreviven reinicios. Si dos pedidos cambian la misma
+edición o el mismo equipo a la vez (por ejemplo, dos inscripciones), el segundo
+recibe 409 y debe recargar y reintentar.
 
 ### Rondas por desafío y programación paralela
 
@@ -430,10 +430,10 @@ completados o cancelados. Cancelar libera recursos. Recibir fuentes de medición
 no cambia estos estados; el juez asignado puede cargar ambas fuentes de un
 intento mixto. Las notas individuales del panel siguen siendo datos de scoring.
 
-La spec 04 implementa dominio, casos de uso, adaptador memory y rehidratación.
-Rondas en memoria se pierden al reiniciar y no garantizan exclusión entre
-programaciones concurrentes. Su JPA/locking corresponde al frente 5; los
-endpoints de programación y consulta están implementados en la spec 05.
+Las rondas se guardan en Postgres (migración `V8`) con sus slots completos;
+Postgres asegura el scope único y una escritura obsoleta de la misma ronda
+recibe 409. Dos programaciones concurrentes de rondas distintas todavía no se
+excluyen por pista o juez.
 
 ## Front web: uso y estado de integración
 
@@ -480,8 +480,7 @@ un reclamo, tomarlo en revisión, aceptarlo con mediciones corregidas o
 rechazarlo, recalcular y publicar van al servidor. El navegador no ordena
 filas ni decide si se puede publicar: un 409 muestra cada motivo (versión
 vieja, apelaciones abiertas, turnos sin resultado o resultados posteriores al
-cálculo). Equipos/ediciones/rondas siguen en memoria; la UI no los presenta
-como durables. Las standings sí se guardan en Postgres.
+cálculo). Equipos, ediciones, rondas y standings se guardan en Postgres.
 
 ### Verificación del frontend
 
@@ -522,8 +521,8 @@ esa comprobación de UI.
 1. Migración nueva en `src/main/resources/db/migration/V<n>__<descripcion>.sql`. Nunca editar una migración ya mergeada.
 2. `XxxJpaEntity` (package-private, solo campos) y `SpringDataXxx extends JpaRepository`.
 3. `XxxMapper` en los dos sentidos. Para volver al dominio, el agregado expone `Xxx.restore(...)`: así no necesita constructor vacío ni setters.
-4. `JpaXxxRepository implements XxxRepository`, anotado `@Repository`.
-5. Borrar el bean en memoria de `InMemoryRepositoryConfig` (si quedan los dos, la app no arranca).
+4. `JpaXxxRepository implements XxxRepository`, anotado `@Repository`. Para rechazar escrituras concurrentes con `@Version`, seguir `JpaAttemptRepository` si el agregado es mutable o `JpaEditionRepository` si es inmutable.
+5. La API lo descubre por escaneo; no registrar otro bean para el mismo puerto (si hay dos, la app no arranca). El adaptador en memoria, si existe, queda para tests de casos de uso.
 6. `JpaXxxRepositoryTest` con `@DataJpaTest` e `@Import({PostgresContainer.class, JpaXxxRepository.class})`.
 
 ## Más
