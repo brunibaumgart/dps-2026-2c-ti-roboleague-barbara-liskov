@@ -4,9 +4,23 @@ Plataforma para competencias de robótica: torneos, elegibilidad de equipos, pro
 
 ## Requisitos
 
-- Java 25
+- JDK 25: `java -version` y `mvn -version` tienen que mostrar 25 (el `pom.xml` compila con `maven.compiler.release` 25 y un JDK anterior no lo compila). Si hay varios JDK instalados, apuntar `JAVA_HOME` al 25 o, con SDKMAN, elegir uno de `sdk list java` y activarlo con `sdk use java <versión-25>`.
 - Maven 3.6.3 o superior
 - Docker (Postgres con `docker compose`; los tests de repositorio y de API lo usan vía Testcontainers)
+- Node 20 o superior, solo para los tests de módulos JS del front (opcional)
+
+## Compilar, probar y ejecutar
+
+Desde la raíz del repo:
+
+```bash
+mvn -B verify                                    # compila y corre todos los tests; necesita Docker (ver "Tests")
+mvn -B package -DskipTests                       # solo genera el jar, sin acreditar pruebas
+docker compose up -d --wait                      # Postgres local en el puerto 5432
+java -jar roboleague-api/target/roboleague-api-1.0-SNAPSHOT.jar   # API y web en http://localhost:8080
+```
+
+Sin perfil, la app usa la base tal como esté (Flyway aplica las migraciones pendientes). Para cargar el escenario de ejemplo, ver "Correr la demo".
 
 El reloj de la aplicación usa `America/Argentina/Buenos_Aires` por defecto.
 Se configura con `ROBOLEAGUE_TIME_ZONE` (un identificador válido de `ZoneId`, por
@@ -19,8 +33,9 @@ No cambiar a UTC la lectura de un historial existente: los timestamps almacenado
 no se reinterpretan al configurar la zona para nuevas operaciones.
 
 Las identidades del núcleo son tipos distintos (`TeamId`, `JudgeId`, `SlotId`,
-`RoundId`, `EditionId`, `CategoryId`, `AppealId`, `RankingId`, `ParticipantId`,
+`RoundId`, `EditionId`, `CategoryId`, `AppealId`, `StandingsId`, `ParticipantId`,
 `RobotId` y `TrackId`), además de los existentes `ChallengeId` y `AttemptId`.
+`StandingsId` se deriva del desafío y la categoría.
 Controllers y mappers convierten explícitamente entre estos tipos y texto:
 los ids de JSON, paths, columnas y claves de mapas JSON siguen siendo strings.
 Los autores que pueden tener varios roles usan `ActorId`; no se identifican
@@ -93,7 +108,7 @@ Para apagar Postgres: `docker compose down` (con `-v` también borra los datos).
 mvn -B verify
 ```
 
-Corre los tres tipos de test. Todos se llaman `*Test`, así que `mvn test` también los corre.
+Corre los tres tipos de test. Todos se llaman `*Test`, así que `mvn test` también los corre. Para un módulo: `mvn -B -pl roboleague-domain test` (sin Docker) o `mvn -B -pl roboleague-application -am test`; infraestructura y API necesitan Docker.
 
 | Tipo | Qué prueba | Con qué |
 | --- | --- | --- |
@@ -114,7 +129,7 @@ Cada test vive en el mismo módulo y paquete que la clase que prueba (`evaluatio
 
 El build falla si los tests propios de `roboleague-domain` o `roboleague-application` bajan del mínimo de líneas y ramas fijado en su `pom.xml` (`coverage.line.minimum` / `coverage.branch.minimum`, un par de puntos por debajo de lo medido). En la CI, el reporte agregado queda como artefacto `coverage-report` de cada corrida. `-Djacoco.skip` lo desactiva en una corrida local.
 
-La CI (`.github/workflows/ci.yml`) corre `mvn -B verify` en cada PR y en cada push a `main`. Para que bloquee PRs: en GitHub, *Settings → Branches → Branch protection rule* para `main`, con *Require status checks to pass* y el check `build`.
+La CI (`.github/workflows/ci.yml`, job `build`, JDK 25 Temurin) corre `mvn -B verify` en cada PR y en cada push a `main`, sube el reporte de cobertura y después corre los tests de módulos JS del front con Node. Si un test o un mínimo de cobertura falla, el job falla. Para que bloquee PRs: en GitHub, *Settings → Branches → Branch protection rule* para `main`, con *Require status checks to pass* y el check `build`.
 
 ## Módulos
 
@@ -149,38 +164,47 @@ Los paquetes no cambiaron al separar módulos (`com.roboleague.usecase`, `com.ro
   | `CorruptDataException` (dato guardado irreconstruible), `InconsistentStateException` (referencia rota entre agregados), `DataIntegrityViolationException` o cualquier error inesperado | 500 con mensaje genérico; la causa queda en el log |
   | Base de datos no disponible | 503 |
 
-  Un caso de uso que devuelva un resultado `sealed` se traduce en su controller con un `switch` (por ejemplo `Published → 200`, `Rejected → 409`).
+  Un caso de uso que devuelva un resultado `sealed` se traduce en su controller con un `switch`: reglamento `Published → 201` / `Rejected → 422`; captura `Received → 200` / `Rejected → 422`; aceptación de apelación `Accepted → 200` / `Invalid → 422`; publicación de la tabla `Published → 200` / `Blocked → 409`. En todos los rechazos cada motivo va en `details`.
 - Cada caso de uso corre en una transacción (`TransactionalUseCases`) que cubre todos los repositorios: todos los agregados se guardan en Postgres. Los repositorios en memoria solo se usan en tests de casos de uso y no ofrecen rollback.
 - Referencia: `AppealController` y `AppealControllerTest`.
 
 ### Contratos
 
-| Método | Ruta | Estado |
-| --- | --- | --- |
-| POST | `/appeals/{id}/review` | hecho |
-| POST | `/editions` | hecho |
-| POST | `/editions/{id}/challenges` | hecho |
-| POST | `/challenges/{id}/rulebook/versions` | hecho |
-| GET | `/challenges/{id}` | hecho |
-| GET | `/challenges/{id}/rulebook/versions/{version}` | hecho |
-| GET | `/editions` · `/editions/{id}` | hecho |
-| GET | `/editions/{id}/challenges` | hecho |
-| POST · GET | `/editions/{id}/registrations` | hecho |
-| GET · PUT | `/editions/{id}/registrations/{teamId}` | hecho |
-| POST · GET | `/challenges/{id}/rounds` | hecho |
-| GET | `/rounds/{id}` | hecho |
-| POST | `/rounds/{id}/start` · `/completion` | hecho |
-| POST | `/rounds/{id}/slots/{slotId}/start` · `/completion` · `/cancellation` | hecho |
-| PUT | `/attempts/{id}/measurements` | hecho |
-| PUT | `/attempts/{id}/judge-scores` | hecho |
-| GET | `/attempts/{id}/breakdown` | hecho |
-| POST | `/attempts/{id}/penalty-adjustments` · `/disqualification` | hecho |
-| POST · GET | `/attempts/{id}/appeals` | hecho |
-| GET | `/challenges/{id}/appeals` · `/appeals/{id}` | hecho |
-| POST | `/appeals/{id}/acceptance` · `/rejection` | hecho |
-| GET | `/challenges/{id}/standings[/versions/{v}]` | hecho |
-| POST | `/challenges/{id}/standings/versions` | hecho |
-| POST | `/challenges/{id}/standings/versions/{v}/publication` | hecho |
+Todas las respuestas de error usan `ErrorDto {error, details}`. Además de los códigos de cada fila, cualquier escritura puede responder **409** si otro pedido guardó el mismo agregado antes (`ConcurrentModificationConflict`), y cualquier ruta **500** (dato guardado irreconstruible, referencia rota o error inesperado, con mensaje genérico) o **503** (base no disponible). Un campo JSON desconocido o un parámetro faltante o mal tipado es siempre **400**.
+
+| Método | Ruta | Éxito | Errores propios |
+| --- | --- | --- | --- |
+| GET | `/` | 200, front web estático | — |
+| POST | `/editions` | 201 `EditionDto` | 400 dato faltante, en blanco o categoría repetida; 409 id repetido |
+| GET | `/editions` · `/editions/{id}` | 200 lista / `EditionDto` | 404 |
+| GET | `/editions/{id}/challenges` | 200 lista de `ChallengeDto` | 404 |
+| POST | `/editions/{id}/challenges` | 201 `ChallengeDto` con v1 | 400 id o nombre inválido; 404 edición; 409 id repetido; 422 reglamento |
+| GET | `/challenges/{id}` | 200 `ChallengeDto` | 404 |
+| POST | `/challenges/{id}/rulebook/versions` | 201 `RulebookDto` | 404; 422 reglamento |
+| GET | `/challenges/{id}/rulebook/versions/{version}` | 200 `RulebookDto` | 400 número inválido; 404 |
+| POST | `/editions/{id}/registrations` | 201 `RegistrationDto` | 400; 404; 409 duplicada o equipo existente; 422 inelegible |
+| GET | `/editions/{id}/registrations` · `/editions/{id}/registrations/{teamId}` | 200 lista / `RegistrationDto` | 404 |
+| PUT | `/editions/{id}/registrations/{teamId}` | 200 `RegistrationDto` | 400; 404; 422 inelegible |
+| POST | `/challenges/{id}/rounds` | 201 `RoundDto` | 400 recursos o categoría ajena; 404; 409 scope repetido; 422 inelegible o fuera de fechas |
+| GET | `/challenges/{id}/rounds[?categoryId=]` · `/rounds/{id}` | 200 lista / `RoundDto` | 400 categoría ajena; 404 |
+| POST | `/rounds/{id}/start` · `/rounds/{id}/completion` | 200 `RoundDto` | 404; 409 transición no permitida |
+| POST | `/rounds/{id}/slots/{slotId}/start` · `/completion` | 200 `RoundDto` | 404; 409 transición no permitida |
+| POST | `/rounds/{id}/slots/{slotId}/cancellation` | 200 `RoundDto` | 400 sin `actorId`/`reason`; 404; 409 turno empezado o con resultados |
+| PUT | `/attempts/{id}/measurements` · `/attempts/{id}/judge-scores` | 200 `AttemptDto` | 400; 404 slot; 409 fuente repetida, otro desafío o turno cancelado; 422 mediciones o juez no asignado |
+| GET | `/attempts/{id}/breakdown` | 200 `BreakdownDto` (`awaiting`, `items`, `bySource`, `revisions`) | 404 |
+| POST | `/attempts/{id}/penalty-adjustments` | 200 `{attempt, standingsVersion}` | 400; 404; 409 estado |
+| POST | `/attempts/{id}/disqualification` | 200 `{attempt, standingsVersion}` | 400; 404; 409 estado; 422 juez no asignado |
+| POST | `/attempts/{id}/appeals` | 201 `AppealDto` | 400; 404; 409 estado del intento; 422 equipo ajeno |
+| GET | `/attempts/{id}/appeals` · `/challenges/{id}/appeals?categoryId=` · `/appeals/{id}` | 200 lista / `AppealDto` | 400 sin `categoryId`; 404 |
+| POST | `/appeals/{id}/review` | 200 `AppealDto` | 400; 404; 409 transición |
+| POST | `/appeals/{id}/acceptance` | 200 `{appeal, standingsVersion}` | 400; 404; 409 transición o revisor; 422 correcciones |
+| POST | `/appeals/{id}/rejection` | 200 `AppealDto` | 400; 404; 409 transición o revisor |
+| GET | `/challenges/{id}/standings?categoryId=` | 200 `StandingsDto` | 400; 404 |
+| GET | `/challenges/{id}/standings/versions/{v}?categoryId=` | 200 `StandingsVersionDto` | 400; 404 |
+| POST | `/challenges/{id}/standings/versions?categoryId=` | 201 `StandingsVersionDto` (provisional) | 400; 404 |
+| POST | `/challenges/{id}/standings/versions/{v}/publication?categoryId=` | 200 `StandingsDto` | 400; 404; 409 bloqueada, con cada motivo en `details` |
+
+El detalle de cada cuerpo está en las secciones siguientes.
 
 La edad mínima se evalúa en años cumplidos al inicio de la edición. `maxAge`
 es opcional: omitido o `null` indica que la categoría no tiene edad máxima.
@@ -607,4 +631,4 @@ esa comprobación de UI.
 
 ## Más
 
-- [`DESIGN.md`](DESIGN.md): contextos, decisiones de diseño, patrones y alternativas descartadas.
+- [`DESIGN.md`](DESIGN.md): contextos, decisiones de diseño, patrones y alternativas descartadas; el capítulo 6 resume clases, refactorizaciones y deuda de F1, F2 y F3, y el capítulo 7 los patrones que se decidió no aplicar.
