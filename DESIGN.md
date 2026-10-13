@@ -358,6 +358,7 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
 - **F1: deuda que decidimos no resolver en este paso**:
   - ~~La tabla de posiciones todavía no usa el esquema.~~ Cerrada en 2.26: `StandingsTable` arma por equipo las rondas que el reglamento cuenta, ordena con `rulebook.rankingScheme()` y explica cada posición con `decide`. `TieBreakerChain` y `TeamScore` se eliminaron (regla #27).
   - ~~M no se valida contra las rondas programadas.~~ Resuelta: `RoundSelection.allowsRound(n)` (`BestNOfM` acepta hasta M) y `ScheduleRoundUseCase` rechaza con `BusinessRuleViolation` (422) la ronda M+1 antes de generar turnos; `BestNOfM.select` conserva su chequeo como red de seguridad.
+  - ~~Una versión nueva del reglamento con una M menor que las rondas ya programadas se publicaba, y desde ahí todo recálculo de la tabla (también el de una apelación aceptada o una corrección) fallaba en `BestNOfM.select`.~~ Resuelta: `PublishRulebookUseCase` consulta `allowsRound` con cada ronda guardada del desafío y devuelve `Publication.Rejected` (422) con una línea por ronda que la versión nueva no podría contar.
   - ~~Elegir el intento que representa a un equipo en una ronda queda en quien arma los `RoundScore`.~~ Cerrada en 2.26: `TeamAttempts` toma, por ronda, el mejor intento cuyo puntaje cuenta (`countableScore()`); uno descalificado o que espera una fuente no da ronda.
 - **Patrones no aplicados**: Decorator sobre `RoundSelection` (no hay variación que lo pida). Los criterios por nombre llegaron después, con la configuración por API (`RuleCatalog`, 2.13).
 
@@ -1342,6 +1343,7 @@ Lista consolidada con los nombres actuales del código. El detalle y la historia
 
 **Deuda técnica que se decidió no resolver**
 - ~~M no se valida al programar.~~ Resuelta: `ScheduleRoundUseCase` consulta `RoundSelection.allowsRound` y rechaza la ronda M+1 con 422 (2.10).
+- ~~Una versión nueva podía bajar M por debajo de las rondas ya programadas.~~ Resuelta: `PublishRulebookUseCase` la rechaza con 422 (2.10).
 - Un criterio de desempate que mire otra métrica exige exponerla primero en `ChallengeScore` (2.10).
 - Los empates entre rondas con el mismo puntaje se resuelven por la más temprana, sin criterio configurable.
 

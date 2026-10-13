@@ -180,7 +180,7 @@ Todas las respuestas de error usan `ErrorDto {error, details}`. Además de los c
 | GET | `/editions/{id}/challenges` | 200 lista de `ChallengeDto` | 404 |
 | POST | `/editions/{id}/challenges` | 201 `ChallengeDto` con v1 | 400 id o nombre inválido; 404 edición; 409 id repetido; 422 reglamento |
 | GET | `/challenges/{id}` | 200 `ChallengeDto` | 404 |
-| POST | `/challenges/{id}/rulebook/versions` | 201 `RulebookDto` | 404; 422 reglamento |
+| POST | `/challenges/{id}/rulebook/versions` | 201 `RulebookDto` | 404; 422 reglamento o ronda ya programada que la versión no cuenta |
 | GET | `/challenges/{id}/rulebook/versions/{version}` | 200 `RulebookDto` | 400 número inválido; 404 |
 | POST | `/editions/{id}/registrations` | 201 `RegistrationDto` | 400; 404; 409 duplicada o equipo existente; 422 inelegible |
 | GET | `/editions/{id}/registrations` · `/editions/{id}/registrations/{teamId}` | 200 lista / `RegistrationDto` | 404 |
@@ -222,7 +222,7 @@ La demo requiere ser mayor de 12 años (desde 13), sin límite superior.
                  "minAge": 12, "maxAge": 17, "maxWeightGrams": 2500}]}
 ```
 
-`POST /editions/{id}/challenges` con `{"id", "name", "rulebook"}` → 201 con el desafío y su reglamento v1. `POST /challenges/{id}/rulebook/versions` con un `rulebook` → 201 con la versión nueva. Un reglamento con problemas es **422** con cada problema en `details` (`"rule 'Faltas': missing parameter 'deductionPerPenalty'"`). Edición o desafío inexistente: 404; id repetido: 409. Una edición sin un dato obligatorio (`editionNumber`, id o nombre del torneo, id, nombre o año de la temporada, id o nombre de una categoría), con un id o nombre en blanco o con dos categorías del mismo id: 400. Un número omitido no se toma como 0: el error nombra el campo (`Missing field 'tournament.season.year'`).
+`POST /editions/{id}/challenges` con `{"id", "name", "rulebook"}` → 201 con el desafío y su reglamento v1. `POST /challenges/{id}/rulebook/versions` con un `rulebook` → 201 con la versión nueva. Una versión cuya selección de rondas no puede contar una ronda ya programada del desafío (por ejemplo `best-n-of-m` con `outOf: 3` cuando existe la ronda 4) es **422**, con una línea por ronda (`"round 4 of category cat-junior is already scheduled and the new rulebook counts mejores 2 de 3 rondas"`). Un reglamento con problemas es **422** con cada problema en `details` (`"rule 'Faltas': missing parameter 'deductionPerPenalty'"`). Edición o desafío inexistente: 404; id repetido: 409. Una edición sin un dato obligatorio (`editionNumber`, id o nombre del torneo, id, nombre o año de la temporada, id o nombre de una categoría), con un id o nombre en blanco o con dos categorías del mismo id: 400. Un número omitido no se toma como 0: el error nombra el campo (`Missing field 'tournament.season.year'`).
 
 Un reglamento en JSON (lo que se manda es lo que `GET /challenges/{id}` devuelve en `currentRulebook`):
 
