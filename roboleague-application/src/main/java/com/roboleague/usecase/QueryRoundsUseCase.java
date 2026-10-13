@@ -24,13 +24,14 @@ public class QueryRoundsUseCase {
     }
 
     public Round get(RoundId id) {
-        return rounds.findById(id).orElseThrow(() -> new IllegalArgumentException("Round not found: " + id));
+        return rounds.findById(id).orElseThrow(() -> new NotFoundException("Round", id));
     }
 
     public List<Round> list(ChallengeId id, Optional<CategoryId> category) {
-        var challenge = challenges.findById(id).orElseThrow(() -> new IllegalArgumentException("Challenge not found: " + id));
+        var challenge = challenges.findById(id).orElseThrow(() -> new NotFoundException("Challenge", id));
         var edition = editions.findById(challenge.getEditionId())
-                .orElseThrow(() -> new IllegalArgumentException("Edition not found: " + challenge.getEditionId()));
+                .orElseThrow(() -> new InconsistentStateException("Edition of challenge " + id
+                        + " not found: " + challenge.getEditionId()));
         category.ifPresent(edition::category);
         return rounds.findByChallengeId(id).stream()
                 .filter(round -> category.isEmpty() || category.get().equals(round.getCategoryId()))

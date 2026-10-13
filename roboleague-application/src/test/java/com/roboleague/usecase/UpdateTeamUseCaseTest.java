@@ -133,7 +133,7 @@ class UpdateTeamUseCaseTest {
     @Test
     void updateCannotCreateTeamsOrChangeTheirIdentity() {
         assertThatThrownBy(() -> update.execute(TeamId.of("missing"), canonical))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Team not found");
+                .isInstanceOf(NotFoundException.class).hasMessageContaining("Team not found");
         assertThatThrownBy(() -> update.execute(canonical.getId(), team("different")))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("cannot change its identity");
         assertThatThrownBy(() -> canonical.withProfile(TeamProfile.of(TeamId.of("different"), "Name", "School")))

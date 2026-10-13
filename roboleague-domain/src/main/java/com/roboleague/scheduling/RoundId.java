@@ -1,14 +1,11 @@
 package com.roboleague.scheduling;
 
-import java.util.Objects;
+import com.roboleague.support.Identifiers;
 
 /** Textual identity of a round; preserves the supplied external value. */
 public record RoundId(String value) {
     public RoundId {
-        Objects.requireNonNull(value, "roundId cannot be null");
-        if (value.isBlank()) {
-            throw new IllegalArgumentException("roundId cannot be blank");
-        }
+        Identifiers.validate(value, "roundId");
     }
 
     public static RoundId of(String value) {

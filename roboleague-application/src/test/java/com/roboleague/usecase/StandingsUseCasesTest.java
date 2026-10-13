@@ -118,7 +118,7 @@ class StandingsUseCasesTest {
     @DisplayName("A challenge that does not exist, or a category its edition does not offer, has no standings")
     void unknownChallengesAndCategoriesHaveNoStandings() {
         assertThatThrownBy(() -> recalculate.execute(new StandingsId(ChallengeId.of("missing"), maze.id())))
-                .isInstanceOf(IllegalArgumentException.class).hasMessage("Challenge not found: missing");
+                .isInstanceOf(NotFoundException.class).hasMessage("Challenge not found: missing");
         assertThatThrownBy(() -> query.execute(new StandingsId(challenge.getId(), CategoryId.of("sumo"))))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("not offered");
     }
@@ -146,8 +146,22 @@ class StandingsUseCasesTest {
     @DisplayName("Standings that were never calculated cannot be published")
     void standingsNeverCalculatedCannotBePublished() {
         assertThatThrownBy(() -> publish.execute(mazeStandings, 1, CLOSING))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(NotFoundException.class)
                 .hasMessage("Standings not calculated yet: ch-1/maze");
+    }
+
+    @Test
+    @DisplayName("A calculated version is read by its number; standings or versions that do not exist are not found")
+    void versionsAreReadByNumberAndMissingOnesAreNotFound() {
+        assertThatThrownBy(() -> query.version(mazeStandings, 1))
+                .isInstanceOf(NotFoundException.class).hasMessage("Standings not calculated yet: ch-1/maze");
+        recalculate.execute(mazeStandings);
+
+        assertThat(query.version(mazeStandings, 1).version().number()).isEqualTo(1);
+        assertThatThrownBy(() -> query.version(mazeStandings, 2))
+                .isInstanceOf(NotFoundException.class).hasMessage("Standings ch-1/maze have no version 2");
+        assertThatThrownBy(() -> publish.execute(mazeStandings, 2, CLOSING))
+                .isInstanceOf(NotFoundException.class).hasMessage("Standings ch-1/maze have no version 2");
     }
 
     @Test
@@ -177,7 +191,7 @@ class StandingsUseCasesTest {
         assertThat(queryAppeals.ofAttempt(mazeAttempt)).containsExactly(first, second);
         assertThat(queryAppeals.get(second.getAppealId())).isSameAs(second);
         assertThatThrownBy(() -> queryAppeals.ofAttempt(AttemptId.of(SlotId.of("missing"), 1)))
-                .isInstanceOf(IllegalArgumentException.class).hasMessage("Attempt not found: missing-1");
+                .isInstanceOf(NotFoundException.class).hasMessage("Attempt not found: missing-1");
     }
 
     private void score(String roundId, String teamId, int objectives) {

@@ -5,6 +5,7 @@ import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.ranking.appeal.Appeal;
 import com.roboleague.ranking.appeal.AppealId;
 import com.roboleague.support.ActorId;
+import com.roboleague.support.ConflictException;
 import com.roboleague.tournament.TeamId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -82,10 +83,10 @@ class AppealStateFlowTest {
         appeal.beginReview(ActorId.of("arb-1"));
 
         assertThatThrownBy(() -> appeal.reject("No corresponde", ActorId.of("arb-2"), TIME))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(ConflictException.class)
                 .hasMessage("Appeal app-3 is under review by arb-1; arb-2 cannot resolve it");
         assertThatThrownBy(() -> appeal.accept("Corresponde", RawMetrics.of(10, 0, 0), ActorId.of("arb-2"), TIME))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(ConflictException.class);
         assertThat(appeal.getStatusName()).isEqualTo("UNDER_REVIEW");
         assertThat(appeal.getResolvedAt()).isNull();
     }

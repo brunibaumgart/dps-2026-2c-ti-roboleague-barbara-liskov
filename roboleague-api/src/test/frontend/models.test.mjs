@@ -36,7 +36,7 @@ test('resource suggestions keep identities and slot presentation preserves paral
   assert.equal(resourceSuggestions(rounds).tracks.length, 2);
   assert.deepEqual(resourceSuggestions(rounds).judges.map(judge => judge.id), ['j2', 'j1']);
 });
-for (const status of [400, 409, 422]) {
+for (const status of [400, 404, 409, 422, 500]) {
   test(`HTTP ${status} retains every server reason and never retries a mutation`, async () => {
     let calls = 0;
     await assert.rejects(request('/endpoint', { method: 'POST', body: { name: 'Name' }, fetcher: async (path, options) => {

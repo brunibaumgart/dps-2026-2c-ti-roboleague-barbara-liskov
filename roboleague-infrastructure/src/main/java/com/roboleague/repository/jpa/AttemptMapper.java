@@ -84,6 +84,10 @@ final class AttemptMapper {
     }
 
     static Attempt toDomain(AttemptJpaEntity entity) {
+        return CorruptDataException.rebuilding("Stored attempt " + entity.id, () -> rebuild(entity));
+    }
+
+    private static Attempt rebuild(AttemptJpaEntity entity) {
         AttemptIdentity identity = new AttemptIdentity(AttemptId.of(SlotId.of(entity.slotId), entity.attemptNumber),
                 RoundId.of(entity.roundId), TeamId.of(entity.teamId));
         RulebookReference rulebook = new RulebookReference(ChallengeId.of(entity.challengeId),
@@ -184,7 +188,7 @@ final class AttemptMapper {
             case "APPEAL_ACCEPTED" -> new AppealAcceptedEvent(metadata,
                     new AppealResolution(AppealId.of(json.appealId()), json.reason()), ActorId.of(json.actorId()));
             case "ATTEMPT_DISQUALIFIED" -> new AttemptDisqualifiedEvent(metadata, json.reason(), JudgeId.of(json.actorId()));
-            default -> throw new IllegalStateException("Unknown stored attempt event: " + json.type());
+            default -> throw new CorruptDataException("Unknown stored attempt event: " + json.type());
         };
     }
 }

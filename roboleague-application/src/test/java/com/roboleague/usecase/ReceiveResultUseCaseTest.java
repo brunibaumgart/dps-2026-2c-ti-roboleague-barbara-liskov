@@ -137,7 +137,7 @@ class ReceiveResultUseCaseTest {
     void givenASlotThatDoesNotExistThenTheResultIsRefused() {
         assertThatThrownBy(() -> receive.execute(
                 new ReceiveResultCommand(MAZE, AttemptId.of(SlotId.of("slot-9"), 1), sensors(55.0, 4, 0, "judge-1"))))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(NotFoundException.class)
                 .hasMessage("Slot not found: slot-9");
     }
 

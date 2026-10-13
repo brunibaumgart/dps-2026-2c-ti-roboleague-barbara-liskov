@@ -1,8 +1,10 @@
 package com.roboleague.tournament.eligibility;
 
+import com.roboleague.support.BusinessRuleViolation;
+
 import java.util.List;
 
-public class TeamIneligibleException extends RuntimeException {
+public class TeamIneligibleException extends BusinessRuleViolation {
     private final List<String> violations;
 
     public TeamIneligibleException(String message, List<String> violations) {

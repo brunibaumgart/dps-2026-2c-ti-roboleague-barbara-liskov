@@ -108,7 +108,7 @@ class RegistrationAndSchedulingControllerTest extends ApiTest {
     }
 
     @Test
-    void emptyListsAreOkAndUnknownReferencesOrCategoryFiltersAreBadRequests() throws Exception {
+    void emptyListsAreOkUnknownReferencesAreNotFoundAndForeignCategoryFiltersAreBadRequests() throws Exception {
         String id = "http05-empty";
         edition(id);
         mvc.perform(get("/editions/{id}/challenges", id)).andExpect(status().isOk()).andExpect(content().json("[]"));
@@ -121,7 +121,7 @@ class RegistrationAndSchedulingControllerTest extends ApiTest {
         for (String path : new String[]{"/editions/http05-unknown", "/editions/http05-unknown/challenges",
                 "/editions/http05-unknown/registrations", "/challenges/http05-unknown/rounds", "/rounds/http05-unknown",
                 "/editions/" + id + "/registrations/unknown-team"}) {
-            mvc.perform(get(path)).andExpect(status().isBadRequest()).andExpect(jsonPath("$.details", hasSize(0)));
+            mvc.perform(get(path)).andExpect(status().isNotFound()).andExpect(jsonPath("$.details", hasSize(0)));
         }
     }
 
@@ -217,7 +217,7 @@ class RegistrationAndSchedulingControllerTest extends ApiTest {
         }
         mvc.perform(put("/editions/{id}/registrations/{team}", id, "unknown").contentType(MediaType.APPLICATION_JSON)
                         .content(enrollment(id + "-small", team("unknown", "Rejected", 1000))))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound());
         mvc.perform(get("/editions/{id}/registrations/{team}", id, id + "-team"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.team.name").value("Original"));
     }

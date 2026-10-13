@@ -44,6 +44,10 @@ final class StandingsMapper {
     }
 
     static Standings toDomain(StandingsJpaEntity entity) {
+        return CorruptDataException.rebuilding("Stored standings " + entity.id, () -> rebuild(entity));
+    }
+
+    private static Standings rebuild(StandingsJpaEntity entity) {
         return Standings.restore(
                 new StandingsId(ChallengeId.of(entity.challengeId), CategoryId.of(entity.categoryId)),
                 entity.versions.stream().map(StandingsMapper::toVersion).toList(),

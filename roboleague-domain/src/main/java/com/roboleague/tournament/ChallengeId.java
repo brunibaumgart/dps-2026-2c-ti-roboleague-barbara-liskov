@@ -1,13 +1,10 @@
 package com.roboleague.tournament;
 
-import java.util.Objects;
+import com.roboleague.support.Identifiers;
 
 public record ChallengeId(String value) {
     public ChallengeId {
-        Objects.requireNonNull(value, "value cannot be null");
-        if (value.isBlank()) {
-            throw new IllegalArgumentException("value cannot be blank");
-        }
+        Identifiers.validate(value, "challengeId");
     }
 
     public static ChallengeId of(String value) {

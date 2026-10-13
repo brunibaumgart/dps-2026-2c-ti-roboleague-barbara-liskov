@@ -7,6 +7,7 @@ import com.roboleague.evaluation.scheme.HigherTotal;
 import com.roboleague.evaluation.scheme.RankingScheme;
 import com.roboleague.repository.memory.*;
 import com.roboleague.scheduling.*;
+import com.roboleague.support.ConflictException;
 import com.roboleague.support.IdGenerator;
 import com.roboleague.tournament.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -67,7 +68,7 @@ class RoundSchedulingIntegrationTest {
     void rejectsDuplicateScopeBeforeGeneratingIdsOrSaving() {
         Round first = useCase.execute(validCommand());
         int before = generated.get();
-        assertThatThrownBy(() -> useCase.execute(validCommand())).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> useCase.execute(validCommand())).isInstanceOf(ConflictException.class);
         assertThat(generated).hasValue(before);
         assertThat(rounds.findAll()).containsExactly(first);
     }
@@ -101,7 +102,8 @@ class RoundSchedulingIntegrationTest {
             default -> throw new AssertionError(invalid);
         }
         ScheduleRoundCommand command = command(challenge, categoryId, number, tracks, judges, duration, interval);
-        assertThatThrownBy(() -> useCase.execute(command)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> useCase.execute(command))
+                .isInstanceOf(invalid.equals("missing-challenge") ? NotFoundException.class : IllegalArgumentException.class);
         assertThat(generated).hasValue(0);
         assertThat(rounds.findAll()).isEmpty();
         assertThat(editions.findById(editionId).orElseThrow().getRegistrations()).hasSize(4);

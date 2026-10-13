@@ -17,7 +17,7 @@ public class ListEditionChallengesUseCase {
     }
 
     public List<Challenge> execute(EditionId id) {
-        editions.findById(id).orElseThrow(() -> new IllegalArgumentException("Edition not found: " + id));
+        editions.findById(id).orElseThrow(() -> new NotFoundException("Edition", id));
         return challenges.findByEditionId(id);
     }
 }

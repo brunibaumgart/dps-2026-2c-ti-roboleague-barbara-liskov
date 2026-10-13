@@ -1,14 +1,11 @@
 package com.roboleague.tournament;
 
-import java.util.Objects;
+import com.roboleague.support.Identifiers;
 
 /** Textual identity of a robot; preserves the supplied external value. */
 public record RobotId(String value) {
     public RobotId {
-        Objects.requireNonNull(value, "robotId cannot be null");
-        if (value.isBlank()) {
-            throw new IllegalArgumentException("robotId cannot be blank");
-        }
+        Identifiers.validate(value, "robotId");
     }
 
     public static RobotId of(String value) {

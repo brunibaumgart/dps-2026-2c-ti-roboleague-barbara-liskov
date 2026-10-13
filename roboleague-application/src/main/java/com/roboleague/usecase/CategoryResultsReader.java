@@ -46,9 +46,9 @@ public class CategoryResultsReader {
     public CategoryResults read(StandingsId id) {
         Objects.requireNonNull(id, "id cannot be null");
         Challenge challenge = challenges.findById(id.challengeId())
-                .orElseThrow(() -> new IllegalArgumentException("Challenge not found: " + id.challengeId()));
+                .orElseThrow(() -> new NotFoundException("Challenge", id.challengeId()));
         Edition edition = editions.findById(challenge.getEditionId())
-                .orElseThrow(() -> new IllegalStateException("Edition of challenge " + challenge.getId()
+                .orElseThrow(() -> new InconsistentStateException("Edition of challenge " + challenge.getId()
                         + " not found: " + challenge.getEditionId()));
         edition.category(id.categoryId());
         List<Round> categoryRounds = rounds.findByChallengeId(id.challengeId()).stream()
@@ -71,7 +71,7 @@ public class CategoryResultsReader {
 
     private TeamIdentity identity(TeamId teamId) {
         Team team = teams.findById(teamId)
-                .orElseThrow(() -> new IllegalStateException("Registered team not found: " + teamId));
+                .orElseThrow(() -> new InconsistentStateException("Registered team not found: " + teamId));
         return TeamIdentity.of(team.getId(), team.getName());
     }
 

@@ -155,14 +155,32 @@ class StandingsControllerTest extends ApiTest {
     }
 
     @Test
-    void aMissingChallengeOrVersionIsABadRequest() throws Exception {
+    void aMissingChallengeOrVersionIsNotFound() throws Exception {
         String challenge = openChallenge("missing");
         mvc.perform(get("/challenges/{id}/standings", "ch-missing-std").param("categoryId", CATEGORY))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("Challenge not found: ch-missing-std"));
         mvc.perform(get("/challenges/{id}/standings/versions/{version}", challenge, 9).param("categoryId", CATEGORY))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("Standings not calculated yet: " + challenge + "/" + CATEGORY));
+        mvc.perform(post("/challenges/{id}/standings/versions", challenge).param("categoryId", CATEGORY))
+                .andExpect(status().isCreated());
+        mvc.perform(get("/challenges/{id}/standings/versions/{version}", challenge, 9).param("categoryId", CATEGORY))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("Standings " + challenge + "/" + CATEGORY + " have no version 9"));
+    }
+
+    @Test
+    void aMissingCategoryOrANonNumericVersionIsABadRequestWithAnErrorBody() throws Exception {
+        String challenge = openChallenge("params");
+        mvc.perform(get("/challenges/{id}/standings", challenge))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Missing parameter 'categoryId'"))
+                .andExpect(jsonPath("$.details", hasSize(0)));
+        mvc.perform(get("/challenges/{id}/standings/versions/{version}", challenge, "latest").param("categoryId", CATEGORY))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Invalid value for parameter 'version'"))
+                .andExpect(jsonPath("$.details[0]").value("'latest' is not a valid int"));
     }
 
     private String openChallenge(String suffix) {

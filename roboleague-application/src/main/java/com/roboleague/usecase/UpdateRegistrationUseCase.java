@@ -22,15 +22,17 @@ public class UpdateRegistrationUseCase {
             throw new IllegalArgumentException("A team update cannot change its identity");
         }
         Edition edition = editions.findById(editionId)
-                .orElseThrow(() -> new IllegalArgumentException("Edition not found: " + editionId));
+                .orElseThrow(() -> new NotFoundException("Edition", editionId));
         edition.registration(teamId)
-                .orElseThrow(() -> new IllegalArgumentException("Registration not found: " + teamId + " in " + editionId));
-        teams.findById(teamId).orElseThrow(() -> new IllegalArgumentException("Team not found: " + teamId));
+                .orElseThrow(() -> new NotFoundException("Registration", teamId + " in " + editionId));
+        teams.findById(teamId).orElseThrow(() -> new NotFoundException("Team", teamId));
         Edition changed = edition.changeRegistrationCategory(candidate, categoryId);
         UpdateTeamUseCase.validateRegistrations(candidate, editions.findByTeamId(teamId).stream()
                 .map(current -> current.getId().equals(editionId) ? changed : current).toList());
         teams.save(candidate);
         editions.save(changed);
-        return new RegistrationView(changed.registration(teamId).orElseThrow(), candidate);
+        Registration saved = changed.registration(teamId).orElseThrow(() -> new InconsistentStateException(
+                "Edition " + editionId + " lost the registration of team " + teamId + " it just saved"));
+        return new RegistrationView(saved, candidate);
     }
 }

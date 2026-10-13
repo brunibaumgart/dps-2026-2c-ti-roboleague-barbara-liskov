@@ -1,16 +1,12 @@
 package com.roboleague.scheduling;
 
 import com.roboleague.support.ActorId;
-
-import java.util.Objects;
+import com.roboleague.support.Identifiers;
 
 /** Textual identity of a judge; preserves the supplied external value. */
 public record JudgeId(String value) {
     public JudgeId {
-        Objects.requireNonNull(value, "judgeId cannot be null");
-        if (value.isBlank()) {
-            throw new IllegalArgumentException("judgeId cannot be blank");
-        }
+        Identifiers.validate(value, "judgeId");
     }
 
     public static JudgeId of(String value) {

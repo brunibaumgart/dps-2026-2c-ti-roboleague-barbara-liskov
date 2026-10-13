@@ -154,9 +154,9 @@ class AttemptControllerTest extends ApiTest {
     }
 
     @Test
-    void theBreakdownOfAnUnknownAttemptIsABadRequest() throws Exception {
+    void theBreakdownOfAnUnknownAttemptIsNotFound() throws Exception {
         mvc.perform(get("/attempts/{attemptId}/breakdown", "api-att-nothing-1"))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("Attempt not found: api-att-nothing-1"));
     }
 
@@ -195,9 +195,9 @@ class AttemptControllerTest extends ApiTest {
     }
 
     @Test
-    void aSlotThatWasNotScheduledIsABadRequest() throws Exception {
+    void aSlotThatWasNotScheduledIsNotFound() throws Exception {
         mvc.perform(measurements("api-att-slot-unknown-1", MAZE, "api-j-1", 50.0, 4, 1))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("Slot not found: api-att-slot-unknown"));
     }
 
@@ -247,7 +247,7 @@ class AttemptControllerTest extends ApiTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("Round round-api-att-slot-wrong-challenge belongs to challenge " + MAZE + ", not " + RESCUE));
         mvc.perform(get("/attempts/{attemptId}/breakdown", "api-att-slot-wrong-challenge-1"))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("Attempt not found: api-att-slot-wrong-challenge-1"));
     }
 

@@ -3,6 +3,7 @@ package com.roboleague.ranking.appeal;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.support.ActorId;
+import com.roboleague.support.ConflictException;
 import com.roboleague.tournament.TeamId;
 
 import java.time.LocalDateTime;
@@ -117,7 +118,7 @@ public class Appeal {
      */
     void resolve(String resolutionNotes, RawMetrics revisedMetrics, ActorId resolvedBy, LocalDateTime resolvedAt) {
         if (!this.reviewerId.equals(resolvedBy)) {
-            throw new IllegalStateException("Appeal " + getAppealId() + " is under review by " + this.reviewerId
+            throw new ConflictException("Appeal " + getAppealId() + " is under review by " + this.reviewerId
                     + "; " + resolvedBy + " cannot resolve it");
         }
         this.resolutionNotes = resolutionNotes;

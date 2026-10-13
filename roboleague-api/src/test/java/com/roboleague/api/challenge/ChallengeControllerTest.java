@@ -178,7 +178,7 @@ class ChallengeControllerTest extends ApiTest {
 
         mvc.perform(addChallenge("api-ed-ch", "api-ch-unknown-key", misspelled))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Unknown field 'penalties'"))
+                .andExpect(jsonPath("$.error").value("Unknown field 'rulebook.scoring.penalties'"))
                 .andExpect(jsonPath("$.details[0]").value(containsString("deductions")));
     }
 
@@ -214,13 +214,13 @@ class ChallengeControllerTest extends ApiTest {
     }
 
     @Test
-    @DisplayName("Una edición o un desafío que no existen son un pedido inválido")
-    void unknownEditionOrChallengeIsABadRequest() throws Exception {
+    @DisplayName("Una edición o un desafío que no existen no se encuentran")
+    void unknownEditionOrChallengeIsNotFound() throws Exception {
         mvc.perform(addChallenge("api-ed-none", "api-ch-5", rulebook("penalty", 40)))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("Edition not found: api-ed-none"));
         mvc.perform(get("/challenges/{id}", "api-ch-none"))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("Challenge not found: api-ch-none"));
     }
 

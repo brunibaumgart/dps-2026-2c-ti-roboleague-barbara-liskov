@@ -23,7 +23,7 @@ public class UpdateTeamUseCase {
 
     public Team execute(TeamId teamId, Team candidate) {
         Objects.requireNonNull(candidate, "candidate cannot be null");
-        teams.findById(teamId).orElseThrow(() -> new IllegalArgumentException("Team not found: " + teamId));
+        teams.findById(teamId).orElseThrow(() -> new NotFoundException("Team", teamId));
         if (!teamId.equals(candidate.getId())) {
             throw new IllegalArgumentException("A team update cannot change its identity");
         }

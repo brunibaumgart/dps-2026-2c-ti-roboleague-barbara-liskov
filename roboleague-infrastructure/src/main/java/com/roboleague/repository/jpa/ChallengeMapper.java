@@ -55,6 +55,10 @@ final class ChallengeMapper {
     }
 
     Challenge toDomain(ChallengeJpaEntity entity) {
+        return CorruptDataException.rebuilding("Stored challenge " + entity.id, () -> rebuild(entity));
+    }
+
+    private Challenge rebuild(ChallengeJpaEntity entity) {
         List<Rulebook> rulebooks = new ArrayList<>();
         for (RulebookJson json : entity.rulebooks.versions()) {
             rulebooks.add(toRulebook(entity.id, json));
@@ -71,7 +75,7 @@ final class ChallengeMapper {
         return switch (catalog.assemble(definition)) {
             case RulebookAssembly.Assembled assembled ->
                     new Rulebook(new RulebookVersion(json.version()), assembled.scoring(), assembled.ranking());
-            case RulebookAssembly.Rejected rejected -> throw new IllegalStateException(
+            case RulebookAssembly.Rejected rejected -> throw new CorruptDataException(
                     "Stored rulebook v" + json.version() + " of " + challengeId + " cannot be rebuilt: " + rejected.problems());
         };
     }

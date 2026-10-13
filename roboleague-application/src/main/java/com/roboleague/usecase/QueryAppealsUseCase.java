@@ -30,12 +30,12 @@ public class QueryAppealsUseCase {
     }
 
     public Appeal get(AppealId id) {
-        return appeals.findById(id).orElseThrow(() -> new IllegalArgumentException("Appeal not found: " + id));
+        return appeals.findById(id).orElseThrow(() -> new NotFoundException("Appeal", id));
     }
 
     public List<Appeal> ofAttempt(AttemptId attemptId) {
         attempts.findById(attemptId)
-                .orElseThrow(() -> new IllegalArgumentException("Attempt not found: " + attemptId));
+                .orElseThrow(() -> new NotFoundException("Attempt", attemptId));
         return appeals.findByAttemptId(attemptId).stream().sorted(FILING_ORDER).toList();
     }
 

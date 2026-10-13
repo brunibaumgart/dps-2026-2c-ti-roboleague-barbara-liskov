@@ -13,6 +13,7 @@ import com.roboleague.ranking.StandingsTable;
 import com.roboleague.ranking.StandingsVersion;
 import com.roboleague.ranking.TeamIdentity;
 import com.roboleague.ranking.TeamRounds;
+import com.roboleague.repository.ConcurrentModificationConflict;
 import com.roboleague.scheduling.RoundId;
 import com.roboleague.scheduling.SlotId;
 import com.roboleague.support.ActorId;
@@ -25,6 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -77,8 +79,9 @@ class JpaStandingsRepositoryTest {
         second.recalculate(table(140.0), TIME.plusHours(1));
 
         assertThatThrownBy(() -> repository.save(second))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("were changed by someone else");
+                .isInstanceOf(ConcurrentModificationConflict.class)
+                .hasMessageContaining("were changed by someone else")
+                .hasCauseInstanceOf(OptimisticLockingFailureException.class);
         assertThat(repository.findById(id).orElseThrow().latest().table()).isEqualTo(table(120.0));
 
         first.recalculate(table(160.0), TIME.plusHours(2));

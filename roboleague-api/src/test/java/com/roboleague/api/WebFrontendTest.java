@@ -55,9 +55,10 @@ class WebFrontendTest extends ApiTest {
         mvc.perform(get("/challenges/{id}", id.value())).andExpect(status().isOk())
                 .andExpect(jsonPath("$.currentRulebook.version").value(2))
                 .andExpect(jsonPath("$.currentRulebook.requiredSources", contains("AUTOMATIC_MEASUREMENTS")));
-        for (String version : List.of("0", "3", "not-a-number")) {
+        for (String version : List.of("0", "not-a-number")) {
             mvc.perform(get("/challenges/{id}/rulebook/versions/{version}", id.value(), version)).andExpect(status().isBadRequest());
         }
-        mvc.perform(get("/challenges/unknown-web06/rulebook/versions/1")).andExpect(status().isBadRequest());
+        mvc.perform(get("/challenges/{id}/rulebook/versions/{version}", id.value(), "3")).andExpect(status().isNotFound());
+        mvc.perform(get("/challenges/unknown-web06/rulebook/versions/1")).andExpect(status().isNotFound());
     }
 }

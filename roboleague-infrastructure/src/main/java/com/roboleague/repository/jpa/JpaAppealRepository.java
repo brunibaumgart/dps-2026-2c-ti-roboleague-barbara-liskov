@@ -23,7 +23,9 @@ public class JpaAppealRepository implements AppealRepository {
 
     @Override
     public void save(Appeal appeal) {
-        jpa.save(AppealMapper.toEntity(appeal));
+        AppealJpaEntity entity = AppealMapper.toEntity(appeal);
+        WriteConflicts.write(() -> jpa.saveAndFlush(entity), "Appeal " + appeal.getAppealId()
+                + " was created by someone else at the same time; load it again and retry");
     }
 
     @Override

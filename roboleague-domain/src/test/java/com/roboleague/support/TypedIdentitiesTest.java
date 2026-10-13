@@ -50,6 +50,16 @@ class TypedIdentitiesTest {
         assertThat(identity.apply(historical)).isNotEqualTo(identity.apply(historical.toLowerCase()));
     }
 
+    @ParameterizedTest
+    @MethodSource("identities")
+    void acceptsUpToTheStoredColumnLengthAndRejectsLongerValues(Function<String, Object> identity) {
+        String longest = "x".repeat(Identifiers.MAX_LENGTH);
+        assertThat(identity.apply(longest)).hasToString(longest);
+        assertThatThrownBy(() -> identity.apply(longest + "x"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageEndingWith("cannot be longer than 64 characters");
+    }
+
     @Test
     void sameTextDoesNotMakeDifferentRolesEqual() {
         assertThat((Object) TeamId.of("shared-1")).isNotEqualTo(JudgeId.of("shared-1"))

@@ -60,7 +60,7 @@ export function mountResults(root, context, readOnly = false) {
     try {
       let breakdown = null;
       try { breakdown = await api.breakdown(id); }
-      catch (error) { if (!(error.status === 400 && error.message.startsWith('Attempt not found:'))) throw error; }
+      catch (error) { if (error.status !== 404) throw error; }
       if (!current()) return;
       const rulebook = breakdown && breakdown.rulebookVersion !== challenge.currentRulebook.version
         ? await api.rulebook(challenge.id, breakdown.rulebookVersion) : challenge.currentRulebook;

@@ -24,11 +24,11 @@ public class GetAttemptBreakdownUseCase {
 
     public AttemptBreakdown execute(AttemptId attemptId) {
         Attempt attempt = attemptRepository.findById(attemptId)
-                .orElseThrow(() -> new IllegalArgumentException("Attempt not found: " + attemptId));
+                .orElseThrow(() -> new NotFoundException("Attempt", attemptId));
         RulebookReference scoredWith = attempt.getRulebookReference();
         Rulebook rulebook = challengeRepository.findById(scoredWith.challengeId())
                 .flatMap(challenge -> challenge.rulebook(scoredWith.version()))
-                .orElseThrow(() -> new IllegalStateException("Rulebook " + scoredWith + " not found"));
+                .orElseThrow(() -> new InconsistentStateException("Rulebook " + scoredWith + " not found"));
         return new AttemptBreakdown(attempt, attempt.awaitedSources(rulebook), attempt.contributionsBySource(rulebook));
     }
 }

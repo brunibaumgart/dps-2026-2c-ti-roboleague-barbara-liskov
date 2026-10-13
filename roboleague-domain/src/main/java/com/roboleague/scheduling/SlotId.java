@@ -1,14 +1,11 @@
 package com.roboleague.scheduling;
 
-import java.util.Objects;
+import com.roboleague.support.Identifiers;
 
 /** Textual identity of a slot; preserves the supplied external value. */
 public record SlotId(String value) {
     public SlotId {
-        Objects.requireNonNull(value, "slotId cannot be null");
-        if (value.isBlank()) {
-            throw new IllegalArgumentException("slotId cannot be blank");
-        }
+        Identifiers.validate(value, "slotId");
     }
 
     public static SlotId of(String value) {

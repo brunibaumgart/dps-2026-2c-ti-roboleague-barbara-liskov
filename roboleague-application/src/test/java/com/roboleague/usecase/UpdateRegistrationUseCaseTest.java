@@ -70,7 +70,7 @@ class UpdateRegistrationUseCaseTest {
         Edition other = RegistrationFixtures.edition("no-registration", DATE, small);
         editions.save(other);
         assertThatThrownBy(() -> useCase.execute(other.getId(), original.getId(), small.id(), original))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Registration not found");
+                .isInstanceOf(NotFoundException.class).hasMessageContaining("Registration not found");
         assertThatThrownBy(() -> useCase.execute(edition.getId(), TeamId.of("another-team"), large.id(), original))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("identity");
         assertUnchanged();
@@ -92,12 +92,12 @@ class UpdateRegistrationUseCaseTest {
     void emptyQueriesRemainEmptyAndUnknownEditionsAreErrors() {
         QueryEditionsUseCase query = new QueryEditionsUseCase(new InMemoryEditionRepository());
         assertThat(query.list()).isEmpty();
-        assertThatThrownBy(() -> query.get(EditionId.of("missing"))).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> query.get(EditionId.of("missing"))).isInstanceOf(NotFoundException.class);
         Edition empty = RegistrationFixtures.edition("empty", DATE, small);
         editions.save(empty);
         QueryRegistrationsUseCase registrations = new QueryRegistrationsUseCase(editions, teams);
         assertThat(registrations.list(empty.getId())).isEmpty();
-        assertThatThrownBy(() -> registrations.get(empty.getId(), original.getId())).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> registrations.get(empty.getId(), original.getId())).isInstanceOf(NotFoundException.class);
     }
 
     private void assertUnchanged() {

@@ -26,7 +26,9 @@ public class JpaChallengeRepository implements ChallengeRepository {
 
     @Override
     public void save(Challenge challenge) {
-        jpa.save(mapper.toEntity(challenge));
+        ChallengeJpaEntity entity = mapper.toEntity(challenge);
+        WriteConflicts.write(() -> jpa.saveAndFlush(entity), "Challenge " + challenge.getId()
+                + " was created by someone else at the same time; load it again and retry");
     }
 
     @Override

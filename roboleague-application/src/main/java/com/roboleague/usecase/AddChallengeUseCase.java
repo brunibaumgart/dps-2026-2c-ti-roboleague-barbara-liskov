@@ -4,6 +4,7 @@ import com.roboleague.evaluation.RuleCatalog;
 import com.roboleague.evaluation.RulebookAssembly;
 import com.roboleague.repository.ChallengeRepository;
 import com.roboleague.repository.EditionRepository;
+import com.roboleague.support.ConflictException;
 import com.roboleague.tournament.Challenge;
 
 import java.util.Objects;
@@ -28,10 +29,10 @@ public class AddChallengeUseCase {
         Objects.requireNonNull(command, "command cannot be null");
         Challenge.Draft draft = command.draft();
         if (editionRepository.findById(draft.editionId()).isEmpty()) {
-            throw new IllegalArgumentException("Edition not found: " + draft.editionId());
+            throw new NotFoundException("Edition", draft.editionId());
         }
         if (challengeRepository.findById(draft.id()).isPresent()) {
-            throw new IllegalStateException("Challenge already exists: " + draft.id());
+            throw new ConflictException("Challenge already exists: " + draft.id());
         }
         return switch (catalog.assemble(command.rulebook())) {
             case RulebookAssembly.Rejected rejected -> new Publication.Rejected<>(rejected.problems());

@@ -25,7 +25,7 @@ public class PublishRulebookUseCase {
     public Publication<Rulebook> execute(ChallengeId challengeId, RulebookDefinition definition) {
         Objects.requireNonNull(definition, "definition cannot be null");
         Challenge challenge = challengeRepository.findById(challengeId)
-                .orElseThrow(() -> new IllegalArgumentException("Challenge not found: " + challengeId));
+                .orElseThrow(() -> new NotFoundException("Challenge", challengeId));
         return switch (catalog.assemble(definition)) {
             case RulebookAssembly.Rejected rejected -> new Publication.Rejected<>(rejected.problems());
             case RulebookAssembly.Assembled assembled -> {

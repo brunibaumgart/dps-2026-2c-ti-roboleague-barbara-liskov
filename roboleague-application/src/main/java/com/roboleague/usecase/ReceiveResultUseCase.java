@@ -45,15 +45,16 @@ public class ReceiveResultUseCase {
     public Reception execute(ReceiveResultCommand command) {
         Objects.requireNonNull(command, "command cannot be null");
         Challenge challenge = challengeRepository.findById(command.challengeId())
-                .orElseThrow(() -> new IllegalArgumentException("Challenge not found: " + command.challengeId()));
+                .orElseThrow(() -> new NotFoundException("Challenge", command.challengeId()));
         AttemptId attemptId = command.attemptId();
         Round round = roundRepository.findBySlotId(attemptId.slotId())
-                .orElseThrow(() -> new IllegalArgumentException("Slot not found: " + attemptId.slotId()));
+                .orElseThrow(() -> new NotFoundException("Slot", attemptId.slotId()));
         if (!round.getChallengeId().equals(command.challengeId())) {
             throw new IllegalStateException("Round " + round.getId() + " belongs to challenge " + round.getChallengeId()
                     + ", not " + command.challengeId());
         }
-        Slot slot = round.slot(attemptId.slotId()).orElseThrow();
+        Slot slot = round.slot(attemptId.slotId()).orElseThrow(() -> new InconsistentStateException(
+                "Round " + round.getId() + " was found by slot " + attemptId.slotId() + " but does not contain it"));
         JudgeId judgeId = command.delivery().judgeId();
         if (!slot.isJudgedBy(judgeId)) {
             return new Reception.Rejected(List.of("judge " + judgeId + " is not assigned to slot " + slot.getSlotId()));
@@ -68,7 +69,7 @@ public class ReceiveResultUseCase {
                     + ", not " + challenge.getId());
         }
         Rulebook rulebook = challenge.rulebook(scoredWith.version())
-                .orElseThrow(() -> new IllegalStateException("Rulebook " + scoredWith + " not found"));
+                .orElseThrow(() -> new InconsistentStateException("Rulebook " + scoredWith + " not found"));
 
         return switch (attempt.receive(command.delivery(), rulebook, new OperationAudit(clock.now(), ids.nextId(), ids.nextId()))) {
             case MeasurementCheck.Rejected rejected -> new Reception.Rejected(rejected.problems());

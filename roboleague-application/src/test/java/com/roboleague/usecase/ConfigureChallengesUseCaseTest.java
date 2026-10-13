@@ -13,6 +13,7 @@ import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.scheme.AllRounds;
 import com.roboleague.repository.memory.InMemoryChallengeRepository;
 import com.roboleague.repository.memory.InMemoryEditionRepository;
+import com.roboleague.support.ConflictException;
 import com.roboleague.tournament.Category;
 import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.Challenge;
@@ -87,7 +88,7 @@ class ConfigureChallengesUseCaseTest {
     void givenAnExistingEditionIdThenCreatingItAgainFails() {
         assertThat(editions.findById(EditionId.of("ed-2026"))).isPresent();
         assertThatThrownBy(() -> createEdition.execute(editionCommand("ed-2026")))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(ConflictException.class);
     }
 
     @Test
@@ -117,7 +118,7 @@ class ConfigureChallengesUseCaseTest {
         AddChallengeCommand elsewhere = new AddChallengeCommand(
                 Challenge.draft(ChallengeId.of("ch-x"), EditionId.of("ed-none"), "X"), penaltyRulebook(10.0));
 
-        assertThatThrownBy(() -> addChallenge.execute(elsewhere)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> addChallenge.execute(elsewhere)).isInstanceOf(NotFoundException.class);
     }
 
     @Test
@@ -126,7 +127,7 @@ class ConfigureChallengesUseCaseTest {
         addChallenge.execute(maze(penaltyRulebook(10.0)));
 
         assertThatThrownBy(() -> addChallenge.execute(maze(penaltyRulebook(20.0))))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(ConflictException.class);
     }
 
     @Test
@@ -160,6 +161,6 @@ class ConfigureChallengesUseCaseTest {
         RulebookDefinition definition = penaltyRulebook(10.0);
 
         assertThatThrownBy(() -> publishRulebook.execute(unknown, definition))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(NotFoundException.class);
     }
 }

@@ -144,4 +144,14 @@ class ChallengeTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage(problem);
     }
+
+    @Test
+    @DisplayName("Un desafío acepta hasta 120 caracteres de nombre, el tamaño de su columna")
+    void givenANameLongerThanItsColumnThenTheDraftIsRejected() {
+        EditionId edition = EditionId.of("ed-2026");
+        assertThat(Challenge.draft(ChallengeId.of("ch-maze"), edition, "L".repeat(120)).name()).hasSize(120);
+        assertThatThrownBy(() -> Challenge.draft(ChallengeId.of("ch-maze"), edition, "L".repeat(121)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("challenge name cannot be longer than 120 characters");
+    }
 }

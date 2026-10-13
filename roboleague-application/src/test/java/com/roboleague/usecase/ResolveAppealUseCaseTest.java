@@ -35,6 +35,8 @@ import com.roboleague.scheduling.RoundInfo;
 import com.roboleague.scheduling.RoundScope;
 import com.roboleague.scheduling.SlotId;
 import com.roboleague.support.ActorId;
+import com.roboleague.support.BusinessRuleViolation;
+import com.roboleague.support.ConflictException;
 import com.roboleague.tournament.Category;
 import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.Challenge;
@@ -162,7 +164,7 @@ class ResolveAppealUseCaseTest {
 
         assertThatThrownBy(() -> useCase.acceptAppeal(appeal.getAppealId(),
                 AuditNote.of(ActorId.of("arb-2"), "Corresponde"), List.of(sensors(40.0, 2, 1))))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("under review by arb-1");
         assertThat(attempts.findById(ATTEMPT).orElseThrow().getRevisionHistory()).hasSize(1);
     }
@@ -187,8 +189,35 @@ class ResolveAppealUseCaseTest {
     @DisplayName("An appeal that does not exist cannot be resolved")
     void aMissingAppealCannotBeResolved() {
         assertThatThrownBy(() -> useCase.rejectAppeal(AppealId.of("missing"), ONE_FAULT))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(NotFoundException.class)
                 .hasMessage("Appeal not found: missing");
+    }
+
+    @Test
+    @DisplayName("Only the team that ran the attempt can appeal it: another team breaks a business rule")
+    void anotherTeamCannotAppealTheAttempt() {
+        scoredAttempt(40.0, 2, 3);
+        FileAppealUseCase file = new FileAppealUseCase(attempts, appeals, CLOCK, ids());
+
+        assertThatThrownBy(() -> file.execute(ATTEMPT, TeamId.of("t-other"), "Faltas", "Video"))
+                .isInstanceOf(BusinessRuleViolation.class)
+                .hasMessage("Team t-other does not own attempt " + ATTEMPT);
+        assertThat(appeals.findAll()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("An appeal whose attempt is gone is broken stored data, not a missing resource of the request")
+    void anAppealWithoutItsAttemptIsAnInconsistentState() {
+        scoredAttempt(40.0, 2, 3);
+        Appeal appeal = appealUnderReview("Faltas mal contadas", "arb-1");
+        InMemoryAttemptRepository empty = new InMemoryAttemptRepository();
+        ResolveAppealUseCase withoutAttempts = new ResolveAppealUseCase(appeals, empty, challenges, rounds,
+                new RecalculateStandingsUseCase(new CategoryResultsReader(challenges, editions,
+                        new InMemoryTeamRepository(), rounds, empty), standings, CLOCK), CLOCK, ids());
+
+        assertThatThrownBy(() -> withoutAttempts.rejectAppeal(appeal.getAppealId(), ONE_FAULT))
+                .isInstanceOf(InconsistentStateException.class)
+                .hasMessage("Attempt of appeal " + appeal.getAppealId() + " not found: " + ATTEMPT);
     }
 
     private void scoredAttempt(double seconds, int objectives, int faults) {
