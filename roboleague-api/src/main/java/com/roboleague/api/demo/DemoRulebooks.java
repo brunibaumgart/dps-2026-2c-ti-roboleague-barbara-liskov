@@ -35,9 +35,9 @@ import com.roboleague.evaluation.scheme.RankingScheme;
 import java.util.List;
 
 /**
- * The three rulebooks of the demo. Between them they use the ten rule types, a composite rule, a penalty,
- * bonuses with a global cap, best N of M rounds and chained tie-break criteria. Each one declares the metrics
- * its rules read.
+ * The three rulebooks of the demo. Between them they use the twelve rule types of the catalog, a composite rule,
+ * a penalty, bonuses with a global cap, best N of M rounds and chained tie-break criteria. Each one declares the
+ * metrics its rules read.
  */
 final class DemoRulebooks {
 

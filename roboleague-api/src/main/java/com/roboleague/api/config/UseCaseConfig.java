@@ -42,6 +42,7 @@ import com.roboleague.usecase.UpdateTeamUseCase;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 import java.time.ZoneId;
 
@@ -52,12 +53,15 @@ import java.time.ZoneId;
 @Configuration(proxyBeanMethods = false)
 class UseCaseConfig {
 
+    /** System clock and random ids, except in the demo profile, which brings deterministic ones ({@code DemoConfig}). */
     @Bean
+    @Profile("!demo")
     Clock clock(@Value("${roboleague.time-zone}") String zone) {
         return new SystemClock(ZoneId.of(zone));
     }
 
     @Bean
+    @Profile("!demo")
     IdGenerator idGenerator() {
         return new UuidGenerator();
     }
