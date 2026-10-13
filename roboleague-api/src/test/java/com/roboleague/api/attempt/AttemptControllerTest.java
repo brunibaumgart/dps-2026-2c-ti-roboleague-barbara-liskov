@@ -1,6 +1,7 @@
 package com.roboleague.api.attempt;
 
 import com.roboleague.api.ApiTest;
+import com.roboleague.evaluation.CappedAt;
 import com.roboleague.evaluation.MeasurementUnit;
 import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.MetricDefinition;
@@ -11,6 +12,8 @@ import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.Unlimited;
 import com.roboleague.evaluation.ValueRange;
 import com.roboleague.evaluation.rules.JudgeSubjectiveRule;
+import com.roboleague.evaluation.rules.Milestone;
+import com.roboleague.evaluation.rules.MilestoneBonusRule;
 import com.roboleague.evaluation.rules.ObjectivesRule;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.TimeBasedRule;
@@ -59,6 +62,9 @@ class AttemptControllerTest extends ApiTest {
 
     private static final String MAZE = "api-att-maze";
     private static final String RESCUE = "api-att-rescue";
+    private static final String CAPPED = "api-att-capped";
+    private static final Metric ZONE = Metric.sensor("zona_alcanzada");
+    private static final Metric DISTANCE = Metric.sensor("distancia_metros");
     private static final Metric RESCUED = Metric.judged("victimas_rescatadas");
     private static final RankingScheme RANKING = new RankingScheme(new AllRounds(), List.of(new HigherTotal()));
     private static final LocalDateTime START = LocalDateTime.of(2026, 11, 10, 9, 0);
@@ -80,6 +86,15 @@ class AttemptControllerTest extends ApiTest {
                         new VictimsRule("Víctimas rescatadas", RESCUED, Points.of(25)),
                         new JudgeSubjectiveRule("Panel técnico", 5.0)), List.of(), List.of()),
                 new Unlimited()), RANKING));
+        challenges.save(Challenge.draft(ChallengeId.of(CAPPED), EditionId.of("ed-api-att"), "Hitos con tope").publish(
+                new ScoringScheme(new MetricSheet(List.of(
+                        new MetricDefinition(ZONE, MeasurementUnit.COUNT, ValueRange.between(0.0, 1.0)),
+                        new MetricDefinition(DISTANCE, MeasurementUnit.METERS, ValueRange.atLeast(0.0)))),
+                        new ScoreRules(List.of(TimeBasedRule.standard(Points.of(100), 60.0)),
+                                List.of(new MilestoneBonusRule("Bonus por zona", new Milestone(ZONE, 1.0), Points.of(30)),
+                                        new MilestoneBonusRule("Bonus por distancia", new Milestone(DISTANCE, 10.0), Points.of(25))),
+                                List.of()),
+                        new CappedAt(Points.of(40))), RANKING));
     }
 
     @Test
@@ -152,6 +167,30 @@ class AttemptControllerTest extends ApiTest {
                 .andExpect(jsonPath("$.revisions[0].rulebookVersion").value(1))
                 .andExpect(jsonPath("$.revisions[0].authorId").value("api-j-2"))
                 .andExpect(jsonPath("$.revisions[0].timestamp").value("2026-10-08T12:00:00"));
+    }
+
+    @Test
+    void theBreakdownOfACappedRulebookShowsTheCutAsAnItemWithItsFormula() throws Exception {
+        scheduleSlot("api-att-slot-capped", CAPPED);
+        mvc.perform(put("/attempts/{attemptId}/measurements", "api-att-slot-capped-1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"challengeId": "%s", "judgeId": "api-j-1", "timeSeconds": 60, "objectives": 0,
+                                 "penalties": 0, "consumption": 0,
+                                 "measurements": {"zona_alcanzada": 1, "distancia_metros": 12}}
+                                """.formatted(CAPPED)))
+                .andExpect(status().isOk());
+
+        // 100 for the time; the bonuses add 55, the cap keeps 40
+        mvc.perform(get("/attempts/{attemptId}/breakdown", "api-att-slot-capped-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.score").value(140.0))
+                .andExpect(jsonPath("$.items[*].concept", contains("Regla de Tiempo", "Bonus por zona",
+                        "Bonus por distancia", "Tope de bonificaciones")))
+                .andExpect(jsonPath("$.items[3].rawMetric").value("bonificaciones obtenidas 55.0 pts"))
+                .andExpect(jsonPath("$.items[3].formula").value("tope 40.0 pts, recorte -15.0 pts"))
+                .andExpect(jsonPath("$.items[3].subtotal").value(-15.0))
+                .andExpect(jsonPath("$.bySource[0].subtotal").value(155.0));
     }
 
     @Test

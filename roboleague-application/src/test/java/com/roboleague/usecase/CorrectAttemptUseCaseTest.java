@@ -99,7 +99,7 @@ class CorrectAttemptUseCaseTest {
         assertThat(stored.getRevisionHistory()).hasSize(2);
         assertThat(stored.getLatestSnapshot().authorOrJudgeId()).isEqualTo(ActorId.of("arb-1"));
         assertThat(stored.getLatestSnapshot().timestamp()).isEqualTo(TIME);
-        assertThat(correction.attempt()).isSameAs(stored);
+        assertThat(correction.attempt().getRevisionHistory()).isEqualTo(stored.getRevisionHistory());
         assertThat(correction.standings().number()).isEqualTo(2);
         // 3 objectives = 60, 5 faults = -25: team-b (40) moves ahead
         assertThat(correction.standings().table().entries())

@@ -13,6 +13,7 @@ import java.util.Set;
 
 import static com.roboleague.support.TestValues.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class EligibilitySpecificationTest {
 
@@ -54,6 +55,20 @@ class EligibilitySpecificationTest {
         var members = new ArrayList<>(original.getMembers());
         members.add(member);
         return original.withMembers(members);
+    }
+
+    @Test
+    void anIneligibleRegistrationIsRejectedWithEveryReason() {
+        Team unverified = createValidTeam().withMembers(List.of())
+                .withDocumentation(new Documentation().withDocument("CONSENT", "consent.pdf"));
+
+        assertThatThrownBy(() -> RegistrationEligibility.requireEligible(unverified, sumoCategory, tournamentDate))
+                .isInstanceOfSatisfying(TeamIneligibleException.class, rejected -> {
+                    assertThat(rejected).hasMessage("Team Los Titanes failed eligibility requirements: "
+                            + "Team has fewer members than required: 0 < 2; Team documentation has not been verified");
+                    assertThat(rejected.getViolations()).containsExactlyInAnyOrder(
+                            "Team has fewer members than required: 0 < 2", "Team documentation has not been verified");
+                });
     }
 
     @Test

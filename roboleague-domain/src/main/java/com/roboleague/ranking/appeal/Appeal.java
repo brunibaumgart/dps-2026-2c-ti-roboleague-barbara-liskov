@@ -74,6 +74,13 @@ public class Appeal {
         return state.getStateName();
     }
 
+    /**
+     * How far the appeal has gone, as {@link #restore} takes it back.
+     */
+    public AppealProgress progress() {
+        return new AppealProgress(state, submittedAt, reviewerId, resolutionNotes, revisedMetrics, resolvedAt);
+    }
+
     public ActorId getReviewerId() {
         return reviewerId;
     }

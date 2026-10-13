@@ -152,7 +152,7 @@ class ResolveAppealUseCaseTest {
                 List.of("an accepted appeal needs the corrected report of at least one source")));
         assertThat(wrongSource).isEqualTo(new AppealAcceptance.Invalid(List.of(
                 "ch-1 v1 takes no results from JUDGE_PANEL", "AUTOMATIC_MEASUREMENTS is corrected twice")));
-        assertThat(appeal.isUnderReview()).isTrue();
+        assertThat(appeals.findById(appeal.getAppealId()).orElseThrow().isUnderReview()).isTrue();
         assertThat(attempts.findById(ATTEMPT).orElseThrow().getRevisionHistory()).hasSize(1);
         assertThat(standings.findById(new StandingsId(challenge.getId(), MAZE))).isEmpty();
     }
@@ -232,7 +232,7 @@ class ResolveAppealUseCaseTest {
     private Appeal appealUnderReview(String reason, String reviewer) {
         Appeal appeal = new FileAppealUseCase(attempts, appeals, CLOCK, ids()).execute(ATTEMPT, TeamId.of("t-1"), reason, "Video");
         new ReviewAppealUseCase(appeals).execute(appeal.getAppealId(), ActorId.of(reviewer));
-        return appeal;
+        return appeals.findById(appeal.getAppealId()).orElseThrow();
     }
 
     private static SourceReport sensors(double seconds, int objectives, int faults) {

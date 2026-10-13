@@ -223,7 +223,8 @@ class AppealAndRecalculateIntegrationTest {
 
         // 7. Arbitration Committee reviews appeal
         reviewAppealUseCase.execute(appealBeta.getAppealId(), ActorId.of("arbitro-jefe"));
-        assertThat(appealBeta.getStatusName()).isEqualTo("UNDER_REVIEW");
+        assertThat(appealRepository.findById(appealBeta.getAppealId()).orElseThrow().getStatusName())
+                .isEqualTo("UNDER_REVIEW");
 
         // 8. Arbitrator accepts appeal: penalties were indeed 0, not 4!
         // Revised metrics: 50s, 5 objectives, 0 penalties => Total: 110 + 125 - 0 = 235.0!
@@ -240,7 +241,8 @@ class AppealAndRecalculateIntegrationTest {
         assertThat(auditedAttemptBeta.getRevisionHistory().getFirst().breakdown().totalScore()).isEqualTo(Points.of(175));
         assertThat(auditedAttemptBeta.getLatestSnapshot().breakdown().totalScore()).isEqualTo(Points.of(235));
         assertThat(auditedAttemptBeta.getScoreBreakdown().totalScore()).isEqualTo(Points.of(235));
-        assertThat(appealBeta.getResolvedAt()).isEqualTo(operationTime);
+        assertThat(appealRepository.findById(appealBeta.getAppealId()).orElseThrow().getResolvedAt())
+                .isEqualTo(operationTime);
         assertThat(auditedAttemptBeta.getRevisionHistory().getLast().timestamp()).isEqualTo(operationTime);
         assertThat(auditedAttemptBeta.getEventHistory()).extracting(event -> event.eventId())
                 .containsExactly("generated-6", "generated-7", "generated-9", "generated-10");

@@ -109,8 +109,10 @@ class ChallengeTest {
         Rulebook v2 = original.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(150.0)), List.of()), allRounds);
         Challenge.Draft draft = Challenge.draft(ChallengeId.of("ch-maze"), EditionId.of("ed-2026"), "Laberinto");
 
-        assertThatThrownBy(() -> Challenge.restore(draft, List.of(v2))).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> Challenge.restore(draft, List.of())).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> Challenge.restore(draft, List.of(v2))).isInstanceOf(IllegalStateException.class)
+                .hasMessage("stored rulebooks of ch-maze skip version v1");
+        assertThatThrownBy(() -> Challenge.restore(draft, List.of())).isInstanceOf(IllegalStateException.class)
+                .hasMessage("a stored challenge has at least one rulebook: ch-maze");
     }
 
     @Test

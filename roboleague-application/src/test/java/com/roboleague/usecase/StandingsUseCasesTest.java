@@ -188,9 +188,11 @@ class StandingsUseCasesTest {
         Appeal second = fileAppeal.execute(mazeAttempt, TeamId.of("team-a"), "Objetivos", "Video");
         fileAppeal.execute(attemptIn("r-rescue", "team-c"), TeamId.of("team-c"), "Otra categoria", "Video");
 
-        assertThat(queryAppeals.ofCategory(mazeStandings)).containsExactly(first, second);
-        assertThat(queryAppeals.ofAttempt(mazeAttempt)).containsExactly(first, second);
-        assertThat(queryAppeals.get(second.getAppealId())).isSameAs(second);
+        assertThat(queryAppeals.ofCategory(mazeStandings)).extracting(Appeal::getAppealId)
+                .containsExactly(first.getAppealId(), second.getAppealId());
+        assertThat(queryAppeals.ofAttempt(mazeAttempt)).extracting(Appeal::getAppealId)
+                .containsExactly(first.getAppealId(), second.getAppealId());
+        assertThat(queryAppeals.get(second.getAppealId()).getReason()).isEqualTo("Objetivos");
         assertThatThrownBy(() -> queryAppeals.ofAttempt(AttemptId.of(SlotId.of("missing"), 1)))
                 .isInstanceOf(NotFoundException.class).hasMessage("Attempt not found: missing-1");
     }

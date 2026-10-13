@@ -15,7 +15,7 @@
 
     <properties>
         <!-- Measured coverage minus ~2 points: `mvn verify` fails if this module's own tests cover less. -->
-        <coverage.line.minimum>0.86</coverage.line.minimum>
+        <coverage.line.minimum>0.90</coverage.line.minimum>
         <coverage.branch.minimum>0.89</coverage.branch.minimum>
     </properties>
 

@@ -5,6 +5,7 @@ import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.rules.ObjectivesRule;
 import com.roboleague.evaluation.scheme.AllRounds;
+import com.roboleague.evaluation.scheme.BestNOfM;
 import com.roboleague.evaluation.scheme.HigherTotal;
 import com.roboleague.evaluation.scheme.RankingScheme;
 import com.roboleague.repository.ChallengeRepository;
@@ -153,6 +154,38 @@ class StandingsControllerTest extends ApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PROVISIONAL"))
                 .andExpect(jsonPath("$.entries[0].teamId").value(TEAM_A));
+    }
+
+    @Test
+    void aBestNOfMRulebookShowsWhichRoundsCountedAndWhichWereDiscarded() throws Exception {
+        String challenge = "ch-api-std-best-" + NEXT.incrementAndGet();
+        challenges.save(Challenge.draft(ChallengeId.of(challenge), EditionId.of(EDITION), "Laberinto").publish(
+                ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objetivos", Points.of(20))), List.of()),
+                new RankingScheme(new BestNOfM(1, 2), List.of(new HigherTotal()))));
+        schedule(challenge, "slot-api-std-best-a1", TEAM_A, 0);
+        schedule(challenge, "slot-api-std-best-a2", TEAM_A, 1);
+        schedule(challenge, "slot-api-std-best-b1", TEAM_B, 2);
+        score(challenge, "slot-api-std-best-a1-1", 2);
+        score(challenge, "slot-api-std-best-a2-1", 5);
+        score(challenge, "slot-api-std-best-b1-1", 3);
+
+        mvc.perform(post("/challenges/{id}/standings/versions", challenge).param("categoryId", CATEGORY))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.entries[0].teamId").value(TEAM_A))
+                .andExpect(jsonPath("$.entries[0].total").value(100.0))
+                .andExpect(jsonPath("$.entries[0].selectionRule").value("mejores 1 de 2 rondas"))
+                .andExpect(jsonPath("$.entries[0].considered", hasSize(1)))
+                .andExpect(jsonPath("$.entries[0].considered[0].roundId").value("round-slot-api-std-best-a2"))
+                .andExpect(jsonPath("$.entries[0].considered[0].attemptId").value("slot-api-std-best-a2-1"))
+                .andExpect(jsonPath("$.entries[0].considered[0].total").value(100.0))
+                .andExpect(jsonPath("$.entries[0].discarded", hasSize(1)))
+                .andExpect(jsonPath("$.entries[0].discarded[0].roundId").value("round-slot-api-std-best-a1"))
+                .andExpect(jsonPath("$.entries[0].discarded[0].attemptId").value("slot-api-std-best-a1-1"))
+                .andExpect(jsonPath("$.entries[0].discarded[0].total").value(40.0))
+                .andExpect(jsonPath("$.entries[1].teamId").value(TEAM_B))
+                .andExpect(jsonPath("$.entries[1].selectionRule").value("mejores 1 de 2 rondas"))
+                .andExpect(jsonPath("$.entries[1].considered[*].attemptId", contains("slot-api-std-best-b1-1")))
+                .andExpect(jsonPath("$.entries[1].discarded", hasSize(0)));
     }
 
     @Test
