@@ -8,6 +8,7 @@ import com.roboleague.tournament.TeamId;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+/** Same queries and ordering (by EditionId) as JpaEditionRepository, without durability or concurrency checks. */
 public class InMemoryEditionRepository implements EditionRepository {
     private final Map<EditionId, Edition> storage = new ConcurrentHashMap<>();
 
@@ -24,11 +25,11 @@ public class InMemoryEditionRepository implements EditionRepository {
 
     @Override
     public List<Edition> findByTeamId(TeamId teamId) {
-        return storage.values().stream().filter(e -> e.registration(teamId).isPresent()).toList();
+        return findAll().stream().filter(e -> e.registration(teamId).isPresent()).toList();
     }
 
     @Override
     public List<Edition> findAll() {
-        return new ArrayList<>(storage.values());
+        return storage.values().stream().sorted(Comparator.comparing(edition -> edition.getId().value())).toList();
     }
 }
