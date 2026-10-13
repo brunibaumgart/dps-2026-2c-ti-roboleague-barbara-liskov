@@ -3,8 +3,6 @@ package com.roboleague.repository.jpa;
 import com.roboleague.repository.TeamRepository;
 import com.roboleague.tournament.Team;
 import com.roboleague.tournament.TeamId;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -29,12 +27,8 @@ public class JpaTeamRepository implements TeamRepository {
         Objects.requireNonNull(team, "team cannot be null");
         TeamJpaEntity entity = TeamMapper.toEntity(team);
         entity.version = jpa.findById(entity.id).map(read -> read.version).orElse(null);
-        try {
-            jpa.saveAndFlush(entity);
-        } catch (OptimisticLockingFailureException | DataIntegrityViolationException concurrent) {
-            throw new IllegalStateException("Team " + team.getId()
-                    + " was changed by someone else while it was being updated; load it again and retry");
-        }
+        WriteConflicts.write(() -> jpa.saveAndFlush(entity), "Team " + team.getId()
+                + " was changed by someone else while it was being updated; load it again and retry");
     }
 
     @Override

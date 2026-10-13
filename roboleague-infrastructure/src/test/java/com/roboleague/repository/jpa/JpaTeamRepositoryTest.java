@@ -1,5 +1,6 @@
 package com.roboleague.repository.jpa;
 
+import com.roboleague.repository.ConcurrentModificationConflict;
 import com.roboleague.PostgresContainer;
 import com.roboleague.support.ActorId;
 import com.roboleague.tournament.Documentation;
@@ -122,7 +123,7 @@ class JpaTeamRepositoryTest {
             other.executeWithoutResult(inner -> repository.save(repository.findById(id).orElseThrow()
                     .withProfile(TeamProfile.of(id, "Primero", ""))));
             assertThatThrownBy(() -> repository.save(loaded.withProfile(TeamProfile.of(id, "Segundo", ""))))
-                    .isInstanceOf(IllegalStateException.class)
+                    .isInstanceOf(ConcurrentModificationConflict.class)
                     .hasMessageContaining("was changed by someone else");
             status.setRollbackOnly();
         });

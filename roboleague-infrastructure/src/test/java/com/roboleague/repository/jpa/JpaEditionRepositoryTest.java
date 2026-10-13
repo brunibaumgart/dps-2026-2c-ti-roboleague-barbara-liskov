@@ -1,5 +1,6 @@
 package com.roboleague.repository.jpa;
 
+import com.roboleague.repository.ConcurrentModificationConflict;
 import com.roboleague.PostgresContainer;
 import com.roboleague.tournament.Category;
 import com.roboleague.tournament.CategoryId;
@@ -130,7 +131,7 @@ class JpaEditionRepositoryTest {
             other.executeWithoutResult(inner -> repository.save(withRegistration(
                     repository.findById(id).orElseThrow(), "t-first")));
             assertThatThrownBy(() -> repository.save(withRegistration(loaded, "t-second")))
-                    .isInstanceOf(IllegalStateException.class)
+                    .isInstanceOf(ConcurrentModificationConflict.class)
                     .hasMessageContaining("was changed by someone else");
             status.setRollbackOnly();
         });

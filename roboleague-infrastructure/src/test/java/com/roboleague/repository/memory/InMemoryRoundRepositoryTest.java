@@ -1,5 +1,6 @@
 package com.roboleague.repository.memory;
 
+import com.roboleague.support.ConflictException;
 import com.roboleague.scheduling.*;
 import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.ChallengeId;
@@ -46,9 +47,9 @@ class InMemoryRoundRepositoryTest {
         Round first = round("r1", "s1", 1);
         repository.save(first);
         assertThatThrownBy(() -> repository.save(round("r2", "s1", 2)))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("Slot id");
+                .isInstanceOf(ConflictException.class).hasMessageContaining("Slot id");
         assertThatThrownBy(() -> repository.save(round("r2", "s2", 1)))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("scope");
+                .isInstanceOf(ConflictException.class).hasMessageContaining("scope");
         assertThat(repository.findById(RoundId.of("r2"))).isEmpty();
         assertThat(repository.findAll()).containsExactly(first);
         assertThat(repository.findBySlotId(SlotId.of("s2"))).isEmpty();

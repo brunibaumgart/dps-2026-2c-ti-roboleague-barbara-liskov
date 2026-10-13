@@ -4,8 +4,6 @@ import com.roboleague.repository.EditionRepository;
 import com.roboleague.tournament.Edition;
 import com.roboleague.tournament.EditionId;
 import com.roboleague.tournament.TeamId;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -35,12 +33,8 @@ public class JpaEditionRepository implements EditionRepository {
         Objects.requireNonNull(edition, "edition cannot be null");
         EditionJpaEntity entity = EditionMapper.toEntity(edition);
         entity.version = jpa.findById(entity.id).map(read -> read.version).orElse(null);
-        try {
-            jpa.saveAndFlush(entity);
-        } catch (OptimisticLockingFailureException | DataIntegrityViolationException concurrent) {
-            throw new IllegalStateException("Edition " + edition.getId()
-                    + " was changed by someone else while it was being updated; load it again and retry");
-        }
+        WriteConflicts.write(() -> jpa.saveAndFlush(entity), "Edition " + edition.getId()
+                + " was changed by someone else while it was being updated; load it again and retry");
     }
 
     @Override

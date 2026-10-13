@@ -1,5 +1,7 @@
 package com.roboleague.repository.jpa;
 
+import com.roboleague.repository.ConcurrentModificationConflict;
+import com.roboleague.support.ConflictException;
 import com.roboleague.PostgresContainer;
 import com.roboleague.scheduling.Judge;
 import com.roboleague.scheduling.JudgeId;
@@ -118,9 +120,9 @@ class JpaRoundRepositoryTest {
         repository.save(round("ch-clash", "r-clash-a", 1, "s-clash-a"));
 
         assertThatThrownBy(() -> repository.save(round("ch-clash", "r-clash-b", 2, "s-clash-a")))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("Slot id");
+                .isInstanceOf(ConflictException.class).hasMessageContaining("Slot id");
         assertThatThrownBy(() -> repository.save(round("ch-clash", "r-clash-b", 1, "s-clash-b")))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("scope");
+                .isInstanceOf(ConflictException.class).hasMessageContaining("scope");
         entityManager.clear();
 
         assertThat(repository.findById(RoundId.of("r-clash-b"))).isEmpty();
@@ -144,7 +146,7 @@ class JpaRoundRepositoryTest {
             other.executeWithoutResult(inner -> repository.save(
                     repository.findById(id).orElseThrow().cancelSlot(SlotId.of("s-race-a"))));
             assertThatThrownBy(() -> repository.save(loaded.cancelSlot(SlotId.of("s-race-b"))))
-                    .isInstanceOf(IllegalStateException.class)
+                    .isInstanceOf(ConcurrentModificationConflict.class)
                     .hasMessageContaining("was changed by someone else");
             status.setRollbackOnly();
         });

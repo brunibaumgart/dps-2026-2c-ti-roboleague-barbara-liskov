@@ -1,13 +1,12 @@
 package com.roboleague.repository.jpa;
 
 import com.roboleague.repository.RoundRepository;
+import com.roboleague.support.ConflictException;
 import com.roboleague.scheduling.Round;
 import com.roboleague.scheduling.RoundId;
 import com.roboleague.scheduling.RoundScope;
 import com.roboleague.scheduling.SlotId;
 import com.roboleague.tournament.ChallengeId;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -36,19 +35,15 @@ public class JpaRoundRepository implements RoundRepository {
         RoundJpaEntity entity = RoundMapper.toEntity(round);
         if (jpa.existsByChallengeIdAndCategoryIdAndRoundNumberAndIdNot(
                 entity.challengeId, entity.categoryId, entity.roundNumber, entity.id)) {
-            throw new IllegalStateException("Round scope already exists: " + round.getInfo().scope());
+            throw new ConflictException("Round scope already exists: " + round.getInfo().scope());
         }
         List<String> slotIds = entity.slots.stream().map(RoundJpaEntity.SlotJson::slotId).toList();
         if (!slotIds.isEmpty() && jpa.existsSlotInAnotherRound(entity.id, slotIds)) {
-            throw new IllegalStateException("Slot id already belongs to another round");
+            throw new ConflictException("Slot id already belongs to another round");
         }
         entity.version = jpa.findById(entity.id).map(read -> read.version).orElse(null);
-        try {
-            jpa.saveAndFlush(entity);
-        } catch (OptimisticLockingFailureException | DataIntegrityViolationException concurrent) {
-            throw new IllegalStateException("Round " + round.getId()
-                    + " was changed by someone else while it was being updated; load it again and retry");
-        }
+        WriteConflicts.write(() -> jpa.saveAndFlush(entity), "Round " + round.getId()
+                + " was changed by someone else while it was being updated; load it again and retry");
     }
 
     @Override
