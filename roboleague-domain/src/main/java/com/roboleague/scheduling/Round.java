@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.UnaryOperator;
 
 /** Immutable aggregate root controlling the schedule and lifecycle of its slots. */
 public final class Round {
@@ -91,24 +92,29 @@ public final class Round {
 
     public Round startSlot(SlotId id) {
         requireStatus(RoundStatus.IN_PROGRESS);
-        return transitionSlot(id, Slot.SlotStatus.IN_PROGRESS);
+        return transitionSlot(id, Slot::start);
     }
 
     public Round completeSlot(SlotId id) {
         requireStatus(RoundStatus.IN_PROGRESS);
-        return transitionSlot(id, Slot.SlotStatus.COMPLETED);
+        return transitionSlot(id, Slot::complete);
     }
 
-    public Round cancelSlot(SlotId id) {
+    /**
+     * Cancels a turn that has not started, for example because its team did not show up: it frees its resources
+     * and the standings no longer wait for its result.
+     */
+    public Round cancelSlot(SlotId id, SlotCancellation cancellation) {
         if (status == RoundStatus.COMPLETED) {
             throw new IllegalStateException("Completed rounds cannot change");
         }
-        return transitionSlot(id, Slot.SlotStatus.CANCELLED);
+        Objects.requireNonNull(cancellation, "cancellation cannot be null");
+        return transitionSlot(id, slot -> slot.cancel(cancellation));
     }
 
-    private Round transitionSlot(SlotId id, Slot.SlotStatus next) {
+    private Round transitionSlot(SlotId id, UnaryOperator<Slot> transition) {
         Slot target = slot(id).orElseThrow(() -> new IllegalArgumentException("Slot not found: " + id));
-        Slot updated = target.transitionTo(next);
+        Slot updated = transition.apply(target);
         return new Round(info, status, slots.stream().map(slot -> slot == target ? updated : slot).toList());
     }
 

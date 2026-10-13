@@ -99,7 +99,7 @@ class AttemptReviewFindingsTest {
     @DisplayName("Hallazgo 3: un intento descalificado y sin apelación no se ajusta a ningún puntaje")
     void givenADisqualifiedAttemptThenAnAppealCannotAdjustIt() {
         Attempt attempt = scoredAttempt();
-        attempt.disqualify("robot fuera de pista", JudgeId.of("j-1"), audit());
+        attempt.disqualify(AuditNote.of(JudgeId.of("j-1").asActorId(), "robot fuera de pista"), audit());
 
         assertThatThrownBy(() -> attempt.adjustAfterAppeal(new AppealRevision(AppealId.of("no-existe"), RawMetrics.of(1.0, 5, 0),
                 new AuditNote(ActorId.of("cualquiera"), "sin apelación")), RULEBOOK, audit()))
@@ -129,7 +129,7 @@ class AttemptReviewFindingsTest {
         Attempt attempt = scoredAttempt();
         assertThat(attempt.countableScore()).hasValueSatisfying(score -> assertThat(score.totalScore()).isEqualTo(Points.of(70)));
 
-        attempt.disqualify("robot fuera de pista", JudgeId.of("j-1"), audit());
+        attempt.disqualify(AuditNote.of(JudgeId.of("j-1").asActorId(), "robot fuera de pista"), audit());
 
         assertThat(attempt.countableScore()).isEmpty();
     }

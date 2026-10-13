@@ -1,10 +1,12 @@
 package com.roboleague.api.scheduling;
 
 import com.roboleague.scheduling.*;
+import com.roboleague.support.ActorId;
 import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.ChallengeId;
 import com.roboleague.usecase.GetChallengeUseCase;
 import com.roboleague.usecase.QueryRoundsUseCase;
+import com.roboleague.usecase.RoundLifecycleUseCase;
 import com.roboleague.usecase.ScheduleRoundCommand;
 import com.roboleague.usecase.ScheduleRoundUseCase;
 import org.springframework.http.HttpStatus;
@@ -18,16 +20,23 @@ import java.util.Optional;
 import static com.roboleague.api.RequestValues.required;
 import static com.roboleague.api.RequestValues.text;
 
+/**
+ * Driving adapter for rounds: scheduling, queries and the lifecycle of the round and its turns, each transition a
+ * sub-resource of the round or of its slot.
+ */
 @RestController
 class RoundController {
     private final ScheduleRoundUseCase schedule;
     private final QueryRoundsUseCase query;
     private final GetChallengeUseCase challenges;
+    private final RoundLifecycleUseCase lifecycle;
 
-    RoundController(ScheduleRoundUseCase schedule, QueryRoundsUseCase query, GetChallengeUseCase challenges) {
+    RoundController(ScheduleRoundUseCase schedule, QueryRoundsUseCase query, GetChallengeUseCase challenges,
+                    RoundLifecycleUseCase lifecycle) {
         this.schedule = schedule;
         this.query = query;
         this.challenges = challenges;
+        this.lifecycle = lifecycle;
     }
 
     @PostMapping("/challenges/{challengeId}/rounds")
@@ -52,6 +61,31 @@ class RoundController {
 
     @GetMapping("/rounds/{roundId}")
     RoundDto get(@PathVariable String roundId) { return RoundDto.from(query.get(RoundId.of(roundId))); }
+
+    @PostMapping("/rounds/{roundId}/start")
+    RoundDto start(@PathVariable String roundId) { return RoundDto.from(lifecycle.start(RoundId.of(roundId))); }
+
+    @PostMapping("/rounds/{roundId}/completion")
+    RoundDto complete(@PathVariable String roundId) { return RoundDto.from(lifecycle.complete(RoundId.of(roundId))); }
+
+    @PostMapping("/rounds/{roundId}/slots/{slotId}/start")
+    RoundDto startSlot(@PathVariable String roundId, @PathVariable String slotId) {
+        return RoundDto.from(lifecycle.startSlot(RoundId.of(roundId), SlotId.of(slotId)));
+    }
+
+    @PostMapping("/rounds/{roundId}/slots/{slotId}/completion")
+    RoundDto completeSlot(@PathVariable String roundId, @PathVariable String slotId) {
+        return RoundDto.from(lifecycle.completeSlot(RoundId.of(roundId), SlotId.of(slotId)));
+    }
+
+    @PostMapping("/rounds/{roundId}/slots/{slotId}/cancellation")
+    RoundDto cancelSlot(@PathVariable String roundId, @PathVariable String slotId,
+                        @RequestBody CancellationRequest request) {
+        return RoundDto.from(lifecycle.cancelSlot(RoundId.of(roundId), SlotId.of(slotId),
+                ActorId.of(text(request.actorId(), "actorId")), text(request.reason(), "reason")));
+    }
+
+    record CancellationRequest(String actorId, String reason) { }
 
     record RoundRequest(String categoryId, Integer roundNumber, String roundName, LocalDateTime startTime,
                         Long slotDurationSeconds, Long intervalSeconds, List<TrackBody> tracks, List<JudgeBody> judges) { }

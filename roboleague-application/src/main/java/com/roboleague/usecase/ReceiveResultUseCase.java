@@ -14,6 +14,7 @@ import com.roboleague.scheduling.JudgeId;
 import com.roboleague.scheduling.Round;
 import com.roboleague.scheduling.Slot;
 import com.roboleague.support.Clock;
+import com.roboleague.support.ConflictException;
 import com.roboleague.support.IdGenerator;
 import com.roboleague.tournament.Challenge;
 
@@ -55,6 +56,9 @@ public class ReceiveResultUseCase {
         }
         Slot slot = round.slot(attemptId.slotId()).orElseThrow(() -> new InconsistentStateException(
                 "Round " + round.getId() + " was found by slot " + attemptId.slotId() + " but does not contain it"));
+        if (slot.getStatus() == Slot.SlotStatus.CANCELLED) {
+            throw new ConflictException("Slot " + slot.getSlotId() + " was cancelled; it takes no results");
+        }
         JudgeId judgeId = command.delivery().judgeId();
         if (!slot.isJudgedBy(judgeId)) {
             return new Reception.Rejected(List.of("judge " + judgeId + " is not assigned to slot " + slot.getSlotId()));

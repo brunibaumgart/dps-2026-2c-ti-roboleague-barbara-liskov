@@ -12,11 +12,13 @@ import com.roboleague.scheduling.RoundInfo;
 import com.roboleague.scheduling.RoundScope;
 import com.roboleague.scheduling.Slot;
 import com.roboleague.scheduling.SlotAssignment;
+import com.roboleague.scheduling.SlotCancellation;
 import com.roboleague.scheduling.SlotId;
 import com.roboleague.scheduling.SlotIdentity;
 import com.roboleague.scheduling.TimeWindow;
 import com.roboleague.scheduling.Track;
 import com.roboleague.scheduling.TrackId;
+import com.roboleague.support.ActorId;
 import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.ChallengeId;
 import com.roboleague.tournament.EditionId;
@@ -45,6 +47,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({PostgresContainer.class, JpaRoundRepository.class})
 class JpaRoundRepositoryTest {
+    private static final SlotCancellation NO_SHOW = new SlotCancellation(ActorId.of("org-1"), "El equipo no se presentó",
+            LocalDateTime.of(2026, 11, 10, 8, 0));
 
     private static final LocalDateTime START = LocalDateTime.of(2026, 11, 10, 10, 0);
 
@@ -61,7 +65,7 @@ class JpaRoundRepositoryTest {
     @DisplayName("A round comes back with its scope, status and every slot with track, judges, window, pause and state")
     void roundRoundTrip() {
         Round scheduled = round("ch-trip", "r-trip", 1, "s-trip-a", "s-trip-b");
-        Round running = scheduled.start().startSlot(SlotId.of("s-trip-a")).cancelSlot(SlotId.of("s-trip-b"));
+        Round running = scheduled.start().startSlot(SlotId.of("s-trip-a")).cancelSlot(SlotId.of("s-trip-b"), NO_SHOW);
         repository.save(running);
         entityManager.clear();
 
@@ -79,9 +83,11 @@ class JpaRoundRepositoryTest {
             assertThat(slot.getTimeWindow()).isEqualTo(expected.getTimeWindow());
             assertThat(slot.getTrackInterval()).isEqualTo(expected.getTrackInterval());
             assertThat(slot.getStatus()).isEqualTo(expected.getStatus());
+            assertThat(slot.getCancellation()).isEqualTo(expected.getCancellation());
         }
         assertThat(stored.getSlots()).extracting(Slot::getStatus)
                 .containsExactly(Slot.SlotStatus.IN_PROGRESS, Slot.SlotStatus.CANCELLED);
+        assertThat(stored.getSlots().get(1).getCancellation()).contains(NO_SHOW);
         assertThat(stored.getSlots().getFirst().getAssignedJudges()).extracting(Judge::id)
                 .containsExactly(JudgeId.of("j-1"), JudgeId.of("j-3"));
         assertThat(stored.getSlots().get(1).getTrackInterval()).isEqualTo(Duration.ofSeconds(90));
@@ -144,8 +150,8 @@ class JpaRoundRepositoryTest {
         useCase.executeWithoutResult(status -> {
             Round loaded = repository.findById(id).orElseThrow();
             other.executeWithoutResult(inner -> repository.save(
-                    repository.findById(id).orElseThrow().cancelSlot(SlotId.of("s-race-a"))));
-            assertThatThrownBy(() -> repository.save(loaded.cancelSlot(SlotId.of("s-race-b"))))
+                    repository.findById(id).orElseThrow().cancelSlot(SlotId.of("s-race-a"), NO_SHOW)));
+            assertThatThrownBy(() -> repository.save(loaded.cancelSlot(SlotId.of("s-race-b"), NO_SHOW)))
                     .isInstanceOf(ConcurrentModificationConflict.class)
                     .hasMessageContaining("was changed by someone else");
             status.setRollbackOnly();

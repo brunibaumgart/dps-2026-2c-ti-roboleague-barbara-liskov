@@ -53,12 +53,4 @@ public record PenaltyAppliedEvent(
     public String description() {
         return "Penalty of " + additionalPenalties() + " fouls applied by " + authorId + ": " + reason();
     }
-
-    public static PenaltyAppliedEvent create(EventMetadata metadata, int additionalPenalties, String reason, ActorId authorId) {
-        return new PenaltyAppliedEvent(
-                metadata,
-                PenaltyDetail.of(additionalPenalties, reason),
-                authorId
-        );
-    }
 }

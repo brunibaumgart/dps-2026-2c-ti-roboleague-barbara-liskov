@@ -207,7 +207,7 @@ class JpaAttemptRepositoryTest {
         Attempt attempt = attempt("slot-3", "r-1", "t-1");
         attempt.receive(SENSORS, RESCUE, audit());
         attempt.receive(PANEL, RESCUE, audit());
-        attempt.disqualify("Robot fuera de pista", JudgeId.of("j-1"), audit());
+        attempt.disqualify(AuditNote.of(JudgeId.of("j-1").asActorId(), "Robot fuera de pista"), audit());
 
         repository.save(attempt);
         Attempt stored = repository.findById(attempt.getId()).orElseThrow();

@@ -1,5 +1,6 @@
 package com.roboleague.repository.jpa;
 
+import com.roboleague.repository.jpa.RoundJpaEntity.CancellationJson;
 import com.roboleague.repository.jpa.RoundJpaEntity.JudgeJson;
 import com.roboleague.repository.jpa.RoundJpaEntity.SlotJson;
 import com.roboleague.repository.jpa.RoundJpaEntity.TrackJson;
@@ -14,12 +15,14 @@ import com.roboleague.scheduling.RoundScope;
 import com.roboleague.scheduling.Slot;
 import com.roboleague.scheduling.Slot.SlotStatus;
 import com.roboleague.scheduling.SlotAssignment;
+import com.roboleague.scheduling.SlotCancellation;
 import com.roboleague.scheduling.SlotId;
 import com.roboleague.scheduling.SlotIdentity;
 import com.roboleague.scheduling.TimeWindow;
 import com.roboleague.scheduling.Track;
 import com.roboleague.scheduling.TrackId;
 import com.roboleague.scheduling.TrackInfo;
+import com.roboleague.support.ActorId;
 import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.ChallengeId;
 import com.roboleague.tournament.EditionId;
@@ -66,7 +69,11 @@ final class RoundMapper {
                 slot.getAssignedJudges().stream()
                         .map(judge -> new JudgeJson(judge.id().value(), judge.fullName(), judge.specialty(),
                                 judge.certificationLevel()))
-                        .toList());
+                        .toList(),
+                slot.getCancellation()
+                        .map(cancellation -> new CancellationJson(cancellation.cancelledBy().value(),
+                                cancellation.reason(), cancellation.cancelledAt().toString()))
+                        .orElse(null));
     }
 
     private static Slot toSlot(RoundId roundId, SlotJson json) {
@@ -79,6 +86,8 @@ final class RoundMapper {
                                         judge.specialty(), judge.certificationLevel()))
                                 .toList()),
                 new TimeWindow(LocalDateTime.parse(json.startTime()), LocalDateTime.parse(json.endTime())),
-                Duration.parse(json.trackInterval()), SlotStatus.valueOf(json.status()));
+                Duration.parse(json.trackInterval()), SlotStatus.valueOf(json.status()),
+                json.cancellation() == null ? null : new SlotCancellation(ActorId.of(json.cancellation().actorId()),
+                        json.cancellation().reason(), LocalDateTime.parse(json.cancellation().cancelledAt())));
     }
 }

@@ -1,24 +1,24 @@
 package com.roboleague.evaluation.audit;
 
 import com.roboleague.evaluation.AttemptId;
-import com.roboleague.scheduling.JudgeId;
+import com.roboleague.support.ActorId;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
 
 /**
- * Event triggered when a judge disqualifies an attempt.
+ * Event triggered when a judge disqualifies an attempt; the author is the judge as an actor.
  */
 public record AttemptDisqualifiedEvent(
         EventMetadata metadata,
         String reason,
-        JudgeId judgeId
+        ActorId authorId
 ) implements AttemptEvent {
 
     public AttemptDisqualifiedEvent {
         Objects.requireNonNull(metadata, "metadata cannot be null");
         Objects.requireNonNull(reason, "reason cannot be null");
-        Objects.requireNonNull(judgeId, "judgeId cannot be null");
+        Objects.requireNonNull(authorId, "authorId cannot be null");
     }
 
     @Override
@@ -43,10 +43,10 @@ public record AttemptDisqualifiedEvent(
 
     @Override
     public String description() {
-        return "Attempt disqualified by " + judgeId + ": " + reason;
+        return "Attempt disqualified by " + authorId + ": " + reason;
     }
 
-    public static AttemptDisqualifiedEvent create(EventMetadata metadata, String reason, JudgeId judgeId) {
-        return new AttemptDisqualifiedEvent(metadata, reason, judgeId);
+    public static AttemptDisqualifiedEvent create(EventMetadata metadata, AuditNote note) {
+        return new AttemptDisqualifiedEvent(metadata, note.reason(), note.authorId());
     }
 }

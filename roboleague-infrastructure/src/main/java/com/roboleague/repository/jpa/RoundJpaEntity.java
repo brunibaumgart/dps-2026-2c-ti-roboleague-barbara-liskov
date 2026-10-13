@@ -36,9 +36,15 @@ class RoundJpaEntity {
         // required by JPA
     }
 
-    /** The round is the row itself; {@code slotId} is what {@link SpringDataRounds#findBySlotId} looks for. */
+    /**
+     * The round is the row itself; {@code slotId} is what {@link SpringDataRounds#findBySlotId} looks for.
+     * {@code cancellation} is null unless the slot was cancelled (and absent in rows written before it existed).
+     */
     record SlotJson(String slotId, String teamId, String status, String startTime, String endTime,
-                    String trackInterval, TrackJson track, List<JudgeJson> judges) {
+                    String trackInterval, TrackJson track, List<JudgeJson> judges, CancellationJson cancellation) {
+    }
+
+    record CancellationJson(String actorId, String reason, String cancelledAt) {
     }
 
     record TrackJson(String id, String name, String surfaceType, boolean active) {

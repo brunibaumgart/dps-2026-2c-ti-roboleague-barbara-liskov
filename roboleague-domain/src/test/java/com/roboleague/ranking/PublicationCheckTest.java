@@ -1,6 +1,7 @@
 package com.roboleague.ranking;
 
 import com.roboleague.evaluation.Attempt;
+import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.scheduling.Judge;
 import com.roboleague.scheduling.Round;
 import com.roboleague.scheduling.RoundId;
@@ -8,10 +9,12 @@ import com.roboleague.scheduling.RoundInfo;
 import com.roboleague.scheduling.RoundScope;
 import com.roboleague.scheduling.Slot;
 import com.roboleague.scheduling.SlotAssignment;
+import com.roboleague.scheduling.SlotCancellation;
 import com.roboleague.scheduling.SlotIdentity;
 import com.roboleague.scheduling.TimeWindow;
 import com.roboleague.scheduling.Track;
 import com.roboleague.scheduling.TrackId;
+import com.roboleague.support.ActorId;
 import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.EditionId;
 import com.roboleague.tournament.TeamId;
@@ -44,7 +47,8 @@ class PublicationCheckTest {
     @Test
     @DisplayName("A cancelled turn does not hold the publication back")
     void aCancelledTurnIsNotCounted() {
-        Round round = round("t-a", "t-b").cancelSlot(slotOf("t-b", "r-1"));
+        Round round = round("t-a", "t-b").cancelSlot(slotOf("t-b", "r-1"),
+                new SlotCancellation(ActorId.of("org-1"), "El equipo no se presentó", TIME));
 
         PublicationCheck check = PublicationCheck.of(EMPTY, List.of(round), List.of(scored("t-a", "r-1", 50, 3, 0)));
 
@@ -68,7 +72,7 @@ class PublicationCheckTest {
     @DisplayName("A disqualified turn has an outcome")
     void aDisqualifiedTurnHasAnOutcome() {
         Attempt disqualified = scored("t-a", "r-1", 50, 3, 0);
-        disqualified.disqualify("Robot fuera de reglamento", JUDGE, audit());
+        disqualified.disqualify(AuditNote.of(JUDGE.asActorId(), "Robot fuera de reglamento"), audit());
 
         assertThat(PublicationCheck.of(EMPTY, List.of(round("t-a")), List.of(disqualified)).unfinishedTurns())
                 .isZero();

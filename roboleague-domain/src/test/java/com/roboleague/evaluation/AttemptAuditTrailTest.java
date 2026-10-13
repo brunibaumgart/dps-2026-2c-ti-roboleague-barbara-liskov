@@ -1,5 +1,6 @@
 package com.roboleague.evaluation;
 
+import com.roboleague.evaluation.audit.AttemptDisqualifiedEvent;
 import com.roboleague.evaluation.audit.AttemptScoreSnapshot;
 import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.evaluation.rules.JudgeSubjectiveRule;
@@ -108,6 +109,44 @@ class AttemptAuditTrailTest {
     }
 
     @Test
+    @DisplayName("A fault adjustment that is not positive is refused before it adds a revision or an event")
+    void nonPositiveFaultAdjustmentChangesNothing() {
+        Attempt attempt = newAttempt();
+        attempt.receive(sensors(50.0, 0, 0, "judge-1"), standardPolicy, audit());
+        AuditNote note = new AuditNote(ActorId.of("judge-2"), "Sin faltas");
+
+        assertThatThrownBy(() -> attempt.applyPenaltyAdjustment(0, note, standardPolicy, audit()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("additionalPenalties must be positive");
+        assertThatThrownBy(() -> attempt.applyPenaltyAdjustment(-1, note, standardPolicy, audit()))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThat(attempt.getRevisionHistory()).hasSize(1);
+        assertThat(attempt.getEventHistory()).hasSize(2);
+        assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.EVALUATED);
+    }
+
+    @Test
+    @DisplayName("A disqualification records who decided it and why, and keeps every revision")
+    void disqualificationRecordsItsAuthorAndReason() {
+        Attempt attempt = newAttempt();
+        attempt.receive(sensors(50.0, 0, 0, "judge-1"), standardPolicy, audit());
+
+        attempt.disqualify(AuditNote.of(JudgeId.of("judge-1").asActorId(), "Robot fuera de reglamento"), audit());
+
+        assertThat(attempt.getEventHistory()).last()
+                .isInstanceOfSatisfying(AttemptDisqualifiedEvent.class, event -> {
+                    assertThat(event.authorId()).isEqualTo(ActorId.of("judge-1"));
+                    assertThat(event.reason()).isEqualTo("Robot fuera de reglamento");
+                });
+        assertThat(attempt.getRevisionHistory()).hasSize(1);
+        assertThat(attempt.countableScore()).isEmpty();
+        assertThatThrownBy(() -> attempt.disqualify(AuditNote.of(ActorId.of("judge-1"), "otra vez"), audit()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("attempt is disqualified: it cannot be disqualified");
+    }
+
+    @Test
     @DisplayName("A scored attempt takes no second result: corrections are audited adjustments")
     void cannotReceiveTheResultTwice() {
         Attempt attempt = newAttempt();
@@ -132,7 +171,7 @@ class AttemptAuditTrailTest {
         assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.EVALUATED);
         assertThat(attempt.getRevisionHistory()).hasSize(1);
 
-        attempt.disqualify("Robot abandono la pista", JudgeId.of("judge-2"), audit());
+        attempt.disqualify(AuditNote.of(JudgeId.of("judge-2").asActorId(), "Robot abandono la pista"), audit());
         assertThat(attempt.getStatus()).isEqualTo(Attempt.AttemptStatus.DISQUALIFIED);
         assertThat(attempt.getEventHistory())
                 .last()

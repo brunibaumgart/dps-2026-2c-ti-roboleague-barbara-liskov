@@ -1,5 +1,6 @@
 package com.roboleague.scheduling;
 
+import com.roboleague.support.ActorId;
 import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.ChallengeId;
 import com.roboleague.tournament.EditionId;
@@ -101,7 +102,8 @@ class RoundSchedulerServiceTest {
     @Test
     void cancellationReleasesResourcesForAnotherRound() {
         Round old = scheduler.scheduleRound(request("old", 1, 1, 1), teams("A"));
-        old = old.cancelSlot(old.getSlots().getFirst().getSlotId());
+        old = old.cancelSlot(old.getSlots().getFirst().getSlotId(),
+                new SlotCancellation(ActorId.of("org-1"), "No se presentó", START));
         Round result = scheduler.scheduleRound(request("new", 1, 1, 1), teams("A"), List.of(old));
         assertThat(result.getSlots().getFirst().getStartTime()).isEqualTo(START);
     }

@@ -23,6 +23,7 @@ import com.roboleague.evaluation.scheme.AllRounds;
 import com.roboleague.evaluation.scheme.HigherTotal;
 import com.roboleague.evaluation.scheme.LowerTime;
 import com.roboleague.evaluation.scheme.RankingScheme;
+import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.scheduling.RoundId;
 import com.roboleague.tournament.TeamId;
 import org.junit.jupiter.api.DisplayName;
@@ -95,7 +96,7 @@ class StandingsTableTest {
     @DisplayName("Hallazgo 3: a team whose only attempt is disqualified gets no round and goes last")
     void aTeamWithOnlyADisqualifiedAttemptGetsNoRoundAndGoesLast() {
         Attempt disqualified = scored("t-a", "r-1", 40, 5, 0);
-        disqualified.disqualify("Robot fuera de reglamento", JUDGE, audit());
+        disqualified.disqualify(AuditNote.of(JUDGE.asActorId(), "Robot fuera de reglamento"), audit());
 
         List<StandingsEntry> rows = StandingsTable.rank(BEST_2_OF_3, List.of(
                 new TeamAttempts(team("t-a"), List.of(disqualified)),
@@ -110,7 +111,7 @@ class StandingsTableTest {
     @DisplayName("Hallazgo 3: a disqualified attempt does not count even if it scored more than the others")
     void aDisqualifiedAttemptDoesNotCountEvenWithAHigherScore() {
         Attempt disqualified = scored("t-a", "r-2", 40, 5, 0);
-        disqualified.disqualify("Robot fuera de reglamento", JUDGE, audit());
+        disqualified.disqualify(AuditNote.of(JUDGE.asActorId(), "Robot fuera de reglamento"), audit());
 
         StandingsEntry row = StandingsTable.rank(BEST_2_OF_3, List.of(new TeamAttempts(team("t-a"),
                 List.of(scored("t-a", "r-1", 50, 2, 0), disqualified)))).entries().getFirst();

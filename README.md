@@ -132,9 +132,12 @@ Los paquetes no cambiaron al separar módulos (`com.roboleague.usecase`, `com.ro
 | GET · PUT | `/editions/{id}/registrations/{teamId}` | hecho |
 | POST · GET | `/challenges/{id}/rounds` | hecho |
 | GET | `/rounds/{id}` | hecho |
+| POST | `/rounds/{id}/start` · `/completion` | hecho |
+| POST | `/rounds/{id}/slots/{slotId}/start` · `/completion` · `/cancellation` | hecho |
 | PUT | `/attempts/{id}/measurements` | hecho |
 | PUT | `/attempts/{id}/judge-scores` | hecho |
 | GET | `/attempts/{id}/breakdown` | hecho |
+| POST | `/attempts/{id}/penalty-adjustments` · `/disqualification` | hecho |
 | POST · GET | `/attempts/{id}/appeals` | hecho |
 | GET | `/challenges/{id}/appeals` · `/appeals/{id}` | hecho |
 | POST | `/appeals/{id}/acceptance` · `/rejection` | hecho |
@@ -296,8 +299,8 @@ scope duplicado → **409**; equipos canónicos inelegibles → **422**.
 
 Respuesta: `{roundId, challengeId, editionId, categoryId, roundNumber, name,
 status, slots}`. Cada slot expone `{slotId, teamId, track, judges, startTime,
-endTime, intervalSeconds, status}`; track/judges contienen los mismos campos
-públicos que en el request. Slots se ordenan por inicio, TrackId y SlotId, y no
+endTime, intervalSeconds, status, cancellation}`; track/judges contienen los mismos campos
+públicos que en el request y `cancellation` es `null` salvo en un turno cancelado. Slots se ordenan por inicio, TrackId y SlotId, y no
 se expone el agregado directamente. El scheduler asigna un juez por slot. Ese
 juez puede usar el slotId para ambos endpoints de captura existentes.
 
@@ -308,6 +311,27 @@ categoría no ofrecida devuelve **400**; una categoría válida sin rondas devue
 Las listas de inscripciones/desafíos/rondas vacías son **200**; sus padres deben
 existir. Edición, inscripción, desafío o ronda inexistentes devuelven **404**.
 Las consultas no escriben ni cambian estados.
+
+Ciclo de vida, sin body salvo la cancelación; todas responden **200** con el
+mismo `RoundDto`:
+
+- `POST /rounds/{roundId}/start`: la ronda pasa de `SCHEDULED` a `IN_PROGRESS`.
+- `POST /rounds/{roundId}/slots/{slotId}/start` y `.../completion`: el turno pasa
+  a `IN_PROGRESS` y luego a `COMPLETED`; exigen la ronda en curso.
+- `POST /rounds/{roundId}/completion`: exige todos los turnos completados o
+  cancelados.
+- `POST /rounds/{roundId}/slots/{slotId}/cancellation` con
+  `{"actorId": "org-1", "reason": "El equipo no se presentó"}`: cancela un turno
+  que no empezó y guarda `cancellation {actorId, reason, cancelledAt}` (hora del
+  servidor). Libera pista y juez, y la tabla deja de esperar ese turno para
+  publicarse. Un turno que ya tiene resultados no se cancela (**409**): se
+  descalifica su intento.
+
+Una transición no permitida (empezar dos veces, completar con turnos
+pendientes, cancelar un turno empezado o una ronda completada) es **409**; ronda
+o slot inexistentes, **404**; sin `actorId` o `reason`, **400**. El ciclo de vida
+no depende de los resultados: capturar un resultado no empieza ni completa el
+turno, pero un turno cancelado no acepta resultados (**409**).
 
 ### Cargar los resultados de un intento
 
@@ -341,11 +365,18 @@ Cada fuente llega por separado (F3). El reglamento dice qué fuentes exige: si t
 | Caso | HTTP |
 | --- | --- |
 | Mediciones que no cumplen el reglamento (faltan, sobran, fuera de rango), una fuente que el reglamento no toma, un juez no asignado al slot | 422, con cada problema en `details` |
-| La misma fuente dos veces, un intento ya puntuado (las correcciones van por ajuste o apelación), un intento de otro desafío | 409 |
+| La misma fuente dos veces, un intento ya puntuado (las correcciones van por ajuste o apelación), un intento de otro desafío, un turno cancelado | 409 |
 | Un id sin número, un campo obligatorio que falta, un valor negativo | 400 |
 | Un slot que no está en ninguna ronda, un intento que no existe (desglose) | 404 |
 
 `GET /attempts/{id}/breakdown` → 200 con lo que el intento todavía espera (`awaiting`), su puntaje, cada ítem de la última revisión (tope y piso incluidos), lo que aportó cada fuente (`bySource`) y cada revisión con su versión de reglamento, autor y motivo.
+
+Un intento puntuado se corrige fuera de una apelación de dos formas. Las dos recalculan la tabla de su desafío y categoría y responden **200** con `{attempt, standingsVersion}` (`attempt` es el mismo DTO de la captura):
+
+- `POST /attempts/{id}/penalty-adjustments` con `{"actorId": "arb-1", "reason": "Toque de borde visto en video", "additionalPenalties": 2}`: suma esas faltas a la última medición y agrega una revisión puntuada con el reglamento del intento (estado `ADJUSTED`). `additionalPenalties` tiene que ser positivo (**400**).
+- `POST /attempts/{id}/disqualification` con `{"judgeId": "j-1", "reason": "Robot fuera de reglamento"}`: el juez tiene que estar asignado al turno (**422** si no). El intento queda `DISQUALIFIED`, conserva sus revisiones y deja de contar para la tabla (`score: null`).
+
+Un campo faltante es **400**; un intento inexistente, **404**; un intento que espera una fuente, está en apelación o ya fue descalificado, **409**.
 
 ### Apelaciones
 

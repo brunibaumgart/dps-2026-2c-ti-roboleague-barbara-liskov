@@ -22,12 +22,20 @@ record RoundDto(String roundId, String challengeId, String editionId, String cat
     record JudgeDto(String id, String fullName, String specialty) {
         static JudgeDto from(Judge judge) { return new JudgeDto(judge.id().value(), judge.fullName(), judge.specialty()); }
     }
+    /** {@code cancellation} is null unless the slot was cancelled. */
     record SlotDto(String slotId, String teamId, TrackDto track, List<JudgeDto> judges, LocalDateTime startTime,
-                   LocalDateTime endTime, long intervalSeconds, String status) {
+                   LocalDateTime endTime, long intervalSeconds, String status, CancellationDto cancellation) {
         static SlotDto from(Slot slot) {
             return new SlotDto(slot.getSlotId().value(), slot.getTeamId().value(), TrackDto.from(slot.getTrack()),
                     slot.getAssignedJudges().stream().map(JudgeDto::from).toList(), slot.getStartTime(), slot.getEndTime(),
-                    slot.getTrackInterval().toSeconds(), slot.getStatus().name());
+                    slot.getTrackInterval().toSeconds(), slot.getStatus().name(),
+                    slot.getCancellation().map(CancellationDto::from).orElse(null));
+        }
+    }
+    record CancellationDto(String actorId, String reason, LocalDateTime cancelledAt) {
+        static CancellationDto from(SlotCancellation cancellation) {
+            return new CancellationDto(cancellation.cancelledBy().value(), cancellation.reason(),
+                    cancellation.cancelledAt());
         }
     }
 }

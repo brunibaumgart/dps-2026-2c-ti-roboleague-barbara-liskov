@@ -171,7 +171,7 @@ final class AttemptMapper {
                     adjusted.reason(), adjusted.newRevisionNumber(), null, null, toJson(adjusted.evaluation()));
             case AppealAcceptedEvent accepted -> new EventJson(type, id, at, accepted.reviewerId().value(), null,
                     accepted.resolutionNotes(), null, accepted.appealId().value(), null, null);
-            case AttemptDisqualifiedEvent disqualified -> new EventJson(type, id, at, disqualified.judgeId().value(), null,
+            case AttemptDisqualifiedEvent disqualified -> new EventJson(type, id, at, disqualified.authorId().value(), null,
                     disqualified.reason(), null, null, null, null);
         };
     }
@@ -189,7 +189,7 @@ final class AttemptMapper {
                     new ScoreAdjustmentDetails(json.number(), json.reason(), ActorId.of(json.actorId())));
             case "APPEAL_ACCEPTED" -> new AppealAcceptedEvent(metadata,
                     new AppealResolution(AppealId.of(json.appealId()), json.reason()), ActorId.of(json.actorId()));
-            case "ATTEMPT_DISQUALIFIED" -> new AttemptDisqualifiedEvent(metadata, json.reason(), JudgeId.of(json.actorId()));
+            case "ATTEMPT_DISQUALIFIED" -> new AttemptDisqualifiedEvent(metadata, json.reason(), ActorId.of(json.actorId()));
             default -> throw new CorruptDataException("Unknown stored attempt event: " + json.type());
         };
     }
