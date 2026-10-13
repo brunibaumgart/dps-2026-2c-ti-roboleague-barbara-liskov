@@ -161,7 +161,7 @@ La demo requiere ser mayor de 12 años (desde 13), sin límite superior.
                  "minAge": 12, "maxAge": 17, "maxWeightGrams": 2500}]}
 ```
 
-`POST /editions/{id}/challenges` con `{"id", "name", "rulebook"}` → 201 con el desafío y su reglamento v1. `POST /challenges/{id}/rulebook/versions` con un `rulebook` → 201 con la versión nueva. Un reglamento con problemas es **422** con cada problema en `details` (`"rule 'Faltas': missing parameter 'deductionPerPenalty'"`). Edición o desafío inexistente: 404; id repetido: 409. Una edición sin un dato obligatorio (id o nombre del torneo, id o nombre de la temporada o de una categoría), con un id o nombre en blanco o con dos categorías del mismo id: 400.
+`POST /editions/{id}/challenges` con `{"id", "name", "rulebook"}` → 201 con el desafío y su reglamento v1. `POST /challenges/{id}/rulebook/versions` con un `rulebook` → 201 con la versión nueva. Un reglamento con problemas es **422** con cada problema en `details` (`"rule 'Faltas': missing parameter 'deductionPerPenalty'"`). Edición o desafío inexistente: 404; id repetido: 409. Una edición sin un dato obligatorio (`editionNumber`, id o nombre del torneo, id, nombre o año de la temporada, id o nombre de una categoría), con un id o nombre en blanco o con dos categorías del mismo id: 400. Un número omitido no se toma como 0: el error nombra el campo (`Missing field 'tournament.season.year'`).
 
 Un reglamento en JSON (lo que se manda es lo que `GET /challenges/{id}` devuelve en `currentRulebook`):
 
@@ -211,7 +211,9 @@ Una métrica es `{"name", "source"}` con `source` = `AUTOMATIC_MEASUREMENTS` o `
 ### Inscribir y actualizar equipos
 
 `GET /editions` devuelve una lista; `GET /editions/{editionId}` devuelve el detalle.
-Ambos usan `{id, name, startDate, endDate, categories, categoryDetails}`.
+Ambos (y la respuesta de `POST /editions`) usan `{id, name, editionNumber,
+tournament, startDate, endDate, categories, categoryDetails}`, con
+`tournament` = `{id, name, description, season: {id, year, name}}`.
 `categories` conserva los ids del contrato original; `categoryDetails` contiene
 `{id, name, minMembers, maxMembers, minAge, maxAge, maxWeightGrams, maxLengthMm,
 maxWidthMm, maxHeightMm}`. En `POST /editions`, las tres dimensiones máximas son
@@ -295,7 +297,9 @@ configurada del servidor. Duración en segundos positivos; pausa de pista en
 segundos no negativos. Número de ronda positivo. Los recursos se suministran
 por request, sin crear catálogos persistidos. Pistas inactivas se excluyen;
 recursos duplicados, ausencia de pista activa/juez y categoría ajena → **400**;
-scope duplicado → **409**; equipos canónicos inelegibles → **422**.
+scope duplicado → **409**; equipos canónicos inelegibles → **422**. Todos los
+turnos tienen que caer dentro de las fechas de la edición (un turno que termina
+a medianoche pertenece al día anterior); si no, **422** y no se guarda nada.
 
 Respuesta: `{roundId, challengeId, editionId, categoryId, roundNumber, name,
 status, slots}`. Cada slot expone `{slotId, teamId, track, judges, startTime,

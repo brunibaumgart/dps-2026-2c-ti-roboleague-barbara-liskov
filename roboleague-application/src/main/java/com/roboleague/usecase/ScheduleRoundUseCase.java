@@ -5,6 +5,7 @@ import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.RoundRepository;
 import com.roboleague.repository.TeamRepository;
 import com.roboleague.scheduling.*;
+import com.roboleague.support.BusinessRuleViolation;
 import com.roboleague.support.ConflictException;
 import com.roboleague.support.IdGenerator;
 import com.roboleague.tournament.Challenge;
@@ -18,7 +19,8 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Use case to schedule a competition round and assign slots, tracks, and judges.
+ * Use case to schedule a competition round and assign slots, tracks, and judges. Every turn has to fall within the
+ * dates of the edition.
  */
 public class ScheduleRoundUseCase {
     private final IdGenerator ids;
@@ -76,6 +78,10 @@ public class ScheduleRoundUseCase {
         RoundScheduleRequest request = RoundScheduleRequest.of(info, resources, timing);
 
         Round round = schedulerService.scheduleRound(request, teamIds, roundRepository.findAll());
+        if (!round.happensWithin(edition.getDates())) {
+            throw new BusinessRuleViolation("Round " + command.roundName() + " does not fit within the dates of edition "
+                    + edition.getId() + " (" + edition.getStartDate() + " to " + edition.getEndDate() + ")");
+        }
         roundRepository.save(round);
         return round;
     }

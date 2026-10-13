@@ -2,6 +2,7 @@ package com.roboleague.scheduling;
 
 import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.ChallengeId;
+import com.roboleague.tournament.DateRange;
 import com.roboleague.tournament.EditionId;
 
 import java.util.ArrayList;
@@ -64,6 +65,16 @@ public final class Round {
 
     public Optional<Slot> slot(SlotId id) {
         return slots.stream().filter(slot -> slot.getSlotId().equals(id)).findFirst();
+    }
+
+    /**
+     * Whether every turn of the round runs on days within the given dates. Windows are [start, end), so a turn that
+     * ends exactly at midnight belongs to the day before.
+     */
+    public boolean happensWithin(DateRange dates) {
+        Objects.requireNonNull(dates, "dates cannot be null");
+        return slots.stream().allMatch(slot -> dates.includes(slot.getStartTime().toLocalDate())
+                && dates.includes(slot.getEndTime().minusNanos(1).toLocalDate()));
     }
 
     public Round addSlot(Slot slot) {

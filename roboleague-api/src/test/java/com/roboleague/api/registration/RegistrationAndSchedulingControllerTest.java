@@ -252,6 +252,21 @@ class RegistrationAndSchedulingControllerTest extends ApiTest {
     }
 
     @Test
+    void aRoundOutsideTheEditionDatesIsUnprocessableAndNotSaved() throws Exception {
+        String id = "http05-out-of-dates";
+        edition(id);
+        challenge(id, id + "-challenge");
+        register(id, id + "-team", "Original", 1000).andExpect(status().isCreated());
+
+        mvc.perform(post("/challenges/{id}/rounds", id + "-challenge").contentType(MediaType.APPLICATION_JSON)
+                        .content(roundBody(id + "-small", 1).replace("2026-11-10T10:00:00", "2026-11-13T10:00:00")))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.error").value("Round Round does not fit within the dates of edition " + id
+                        + " (2026-11-10 to 2026-11-12)"));
+        mvc.perform(get("/challenges/{id}/rounds", id + "-challenge")).andExpect(status().isOk()).andExpect(content().json("[]"));
+    }
+
+    @Test
     void duplicateRoundReturnsConflictAndKeepsThePreviousSchedule() throws Exception {
         String id = "http05-duplicate-round";
         edition(id);

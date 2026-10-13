@@ -2,10 +2,12 @@ package com.roboleague.scheduling;
 
 import com.roboleague.support.ActorId;
 import com.roboleague.tournament.CategoryId;
+import com.roboleague.tournament.DateRange;
 import com.roboleague.tournament.EditionId;
 import com.roboleague.tournament.TeamId;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -75,6 +77,22 @@ class RoundTest {
         assertThatThrownBy(() -> cancelled.cancelSlot(SlotId.of("slot-1"), NO_SHOW)).isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> cancelled.start().startSlot(SlotId.of("slot-1"))).isInstanceOf(IllegalStateException.class);
         assertThat(cancelled.start().complete().getStatus()).isEqualTo(Round.RoundStatus.COMPLETED);
+    }
+
+    @Test
+    void aRoundHappensWithinDatesWhenEveryTurnStartsAndEndsOnThoseDays() {
+        Round round = roundWith(slot("slot-1", Judge.of(JudgeId.of("j-1"), "Judge", "General")));
+        LocalDate day = START.toLocalDate();
+
+        assertThat(round.happensWithin(new DateRange(day, day))).isTrue();
+        assertThat(round.happensWithin(new DateRange(day.plusDays(1), day.plusDays(2)))).isFalse();
+        assertThat(round.happensWithin(new DateRange(day.minusDays(2), day.minusDays(1)))).isFalse();
+
+        Round untilMidnight = roundWith(Slot.of(SlotIdentity.of(SlotId.of("slot-1"), RoundId.of("r-1"), TeamId.of("t-1")),
+                SlotAssignment.of(Track.active(TrackId.of("trk-1"), "Pista 1", "Madera"),
+                        List.of(Judge.of(JudgeId.of("j-1"), "Judge", "General"))),
+                new TimeWindow(day.atTime(23, 50), day.plusDays(1).atStartOfDay())));
+        assertThat(untilMidnight.happensWithin(new DateRange(day, day))).isTrue();
     }
 
     @Test

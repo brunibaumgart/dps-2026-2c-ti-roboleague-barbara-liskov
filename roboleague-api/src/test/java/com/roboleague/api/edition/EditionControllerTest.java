@@ -11,6 +11,7 @@ import org.springframework.test.web.servlet.RequestBuilder;
 
 import java.util.stream.Stream;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -70,7 +71,37 @@ class EditionControllerTest extends ApiTest {
                         edition("api-ed-missing-3", TOURNAMENT, """
                                 {"name": "Junior", "minMembers": 2, "maxMembers": 4,
                                  "minAge": 12, "maxAge": 17, "maxWeightGrams": 2500}"""),
-                        "a category needs id and name"));
+                        "a category needs id and name"),
+                Arguments.of("edición sin número",
+                        edition("api-ed-missing-4", TOURNAMENT, CATEGORY).replace("\"editionNumber\": 1, ", ""),
+                        "Missing field 'editionNumber'"),
+                Arguments.of("temporada sin año",
+                        edition("api-ed-missing-5", """
+                                {"id": "t-api", "name": "RoboLeague", "season": {"id": "s-2026", "name": "2026"}}""",
+                                CATEGORY),
+                        "Missing field 'tournament.season.year'"));
+    }
+
+    @Test
+    @DisplayName("La edición muestra su número y el torneo con su temporada")
+    void anEditionShowsItsNumberAndItsTournament() throws Exception {
+        String tournament = """
+                {"id": "t-api-shown", "name": "RoboLeague", "description": "Liga escolar", "season": %s}"""
+                .formatted(SEASON);
+        mvc.perform(create(edition("api-ed-shown", tournament, CATEGORY)
+                        .replace("\"editionNumber\": 1", "\"editionNumber\": 3")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.editionNumber").value(3))
+                .andExpect(jsonPath("$.tournament.id").value("t-api-shown"))
+                .andExpect(jsonPath("$.tournament.name").value("RoboLeague"))
+                .andExpect(jsonPath("$.tournament.description").value("Liga escolar"))
+                .andExpect(jsonPath("$.tournament.season.id").value("s-2026"))
+                .andExpect(jsonPath("$.tournament.season.year").value(2026))
+                .andExpect(jsonPath("$.tournament.season.name").value("Temporada 2026"));
+        mvc.perform(get("/editions/{editionId}", "api-ed-shown"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.editionNumber").value(3))
+                .andExpect(jsonPath("$.tournament.season.year").value(2026));
     }
 
     @Test

@@ -169,7 +169,7 @@ class AppealAndRecalculateIntegrationTest {
 
         Round round1 = scheduleRoundUseCase.execute(ScheduleRoundCommand.of(
                 maze.getId(), edition2026.getId(), mazeCategory.id(), 1, "Ronda Clasificatoria",
-                tracks, judges, TIME, Duration.ofMinutes(15), Duration.ofMinutes(5)
+                tracks, judges, LocalDate.of(2026, 11, 2).atTime(10, 0), Duration.ofMinutes(15), Duration.ofMinutes(5)
         ));
         assertThat(round1.getSlots()).hasSize(2);
         assertThat(round1.getId()).isEqualTo(RoundId.of("generated-1"));
