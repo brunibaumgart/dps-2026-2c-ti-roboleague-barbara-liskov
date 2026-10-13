@@ -331,7 +331,7 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
 - **Pros**:  
   - El recálculo es barato y determinista: la tabla sigue a la fotografía vigente, no reinterpreta la pista.  
   - La versión del reglamento queda fijada cuando nace el snapshot. La edición 2027 no reescribe la 2026.  
-  - Encaja la corrección por apelación: primero se evalúa de nuevo (métricas revisadas + reglamento vigente del desafío), después se reconstruye el ranking.
+  - Encaja la corrección por apelación: primero se evalúa de nuevo (métricas revisadas + la versión del reglamento que el intento guardó al abrirse, 2.18), después se reconstruye el ranking.
 
 - **Contras**:  
   - Si un desafío publica una versión nueva, los intentos ya abiertos siguen con la suya: es lo que pide la consigna, pero una corrección del reglamento no alcanza a intentos anteriores.
