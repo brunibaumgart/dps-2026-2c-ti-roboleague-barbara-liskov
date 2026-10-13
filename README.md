@@ -97,15 +97,20 @@ Los paquetes no cambiaron al separar módulos (`com.roboleague.usecase`, `com.ro
 - Recursos en plural; lo que se crea dentro de otro recurso cuelga de él: `POST /editions/{id}/registrations`.
 - Las transiciones de estado son subrecursos con `POST`: `/appeals/{id}/review`, `/acceptance`, `/rejection`.
 - El controller recibe un `record` de request y devuelve un DTO (`XxxDto.from(agregado)`); el agregado nunca se serializa directo.
-- Errores con cuerpo `ErrorDto {error, details}`. `ApiExceptionHandler` traduce lo que lanzan los casos de uso:
+- Errores con cuerpo `ErrorDto {error, details}`, también los de Spring MVC. `ApiExceptionHandler` traduce lo que lanzan los casos de uso:
 
   | Excepción | HTTP |
   | --- | --- |
-  | `IllegalArgumentException` (datos inválidos, id inexistente) | 400 |
-  | `IllegalStateException` (transición no permitida) | 409 |
+  | `IllegalArgumentException` (dato mal formado: id en blanco o de más de 64 caracteres, nombre de desafío de más de 120, número inválido) | 400 |
+  | Falta un parámetro de query (`categoryId`) o un parámetro de ruta no tiene el tipo esperado (`versions/abc`) | 400, nombrando el parámetro |
+  | Un campo JSON que el cuerpo no tiene (por ejemplo `"penalties"`) | 400 `Unknown field '<ruta>'`, con los campos esperados en `details`; un valor de otro tipo es 400 `Invalid value for field '<ruta>'` |
+  | `NotFoundException` (un id del pedido no existe) | 404 |
+  | `ConflictException` (id repetido, revisor que no tomó la apelación) e `IllegalStateException` (transición no permitida) | 409 |
+  | `ConcurrentModificationConflict` (otro pedido guardó el mismo agregado antes: versión vieja o alta repetida) | 409, para volver a cargar y reintentar |
+  | `BusinessRuleViolation` (por ejemplo, apelar un intento de otro equipo) | 422 |
   | `TeamIneligibleException` | 422, con cada motivo en `details` |
-  | Un campo JSON que el cuerpo no tiene (por ejemplo `"penalties"`) | 400 `Unknown field '...'`, con los campos esperados en `details` |
-  | Otro pedido guardó lo mismo a la vez (versión vieja o id repetido al confirmar) | 409, para volver a cargar y reintentar |
+  | `CorruptDataException` (dato guardado irreconstruible), `InconsistentStateException` (referencia rota entre agregados), `DataIntegrityViolationException` o cualquier error inesperado | 500 con mensaje genérico; la causa queda en el log |
+  | Base de datos no disponible | 503 |
 
   Un caso de uso que devuelva un resultado `sealed` se traduce en su controller con un `switch` (por ejemplo `Published → 200`, `Rejected → 409`).
 - Cada caso de uso corre en una transacción (`TransactionalUseCases`) que cubre todos los repositorios: todos los agregados se guardan en Postgres. Los repositorios en memoria solo se usan en tests de casos de uso y no ofrecen rollback.
@@ -153,7 +158,7 @@ La demo requiere ser mayor de 12 años (desde 13), sin límite superior.
                  "minAge": 12, "maxAge": 17, "maxWeightGrams": 2500}]}
 ```
 
-`POST /editions/{id}/challenges` con `{"id", "name", "rulebook"}` → 201 con el desafío y su reglamento v1. `POST /challenges/{id}/rulebook/versions` con un `rulebook` → 201 con la versión nueva. Un reglamento con problemas es **422** con cada problema en `details` (`"rule 'Faltas': missing parameter 'deductionPerPenalty'"`). Edición o desafío inexistente: 400; id repetido: 409. Una edición sin un dato obligatorio (id o nombre del torneo, id o nombre de la temporada o de una categoría), con un id o nombre en blanco o con dos categorías del mismo id: 400.
+`POST /editions/{id}/challenges` con `{"id", "name", "rulebook"}` → 201 con el desafío y su reglamento v1. `POST /challenges/{id}/rulebook/versions` con un `rulebook` → 201 con la versión nueva. Un reglamento con problemas es **422** con cada problema en `details` (`"rule 'Faltas': missing parameter 'deductionPerPenalty'"`). Edición o desafío inexistente: 404; id repetido: 409. Una edición sin un dato obligatorio (id o nombre del torneo, id o nombre de la temporada o de una categoría), con un id o nombre en blanco o con dos categorías del mismo id: 400.
 
 Un reglamento en JSON (lo que se manda es lo que `GET /challenges/{id}` devuelve en `currentRulebook`):
 
@@ -243,7 +248,7 @@ Para inscribir el estado canónico existente, enviar **exactamente una** alterna
 
 Enviar `team` y `teamId` juntos, ninguno, o un dato requerido faltante → **400**.
 Un objeto `team` cuyo id ya existe no sobrescribe el equipo → **409**, al igual
-que una inscripción duplicada. Referencias inexistentes → **400**. Elegibilidad
+que una inscripción duplicada. Referencias inexistentes → **404**. Elegibilidad
 rechazada → **422** con motivos en `ErrorDto.details`.
 
 La respuesta de inscripción es `{editionId, teamId, categoryId, registeredAt,
@@ -299,7 +304,7 @@ Devuelve una lista ordenada por número, categoría e id de ronda. Un filtro de
 categoría no ofrecida devuelve **400**; una categoría válida sin rondas devuelve
 **200** con `[]`. `GET /rounds/{roundId}` devuelve el mismo DTO del alta.
 Las listas de inscripciones/desafíos/rondas vacías son **200**; sus padres deben
-existir. Edición, inscripción, desafío o ronda inexistentes devuelven **400**.
+existir. Edición, inscripción, desafío o ronda inexistentes devuelven **404**.
 Las consultas no escriben ni cambian estados.
 
 ### Cargar los resultados de un intento
@@ -335,7 +340,8 @@ Cada fuente llega por separado (F3). El reglamento dice qué fuentes exige: si t
 | --- | --- |
 | Mediciones que no cumplen el reglamento (faltan, sobran, fuera de rango), una fuente que el reglamento no toma, un juez no asignado al slot | 422, con cada problema en `details` |
 | La misma fuente dos veces, un intento ya puntuado (las correcciones van por ajuste o apelación), un intento de otro desafío | 409 |
-| Un slot que no está en ninguna ronda, un id sin número, un campo obligatorio que falta, un valor negativo | 400 |
+| Un id sin número, un campo obligatorio que falta, un valor negativo | 400 |
+| Un slot que no está en ninguna ronda, un intento que no existe (desglose) | 404 |
 
 `GET /attempts/{id}/breakdown` → 200 con lo que el intento todavía espera (`awaiting`), su puntaje, cada ítem de la última revisión (tope y piso incluidos), lo que aportó cada fuente (`bySource`) y cada revisión con su versión de reglamento, autor y motivo.
 
@@ -347,9 +353,9 @@ Cada fuente llega por separado (F3). El reglamento dice qué fuentes exige: si t
 {"teamId": "t-b", "reason": "Penalizacion inexistente", "evidence": "Video pista"}
 ```
 
-El equipo tiene que ser el del intento. Responde el `AppealDto` (`id`, `attemptId`, `teamId`, `reason`, `evidence`, `status`, `reviewerId`, `submittedAt`, `resolutionNotes`, `resolvedAt`, `revisedMetrics`). `GET /attempts/{id}/appeals` y `GET /challenges/{id}/appeals?categoryId=` listan las de ese intento o de la categoría, más antiguas primero. `GET /appeals/{id}` devuelve una.
+El equipo tiene que ser el del intento (si no, **422**); un intento inexistente es **404**. Responde el `AppealDto` (`id`, `attemptId`, `teamId`, `reason`, `evidence`, `status`, `reviewerId`, `submittedAt`, `resolutionNotes`, `resolvedAt`, `revisedMetrics`). `GET /attempts/{id}/appeals` y `GET /challenges/{id}/appeals?categoryId=` listan las de ese intento o de la categoría, más antiguas primero. `GET /appeals/{id}` devuelve una.
 
-`POST /appeals/{id}/review` con `{"reviewerId"}` → 200 `UNDER_REVIEW`. Volver a revisarla es **409**.
+`POST /appeals/{id}/review` con `{"reviewerId"}` → 200 `UNDER_REVIEW`. Volver a revisarla es **409**; sin `reviewerId`, **400**; una apelación inexistente, **404**.
 
 `POST /appeals/{id}/acceptance` → 200:
 
@@ -366,7 +372,7 @@ El equipo tiene que ser el del intento. Responde el `AppealDto` (`id`, `attemptI
 
 Hay una tabla por desafío y categoría. Cada recálculo agrega una versión; ninguna se edita. El orden sale del `ranking` del reglamento vigente (mejores N de M y la cadena de desempate).
 
-`GET /challenges/{id}/standings?categoryId=` → 200 con `{challengeId, categoryId, versions, latest, official, pending}`. Antes del primer cálculo `latest` y `official` son `null`. `pending` dice `{openAppeals, unfinishedTurns, outdated}`. `GET .../standings/versions/{v}` devuelve esa versión con sus filas.
+`GET /challenges/{id}/standings?categoryId=` → 200 con `{challengeId, categoryId, versions, latest, official, pending}`. Antes del primer cálculo `latest` y `official` son `null`. `pending` dice `{openAppeals, unfinishedTurns, outdated}`. `GET .../standings/versions/{v}` devuelve esa versión con sus filas; sin tabla calculada o sin esa versión, **404** (también al publicarla). Sin `categoryId`, **400**.
 
 `POST /challenges/{id}/standings/versions?categoryId=` → **201** con la versión nueva (provisional).
 
@@ -464,8 +470,8 @@ excluyen por pista o juez.
    servidor; un 409 lista cada motivo.
 
 Si el intento fue abierto con un reglamento anterior, la web consulta
-`GET /challenges/{id}/rulebook/versions/{version}` (200 con RulebookDto, 400 si
-no existe desafío/versión o si el número es inválido) para presentar las métricas
+`GET /challenges/{id}/rulebook/versions/{version}` (200 con RulebookDto, 404 si
+no existe desafío/versión, 400 si el número es inválido) para presentar las métricas
 históricas. Esa consulta no publica una versión ni modifica las existentes.
 Una primera captura usa el reglamento vigente consultado al servidor.
 
