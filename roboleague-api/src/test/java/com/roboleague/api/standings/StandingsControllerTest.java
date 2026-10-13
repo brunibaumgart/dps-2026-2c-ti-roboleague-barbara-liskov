@@ -157,6 +157,37 @@ class StandingsControllerTest extends ApiTest {
     }
 
     @Test
+    void aNewRulebookVersionBlocksPublishingATableRankedWithThePreviousOne() throws Exception {
+        String challenge = openChallenge("rulebook");
+        score(challenge, "slot-api-std-rulebook-a-1", 3);
+        score(challenge, "slot-api-std-rulebook-b-1", 4);
+        mvc.perform(post("/challenges/{id}/standings/versions", challenge).param("categoryId", CATEGORY))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.rulebookVersion").value(1));
+
+        mvc.perform(post("/challenges/{id}/rulebook/versions", challenge).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"metrics": [], "scoring": {
+                                   "rules": [{"type": "objectives", "name": "Objetivos", "numbers": {"pointsPerObjective": 20}}],
+                                   "bonuses": [], "deductions": [], "bonusLimit": {"type": "unlimited"}},
+                                 "ranking": {"roundSelection": {"type": "all-rounds"}, "criteria": ["higher-total"]}}
+                                """))
+                .andExpect(status().isCreated());
+
+        mvc.perform(publish(challenge, 1))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.details", contains(
+                        "version 1 was ranked with rulebook v1 and the challenge now ranks with v2; recalculate first")));
+        mvc.perform(post("/challenges/{id}/standings/versions", challenge).param("categoryId", CATEGORY))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.number").value(2))
+                .andExpect(jsonPath("$.rulebookVersion").value(2));
+        mvc.perform(publish(challenge, 2)).andExpect(status().isOk());
+        mvc.perform(get("/challenges/{id}/standings", challenge).param("categoryId", CATEGORY))
+                .andExpect(jsonPath("$.versions[*].rulebookVersion", contains(1, 2)));
+    }
+
+    @Test
     void aBestNOfMRulebookShowsWhichRoundsCountedAndWhichWereDiscarded() throws Exception {
         String challenge = "ch-api-std-best-" + NEXT.incrementAndGet();
         challenges.save(Challenge.draft(ChallengeId.of(challenge), EditionId.of(EDITION), "Laberinto").publish(

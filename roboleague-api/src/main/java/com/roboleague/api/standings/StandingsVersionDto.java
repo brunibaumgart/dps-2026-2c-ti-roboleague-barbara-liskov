@@ -11,24 +11,26 @@ import java.util.List;
 
 /**
  * JSON view of one version of the standings with its rows: each team's place, why it is there, and which rounds
- * counted and which were discarded.
+ * counted and which were discarded. {@code rulebookVersion} is the rulebook whose ranking ordered the version.
  */
-record StandingsVersionDto(int number, LocalDateTime calculatedAt, String status, PublicationDto publication,
-                           List<EntryDto> entries) {
+record StandingsVersionDto(int number, LocalDateTime calculatedAt, int rulebookVersion, String status,
+                           PublicationDto publication, List<EntryDto> entries) {
 
     static StandingsVersionDto from(Standings standings, StandingsVersion version) {
         Summary summary = Summary.from(standings, version);
-        return new StandingsVersionDto(summary.number(), summary.calculatedAt(), summary.status(),
-                summary.publication(), version.table().entries().stream().map(EntryDto::from).toList());
+        return new StandingsVersionDto(summary.number(), summary.calculatedAt(), summary.rulebookVersion(),
+                summary.status(), summary.publication(), version.table().entries().stream().map(EntryDto::from).toList());
     }
 
     /**
      * A version without its rows, for the list of versions.
      */
-    record Summary(int number, LocalDateTime calculatedAt, String status, PublicationDto publication) {
+    record Summary(int number, LocalDateTime calculatedAt, int rulebookVersion, String status,
+                   PublicationDto publication) {
 
         static Summary from(Standings standings, StandingsVersion version) {
-            return new Summary(version.number(), version.calculatedAt(), standings.statusOf(version).name(),
+            return new Summary(version.number(), version.calculatedAt(), version.table().rankedWith().number(),
+                    standings.statusOf(version).name(),
                     standings.publicationOf(version).map(PublicationDto::from).orElse(null));
         }
     }
