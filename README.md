@@ -37,11 +37,35 @@ mvn -B package -DskipTests
 java -jar roboleague-api/target/roboleague-api-1.0-SNAPSHOT.jar --spring.profiles.active=demo
 ```
 
-El perfil `demo` vacía la base, aplica las migraciones y carga `DemoFixture` a través de los casos de uso. Cada corrida termina en el mismo estado:
+El perfil `demo` vacía la base, aplica las migraciones y carga `DemoFixture` a través de los casos de uso. En este perfil el reloj y los ids son de la demo: los ids generados son secuenciales (`demo-1`, `demo-2`...) y el reloj arranca el 9/11/2026 a las 10:00, avanza un segundo por lectura y la carga lo adelanta a cada paso de la historia. Por eso **cada corrida termina en el mismo estado, con los mismos ids, horas y puntajes** (`DemoFixtureTest` carga la demo dos veces sobre una base vacía y lo compara). Después de la carga el reloj sigue avanzando desde ahí (10/11/2026, 14:34): lo que hagas desde la web queda fechado a continuación, no con la hora real.
 
-- Una edición (`ed-1`, categoría `cat-junior`, desde 13 años cumplidos al inicio de la edición, sin edad máxima) con tres desafíos: Laberinto (`ch-maze`), Seguidor de línea (`ch-line`, con su reglamento en v2) y Rescate (`ch-rescue`, mixto: exige mediciones automáticas y panel de jueces). Entre los tres usan los doce tipos de regla (base, bonificaciones y deducciones), la compuesta "Desempeño en pista", penalizaciones, bonificaciones con tope (40 / 30 / 30), mejores N de M y criterios de desempate encadenados. Se consultan con `GET /challenges/{id}`.
-- Sobre Laberinto: dos equipos, una ronda, dos intentos (el desglose muestra el recorte del tope), un ranking provisional, una apelación aceptada con recálculo y la publicación oficial.
-- Sobre Rescate (F3): una ronda con un intento de CyberTeam que recibió las mediciones y el panel de jueces (147,5) y uno de TitanTeam que tiene las mediciones y espera el panel (`GET /attempts/{id}/breakdown` lo muestra pendiente).
+- Una edición (`ed-1`, categoría `cat-junior`, desde 13 años cumplidos al inicio de la edición, sin edad máxima, del 10 al 12/11/2026) con tres desafíos: Laberinto (`ch-maze`), Seguidor de línea (`ch-line`, con su reglamento en v2 y sin rondas) y Rescate (`ch-rescue`, mixto: exige mediciones automáticas y panel de jueces). Entre los tres usan los doce tipos de regla del catálogo (base, bonificaciones y deducciones), la compuesta "Desempeño en pista", penalizaciones, bonificaciones con tope (40 / 30 / 30), mejores N de M y criterios de desempate encadenados. Se consultan con `GET /challenges/{id}`.
+- Tres equipos inscriptos el 9/11: CyberTeam (`t-a`), TitanTeam (`t-b`) y NovaTeam (`t-c`).
+- **Laberinto** (mejores 3 de 5 rondas; desempate: mayor puntaje total → menor tiempo → menor descuento por penalizaciones). Cuatro rondas el 10/11, una por hora desde las 9:00. NovaTeam no se presentó a la ronda 4: su turno quedó cancelado (`El equipo no se presentó`), así que no bloquea la publicación.
+
+  | Ronda | CyberTeam | TitanTeam | NovaTeam |
+  | --- | --- | --- | --- |
+  | 1 (`demo-1`) | 235 | 232 | 220 |
+  | 2 (`demo-5`) | 229 | 197,5; 257,5 tras la apelación | 250,5 |
+  | 3 (`demo-9`) | 253 | 227,5 | 246,5 |
+  | 4 (`demo-13`) | 186,5 (descartada) | 208 (descartada en la v2) | turno cancelado |
+
+  - **v1, provisional** (13:00): 1.º CyberTeam 717; 2.º NovaTeam 717, "Empata en puntaje con el puesto 1; desempata por Menor descuento por penalizaciones" (16 puntos descontados contra 2, con el mismo mejor tiempo de 50 s); 3.º TitanTeam 667,5, que descarta la ronda 2 (cuatro faltas).
+  - **Apelación `demo-43`** de TitanTeam sobre el intento `demo-7-1` (ronda 2): presentada a las 13:10, aceptada a las 13:30 sin las faltas. El recálculo da la **v2** (13:30:01): los tres suman 717. 1.º TitanTeam (mejor tiempo 45 s); 2.º CyberTeam, "Empata en puntaje con el puesto 1; desempata por Menor tiempo"; 3.º NovaTeam, "Empata en puntaje con el puesto 2; desempata por Menor descuento por penalizaciones". TitanTeam ahora descarta la ronda 4; CyberTeam también; NovaTeam no descarta nada (corrió tres rondas).
+  - La v2 se publica como oficial a las 13:45 (`org-1`). En el desglose de los intentos se ve el recorte del tope de bonificaciones.
+- **Rescate** (F3): ronda `demo-17` a las 14:00. CyberTeam (intento `demo-18-1`) recibió las mediciones y el panel de jueces (147,5); TitanTeam (`demo-19-1`) tiene las mediciones y espera el panel (`GET /attempts/demo-19-1/breakdown` lo muestra pendiente); el turno de NovaTeam (`demo-20`) no tiene resultado.
+
+Para recorrerla por HTTP:
+
+```bash
+curl -s 'localhost:8080/challenges/ch-maze/standings?categoryId=cat-junior'            # v2 oficial: discarded y explanation
+curl -s 'localhost:8080/challenges/ch-maze/standings/versions/1?categoryId=cat-junior' # v1 provisional
+curl -s localhost:8080/attempts/demo-7-1/breakdown   # intento apelado, con sus dos revisiones
+curl -s localhost:8080/appeals/demo-43
+curl -s localhost:8080/rounds/demo-13                # ronda 4, con el turno cancelado
+```
+
+Los turnos de Laberinto siguen el orden de inscripción: en la ronda `demo-1` son `demo-2` (CyberTeam), `demo-3` (TitanTeam) y `demo-4` (NovaTeam), y así en las siguientes; el intento de cada turno es `<turno>-1`.
 
 La web permite inscribir equipos, programar rondas por desafío, capturar fuentes, consultar desgloses, presentar y resolver apelaciones, y consultar, recalcular y publicar la tabla por desafío y categoría.
 
