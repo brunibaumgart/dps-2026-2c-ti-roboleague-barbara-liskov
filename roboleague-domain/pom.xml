@@ -13,6 +13,12 @@
     <artifactId>roboleague-domain</artifactId>
     <packaging>jar</packaging>
 
+    <properties>
+        <!-- Measured coverage minus ~2 points: `mvn verify` fails if this module's own tests cover less. -->
+        <coverage.line.minimum>0.87</coverage.line.minimum>
+        <coverage.branch.minimum>0.81</coverage.branch.minimum>
+    </properties>
+
     <name>RoboLeague :: Domain</name>
     <description>Aggregates, value objects, domain services and ports. Plain Java: no framework dependency.</description>
 </project>

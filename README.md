@@ -97,9 +97,20 @@ Corre los tres tipos de test. Todos se llaman `*Test`, así que `mvn test` tambi
 
 | Tipo | Qué prueba | Con qué |
 | --- | --- | --- |
-| Unitario | Reglas, agregados, casos de uso | JUnit, Mockito, repositorios en memoria |
+| Unitario | Reglas, agregados, casos de uso | JUnit 5 (tests parametrizados), AssertJ, repositorios en memoria |
 | Repositorio | Que un agregado se guarda y vuelve igual | `@DataJpaTest` contra Postgres en Testcontainers |
 | API | Rutas, códigos HTTP, JSON y el cableado entero | `@SpringBootTest` + MockMvc sobre la app real (subclases de `ApiTest`) |
+
+### Cobertura
+
+`mvn -B verify` mide cobertura con JaCoCo y deja los reportes HTML en:
+
+| Reporte | Dónde |
+| --- | --- |
+| Por módulo (solo sus propios tests) | `<módulo>/target/site/jacoco/index.html` |
+| Agregado (los cuatro módulos, contando también lo que ejercitan los tests de API) | `roboleague-api/target/site/jacoco-aggregate/index.html` |
+
+El build falla si los tests propios de `roboleague-domain` o `roboleague-application` bajan del mínimo de líneas y ramas fijado en su `pom.xml` (`coverage.line.minimum` / `coverage.branch.minimum`, un par de puntos por debajo de lo medido). En la CI, el reporte agregado queda como artefacto `coverage-report` de cada corrida. `-Djacoco.skip` lo desactiva en una corrida local.
 
 La CI (`.github/workflows/ci.yml`) corre `mvn -B verify` en cada PR y en cada push a `main`. Para que bloquee PRs: en GitHub, *Settings → Branches → Branch protection rule* para `main`, con *Require status checks to pass* y el check `build`.
 
@@ -555,7 +566,7 @@ Desde la raíz:
 
 ```bash
 mvn -B verify
-node --experimental-default-type=module --test roboleague-api/src/test/frontend/*.test.mjs
+node --test roboleague-api/src/test/frontend/*.test.mjs
 ```
 
 Node 20+ se usa **solo para tests**, sin instalar paquetes ni compilar assets.
