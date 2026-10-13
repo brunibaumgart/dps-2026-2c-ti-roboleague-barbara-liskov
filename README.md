@@ -317,7 +317,11 @@ Para inscribir el estado canónico existente, enviar **exactamente una** alterna
 Enviar `team` y `teamId` juntos, ninguno, o un dato requerido faltante → **400**.
 Un objeto `team` cuyo id ya existe no sobrescribe el equipo → **409**, al igual
 que una inscripción duplicada. Referencias inexistentes → **404**. Elegibilidad
-rechazada → **422** con motivos en `ErrorDto.details`.
+rechazada → **422** con motivos en `ErrorDto.details`. Un integrante o un robot
+compite para un solo equipo por edición: un equipo que comparte alguno (por id)
+con otro equipo inscripto en la edición es **422**, con un motivo por cada uno
+(`"Participant p-1 already competes for team team-a"`). Lo mismo vale para el PUT
+de una inscripción, en cada edición del equipo.
 
 La respuesta de inscripción es `{editionId, teamId, categoryId, registeredAt,
 referenceDate, team}`. `team` contiene id/nombre/institución, miembros y robot
