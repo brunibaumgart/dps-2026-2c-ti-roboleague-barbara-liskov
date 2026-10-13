@@ -49,11 +49,12 @@ public final class EditionRequests {
         return "{\"categoryId\": \"" + category + "\", \"team\": " + team + "}";
     }
 
+    /** A team whose member and robot are its own, so several of them can share an edition. */
     public static String team(String id, String name, int weight) {
         return """
-                {"id": "%s", "name": "%s", "institution": "University",
-                 "members": [{"id": "member", "fullName": "Student", "birthDate": "2010-01-01", "role": "LEADER"}],
-                 "robot": {"id": "robot", "name": "Bot", "weightGrams": %d,
+                {"id": "%1$s", "name": "%2$s", "institution": "University",
+                 "members": [{"id": "%1$s-member", "fullName": "Student", "birthDate": "2010-01-01", "role": "LEADER"}],
+                 "robot": {"id": "%1$s-robot", "name": "Bot", "weightGrams": %3$d,
                    "lengthMm": 100, "widthMm": 100, "heightMm": 100, "actuatorCount": 2, "sensors": ["LIDAR"]},
                  "documentation": {"documents": {"consent": "consent.pdf"}, "verifiedBy": "inspector"}}
                 """.formatted(id, name, weight);
