@@ -2,6 +2,8 @@ package com.roboleague.ranking;
 
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.Points;
+import com.roboleague.evaluation.Rulebook;
+import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.scheduling.RoundId;
 import com.roboleague.scheduling.SlotId;
@@ -25,10 +27,12 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
  */
 class RankingInvariantsTest {
 
-    private static final StandingsTable EMPTY = new StandingsTable(List.of());
+    private static final StandingsTable EMPTY = new StandingsTable(RulebookVersion.first(), List.of());
     private static final StandingsId ID = StandingsId.of(StandingsFixtures.CHALLENGE, CategoryId.of("cat-1"));
     private static final AuditNote NOTE = AuditNote.of(ActorId.of("org-1"), "Publicación oficial");
     private static final AttemptId ATTEMPT = AttemptId.of(SlotId.of("slot-1"), 1);
+    private static final Rulebook SECOND_VERSION = new Rulebook(new RulebookVersion(2),
+            StandingsFixtures.RULEBOOK.scoring(), StandingsFixtures.RULEBOOK.rankingScheme());
 
     static Stream<Arguments> rejections() {
         return Stream.of(
@@ -43,12 +47,25 @@ class RankingInvariantsTest {
                 invalid("attempt of another team", () -> new TeamAttempts(StandingsFixtures.team("t-2"),
                                 List.of(StandingsFixtures.opened("t-1", "r-1", 1))),
                         "attempt slot-r-1-t-1-1 belongs to t-1, not to t-2"),
-                missing("round result without round", () -> new RoundResult(null, ATTEMPT, Points.ZERO),
+                missing("round result without round", () -> new RoundResult(null, ATTEMPT, Points.ZERO, List.of()),
                         "roundId cannot be null"),
-                missing("round result without attempt", () -> new RoundResult(RoundId.of("r-1"), null, Points.ZERO),
+                missing("round result without attempt", () -> new RoundResult(RoundId.of("r-1"), null, Points.ZERO, List.of()),
                         "attemptId cannot be null"),
-                missing("round result without total", () -> new RoundResult(RoundId.of("r-1"), ATTEMPT, null),
+                missing("round result without total", () -> new RoundResult(RoundId.of("r-1"), ATTEMPT, null, List.of()),
                         "total cannot be null"),
+                missing("round result without other attempts", () -> new RoundResult(RoundId.of("r-1"), ATTEMPT,
+                        Points.ZERO, null), "otherAttempts cannot be null"),
+                invalid("round result whose counted attempt is also another", () -> new RoundResult(RoundId.of("r-1"),
+                                ATTEMPT, Points.ZERO, List.of(ATTEMPT)),
+                        "attempt slot-1-1 cannot be both the one that counted and another"),
+                missing("table without rulebook version", () -> new StandingsTable(null, List.of()),
+                        "rulebookVersion cannot be null"),
+                missing("team rounds without attempt rule", () -> new TeamRounds(List.of(), List.of(), "todas", null),
+                        "attemptRule cannot be null"),
+                invalid("results scored with another version", () -> new CategoryResults(SECOND_VERSION,
+                                List.of(new TeamAttempts(StandingsFixtures.team("t-1"),
+                                        List.of(StandingsFixtures.opened("t-1", "r-1", 1)))), List.of()),
+                        "attempt slot-r-1-t-1-1 was scored with ch-maze v1, not with v2"),
                 corrupt("stored standings without versions", () -> Standings.restore(ID, List.of(), List.of()),
                         "stored standings have at least one version: " + ID),
                 corrupt("stored standings skipping a version", () -> Standings.restore(ID,
