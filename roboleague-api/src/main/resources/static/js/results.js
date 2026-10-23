@@ -1,5 +1,5 @@
 import { api } from './api.js';
-import { attemptId, formatTime, metricsFor, resourceSuggestions, slotsFor, sourceLabels, statusLabels } from './models.js';
+import { formatTime, metricsFor, resourceSuggestions, slotsFor, sourceLabels, statusLabels } from './models.js';
 import { el, field, choice, grid, panel, heading, table, empty, button, collection, submitAction, notify } from './ui.js';
 
 const units = { COUNT: 'cantidad', SECONDS: 'segundos', METERS: 'metros', RATIO: 'proporción', POINTS: 'puntos' };
@@ -34,6 +34,15 @@ export function renderBreakdown(data, rulebook) {
   ])) : empty('Este intento todavía no tiene revisiones puntuadas.'));
   return [summary, contributions, history];
 }
+function attemptsPanel(attempts, shown, show) {
+  return panel(heading('Intentos del turno', 'El servidor los numera en el orden en que llegaron los resultados.'),
+    table(['Intento', 'Estado', 'Fuentes recibidas', 'Puntaje', ''], attempts.map(attempt => [
+      attempt.number, statusLabels[attempt.status] || attempt.status,
+      attempt.received.map(source => sourceLabels[source] || source).join(' · ') || '—',
+      attempt.score == null ? '—' : attempt.score,
+      attempt.id === shown.id ? 'Visto' : button('Ver desglose', () => show(attempt.id), 'link-button'),
+    ])));
+}
 export function mountResults(root, context, readOnly = false) {
   const { challenge, registrations, rounds } = context.data;
   if (!challenge) { root.append(empty('Elegí un desafío para consultar sus intentos.')); return; }
@@ -43,40 +52,50 @@ export function mountResults(root, context, readOnly = false) {
   const slotChoice = choice('Turno', 'selectedSlot', slots.map(slot => ({ value: slot.slotId,
     label: `${teams.get(slot.teamId) || slot.teamId} · ${slot.roundName} · ${slot.track.name} · ${formatTime(slot.startTime)}` })), context.selectedSlot || slots[0].slotId);
   if (!slotChoice.input.value) slotChoice.input.value = slots[0].slotId;
-  const number = field('Número de intento', 'attemptNumber', { type: 'number', min: 1, step: 1, value: context.attemptNumber || 1 });
   const content = el('div');
   let requestVersion = 0;
   let busy = false;
-  const refresh = button('Consultar intento', () => load());
-  root.append(panel(heading(readOnly ? 'Consultar desglose' : 'Cargar un resultado', 'Elegí el turno y el número de intento. El intento conserva el reglamento con el que comenzó.'), grid(slotChoice, number), el('div', { className: 'actions' }, refresh)), content);
-  async function load() {
-    if (busy || !number.input.reportValidity()) return;
+  const refresh = button('Consultar turno', () => load());
+  root.append(panel(heading(readOnly ? 'Consultar desglose' : 'Cargar un resultado', 'Elegí el turno. Los intentos se numeran solos en el orden en que llegan los resultados y cada uno conserva el reglamento con el que comenzó.'), grid(slotChoice), el('div', { className: 'actions' }, refresh)), content);
+  const rulebookOf = version => version === challenge.currentRulebook.version ? challenge.currentRulebook : api.rulebook(challenge.id, version);
+  async function load(selectedAttempt) {
+    if (busy) return;
     const version = ++requestVersion;
     const slot = slots.find(item => item.slotId === slotChoice.input.value);
-    let id;
-    try { id = attemptId(slot.slotId, Number(number.input.value)); } catch (error) { notify(error.message, [], true); return; }
-    content.replaceChildren(empty('Consultando el intento…'));
+    content.replaceChildren(empty('Consultando el turno…'));
     const current = () => context.isCurrent() && requestVersion === version;
     try {
-      let breakdown = null;
-      try { breakdown = await api.breakdown(id); }
-      catch (error) { if (error.status !== 404) throw error; }
+      const turn = await api.turnResults(slot.slotId);
       if (!current()) return;
-      const rulebook = breakdown && breakdown.rulebookVersion !== challenge.currentRulebook.version
-        ? await api.rulebook(challenge.id, breakdown.rulebookVersion) : challenge.currentRulebook;
+      const { attempts, attemptRule } = turn;
+      const latest = attempts.at(-1);
+      const shown = attempts.find(item => item.id === selectedAttempt) || latest;
+      const pending = latest?.status === 'AWAITING_SOURCES';
+      // An attempt awaiting a source keeps its own version; a new attempt opens with the one the category plays with.
+      const [breakdown, shownRulebook, rulebook, pendingBreakdown] = await Promise.all([shown ? api.breakdown(shown.id) : null,
+        shown ? rulebookOf(shown.rulebookVersion) : null, rulebookOf(pending ? latest.rulebookVersion : turn.rulebookVersion),
+        pending && shown !== latest ? api.breakdown(latest.id) : null]);
       if (!current()) return;
       content.replaceChildren();
+      const results = shown ? [attemptsPanel(attempts, shown, id => load(id)), ...renderBreakdown(breakdown, shownRulebook)] : [];
       if (readOnly) {
-        content.append(...(breakdown ? renderBreakdown(breakdown, rulebook) : [panel(heading('Sin resultados todavía'), empty('Este intento todavía no fue abierto. La primera captura lo crea.'), button('Cargar resultado', () => context.openSlot(slot.slotId, Number(number.input.value))))]));
+        content.append(...(shown ? results : [panel(heading('Sin resultados todavía'), empty('Este turno todavía no tiene intentos. La primera captura abre el intento 1.'), button('Cargar resultado', () => context.openSlot(slot.slotId)))]));
         return;
       }
-      if (slot.status === 'CANCELLED') { content.append(empty('El turno está cancelado. Elegí otro turno.')); return; }
-      const available = breakdown ? breakdown.awaiting : rulebook.requiredSources;
-      if (!available.length) { content.append(...(breakdown ? renderBreakdown(breakdown, rulebook) : [empty('Este reglamento no declara fuentes para capturar.') ])); return; }
+      if (slot.status === 'CANCELLED') { content.append(empty('El turno está cancelado. Elegí otro turno.'), ...results); return; }
+      if (!turn.acceptsResult) {
+        content.append(panel(heading('Turno completo', teams.get(slot.teamId) || slot.teamId), empty(`El turno ya corrió ${attempts.length} intento(s) y el reglamento v${turn.rulebookVersion} admite ${attemptRule}. No se reciben más resultados.`)), ...results);
+        return;
+      }
+      const available = pending ? (pendingBreakdown || breakdown).awaiting : rulebook.requiredSources;
+      if (!available.length) { content.append(empty('Este reglamento no declara fuentes para capturar.'), ...results); return; }
       const judge = choice('Juez que carga la fuente', 'assignedJudge', slot.judges.map(item => ({ value: item.id, label: item.fullName })));
       const source = choice('Fuente de medición', 'source', available.map(item => ({ value: item, label: sourceLabels[item] || item })));
       const fields = el('div');
-      const form = el('form', {}, el('fieldset', {}, grid(judge, source), el('p', { className: 'hint' }, `Se usará el reglamento v${rulebook.version}. Elegí una fuente pendiente; no se reemplazan capturas previas.`), fields,
+      const target = pending
+        ? `Completa el intento ${latest.number}, que espera esta fuente, con su reglamento v${rulebook.version}.`
+        : `Abre el intento ${attempts.length + 1} con el reglamento v${rulebook.version}, el que usa la categoría. El número lo asigna el servidor en el orden de llegada.`;
+      const form = el('form', {}, el('fieldset', {}, grid(judge, source), el('p', { className: 'hint' }, `${target} El reglamento admite ${attemptRule}. Elegí una fuente pendiente; no se reemplazan capturas previas.`), fields,
         el('div', { className: 'actions' }, el('button', { type: 'submit' }, 'Guardar resultado'))));
       let fixed = [], metrics = [], scores;
       function renderSource() {
@@ -108,15 +127,13 @@ export function mountResults(root, context, readOnly = false) {
             if (new Set(entries.map(entry => entry[0])).size !== entries.length) throw new Error('Cada juez puede tener una sola nota en este envío.');
             body.scores = Object.fromEntries(entries);
           }
-          busy = true; slotChoice.input.disabled = true; number.input.disabled = true; refresh.disabled = true;
-          return api.receive(id, source.input.value, body).finally(() => { busy = false; slotChoice.input.disabled = false; number.input.disabled = false; refresh.disabled = false; });
-        }, async () => { await load(); notify('La fuente se guardó. El estado y el puntaje fueron consultados al servidor.'); });
+          busy = true; slotChoice.input.disabled = true; refresh.disabled = true;
+          return api.receive(slot.slotId, source.input.value, body).finally(() => { busy = false; slotChoice.input.disabled = false; refresh.disabled = false; });
+        }, async attempt => { await load(attempt.id); notify(`La fuente se guardó en el intento ${attempt.number}. El estado y el puntaje fueron consultados al servidor.`); });
       });
-      content.append(panel(heading(breakdown ? 'Completar fuentes pendientes' : 'Primera captura', teams.get(slot.teamId) || slot.teamId), form));
-      if (breakdown) content.append(...renderBreakdown(breakdown, rulebook));
-    } catch (error) { if (current()) { content.replaceChildren(empty('No se pudo consultar el intento. Volvé a consultar o recargá los datos.')); notify(error.message, error.details, true); } }
+      content.append(panel(heading(pending ? `Completar el intento ${latest.number}` : 'Nuevo intento', teams.get(slot.teamId) || slot.teamId), form), ...results);
+    } catch (error) { if (current()) { content.replaceChildren(empty('No se pudo consultar el turno. Volvé a consultar o recargá los datos.')); notify(error.message, error.details, true); } }
   }
-  slotChoice.input.addEventListener('change', load);
-  number.input.addEventListener('change', load);
+  slotChoice.input.addEventListener('change', () => load());
   load();
 }

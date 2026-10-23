@@ -1,5 +1,5 @@
 import { api } from './api.js';
-import { appealLabels, attemptId, formatTime, slotsFor, sourceLabels } from './models.js';
+import { appealLabels, formatTime, slotsFor, sourceLabels, statusLabels } from './models.js';
 import { el, field, choice, grid, panel, heading, table, empty, button, submitAction, notify } from './ui.js';
 
 export function mountAppeals(root, context) {
@@ -39,19 +39,38 @@ export function mountAppeals(root, context) {
 function fileForm(slots, teams, context, reload) {
   const slot = choice('Turno', 'appealSlot', slots.map(item => ({ value: item.slotId,
     label: `${teams.get(item.teamId) || item.teamId} · ${item.roundName} · ${formatTime(item.startTime)}` })), slots[0].slotId);
-  const number = field('Número de intento', 'appealAttempt', { type: 'number', min: 1, step: 1, value: 1 });
+  const attempt = choice('Intento', 'appealAttempt', []);
   const reason = field('Motivo', 'reason');
   const evidence = field('Evidencia', 'evidence');
-  const form = el('form', {}, el('fieldset', {}, grid(slot, number, reason, evidence),
+  const form = el('form', {}, el('fieldset', {}, grid(slot, attempt, reason, evidence),
     el('div', { className: 'actions' }, el('button', { type: 'submit' }, 'Presentar apelación'))));
   form.addEventListener('submit', event => {
     event.preventDefault();
     const selected = slots.find(item => item.slotId === slot.input.value);
-    submitAction(form, context, () => api.fileAppeal(attemptId(selected.slotId, Number(number.input.value)), {
+    submitAction(form, context, () => api.fileAppeal(attempt.input.value, {
       teamId: selected.teamId, reason: reason.input.value.trim(), evidence: evidence.input.value.trim(),
     }), async () => { await reload(); notify('La apelación se presentó. El estado lo confirmó el servidor.'); });
   });
-  return panel(heading('Presentar un reclamo', 'El equipo del turno es el que reclama. El intento tiene que existir en el servidor.'), form);
+  let requestVersion = 0;
+  async function loadAttempts() {
+    const version = ++requestVersion;
+    attempt.input.replaceChildren(el('option', { value: '' }, 'Consultando los intentos…'));
+    try {
+      const { attempts } = await api.turnResults(slot.input.value);
+      if (!context.isCurrent() || requestVersion !== version) return;
+      attempt.input.replaceChildren(...(attempts.length ? attempts.map(item => el('option', { value: item.id },
+        `Intento ${item.number} · ${statusLabels[item.status] || item.status} · ${item.score == null ? 'sin puntaje' : `${item.score} puntos`}`))
+        : [el('option', { value: '' }, 'El turno todavía no tiene intentos')]));
+      if (attempts.length) attempt.input.value = attempts.at(-1).id;
+    } catch (error) {
+      if (!context.isCurrent() || requestVersion !== version) return;
+      attempt.input.replaceChildren(el('option', { value: '' }, 'No se pudieron consultar los intentos'));
+      notify(error.message, error.details, true);
+    }
+  }
+  slot.input.addEventListener('change', loadAttempts);
+  loadAttempts();
+  return panel(heading('Presentar un reclamo', 'El equipo del turno es el que reclama. Se elige uno de los intentos que el servidor registró para el turno.'), form);
 }
 
 function appealCard(appeal, teams, context, reload) {

@@ -62,11 +62,15 @@ function versionPanel(version, title) {
   const publication = version.publication
     ? `Publicada ${formatTime(version.publication.publishedAt)} por ${version.publication.publishedBy}: ${version.publication.notes}`
     : 'Todavía no publicada';
-  return panel(heading(title, `v${version.number} · ${standingsLabels[version.status] || version.status} · calculada ${formatTime(version.calculatedAt)} · ${publication}`),
-    version.entries.length ? table(['Puesto', 'Equipo', 'Puntos', 'Por qué', 'Rondas que cuentan'], version.entries.map(entry => [
-      entry.position, entry.teamName, entry.total, entry.explanation,
-      entry.considered.map(round => `${round.attemptId} (${round.total})`).join(', ') || '—',
+  return panel(heading(title, `v${version.number} · ${standingsLabels[version.status] || version.status} · calculada ${formatTime(version.calculatedAt)} con el reglamento v${version.rulebookVersion} · ${publication}`),
+    version.entries.length ? table(['Puesto', 'Equipo', 'Puntos', 'Por qué', 'Qué cuenta', 'Rondas que cuentan', 'Rondas descartadas'], version.entries.map(entry => [
+      entry.position, entry.teamName, entry.total, entry.explanation, `${entry.selectionRule} · ${entry.attemptRule}`,
+      rounds(entry.considered), rounds(entry.discarded),
     ])) : empty('Esta versión no tiene filas.'));
+}
+
+function rounds(list) {
+  return list.map(round => `${round.attemptId} (${round.total})${round.otherAttempts.length ? ` · también: ${round.otherAttempts.join(', ')}` : ''}`).join('; ') || '—';
 }
 
 function historyPanel(standings, selected, load) {

@@ -19,7 +19,7 @@ const editionSelect = document.querySelector('#edition');
 const challengeSelect = document.querySelector('#challenge');
 const categorySelect = document.querySelector('#category');
 const refresh = document.querySelector('#refresh');
-let editions = [], data, view = 'registration', selectedSlot, attemptNumber = 1, epoch = 0, busy = false, reloadRequired = false;
+let editions = [], data, view = 'registration', selectedSlot, epoch = 0, busy = false, reloadRequired = false;
 const menuToggle = document.querySelector('#menu-toggle');
 const secondaryMenu = document.querySelector('#secondary-menu');
 function setMenuOpen(open, restoreFocus = true) {
@@ -61,9 +61,9 @@ function render() {
   });
   if (!data?.edition) { root.append(empty('Todavía no hay una edición configurada para esta competencia.')); return; }
   const currentEpoch = epoch;
-  const context = { data, selectedSlot, attemptNumber, isCurrent: () => currentEpoch === epoch, setBusy, canMutate: () => !reloadRequired,
+  const context = { data, selectedSlot, isCurrent: () => currentEpoch === epoch, setBusy, canMutate: () => !reloadRequired,
     requireReload: () => { reloadRequired = true; },
-    reload: loadContext, openSlot: (slotId, number = 1) => { selectedSlot = slotId; attemptNumber = number; changeView('results'); } };
+    reload: loadContext, openSlot: slotId => { selectedSlot = slotId; changeView('results'); } };
   if (!data.category) { root.append(empty('Esta edición no tiene categorías configuradas.')); return; }
   if (view === 'registration') mountRegistration(root, context);
   else if (view === 'scheduling') mountScheduling(root, context);
@@ -110,9 +110,9 @@ async function loadContext(overrides = {}) {
     notify(error.message, error.details, true);
   } finally { if (currentEpoch === epoch) setBusy(false); }
 }
-editionSelect.addEventListener('change', () => { selectedSlot = undefined; attemptNumber = 1; loadContext(); });
-challengeSelect.addEventListener('change', () => { selectedSlot = undefined; attemptNumber = 1; loadContext(); });
-categorySelect.addEventListener('change', () => { selectedSlot = undefined; attemptNumber = 1; loadContext(); });
+editionSelect.addEventListener('change', () => { selectedSlot = undefined; loadContext(); });
+challengeSelect.addEventListener('change', () => { selectedSlot = undefined; loadContext(); });
+categorySelect.addEventListener('change', () => { selectedSlot = undefined; loadContext(); });
 refresh.addEventListener('click', () => loadContext());
 document.querySelectorAll('button[data-view]').forEach(button => button.addEventListener('click', () => changeView(button.dataset.view)));
 loadContext();

@@ -1,12 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { attemptId, appealLabels, metricsFor, standingsLabels, teamCandidate, resourceSuggestions, slotsFor } from '../../main/resources/static/js/models.js';
+import { appealLabels, metricsFor, standingsLabels, teamCandidate, resourceSuggestions, slotsFor } from '../../main/resources/static/js/models.js';
 import { ApiError, request } from '../../main/resources/static/js/api.js';
 
-test('an attempt retains the full textual slot id and requires a positive integer', () => {
-  assert.equal(attemptId('slot-with-hyphens', 2), 'slot-with-hyphens-2');
-  for (const invalid of [0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) assert.throws(() => attemptId('slot', invalid));
-});
 test('editing a response does not send read-only verification metadata', () => {
   const original = { id: 'team', name: '<img src=x>', institution: 'University', members: [{ id: 'member', fullName: 'Name', birthDate: '2010-01-01', role: 'LEADER' }],
     robot: { id: 'robot', name: 'Bot', weightGrams: 1000, lengthMm: 100, widthMm: 100, heightMm: 100, actuatorCount: 2, sensors: ['LIDAR'] },
