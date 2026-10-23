@@ -156,7 +156,7 @@ class CorrectAttemptUseCaseTest {
     }
 
     private void score(String teamId, int objectives) {
-        Reception reception = receive.execute(new ReceiveResultCommand(challenge.getId(), attemptOf(teamId),
+        Reception reception = receive.execute(new ReceiveResultCommand(challenge.getId(), attemptOf(teamId).slotId(),
                 new SourceDelivery(new Measurements(new TrackPerformance(60, objectives, 0), 0.0, Map.of()), JUDGE)));
         assertThat(reception).isInstanceOf(Reception.Received.class);
     }

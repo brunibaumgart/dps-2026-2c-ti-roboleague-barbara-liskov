@@ -94,7 +94,7 @@ class GetAttemptBreakdownUseCaseTest {
 
     @Test
     void givenACappedRulebookThenTheBreakdownShowsTheCutAsAnItemWithItsFormula() {
-        receive.execute(new ReceiveResultCommand(CHALLENGE, ATTEMPT, new SourceDelivery(new Measurements(
+        receive.execute(new ReceiveResultCommand(CHALLENGE, ATTEMPT.slotId(), new SourceDelivery(new Measurements(
                 new TrackPerformance(60.0, 0, 0), 0.0, Map.of(ZONE.name(), 1.0, DISTANCE.name(), 12.0)), JUDGE)));
 
         AttemptBreakdown explained = breakdown.execute(ATTEMPT);
@@ -118,7 +118,7 @@ class GetAttemptBreakdownUseCaseTest {
 
     @Test
     void givenAnAttemptWhoseRulebookIsGoneThenTheStoredStateIsInconsistent() {
-        receive.execute(new ReceiveResultCommand(CHALLENGE, ATTEMPT, new SourceDelivery(new Measurements(
+        receive.execute(new ReceiveResultCommand(CHALLENGE, ATTEMPT.slotId(), new SourceDelivery(new Measurements(
                 new TrackPerformance(60.0, 0, 0), 0.0, Map.of(ZONE.name(), 0.0, DISTANCE.name(), 0.0)), JUDGE)));
         InMemoryChallengeRepository empty = new InMemoryChallengeRepository();
 
