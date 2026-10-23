@@ -71,7 +71,8 @@ final class ChallengeMapper {
                 new RulebookDefinition.Scoring(toRules(json.scoring().rules()), new RulebookDefinition.Bonuses(
                         toRules(json.scoring().bonuses()), toStrategy(json.scoring().bonusLimit())),
                         toRules(json.scoring().deductions())),
-                new RulebookDefinition.Ranking(toStrategy(json.ranking().roundSelection()), json.ranking().criteria()));
+                new RulebookDefinition.Ranking(toStrategy(json.ranking().roundSelection()),
+                        toStrategy(json.ranking().attemptSelection()), json.ranking().criteria()));
         return switch (catalog.assemble(definition)) {
             case RulebookAssembly.Assembled assembled ->
                     new Rulebook(new RulebookVersion(json.version()), assembled.scoring(), assembled.ranking());
@@ -85,7 +86,8 @@ final class ChallengeMapper {
         return new RulebookJson(rulebook.version().number(), toJsonDeclarations(definition.metrics()),
                 new ScoringJson(toJson(definition.scoring().rules()), toJson(definition.scoring().bonuses().rules()),
                         toJson(definition.scoring().deductions()), toJson(definition.scoring().bonuses().limit())),
-                new RankingJson(toJson(definition.ranking().roundSelection()), definition.ranking().criteria()));
+                new RankingJson(toJson(definition.ranking().roundSelection()),
+                        toJson(definition.ranking().attemptSelection()), definition.ranking().criteria()));
     }
 
     private static List<MetricDeclarationJson> toJsonDeclarations(List<MetricDeclaration> declarations) {

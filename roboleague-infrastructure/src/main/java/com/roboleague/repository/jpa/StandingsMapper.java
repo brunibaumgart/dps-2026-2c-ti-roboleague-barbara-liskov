@@ -2,6 +2,7 @@ package com.roboleague.repository.jpa;
 
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.Points;
+import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.ranking.OfficialPublication;
 import com.roboleague.ranking.Placement;
@@ -57,18 +58,20 @@ final class StandingsMapper {
 
     private static VersionJson toJson(StandingsVersion version) {
         return new VersionJson(version.number(), version.calculatedAt().toString(),
-                version.table().entries().stream().map(StandingsMapper::toJson).toList());
+                version.table().rulebookVersion().number(), version.table().entries().stream().map(StandingsMapper::toJson).toList());
     }
 
     private static EntryJson toJson(StandingsEntry entry) {
         TeamRounds rounds = entry.rounds();
         return new EntryJson(entry.position(), entry.placement().explanation(), entry.team().teamId().value(),
                 entry.team().teamName(), rounds.considered().stream().map(StandingsMapper::toJson).toList(),
-                rounds.discarded().stream().map(StandingsMapper::toJson).toList(), rounds.selectionRule());
+                rounds.discarded().stream().map(StandingsMapper::toJson).toList(), rounds.selectionRule(),
+                rounds.attemptRule());
     }
 
     private static RoundJson toJson(RoundResult round) {
-        return new RoundJson(round.roundId().value(), round.attemptId().value(), round.total().toBigDecimal());
+        return new RoundJson(round.roundId().value(), round.attemptId().value(), round.total().toBigDecimal(),
+                round.otherAttempts().stream().map(AttemptId::value).toList());
     }
 
     private static PublicationJson toJson(OfficialPublication publication) {
@@ -78,19 +81,21 @@ final class StandingsMapper {
 
     private static StandingsVersion toVersion(VersionJson json) {
         return new StandingsVersion(json.number(), LocalDateTime.parse(json.calculatedAt()),
-                new StandingsTable(json.entries().stream().map(StandingsMapper::toEntry).toList()));
+                new StandingsTable(new RulebookVersion(json.rulebookVersion()),
+                        json.entries().stream().map(StandingsMapper::toEntry).toList()));
     }
 
     private static StandingsEntry toEntry(EntryJson json) {
         return new StandingsEntry(new Placement(json.position(), json.explanation()),
                 TeamIdentity.of(TeamId.of(json.teamId()), json.teamName()),
-                new TeamRounds(toRounds(json.considered()), toRounds(json.discarded()), json.selectionRule()));
+                new TeamRounds(toRounds(json.considered()), toRounds(json.discarded()), json.selectionRule(),
+                        json.attemptRule()));
     }
 
     private static List<RoundResult> toRounds(List<RoundJson> rounds) {
         return rounds.stream()
                 .map(round -> new RoundResult(RoundId.of(round.roundId()), AttemptId.parse(round.attemptId()),
-                        Points.of(round.total())))
+                        Points.of(round.total()), round.otherAttempts().stream().map(AttemptId::parse).toList()))
                 .toList();
     }
 

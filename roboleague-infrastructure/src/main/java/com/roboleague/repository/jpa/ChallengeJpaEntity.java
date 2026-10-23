@@ -46,7 +46,7 @@ class ChallengeJpaEntity {
                        StrategyJson bonusLimit) {
     }
 
-    record RankingJson(StrategyJson roundSelection, List<String> criteria) {
+    record RankingJson(StrategyJson roundSelection, StrategyJson attemptSelection, List<String> criteria) {
     }
 
     record RuleJson(String type, String name, Map<String, Double> numbers, Map<String, MetricJson> metrics,
