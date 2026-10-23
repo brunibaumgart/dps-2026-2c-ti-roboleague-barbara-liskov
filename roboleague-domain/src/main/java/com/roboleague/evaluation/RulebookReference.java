@@ -5,8 +5,8 @@ import com.roboleague.tournament.ChallengeId;
 import java.util.Objects;
 
 /**
- * The rulebook an attempt is scored with: its challenge and the version that was current when the attempt was
- * captured. Every revision of the attempt uses that same version, even after the challenge publishes a new one.
+ * The rulebook an attempt is scored with: its challenge and the version its category played with when the attempt
+ * was opened. Every revision of the attempt uses that same version, even after the challenge publishes a new one.
  */
 public record RulebookReference(ChallengeId challengeId, RulebookVersion version) {
     public RulebookReference {

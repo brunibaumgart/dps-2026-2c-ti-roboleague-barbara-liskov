@@ -6,14 +6,17 @@ import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.scheme.RankingScheme;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Challenge aggregate: one event of an edition (maze, line follower, rescue) with the history of its rulebooks.
  * It always has a rulebook: it is created by publishing the first one. Publishing never edits a previous
- * version, so any result can be recalculated with the version it was scored with.
+ * version, so any result can be recalculated with the version it was scored with. A new version applies to what is
+ * played after it: a category that already has results keeps playing and ranking with the version that scored them.
  */
 public class Challenge {
     private final ChallengeId id;
@@ -95,6 +98,26 @@ public class Challenge {
 
     public Rulebook currentRulebook() {
         return rulebooks.getLast();
+    }
+
+    /**
+     * The rulebook a category of this challenge plays and ranks with, given the versions its attempts were scored
+     * with: that version once the category has results, the current one before. Results scored with two versions
+     * would make a single table impossible, so they are refused.
+     */
+    public Rulebook rulebookInForce(Collection<RulebookVersion> versionsOfResults) {
+        Set<RulebookVersion> versions = Set.copyOf(Objects.requireNonNull(versionsOfResults,
+                "versionsOfResults cannot be null"));
+        if (versions.isEmpty()) {
+            return currentRulebook();
+        }
+        if (versions.size() > 1) {
+            throw new IllegalStateException("results of one category of " + id
+                    + " were scored with several rulebook versions: " + versions);
+        }
+        RulebookVersion version = versions.iterator().next();
+        return rulebook(version).orElseThrow(() -> new IllegalStateException(
+                "results of " + id + " were scored with " + version + ", which it never published"));
     }
 
     /**
