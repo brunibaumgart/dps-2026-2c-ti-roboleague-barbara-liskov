@@ -23,9 +23,11 @@ import com.roboleague.evaluation.rules.TimeBasedRule;
 import com.roboleague.evaluation.rules.VictimTariff;
 import com.roboleague.evaluation.rules.VictimsRule;
 import com.roboleague.evaluation.scheme.AllRounds;
+import com.roboleague.evaluation.scheme.BestAttempt;
 import com.roboleague.evaluation.scheme.BestNOfM;
 import com.roboleague.evaluation.scheme.HigherJudgeScore;
 import com.roboleague.evaluation.scheme.HigherTotal;
+import com.roboleague.evaluation.scheme.LastAttempt;
 import com.roboleague.evaluation.scheme.LowerDeductions;
 import com.roboleague.evaluation.scheme.LowerTime;
 import com.roboleague.evaluation.scheme.RankingScheme;
@@ -79,13 +81,13 @@ class RuleCatalogTest {
 
     private static RulebookDefinition scoring(RulebookDefinition.Scoring scoring) {
         return new RulebookDefinition(DECLARED.declarations(), scoring,
-                new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("higher-total")));
+                new RulebookDefinition.Ranking(ALL_ROUNDS, BestAttempt.single().definition(), List.of("higher-total")));
     }
 
     private static RulebookDefinition declaring(List<MetricDeclaration> metrics) {
         return new RulebookDefinition(metrics, new RulebookDefinition.Scoring(
                 List.of(), NO_BONUSES, List.of(new PenaltyRule("Faltas", Points.of(10)).definition())),
-                new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("higher-total")));
+                new RulebookDefinition.Ranking(ALL_ROUNDS, BestAttempt.single().definition(), List.of("higher-total")));
     }
 
     private static MetricDeclaration collisionsWithin(Parameters range) {
@@ -228,9 +230,24 @@ class RuleCatalogTest {
                         "rule 'Tiempo': minPoints cannot exceed basePoints: 120.00 > 100.00"),
                 Arguments.of(Named.of("selección de rondas desconocida", new RulebookDefinition(List.of(),
                                 new RulebookDefinition.Scoring(List.of(time), NO_BONUSES, List.of()),
-                                new RulebookDefinition.Ranking(new StrategyDefinition("best-of", Parameters.none()),
+                                new RulebookDefinition.Ranking(new StrategyDefinition("best-of", Parameters.none()), BestAttempt.single().definition(),
                                         List.of("higher-total")))),
                         "round selection: unknown type 'best-of'"),
+                Arguments.of(Named.of("selección de intentos desconocida", new RulebookDefinition(List.of(),
+                                new RulebookDefinition.Scoring(List.of(time), NO_BONUSES, List.of()),
+                                new RulebookDefinition.Ranking(ALL_ROUNDS, new StrategyDefinition("first-attempt",
+                                        Parameters.none().with("perTurn", 1.0)), List.of("higher-total")))),
+                        "attempt selection: unknown type 'first-attempt'"),
+                Arguments.of(Named.of("turno sin intentos", new RulebookDefinition(List.of(),
+                                new RulebookDefinition.Scoring(List.of(time), NO_BONUSES, List.of()),
+                                new RulebookDefinition.Ranking(ALL_ROUNDS, new StrategyDefinition(BestAttempt.TYPE,
+                                        Parameters.none().with("perTurn", 0.0)), List.of("higher-total")))),
+                        "attempt selection: a turn admits at least one attempt: 0"),
+                Arguments.of(Named.of("selección de intentos con un número de más", new RulebookDefinition(List.of(),
+                                new RulebookDefinition.Scoring(List.of(time), NO_BONUSES, List.of()),
+                                new RulebookDefinition.Ranking(ALL_ROUNDS, new StrategyDefinition(LastAttempt.TYPE,
+                                        Parameters.none().with("perTurn", 2.0).with("max", 2.0)), List.of("higher-total")))),
+                        "attempt selection: unknown parameter 'max'"),
                 Arguments.of(Named.of("puntos con más de dos decimales", withDeduction(new RuleDefinition("penalty",
                                 "Faltas", RuleArguments.of(Parameters.none().with("deductionPerPenalty", 12.345))))),
                         "rule 'Faltas': parameter 'deductionPerPenalty' is an amount of points and takes at most "
@@ -242,23 +259,23 @@ class RuleCatalogTest {
                 Arguments.of(Named.of("N de M inválido", new RulebookDefinition(List.of(),
                                 new RulebookDefinition.Scoring(List.of(time), NO_BONUSES, List.of()),
                                 new RulebookDefinition.Ranking(new StrategyDefinition(BestNOfM.TYPE,
-                                        Parameters.none().with("considered", 4.0).with("outOf", 3.0)), List.of("higher-total")))),
+                                        Parameters.none().with("considered", 4.0).with("outOf", 3.0)), BestAttempt.single().definition(), List.of("higher-total")))),
                         "round selection: considered must be between 1 and outOf"),
                 Arguments.of(Named.of("criterio desconocido", new RulebookDefinition(List.of(),
                                 new RulebookDefinition.Scoring(List.of(time), NO_BONUSES, List.of()),
-                                new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("higher-total", "luck")))),
+                                new RulebookDefinition.Ranking(ALL_ROUNDS, BestAttempt.single().definition(), List.of("higher-total", "luck")))),
                         "tie-break criterion 'luck': unknown criterion"),
                 Arguments.of(Named.of("sin criterios", new RulebookDefinition(List.of(),
                                 new RulebookDefinition.Scoring(List.of(time), NO_BONUSES, List.of()),
-                                new RulebookDefinition.Ranking(ALL_ROUNDS, List.of()))),
+                                new RulebookDefinition.Ranking(ALL_ROUNDS, BestAttempt.single().definition(), List.of()))),
                         "ranking: a ranking scheme needs at least one criterion"),
                 Arguments.of(Named.of("criterio repetido", new RulebookDefinition(List.of(),
                                 new RulebookDefinition.Scoring(List.of(time), NO_BONUSES, List.of()),
-                                new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("higher-total", "higher-total")))),
+                                new RulebookDefinition.Ranking(ALL_ROUNDS, BestAttempt.single().definition(), List.of("higher-total", "higher-total")))),
                         "ranking: a ranking scheme cannot repeat a criterion"),
                 Arguments.of(Named.of("sin el total primero", new RulebookDefinition(List.of(),
                                 new RulebookDefinition.Scoring(List.of(time), NO_BONUSES, List.of()),
-                                new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("lower-time")))),
+                                new RulebookDefinition.Ranking(ALL_ROUNDS, BestAttempt.single().definition(), List.of("lower-time")))),
                         "ranking: a ranking scheme orders by total before breaking ties"),
                 Arguments.of(Named.of("rango invertido", declaring(List.of(
                                 collisionsWithin(Parameters.none().with("min", 5.0).with("max", 1.0))))),
@@ -288,12 +305,12 @@ class RuleCatalogTest {
                                 new RulebookDefinition.Scoring(List.of(time), new RulebookDefinition.Bonuses(List.of(),
                                         new StrategyDefinition(CappedAt.TYPE,
                                                 Parameters.none().with("maximum", 40.0).with("max", 30.0))), List.of()),
-                                new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("higher-total")))),
+                                new RulebookDefinition.Ranking(ALL_ROUNDS, BestAttempt.single().definition(), List.of("higher-total")))),
                         "bonus limit: unknown parameter 'max'"),
                 Arguments.of(Named.of("N de M con un número de más", new RulebookDefinition(DECLARED.declarations(),
                                 new RulebookDefinition.Scoring(List.of(time), NO_BONUSES, List.of()),
                                 new RulebookDefinition.Ranking(new StrategyDefinition(BestNOfM.TYPE, Parameters.none()
-                                        .with("considered", 2.0).with("outOf", 3.0).with("total", 3.0)),
+                                        .with("considered", 2.0).with("outOf", 3.0).with("total", 3.0)), BestAttempt.single().definition(),
                                         List.of("higher-total")))),
                         "round selection: unknown parameter 'total'"),
                 Arguments.of(Named.of("rango con un número desconocido", declaring(List.of(
@@ -328,7 +345,7 @@ class RuleCatalogTest {
         RulebookDefinition twoBadRules = new RulebookDefinition(List.of(), new RulebookDefinition.Scoring(List.of(
                 new RuleDefinition("teleport", "A", RuleArguments.of(Parameters.none())),
                 new RuleDefinition("penalty", "B", RuleArguments.of(Parameters.none()))), NO_BONUSES, List.of()),
-                new RulebookDefinition.Ranking(ALL_ROUNDS, List.of("higher-total")));
+                new RulebookDefinition.Ranking(ALL_ROUNDS, BestAttempt.single().definition(), List.of("higher-total")));
 
         assertThat(((RulebookAssembly.Rejected) catalog.assemble(twoBadRules)).problems()).hasSize(2);
     }

@@ -21,9 +21,12 @@ import com.roboleague.evaluation.rules.ScoreRule;
 import com.roboleague.evaluation.rules.TimeBasedRule;
 import com.roboleague.evaluation.rules.VictimsRule;
 import com.roboleague.evaluation.scheme.AllRounds;
+import com.roboleague.evaluation.scheme.AttemptSelection;
+import com.roboleague.evaluation.scheme.BestAttempt;
 import com.roboleague.evaluation.scheme.BestNOfM;
 import com.roboleague.evaluation.scheme.HigherJudgeScore;
 import com.roboleague.evaluation.scheme.HigherTotal;
+import com.roboleague.evaluation.scheme.LastAttempt;
 import com.roboleague.evaluation.scheme.LowerDeductions;
 import com.roboleague.evaluation.scheme.LowerTime;
 import com.roboleague.evaluation.scheme.RankingScheme;
@@ -39,15 +42,16 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * The one place where a type named in a definition becomes a class: rules, round selections, bonus limits and
- * tie-break criteria. Both the API and the database rebuild rulebooks through it. A new kind is one more entry,
- * and a new rule type goes in the section of its kind (base rule, bonus or deduction).
+ * The one place where a type named in a definition becomes a class: rules, round and attempt selections, bonus
+ * limits and tie-break criteria. Both the API and the database rebuild rulebooks through it. A new kind is one more
+ * entry, and a new rule type goes in the section of its kind (base rule, bonus or deduction).
  */
 public final class RuleCatalog {
     private final RuleSection<BaseRule> base = new RuleSection<>("base rule");
     private final RuleSection<BonusRule> bonuses = new RuleSection<>("bonus");
     private final RuleSection<DeductionRule> deductions = new RuleSection<>("deduction");
     private final Map<String, Function<StrategyDefinition, RoundSelection>> selections = new HashMap<>();
+    private final Map<String, Function<StrategyDefinition, AttemptSelection>> attemptSelections = new HashMap<>();
     private final Map<String, Function<StrategyDefinition, BonusLimit>> limits = new HashMap<>();
     private final Map<String, TieBreakCriterion> criteria = new HashMap<>();
 
@@ -71,6 +75,8 @@ public final class RuleCatalog {
         catalog.deductions.register(AbandonedVictimsRule.TYPE, AbandonedVictimsRule::from);
         catalog.selections.put(BestNOfM.TYPE, BestNOfM::from);
         catalog.selections.put(AllRounds.TYPE, definition -> new AllRounds());
+        catalog.attemptSelections.put(BestAttempt.TYPE, BestAttempt::from);
+        catalog.attemptSelections.put(LastAttempt.TYPE, LastAttempt::from);
         catalog.limits.put(CappedAt.TYPE, CappedAt::from);
         catalog.limits.put(Unlimited.TYPE, definition -> new Unlimited());
         for (TieBreakCriterion criterion : List.of(new HigherTotal(), new LowerTime(), new LowerDeductions(),
@@ -99,6 +105,8 @@ public final class RuleCatalog {
                 () -> resolve(limits, definition.scoring().bonuses().limit(), BonusLimit::definition), problems);
         Optional<RoundSelection> selection = build("round selection",
                 () -> resolve(selections, definition.ranking().roundSelection(), RoundSelection::definition), problems);
+        Optional<AttemptSelection> attempts = build("attempt selection", () -> resolve(attemptSelections,
+                definition.ranking().attemptSelection(), AttemptSelection::definition), problems);
         List<TieBreakCriterion> chain = new ArrayList<>();
         for (String code : definition.ranking().criteria()) {
             TieBreakCriterion criterion = criteria.get(code);
@@ -114,7 +122,7 @@ public final class RuleCatalog {
         Optional<ScoringScheme> scoring = build("scoring", () -> new ScoringScheme(metrics.orElseThrow(),
                 new ScoreRules(baseRules, bonusRules, deductionRules), limit.orElseThrow()), problems);
         Optional<RankingScheme> ranking = build("ranking",
-                () -> new RankingScheme(selection.orElseThrow(), chain), problems);
+                () -> new RankingScheme(selection.orElseThrow(), attempts.orElseThrow(), chain), problems);
         if (!problems.isEmpty()) {
             return new RulebookAssembly.Rejected(problems);
         }

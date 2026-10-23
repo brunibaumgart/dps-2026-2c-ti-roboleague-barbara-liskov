@@ -34,9 +34,13 @@ public record RulebookDefinition(List<MetricDeclaration> metrics, Scoring scorin
         }
     }
 
-    public record Ranking(StrategyDefinition roundSelection, List<String> criteria) {
+    /**
+     * Which rounds count, how many attempts a turn admits and which of them counts, and the tie-break chain.
+     */
+    public record Ranking(StrategyDefinition roundSelection, StrategyDefinition attemptSelection, List<String> criteria) {
         public Ranking {
             Objects.requireNonNull(roundSelection, "roundSelection cannot be null");
+            Objects.requireNonNull(attemptSelection, "attemptSelection cannot be null");
             Objects.requireNonNull(criteria, "criteria cannot be null");
             if (criteria.stream().anyMatch(Objects::isNull)) {
                 throw new IllegalArgumentException("a tie-break criterion cannot be empty");

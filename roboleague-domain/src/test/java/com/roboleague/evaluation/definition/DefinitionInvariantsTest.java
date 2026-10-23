@@ -1,5 +1,6 @@
 package com.roboleague.evaluation.definition;
 
+import com.roboleague.evaluation.scheme.BestAttempt;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.Named;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -50,7 +51,7 @@ class DefinitionInvariantsTest {
                 rejected("strategy without a type", () -> new StrategyDefinition("", Parameters.none()),
                         "a strategy needs a type"),
                 rejected("empty tie-break criterion", () -> new RulebookDefinition.Ranking(
-                                new StrategyDefinition("all-rounds", Parameters.none()), Arrays.asList("higher-total", null)),
+                                new StrategyDefinition("all-rounds", Parameters.none()), BestAttempt.single().definition(), Arrays.asList("higher-total", null)),
                         "a tie-break criterion cannot be empty"));
     }
 
