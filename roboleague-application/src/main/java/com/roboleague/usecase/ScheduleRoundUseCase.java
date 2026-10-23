@@ -1,5 +1,7 @@
 package com.roboleague.usecase;
 
+import com.roboleague.evaluation.Rulebook;
+import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.ChallengeRepository;
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.RoundRepository;
@@ -21,7 +23,7 @@ import java.util.Objects;
 
 /**
  * Use case to schedule a competition round and assign slots, tracks, and judges. Every turn has to fall within the
- * dates of the edition.
+ * dates of the edition, and the round has to fit the rulebook its category plays with ({@link CategoryRulebook}).
  */
 public class ScheduleRoundUseCase {
     private final IdGenerator ids;
@@ -31,15 +33,18 @@ public class ScheduleRoundUseCase {
     private final TeamRepository teamRepository;
     private final RoundRepository roundRepository;
     private final RoundSchedulerService schedulerService;
+    private final CategoryRulebook categoryRulebook;
 
     public ScheduleRoundUseCase(ChallengeRepository challengeRepository, EditionRepository editionRepository, TeamRepository teamRepository, RoundRepository roundRepository,
-                                RoundSchedulerService schedulerService, IdGenerator ids) {
+                                AttemptRepository attemptRepository, RoundSchedulerService schedulerService, IdGenerator ids) {
         this.challengeRepository = Objects.requireNonNull(challengeRepository, "challengeRepository cannot be null");
         this.teamRepository = Objects.requireNonNull(teamRepository, "teamRepository cannot be null");
         this.ids = Objects.requireNonNull(ids, "ids cannot be null");
         this.editionRepository = Objects.requireNonNull(editionRepository, "editionRepository cannot be null");
         this.roundRepository = Objects.requireNonNull(roundRepository, "roundRepository cannot be null");
         this.schedulerService = Objects.requireNonNull(schedulerService, "schedulerService cannot be null");
+        this.categoryRulebook = new CategoryRulebook(roundRepository,
+                Objects.requireNonNull(attemptRepository, "attemptRepository cannot be null"));
     }
 
     public Round execute(ScheduleRoundCommand command) {
@@ -53,10 +58,11 @@ public class ScheduleRoundUseCase {
             throw new IllegalArgumentException("Challenge belongs to another edition");
         }
         RoundScope scope = RoundScope.of(command.challengeId(), command.editionId(), command.categoryId(), command.roundNumber());
-        RoundSelection selection = challenge.currentRulebook().rankingScheme().roundSelection();
+        Rulebook rulebook = categoryRulebook.inForce(challenge, command.categoryId());
+        RoundSelection selection = rulebook.rankingScheme().roundSelection();
         if (!selection.allowsRound(scope.roundNumber())) {
-            throw new BusinessRuleViolation("Round " + scope.roundNumber() + " cannot be scheduled: the rulebook of "
-                    + challenge.getId() + " counts " + selection.describe());
+            throw new BusinessRuleViolation("Round " + scope.roundNumber() + " cannot be scheduled: rulebook "
+                    + rulebook.version() + " of " + challenge.getId() + " counts " + selection.describe());
         }
         if (roundRepository.findByScope(scope).isPresent()) {
             throw new ConflictException("Round scope already exists: " + scope);

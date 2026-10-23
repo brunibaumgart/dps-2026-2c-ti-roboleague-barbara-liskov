@@ -7,6 +7,7 @@ import com.roboleague.evaluation.scheme.AllRounds;
 import com.roboleague.evaluation.scheme.HigherTotal;
 import com.roboleague.evaluation.scheme.RankingScheme;
 import com.roboleague.repository.memory.*;
+import com.roboleague.repository.memory.InMemoryAttemptRepository;
 import com.roboleague.scheduling.*;
 import com.roboleague.support.ConflictException;
 import com.roboleague.support.IdGenerator;
@@ -32,7 +33,7 @@ class RoundSchedulingIntegrationTest {
     private final InMemoryRoundRepository rounds = new InMemoryRoundRepository();
     private final AtomicInteger generated = new AtomicInteger();
     private final IdGenerator ids = () -> "generated-" + generated.incrementAndGet();
-    private final ScheduleRoundUseCase useCase = new ScheduleRoundUseCase(challenges, editions, teams, rounds,
+    private final ScheduleRoundUseCase useCase = new ScheduleRoundUseCase(challenges, editions, teams, rounds, new InMemoryAttemptRepository(),
             new RoundSchedulerService(ids), ids);
     private final Category category = RegistrationFixtures.category("category", 1, 4, 10, 25, 2000);
     private final EditionId editionId = EditionId.of("edition");

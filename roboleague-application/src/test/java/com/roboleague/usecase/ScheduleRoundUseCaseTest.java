@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import com.roboleague.repository.memory.InMemoryAttemptRepository;
 import com.roboleague.repository.memory.InMemoryEditionRepository;
 import com.roboleague.repository.memory.InMemoryRoundRepository;
 import com.roboleague.repository.memory.InMemoryTeamRepository;
@@ -58,7 +59,7 @@ class ScheduleRoundUseCaseTest {
         Team team = RegistrationFixtures.team("t-1");
         teams.save(team);
         editions.save(edition.registerTeam(team, category.id(), TIME));
-        ScheduleRoundUseCase useCase = new ScheduleRoundUseCase(challenges, editions, teams, rounds,
+        ScheduleRoundUseCase useCase = new ScheduleRoundUseCase(challenges, editions, teams, rounds, new InMemoryAttemptRepository(),
                 new RoundSchedulerService(ids()), ids());
         List<Track> tracks = List.of(Track.active(TrackId.of("trk-1"), "Pista 1", "Piedra"));
         List<Judge> judges = List.of(Judge.of(JudgeId.of("j-1"), "Juez Uno", "General"));
@@ -67,7 +68,7 @@ class ScheduleRoundUseCaseTest {
                 category.id(), 3, "Ronda 3", tracks, judges, LocalDate.of(2026, 10, 8).atTime(10, 0),
                 Duration.ofMinutes(10), Duration.ZERO)))
                 .isInstanceOf(com.roboleague.support.BusinessRuleViolation.class)
-                .hasMessage("Round 3 cannot be scheduled: the rulebook of ch-best counts mejores 1 de 2 rondas");
+                .hasMessage("Round 3 cannot be scheduled: rulebook v1 of ch-best counts mejores 1 de 2 rondas");
         assertThat(rounds.findAll()).isEmpty();
 
         Round second = useCase.execute(ScheduleRoundCommand.of(ChallengeId.of("ch-best"), edition.getId(),
@@ -83,7 +84,7 @@ class ScheduleRoundUseCaseTest {
         InMemoryEditionRepository editionRepo = new InMemoryEditionRepository();
         RoundSchedulerService schedulerService = new RoundSchedulerService(ids());
         InMemoryRoundRepository rounds = new InMemoryRoundRepository();
-        ScheduleRoundUseCase useCase = new ScheduleRoundUseCase(challenges(), editionRepo, teams, rounds, schedulerService, ids());
+        ScheduleRoundUseCase useCase = new ScheduleRoundUseCase(challenges(), editionRepo, teams, rounds, new InMemoryAttemptRepository(), schedulerService, ids());
 
         Category category = Category.of(CategoryId.of("cat-sumo"), "Sumo", 2, 4, 15, 20, 2500);
         Season season = new Season("s-1", 2026, "2026");
@@ -127,7 +128,7 @@ class ScheduleRoundUseCaseTest {
         Team team = RegistrationFixtures.team("t-1");
         teams.save(team);
         editions.save(edition.registerTeam(team, category.id(), TIME));
-        ScheduleRoundUseCase useCase = new ScheduleRoundUseCase(challenges(), editions, teams, rounds,
+        ScheduleRoundUseCase useCase = new ScheduleRoundUseCase(challenges(), editions, teams, rounds, new InMemoryAttemptRepository(),
                 new RoundSchedulerService(ids()), ids());
         List<Track> tracks = List.of(Track.active(TrackId.of("trk-1"), "Pista 1", "Piedra"));
         List<Judge> judges = List.of(Judge.of(JudgeId.of("j-1"), "Juez Uno", "General"));
@@ -163,7 +164,7 @@ class ScheduleRoundUseCaseTest {
         teams.save(original.withMembers(List.of()));
         java.util.concurrent.atomic.AtomicInteger generated = new java.util.concurrent.atomic.AtomicInteger();
         com.roboleague.support.IdGenerator generator = () -> "generated-" + generated.incrementAndGet();
-        ScheduleRoundUseCase scheduler = new ScheduleRoundUseCase(challenges(), editions, teams, rounds,
+        ScheduleRoundUseCase scheduler = new ScheduleRoundUseCase(challenges(), editions, teams, rounds, new InMemoryAttemptRepository(),
                 new RoundSchedulerService(generator), generator);
         ScheduleRoundCommand command = ScheduleRoundCommand.of(ChallengeId.of("ch-stale"), edition.getId(), category.id(), 1, "Round",
                 List.of(Track.active(TrackId.of("track-stale"), "Track", "Wood")),
@@ -181,7 +182,7 @@ class ScheduleRoundUseCaseTest {
     void failsWhenNoTeamsRegistered() {
         InMemoryTeamRepository teams = new InMemoryTeamRepository();
         InMemoryEditionRepository editionRepo = new InMemoryEditionRepository();
-        ScheduleRoundUseCase useCase = new ScheduleRoundUseCase(challenges(), editionRepo, teams, new InMemoryRoundRepository(),
+        ScheduleRoundUseCase useCase = new ScheduleRoundUseCase(challenges(), editionRepo, teams, new InMemoryRoundRepository(), new InMemoryAttemptRepository(),
                 new RoundSchedulerService(ids()), ids());
 
         Category category = Category.of(CategoryId.of("cat-sumo"), "Sumo", 2, 4, 15, 20, 2500);

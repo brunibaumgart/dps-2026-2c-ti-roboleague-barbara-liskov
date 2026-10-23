@@ -12,8 +12,11 @@ import com.roboleague.evaluation.definition.RulebookDefinition;
 import com.roboleague.evaluation.definition.StrategyDefinition;
 import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.scheme.AllRounds;
+import com.roboleague.evaluation.scheme.BestAttempt;
+import com.roboleague.repository.memory.InMemoryAttemptRepository;
 import com.roboleague.repository.memory.InMemoryChallengeRepository;
 import com.roboleague.repository.memory.InMemoryEditionRepository;
+import com.roboleague.repository.memory.InMemoryRoundRepository;
 import com.roboleague.support.ConflictException;
 import com.roboleague.tournament.Category;
 import com.roboleague.tournament.CategoryId;
@@ -50,7 +53,7 @@ class ConfigureChallengesUseCaseTest {
         RuleCatalog catalog = RuleCatalog.standard();
         createEdition = new CreateEditionUseCase(editions);
         addChallenge = new AddChallengeUseCase(editions, challenges, catalog);
-        publishRulebook = new PublishRulebookUseCase(challenges, catalog);
+        publishRulebook = new PublishRulebookUseCase(challenges, new InMemoryRoundRepository(), new InMemoryAttemptRepository(), catalog);
         createEdition.execute(editionCommand("ed-2026"));
     }
 
@@ -68,7 +71,7 @@ class ConfigureChallengesUseCaseTest {
         return new RulebookDefinition(List.of(),
                 new RulebookDefinition.Scoring(List.of(), NO_BONUSES,
                         List.of(new PenaltyRule("Faltas", Points.of(deduction)).definition())),
-                new RulebookDefinition.Ranking(new StrategyDefinition(AllRounds.TYPE, Parameters.none()),
+                new RulebookDefinition.Ranking(new StrategyDefinition(AllRounds.TYPE, Parameters.none()), BestAttempt.single().definition(),
                         List.of("higher-total")));
     }
 
@@ -76,7 +79,7 @@ class ConfigureChallengesUseCaseTest {
         return new RulebookDefinition(List.of(),
                 new RulebookDefinition.Scoring(List.of(new RuleDefinition("teleport", "Teletransporte",
                         RuleArguments.of(Parameters.none()))), NO_BONUSES, List.of()),
-                new RulebookDefinition.Ranking(new StrategyDefinition(AllRounds.TYPE, Parameters.none()),
+                new RulebookDefinition.Ranking(new StrategyDefinition(AllRounds.TYPE, Parameters.none()), BestAttempt.single().definition(),
                         List.of("higher-total")));
     }
 

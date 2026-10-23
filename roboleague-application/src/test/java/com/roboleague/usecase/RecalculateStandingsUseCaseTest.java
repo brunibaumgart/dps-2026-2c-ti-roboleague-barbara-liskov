@@ -3,10 +3,14 @@ package com.roboleague.usecase;
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.Measurements;
 import com.roboleague.evaluation.Points;
+import com.roboleague.evaluation.RuleCatalog;
+import com.roboleague.evaluation.RulebookVersion;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.SourceDelivery;
 import com.roboleague.evaluation.TrackPerformance;
+import com.roboleague.evaluation.definition.RulebookDefinition;
 import com.roboleague.evaluation.rules.ObjectivesRule;
+import com.roboleague.evaluation.scheme.AllRounds;
 import com.roboleague.evaluation.scheme.BestNOfM;
 import com.roboleague.evaluation.scheme.HigherTotal;
 import com.roboleague.evaluation.scheme.RankingScheme;
@@ -38,6 +42,7 @@ import com.roboleague.tournament.Challenge;
 import com.roboleague.tournament.ChallengeId;
 import com.roboleague.tournament.Edition;
 import com.roboleague.tournament.TeamId;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -94,9 +99,9 @@ class RecalculateStandingsUseCaseTest {
         assertThat(first.total()).isEqualTo(Points.of(100));
         assertThat(first.rounds().selectionRule()).isEqualTo("mejores 1 de 2 rondas");
         assertThat(first.rounds().considered()).containsExactly(
-                new RoundResult(RoundId.of("r-2"), attemptIn("r-2", "team-a"), Points.of(100)));
+                RoundResult.single(RoundId.of("r-2"), attemptIn("r-2", "team-a"), Points.of(100)));
         assertThat(first.rounds().discarded()).containsExactly(
-                new RoundResult(RoundId.of("r-1"), attemptIn("r-1", "team-a"), Points.of(40)));
+                RoundResult.single(RoundId.of("r-1"), attemptIn("r-1", "team-a"), Points.of(40)));
         StandingsEntry second = calculated.latest().table().entries().get(1);
         assertThat(second.total()).isEqualTo(Points.of(60));
         assertThat(second.rounds().discarded()).isEmpty();
@@ -117,8 +122,56 @@ class RecalculateStandingsUseCaseTest {
                 .extracting(RoundResult::roundId).containsExactly(RoundId.of("r-1"));
     }
 
+    @Test
+    @DisplayName("F1: una versión nueva del reglamento no cambia cómo se arma la tabla de rondas ya jugadas")
+    void givenANewRulebookVersionThenTheTableKeepsRankingWithTheVersionOfItsRounds() {
+        score("r-1", "team-a", 2);   // 40
+        score("r-2", "team-a", 5);   // 100
+        score("r-1", "team-b", 3);   // 60
+        assertThat(recalculate.execute(mazeStandings).latest().table().entries().getFirst().total())
+                .isEqualTo(Points.of(100));   // v1: mejores 1 de 2
+
+        assertThat(publish(new RankingScheme(new AllRounds(), List.of(new HigherTotal()))))
+                .isInstanceOf(Publication.Published.class);   // v2
+        Standings after = recalculate.execute(mazeStandings);
+
+        StandingsEntry first = after.latest().table().entries().getFirst();
+        assertThat(first.total()).isEqualTo(Points.of(100));
+        assertThat(first.rounds().selectionRule()).isEqualTo("mejores 1 de 2 rondas");
+        assertThat(after.latest().table().rulebookVersion()).isEqualTo(RulebookVersion.first());
+    }
+
+    @Test
+    @DisplayName("F1: una versión que admite menos rondas no bloquea el recálculo de una categoría que ya jugó")
+    void givenAVersionWithFewerRoundsThenACategoryThatAlreadyPlayedStillRecalculates() {
+        score("r-1", "team-a", 2);
+        score("r-2", "team-a", 5);
+
+        assertThat(publish(new RankingScheme(new BestNOfM(1, 1), List.of(new HigherTotal()))))
+                .isInstanceOf(Publication.Published.class);
+
+        assertThat(recalculate.execute(mazeStandings).latest().table().entries().getFirst().total())
+                .isEqualTo(Points.of(100));
+    }
+
+    @Test
+    @DisplayName("F1: una versión que no admite las rondas ya programadas de una categoría sin resultados se rechaza")
+    void givenAVersionThatDoesNotAdmitTheScheduledRoundsThenItIsRejected() {
+        Publication<?> publication = publish(new RankingScheme(new BestNOfM(1, 1), List.of(new HigherTotal())));
+
+        assertThat(publication).isEqualTo(new Publication.Rejected<>(List.of("round 2 of category " + maze.id()
+                + " is already scheduled, and the new version counts mejores 1 de 1 rondas")));
+        assertThat(challenges.findById(bestOfTwo.getId()).orElseThrow().rulebooks()).hasSize(1);
+    }
+
+    private Publication<?> publish(RankingScheme ranking) {
+        RulebookDefinition current = challenges.findById(bestOfTwo.getId()).orElseThrow().currentRulebook().definition();
+        return new PublishRulebookUseCase(challenges, rounds, attempts, RuleCatalog.standard()).execute(
+                bestOfTwo.getId(), new RulebookDefinition(current.metrics(), current.scoring(), ranking.definition()));
+    }
+
     private void score(String roundId, String teamId, int objectives) {
-        Reception reception = receive.execute(new ReceiveResultCommand(bestOfTwo.getId(), attemptIn(roundId, teamId),
+        Reception reception = receive.execute(new ReceiveResultCommand(bestOfTwo.getId(), attemptIn(roundId, teamId).slotId(),
                 new SourceDelivery(new Measurements(new TrackPerformance(60, objectives, 0), 0.0, Map.of()), JUDGE)));
         assertThat(reception).isInstanceOf(Reception.Received.class);
     }
