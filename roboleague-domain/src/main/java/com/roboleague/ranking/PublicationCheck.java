@@ -21,7 +21,7 @@ public record PublicationCheck(StandingsTable current, int openAppeals, int unfi
 
     /**
      * Counts open appeals over the attempts and, among the turns of the rounds that were not cancelled, those
-     * whose attempt is missing or still awaits a source.
+     * without an attempt or with one that still awaits a source.
      */
     public static PublicationCheck of(StandingsTable current, List<Round> rounds, List<Attempt> attempts) {
         int openAppeals = 0;
@@ -40,7 +40,7 @@ public record PublicationCheck(StandingsTable current, int openAppeals, int unfi
     }
 
     private static boolean hasOutcome(Slot slot, List<Attempt> attempts) {
-        return attempts.stream()
-                .anyMatch(attempt -> attempt.getSlotId().equals(slot.getSlotId()) && attempt.hasOutcome());
+        List<Attempt> turn = attempts.stream().filter(attempt -> attempt.getSlotId().equals(slot.getSlotId())).toList();
+        return !turn.isEmpty() && turn.stream().allMatch(Attempt::hasOutcome);
     }
 }
