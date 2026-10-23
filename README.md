@@ -190,7 +190,8 @@ Todas las respuestas de error usan `ErrorDto {error, details}`. Además de los c
 | POST | `/rounds/{id}/start` · `/rounds/{id}/completion` | 200 `RoundDto` | 404; 409 transición no permitida |
 | POST | `/rounds/{id}/slots/{slotId}/start` · `/completion` | 200 `RoundDto` | 404; 409 transición no permitida |
 | POST | `/rounds/{id}/slots/{slotId}/cancellation` | 200 `RoundDto` | 400 sin `actorId`/`reason`; 404; 409 turno empezado o con resultados |
-| PUT | `/attempts/{id}/measurements` · `/attempts/{id}/judge-scores` | 200 `AttemptDto` | 400; 404 slot; 409 fuente repetida, otro desafío o turno cancelado; 422 mediciones o juez no asignado |
+| POST | `/slots/{slotId}/measurements` · `/slots/{slotId}/judge-scores` | 200 `AttemptDto` | 400; 404 slot; 409 fuente repetida en un intento que espera la otra, otro desafío o turno cancelado; 422 mediciones, juez no asignado o turno sin más intentos |
+| GET | `/slots/{slotId}/results` | 200 `TurnResultsDto` (`rulebookVersion`, `attemptRule`, `acceptsResult`, `attempts`) | 404 |
 | GET | `/attempts/{id}/breakdown` | 200 `BreakdownDto` (`awaiting`, `items`, `bySource`, `revisions`) | 404 |
 | POST | `/attempts/{id}/penalty-adjustments` | 200 `{attempt, standingsVersion}` | 400; 404; 409 estado |
 | POST | `/attempts/{id}/disqualification` | 200 `{attempt, standingsVersion}` | 400; 404; 409 estado; 422 juez no asignado |
@@ -201,7 +202,7 @@ Todas las respuestas de error usan `ErrorDto {error, details}`. Además de los c
 | POST | `/appeals/{id}/rejection` | 200 `AppealDto` | 400; 404; 409 transición o revisor |
 | GET | `/challenges/{id}/standings?categoryId=` | 200 `StandingsDto` | 400; 404 |
 | GET | `/challenges/{id}/standings/versions/{v}?categoryId=` | 200 `StandingsVersionDto` | 400; 404 |
-| POST | `/challenges/{id}/standings/versions?categoryId=` | 201 `StandingsVersionDto` (provisional) | 400; 404 |
+| POST | `/challenges/{id}/standings/versions?categoryId=` | 201 `StandingsVersionDto` (provisional, con `rulebookVersion`) | 400; 404 |
 | POST | `/challenges/{id}/standings/versions/{v}/publication?categoryId=` | 200 `StandingsDto` | 400; 404; 409 bloqueada, con cada motivo en `details` |
 
 El detalle de cada cuerpo está en las secciones siguientes.
@@ -222,7 +223,7 @@ La demo requiere ser mayor de 12 años (desde 13), sin límite superior.
                  "minAge": 12, "maxAge": 17, "maxWeightGrams": 2500}]}
 ```
 
-`POST /editions/{id}/challenges` con `{"id", "name", "rulebook"}` → 201 con el desafío y su reglamento v1. `POST /challenges/{id}/rulebook/versions` con un `rulebook` → 201 con la versión nueva. Un reglamento con problemas es **422** con cada problema en `details` (`"rule 'Faltas': missing parameter 'deductionPerPenalty'"`). Edición o desafío inexistente: 404; id repetido: 409. Una edición sin un dato obligatorio (`editionNumber`, id o nombre del torneo, id, nombre o año de la temporada, id o nombre de una categoría), con un id o nombre en blanco o con dos categorías del mismo id: 400. Un número omitido no se toma como 0: el error nombra el campo (`Missing field 'tournament.season.year'`).
+`POST /editions/{id}/challenges` con `{"id", "name", "rulebook"}` → 201 con el desafío y su reglamento v1. `POST /challenges/{id}/rulebook/versions` con un `rulebook` → 201 con la versión nueva. La versión nueva rige solo lo que todavía no se jugó (ver «Qué versión usa cada categoría»); si no admite una ronda ya programada en una categoría sin resultados (por ejemplo, pasar a mejores 1 de 1 con la ronda 2 programada), es **422** (`"round 2 of category cat-junior is already scheduled, and the new version counts mejores 1 de 1 rondas"`). Un reglamento con problemas es **422** con cada problema en `details` (`"rule 'Faltas': missing parameter 'deductionPerPenalty'"`). Edición o desafío inexistente: 404; id repetido: 409. Una edición sin un dato obligatorio (`editionNumber`, id o nombre del torneo, id, nombre o año de la temporada, id o nombre de una categoría), con un id o nombre en blanco o con dos categorías del mismo id: 400. Un número omitido no se toma como 0: el error nombra el campo (`Missing field 'tournament.season.year'`).
 
 Un reglamento en JSON (lo que se manda es lo que `GET /challenges/{id}` devuelve en `currentRulebook`):
 
@@ -243,6 +244,7 @@ Un reglamento en JSON (lo que se manda es lo que `GET /challenges/{id}` devuelve
      {"type": "penalty", "name": "Faltas de pista", "numbers": {"deductionPerPenalty": 15}}],
    "bonusLimit": {"type": "capped", "numbers": {"maximum": 40}}},
  "ranking": {"roundSelection": {"type": "best-n-of-m", "numbers": {"considered": 3, "outOf": 5}},
+             "attemptSelection": {"type": "best-attempt", "numbers": {"perTurn": 2}},
              "criteria": ["higher-total", "lower-time", "lower-deductions"]}}
 ```
 
@@ -267,7 +269,13 @@ Un tipo en la lista de otra sección es 422 y dice a cuál pertenece (`"rule 'Fa
 
 Los puntajes se calculan en centésimas exactas (ver DESIGN 2.28). Los parámetros que son puntos (`basePoints`, `minPoints`, `pointsPerObjective`, `maxPoints`, `pointsPerRescued`, `bonus`, `deductionPerPenalty`, `deductionPerFault`, `deductionPerAbandoned` y el `maximum` del tope) admiten hasta dos decimales; con más, el reglamento es 422 (`"parameter 'bonus' is an amount of points and takes at most 2 decimals: 12.345"`). Tasas, pesos y tiempos (`pointsPerSecondUnder`, `weightMultiplier`, `penaltyPerExcessUnit`…) no tienen ese límite. En `time`, `minPoints` no puede superar a `basePoints`; en `milestone`, `threshold` es un número no negativo (si no, 422). Las respuestas siguen mostrando los puntos como números JSON (`147.5`).
 
-Una métrica es `{"name", "source"}` con `source` = `AUTOMATIC_MEASUREMENTS` o `JUDGE_PANEL`. Toda métrica que lee una regla tiene que estar declarada en `metrics` con la misma fuente, una unidad (`COUNT`, `SECONDS`, `METERS`, `RATIO` o `POINTS`; `COUNT` solo acepta enteros) y un rango (`min` y, si tiene tope, `max`). Una métrica no declarada o de otra fuente, un rango invertido o una métrica declarada dos veces: 422. Una unidad desconocida: 400. Tiempo, objetivos, faltas, consumo y notas de jueces son campos fijos y no se declaran. Límite de bonificaciones: `capped` (`maximum`) o `unlimited`. Selección de rondas: `best-n-of-m` (`considered`, `outOf`) o `all-rounds`. Criterios: `higher-total`, `lower-time`, `lower-deductions` (menos puntos descontados por las deducciones), `higher-judge-score`. El primero es siempre `higher-total` (se ordena por puntaje) y ninguno se repite; los demás desempatan en el orden declarado.
+Una métrica es `{"name", "source"}` con `source` = `AUTOMATIC_MEASUREMENTS` o `JUDGE_PANEL`. Toda métrica que lee una regla tiene que estar declarada en `metrics` con la misma fuente, una unidad (`COUNT`, `SECONDS`, `METERS`, `RATIO` o `POINTS`; `COUNT` solo acepta enteros) y un rango (`min` y, si tiene tope, `max`). Una métrica no declarada o de otra fuente, un rango invertido o una métrica declarada dos veces: 422. Una unidad desconocida: 400. Tiempo, objetivos, faltas, consumo y notas de jueces son campos fijos y no se declaran. Límite de bonificaciones: `capped` (`maximum`) o `unlimited`. Selección de rondas: `best-n-of-m` (`considered`, `outOf`) o `all-rounds`. Selección de intentos (F1), cuántos admite un turno y cuál cuenta para su ronda: `best-attempt` (`perTurn`: cuenta el mejor intento con puntaje; a igual puntaje, el primero) o `last-attempt` (`perTurn`: cuenta el último intento con resultado; si fue descalificado, la ronda no aporta y uno anterior no lo reemplaza). `attemptSelection` es opcional: omitido equivale a `best-attempt` con `perTurn` 1, un intento por turno; `perTurn` menor a 1 es 422. Criterios: `higher-total`, `lower-time`, `lower-deductions` (menos puntos descontados por las deducciones), `higher-judge-score`. El primero es siempre `higher-total` (se ordena por puntaje) y ninguno se repite; los demás desempatan en el orden declarado.
+
+El tope de bonificaciones (F2) se aplica **por intento**: recorta la suma de las bonificaciones de ese intento y queda en su desglose. No se acumula por desafío ni por ronda. Así el puntaje de un intento queda fijo y explicable apenas se evalúa, y la selección de rondas e intentos elige entre puntajes ya cerrados; un tope por desafío dependería de qué rondas cuentan, que a su vez depende de los puntajes (ver DESIGN 2.12).
+
+#### Qué versión usa cada categoría
+
+Cada categoría juega y se clasifica con **una sola** versión del reglamento: la que puntuó sus intentos o, si todavía no tiene resultados, la vigente. Publicar una versión nueva no cambia los puntajes ni la tabla de una categoría que ya jugó, ni el límite de rondas o intentos con que sigue jugando; la versión nueva rige desde la primera captura de las categorías que todavía no tienen resultados. Cada versión de la tabla dice con qué versión de reglamento se armó (`rulebookVersion`).
 
 ### Inscribir y actualizar equipos
 
@@ -398,20 +406,22 @@ o slot inexistentes, **404**; sin `actorId` o `reason`, **400**. El ciclo de vid
 no depende de los resultados: capturar un resultado no empieza ni completa el
 turno, pero un turno cancelado no acepta resultados (**409**).
 
-### Cargar los resultados de un intento
+### Cargar los resultados de un turno
 
-El id de un intento es su turno: el slot y el número de intento (`<slotId>-<n>`, por ejemplo `slot-7-1`). El turno tiene que estar en una ronda programada, el juez que carga tiene que estar asignado al slot y el equipo es el del slot. El `challengeId` enviado debe coincidir con el desafío de la ronda, incluso en la primera captura; un desafío diferente devuelve 409 sin crear ni modificar el intento. El primer resultado abre el intento con la versión vigente del reglamento del desafío; los siguientes se puntúan con esa misma versión aunque se publique otra.
+Los resultados se mandan al **turno** (slot), no a un intento: quien carga no elige el número. El dominio numera los intentos de cada turno en el orden en que llegan; el id de un intento es el slot y ese número (`<slotId>-<n>`, por ejemplo `slot-7-1`). Un resultado va al último intento del turno mientras espere una fuente; si no, abre el siguiente, siempre que el reglamento de la categoría admita otro intento por turno (`attemptSelection.perTurn`). Si ya corrió todos, **422** (`"Turn slot-7 already ran 1 attempt(s); rulebook v1 admits 1 intento por turno"`) y no se crea nada.
+
+El turno tiene que estar en una ronda programada, el juez que carga tiene que estar asignado al slot y el equipo es el del slot. El `challengeId` enviado debe coincidir con el desafío de la ronda, incluso en la primera captura; un desafío diferente devuelve 409 sin crear ni modificar el intento. Un intento nuevo se abre con la versión del reglamento de su categoría; un intento que espera una fuente se completa con la suya.
 
 Cada fuente llega por separado (F3). El reglamento dice qué fuentes exige: si todas sus reglas leen sensores alcanza con las mediciones; el desafío mixto espera también al panel de jueces y queda `AWAITING_SOURCES`, sin puntaje, hasta que llega la última.
 
-`PUT /attempts/{id}/measurements` → 200:
+`POST /slots/{slotId}/measurements` → 200:
 
 ```json
 {"challengeId": "ch-maze", "judgeId": "j-1", "timeSeconds": 50, "objectives": 4, "penalties": 0,
  "consumption": 70, "measurements": {"colisiones": 1, "checkpoint": 1, "vueltas": 1}}
 ```
 
-`PUT /attempts/{id}/judge-scores` → 200:
+`POST /slots/{slotId}/judge-scores` → 200:
 
 ```json
 {"challengeId": "ch-rescue", "judgeId": "j-2", "scores": {"j-1": 8, "j-2": 7},
@@ -421,18 +431,25 @@ Cada fuente llega por separado (F3). El reglamento dice qué fuentes exige: si t
 `measurements` son las métricas con nombre que el reglamento declara para esa fuente; tiempo, objetivos, faltas, consumo y notas de jueces son campos fijos. Las dos responden el intento:
 
 ```json
-{"id": "slot-7-1", "slotId": "slot-7", "roundId": "…", "teamId": "t-a", "challengeId": "ch-rescue",
+{"id": "slot-7-1", "slotId": "slot-7", "number": 1, "roundId": "…", "teamId": "t-a", "challengeId": "ch-rescue",
  "rulebookVersion": 1, "status": "AWAITING_SOURCES", "received": ["AUTOMATIC_MEASUREMENTS"], "score": null}
 ```
+
+Con `perTurn` mayor a 1, cada resultado que llega después de que el último intento tiene desenlace abre otro: reenviar el mismo pedido corre un intento más. La web bloquea el doble envío; otro cliente no debe reintentar una captura respondida.
+
+`GET /slots/{slotId}/results` → 200 con el turno tal como lo ve quien carga: `{slotId, rulebookVersion, attemptRule, acceptsResult, attempts}`. `rulebookVersion` es la versión con que juega la categoría, `attemptRule` cuántos intentos admite y cuál cuenta (`"el mejor de 2 intentos por turno"`), `acceptsResult` si el turno todavía toma un resultado (`false` si fue cancelado) y `attempts` sus intentos en orden, con la forma de arriba. Un slot inexistente es **404**.
 
 `status` es `SCHEDULED`, `AWAITING_SOURCES`, `EVALUATED`, `UNDER_APPEAL`, `ADJUSTED` o `DISQUALIFIED`; `score` es el puntaje que cuenta para la tabla, `null` mientras espera una fuente o si está descalificado.
 
 | Caso | HTTP |
 | --- | --- |
 | Mediciones que no cumplen el reglamento (faltan, sobran, fuera de rango), una fuente que el reglamento no toma, un juez no asignado al slot | 422, con cada problema en `details` |
-| La misma fuente dos veces, un intento ya puntuado (las correcciones van por ajuste o apelación), un intento de otro desafío, un turno cancelado | 409 |
-| Un id sin número, un campo obligatorio que falta, un valor negativo o no finito, un panel de jueces sin ninguna nota (`scores: {}`) | 400 |
+| Un turno que ya corrió todos los intentos que admite su reglamento | 422 |
+| La misma fuente dos veces en un intento que espera la otra, un intento de otro desafío, un turno cancelado | 409 |
+| Un campo obligatorio que falta, un valor negativo o no finito, un panel de jueces sin ninguna nota (`scores: {}`) | 400 |
 | Un slot que no está en ninguna ronda, un intento que no existe (desglose) | 404 |
+
+Un id de intento sin número (`GET /attempts/slot-7/breakdown`) es **400**.
 
 `GET /attempts/{id}/breakdown` → 200 con lo que el intento todavía espera (`awaiting`), su puntaje, cada ítem de la última revisión (tope y piso incluidos), lo que aportó cada fuente (`bySource`) y cada revisión con su versión de reglamento, autor y motivo.
 
@@ -468,7 +485,7 @@ El equipo tiene que ser el del intento (si no, **422**); un intento inexistente 
 
 ### Tabla de posiciones
 
-Hay una tabla por desafío y categoría. Cada recálculo agrega una versión; ninguna se edita. El orden sale del `ranking` del reglamento vigente (mejores N de M y la cadena de desempate).
+Hay una tabla por desafío y categoría. Cada recálculo agrega una versión; ninguna se edita. El orden sale del `ranking` del reglamento con que juega la categoría (ver «Qué versión usa cada categoría»): mejores N de M, qué intento de cada turno cuenta y la cadena de desempate. Cada versión de la tabla lleva `rulebookVersion`; cada fila explica `selectionRule` (rondas), `attemptRule` (intentos), las rondas consideradas y descartadas y, en cada ronda, el intento que contó (`attemptId`) y los demás intentos del turno (`otherAttempts`).
 
 `GET /challenges/{id}/standings?categoryId=` → 200 con `{challengeId, categoryId, versions, latest, official, pending}`. Antes del primer cálculo `latest` y `official` son `null`. `pending` dice `{openAppeals, unfinishedTurns, outdated}`. `GET .../standings/versions/{v}` devuelve esa versión con sus filas; sin tabla calculada o sin esa versión, **404** (también al publicarla). Sin `categoryId`, **400**.
 
@@ -551,27 +568,31 @@ excluyen por pista o juez.
    Permite programar con duración/pausa en segundos y recursos existentes o
    nuevos. Los recursos sugeridos conservan sus ids entre desafíos/categorías;
    no se calcula el horario en JavaScript. Seleccionar un turno abre resultados.
-4. **Cargar resultados** deriva `<slotId>-<numero>` con número positivo y permite
-   elegir el juez asignado y una fuente pendiente. Los campos de métricas se
+4. **Cargar resultados** consulta `GET /slots/{slotId}/results` y muestra los
+   intentos del turno, la versión con que juega la categoría, cuántos intentos
+   admite y si el turno todavía toma un resultado; no se elige ni se calcula el
+   número de intento. Permite elegir el juez asignado y una fuente pendiente. Los campos de métricas se
    generan a partir del reglamento, incluyendo fuente/unidad/rango. Las notas
    del panel se cargan por juez con nombres de recursos conocidos; no es un
-   editor de JSON. Ambas fuentes se envían a los endpoints existentes.
+   editor de JSON. Ambas fuentes se envían al turno (`POST /slots/{slotId}/…`).
 5. **Desglose e historial** consulta puntaje, fuentes pendientes/recibidas, ítems,
    fórmulas, subtotales, notas, aportes y revisiones disponibles. Un puntaje
    pendiente/descalificado no se representa como cero. Los desgloses y totales
    son los del servidor, sin recalcular scoring en el navegador.
 6. **Apelaciones** lista los reclamos de la categoría, permite presentar uno
-   sobre un turno/intento y avanzar revisión, aceptación o rechazo. La
+   sobre uno de los intentos que el servidor registró para el turno y avanzar
+   revisión, aceptación o rechazo. La
    corrección de una aceptación la valida el servidor.
-7. **Tabla de posiciones** muestra versiones, filas, explicación de cada puesto
-   y lo que bloquearía publicar ahora. Recalcular y publicar son pedidos al
+7. **Tabla de posiciones** muestra versiones, la versión de reglamento con que
+   se armó cada una, filas, explicación de cada puesto, qué rondas e intentos
+   cuentan y lo que bloquearía publicar ahora. Recalcular y publicar son pedidos al
    servidor; un 409 lista cada motivo.
 
 Si el intento fue abierto con un reglamento anterior, la web consulta
 `GET /challenges/{id}/rulebook/versions/{version}` (200 con RulebookDto, 404 si
 no existe desafío/versión, 400 si el número es inválido) para presentar las métricas
 históricas. Esa consulta no publica una versión ni modifica las existentes.
-Una primera captura usa el reglamento vigente consultado al servidor.
+Un intento nuevo usa la versión de la categoría que informa el servidor.
 
 Los envíos bloquean sus formularios y selección de contexto para evitar doble
 captura accidental. Un **409** bloquea nuevas mutaciones hasta usar **Recargar
