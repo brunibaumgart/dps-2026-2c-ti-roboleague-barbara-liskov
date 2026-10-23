@@ -1,5 +1,6 @@
 package com.roboleague.api.attempt;
 
+import com.roboleague.evaluation.AttemptId;
 import com.roboleague.api.ApiTest;
 import com.roboleague.evaluation.CappedAt;
 import com.roboleague.evaluation.MeasurementUnit;
@@ -54,7 +55,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -108,7 +109,7 @@ class AttemptControllerTest extends ApiTest {
     void measurementsScoreAnAttemptOfTheSlotsTeam() throws Exception {
         scheduleSlot("api-att-slot-1", MAZE);
 
-        mvc.perform(measurements("api-att-slot-1-1", MAZE, "api-j-1", 50.0, 4, 1))
+        mvc.perform(measurements("api-att-slot-1", MAZE, "api-j-1", 50.0, 4, 1))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value("api-att-slot-1-1"))
                 .andExpect(jsonPath("$.slotId").value("api-att-slot-1"))
@@ -125,12 +126,12 @@ class AttemptControllerTest extends ApiTest {
     void theMixedChallengeAwaitsTheJudgePanelBeforeScoring() throws Exception {
         scheduleSlot("api-att-slot-2", RESCUE);
 
-        mvc.perform(measurements("api-att-slot-2-1", RESCUE, "api-j-1", 90.0, 3, 0))
+        mvc.perform(measurements("api-att-slot-2", RESCUE, "api-j-1", 90.0, 3, 0))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("AWAITING_SOURCES"))
                 .andExpect(jsonPath("$.score").value(nullValue()));
 
-        mvc.perform(judgeScores("api-att-slot-2-1", RESCUE, "api-j-2", """
+        mvc.perform(judgeScores("api-att-slot-2", RESCUE, "api-j-2", """
                         {"api-j-1": 8, "api-j-2": 6}""", """
                         {"victimas_rescatadas": 2}"""))
                 .andExpect(status().isOk())
@@ -142,7 +143,7 @@ class AttemptControllerTest extends ApiTest {
     @Test
     void theBreakdownShowsWhatIsPendingUntilEverySourceArrives() throws Exception {
         scheduleSlot("api-att-slot-8", RESCUE);
-        mvc.perform(measurements("api-att-slot-8-1", RESCUE, "api-j-1", 90.0, 3, 0)).andExpect(status().isOk());
+        mvc.perform(measurements("api-att-slot-8", RESCUE, "api-j-1", 90.0, 3, 0)).andExpect(status().isOk());
 
         mvc.perform(get("/attempts/{attemptId}/breakdown", "api-att-slot-8-1"))
                 .andExpect(status().isOk())
@@ -156,8 +157,8 @@ class AttemptControllerTest extends ApiTest {
     @Test
     void theBreakdownExplainsEachSourceOnceTheAttemptIsScored() throws Exception {
         scheduleSlot("api-att-slot-9", RESCUE);
-        mvc.perform(measurements("api-att-slot-9-1", RESCUE, "api-j-1", 90.0, 3, 0)).andExpect(status().isOk());
-        mvc.perform(judgeScores("api-att-slot-9-1", RESCUE, "api-j-2", """
+        mvc.perform(measurements("api-att-slot-9", RESCUE, "api-j-1", 90.0, 3, 0)).andExpect(status().isOk());
+        mvc.perform(judgeScores("api-att-slot-9", RESCUE, "api-j-2", """
                 {"api-j-1": 8, "api-j-2": 6}""", """
                 {"victimas_rescatadas": 2}""")).andExpect(status().isOk());
 
@@ -179,7 +180,7 @@ class AttemptControllerTest extends ApiTest {
     @Test
     void theBreakdownOfACappedRulebookShowsTheCutAsAnItemWithItsFormula() throws Exception {
         scheduleSlot("api-att-slot-capped", CAPPED);
-        mvc.perform(put("/attempts/{attemptId}/measurements", "api-att-slot-capped-1")
+        mvc.perform(post("/slots/{slotId}/measurements", "api-att-slot-capped")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"challengeId": "%s", "judgeId": "api-j-1", "timeSeconds": 60, "objectives": 0,
@@ -208,21 +209,54 @@ class AttemptControllerTest extends ApiTest {
     }
 
     @Test
-    void theSameSourceTwiceIsAConflict() throws Exception {
+    void aSecondResultForATurnOfOneAttemptIsUnprocessableAndKeepsTheFirst() throws Exception {
         scheduleSlot("api-att-slot-3", MAZE);
-        mvc.perform(measurements("api-att-slot-3-1", MAZE, "api-j-1", 50.0, 4, 1)).andExpect(status().isOk());
+        mvc.perform(measurements("api-att-slot-3", MAZE, "api-j-1", 50.0, 4, 1)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("api-att-slot-3-1"))
+                .andExpect(jsonPath("$.number").value(1));
 
-        mvc.perform(measurements("api-att-slot-3-1", MAZE, "api-j-2", 40.0, 5, 0))
+        mvc.perform(measurements("api-att-slot-3", MAZE, "api-j-2", 40.0, 5, 0))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.error").value(
+                        "Turn api-att-slot-3 already ran 1 attempt(s); rulebook v1 admits 1 intento por turno"));
+        mvc.perform(get("/slots/{slotId}/results", "api-att-slot-3"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.slotId").value("api-att-slot-3"))
+                .andExpect(jsonPath("$.rulebookVersion").value(1))
+                .andExpect(jsonPath("$.attemptRule").value("1 intento por turno"))
+                .andExpect(jsonPath("$.acceptsResult").value(false))
+                .andExpect(jsonPath("$.attempts.length()").value(1))
+                .andExpect(jsonPath("$.attempts[0].id").value("api-att-slot-3-1"))
+                .andExpect(jsonPath("$.attempts[0].number").value(1));
+    }
+
+    @Test
+    void theSameSourceTwiceWhileTheOtherIsAwaitedIsAConflict() throws Exception {
+        scheduleSlot("api-att-slot-twice", RESCUE);
+        mvc.perform(measurements("api-att-slot-twice", RESCUE, "api-j-1", 90.0, 3, 0)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("AWAITING_SOURCES"));
+
+        mvc.perform(measurements("api-att-slot-twice", RESCUE, "api-j-1", 80.0, 3, 0))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error").value("attempt is evaluated: it cannot receive results; "
-                        + "corrections go through a fault adjustment or an appeal"));
+                .andExpect(jsonPath("$.error").value("AUTOMATIC_MEASUREMENTS already arrived for attempt "
+                        + "api-att-slot-twice-1; corrections go through a fault adjustment or an appeal"));
+    }
+
+    @Test
+    void theAttemptsOfATurnWithoutResultsAreEmptyAndOfAnUnknownTurnNotFound() throws Exception {
+        scheduleSlot("api-att-slot-empty", MAZE);
+        mvc.perform(get("/slots/{slotId}/results", "api-att-slot-empty"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.attempts.length()").value(0))
+                .andExpect(jsonPath("$.acceptsResult").value(true));
+        mvc.perform(get("/slots/{slotId}/results", "api-att-slot-none"))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.error").value("Slot not found: api-att-slot-none"));
     }
 
     @Test
     void measurementsThatDoNotFitTheRulebookAreUnprocessable() throws Exception {
         scheduleSlot("api-att-slot-4", RESCUE);
 
-        mvc.perform(judgeScores("api-att-slot-4-1", RESCUE, "api-j-2", """
+        mvc.perform(judgeScores("api-att-slot-4", RESCUE, "api-j-2", """
                         {"api-j-1": 8}""", """
                         {"victimas_rescatadas": 7, "rescate_completo": 1}"""))
                 .andExpect(status().isUnprocessableContent())
@@ -236,28 +270,28 @@ class AttemptControllerTest extends ApiTest {
     void aJudgeNotAssignedToTheSlotIsUnprocessable() throws Exception {
         scheduleSlot("api-att-slot-5", MAZE);
 
-        mvc.perform(measurements("api-att-slot-5-1", MAZE, "api-j-9", 50.0, 4, 1))
+        mvc.perform(measurements("api-att-slot-5", MAZE, "api-j-9", 50.0, 4, 1))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.details", contains("judge api-j-9 is not assigned to slot api-att-slot-5")));
     }
 
     @Test
     void aSlotThatWasNotScheduledIsNotFound() throws Exception {
-        mvc.perform(measurements("api-att-slot-unknown-1", MAZE, "api-j-1", 50.0, 4, 1))
+        mvc.perform(measurements("api-att-slot-unknown", MAZE, "api-j-1", 50.0, 4, 1))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("Slot not found: api-att-slot-unknown"));
     }
 
     @Test
     void anAttemptIdWithoutANumberIsABadRequest() throws Exception {
-        mvc.perform(measurements("api-att-slot", MAZE, "api-j-1", 50.0, 4, 1))
+        mvc.perform(get("/attempts/{attemptId}/breakdown", "api-att-slot"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("attempt id must be <slot>-<number>: api-att-slot"));
     }
 
     @Test
     void measurementsWithoutTheirFixedFieldsAreABadRequest() throws Exception {
-        mvc.perform(put("/attempts/{attemptId}/measurements", "api-att-slot-6-1")
+        mvc.perform(post("/slots/{slotId}/measurements", "api-att-slot-6")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"challengeId": "%s", "judgeId": "api-j-1", "timeSeconds": 50}
@@ -271,7 +305,7 @@ class AttemptControllerTest extends ApiTest {
     void aNegativeTimeIsABadRequest() throws Exception {
         scheduleSlot("api-att-slot-7", MAZE);
 
-        mvc.perform(measurements("api-att-slot-7-1", MAZE, "api-j-1", -1.0, 4, 1))
+        mvc.perform(measurements("api-att-slot-7", MAZE, "api-j-1", -1.0, 4, 1))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("timeTakenSeconds cannot be negative"));
     }
@@ -280,7 +314,7 @@ class AttemptControllerTest extends ApiTest {
     void aNullJudgeScoreRemainsABadRequestAfterTypingTheMapKeys() throws Exception {
         scheduleSlot("api-att-slot-null-score", RESCUE);
 
-        mvc.perform(judgeScores("api-att-slot-null-score-1", RESCUE, "api-j-1",
+        mvc.perform(judgeScores("api-att-slot-null-score", RESCUE, "api-j-1",
                         "{\"api-j-1\": null}", "{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value(
@@ -291,7 +325,7 @@ class AttemptControllerTest extends ApiTest {
     void aJudgePanelWithoutScoresIsABadRequestAndCreatesNoAttempt() throws Exception {
         scheduleSlot("api-att-slot-empty-panel", RESCUE);
 
-        mvc.perform(judgeScores("api-att-slot-empty-panel-1", RESCUE, "api-j-1", "{}",
+        mvc.perform(judgeScores("api-att-slot-empty-panel", RESCUE, "api-j-1", "{}",
                         "{\"victimas_rescatadas\": 2}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("a judge panel report needs at least one judge score"));
@@ -302,7 +336,7 @@ class AttemptControllerTest extends ApiTest {
     @Test
     void aFirstCaptureForAnotherChallengeIsAConflictAndCreatesNoAttempt() throws Exception {
         scheduleSlot("api-att-slot-wrong-challenge", MAZE);
-        mvc.perform(measurements("api-att-slot-wrong-challenge-1", RESCUE, "api-j-1", 90, 3, 0))
+        mvc.perform(measurements("api-att-slot-wrong-challenge", RESCUE, "api-j-1", 90, 3, 0))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("Round round-api-att-slot-wrong-challenge belongs to challenge " + MAZE + ", not " + RESCUE));
         mvc.perform(get("/attempts/{attemptId}/breakdown", "api-att-slot-wrong-challenge-1"))
@@ -322,9 +356,9 @@ class AttemptControllerTest extends ApiTest {
         rounds.save(round);
     }
 
-    private static RequestBuilder measurements(String attemptId, String challengeId, String judgeId, double seconds,
+    private static RequestBuilder measurements(String slotId, String challengeId, String judgeId, double seconds,
                                                int objectives, int penalties) {
-        return put("/attempts/{attemptId}/measurements", attemptId)
+        return post("/slots/{slotId}/measurements", slotId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {"challengeId": "%s", "judgeId": "%s", "timeSeconds": %s, "objectives": %d,
@@ -332,9 +366,9 @@ class AttemptControllerTest extends ApiTest {
                         """.formatted(challengeId, judgeId, seconds, objectives, penalties));
     }
 
-    private static RequestBuilder judgeScores(String attemptId, String challengeId, String judgeId, String scores,
+    private static RequestBuilder judgeScores(String slotId, String challengeId, String judgeId, String scores,
                                               String measurements) {
-        return put("/attempts/{attemptId}/judge-scores", attemptId)
+        return post("/slots/{slotId}/judge-scores", slotId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {"challengeId": "%s", "judgeId": "%s", "scores": %s, "measurements": %s}

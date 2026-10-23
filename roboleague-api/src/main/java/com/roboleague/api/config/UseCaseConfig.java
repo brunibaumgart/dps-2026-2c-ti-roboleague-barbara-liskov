@@ -30,6 +30,7 @@ import com.roboleague.usecase.QueryEditionsUseCase;
 import com.roboleague.usecase.QueryRegistrationsUseCase;
 import com.roboleague.usecase.QueryRoundsUseCase;
 import com.roboleague.usecase.QueryStandingsUseCase;
+import com.roboleague.usecase.QueryTurnAttemptsUseCase;
 import com.roboleague.usecase.RecalculateStandingsUseCase;
 import com.roboleague.usecase.ReceiveResultUseCase;
 import com.roboleague.usecase.RegisterTeamUseCase;
@@ -83,8 +84,9 @@ class UseCaseConfig {
     }
 
     @Bean
-    PublishRulebookUseCase publishRulebookUseCase(ChallengeRepository challenges, RuleCatalog catalog) {
-        return new PublishRulebookUseCase(challenges, catalog);
+    PublishRulebookUseCase publishRulebookUseCase(ChallengeRepository challenges, RoundRepository rounds,
+                                                  AttemptRepository attempts, RuleCatalog catalog) {
+        return new PublishRulebookUseCase(challenges, rounds, attempts, catalog);
     }
 
     @Bean
@@ -115,8 +117,14 @@ class UseCaseConfig {
 
     @Bean
     ScheduleRoundUseCase scheduleRoundUseCase(ChallengeRepository challenges, EditionRepository editions, TeamRepository teams, RoundRepository rounds,
-                                              RoundSchedulerService scheduler, IdGenerator ids) {
-        return new ScheduleRoundUseCase(challenges, editions, teams, rounds, scheduler, ids);
+                                              AttemptRepository attempts, RoundSchedulerService scheduler, IdGenerator ids) {
+        return new ScheduleRoundUseCase(challenges, editions, teams, rounds, attempts, scheduler, ids);
+    }
+
+    @Bean
+    QueryTurnAttemptsUseCase queryTurnAttemptsUseCase(RoundRepository rounds, AttemptRepository attempts,
+                                                      ChallengeRepository challenges) {
+        return new QueryTurnAttemptsUseCase(rounds, attempts, challenges);
     }
 
     @Bean
