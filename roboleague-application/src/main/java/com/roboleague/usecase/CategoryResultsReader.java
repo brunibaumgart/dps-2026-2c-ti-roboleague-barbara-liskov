@@ -17,30 +17,26 @@ import com.roboleague.tournament.Registration;
 import com.roboleague.tournament.Team;
 import com.roboleague.tournament.TeamId;
 
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
 /**
- * Gathers what a challenge has run in one category: the ranking scheme of its current rulebook, the teams
- * registered in the category with their attempts, and the rounds of the category in order. The challenge has to
- * exist and offer the category in its edition.
+ * Gathers what a challenge has run in one category: the rulebook the category plays with (the version that scored
+ * its attempts, see {@link CategoryRulebook}), the teams registered in the category with their attempts, and the
+ * rounds of the category in order. The challenge has to exist and offer the category in its edition.
  */
 public class CategoryResultsReader {
     private final ChallengeRepository challenges;
     private final EditionRepository editions;
     private final TeamRepository teams;
-    private final RoundRepository rounds;
-    private final AttemptRepository attempts;
+    private final CategoryRulebook played;
 
     public CategoryResultsReader(ChallengeRepository challenges, EditionRepository editions, TeamRepository teams,
                                  RoundRepository rounds, AttemptRepository attempts) {
         this.challenges = Objects.requireNonNull(challenges, "challenges cannot be null");
         this.editions = Objects.requireNonNull(editions, "editions cannot be null");
         this.teams = Objects.requireNonNull(teams, "teams cannot be null");
-        this.rounds = Objects.requireNonNull(rounds, "rounds cannot be null");
-        this.attempts = Objects.requireNonNull(attempts, "attempts cannot be null");
+        this.played = new CategoryRulebook(rounds, attempts);
     }
 
     public CategoryResults read(StandingsId id) {
@@ -51,22 +47,13 @@ public class CategoryResultsReader {
                 .orElseThrow(() -> new InconsistentStateException("Edition of challenge " + challenge.getId()
                         + " not found: " + challenge.getEditionId()));
         edition.category(id.categoryId());
-        List<Round> categoryRounds = rounds.findByChallengeId(id.challengeId()).stream()
-                .filter(round -> round.getCategoryId().equals(id.categoryId()))
-                .sorted(Comparator.comparingInt(Round::getRoundNumber))
-                .toList();
-        List<Attempt> runs = new ArrayList<>();
-        for (Round round : categoryRounds) {
-            runs.addAll(attempts.findByRoundId(round.getId()).stream()
-                    .sorted(Comparator.comparingInt((Attempt attempt) -> attempt.getId().number())
-                            .thenComparing(attempt -> attempt.getId().value()))
-                    .toList());
-        }
+        List<Round> categoryRounds = played.roundsOf(challenge, id.categoryId());
+        List<Attempt> runs = played.attemptsOf(categoryRounds);
         List<TeamAttempts> registered = edition.getRegistrationsByCategory(id.categoryId()).stream()
                 .map(Registration::teamId)
                 .map(teamId -> new TeamAttempts(identity(teamId), attemptsOf(teamId, runs)))
                 .toList();
-        return new CategoryResults(challenge.currentRulebook().rankingScheme(), registered, categoryRounds);
+        return new CategoryResults(CategoryRulebook.inForce(challenge, runs), registered, categoryRounds);
     }
 
     private TeamIdentity identity(TeamId teamId) {
