@@ -302,7 +302,7 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
   - **`Challenge`** es un agregado propio que referencia su edición por id (`Edition` no crece y no conoce a sus desafíos). Rondas y tablas de posiciones son por desafío y lo referencian directo: `RoundScope` incluye el `ChallengeId` (2.23) y `StandingsId` se deriva de desafío y categoría (2.26). Cuando se tomó esta decisión todavía se agrupaban por edición y categoría.
   - **`Rulebook`** reemplaza a `ScoringPolicy`: una versión (`RulebookVersion`), cómo se puntúa (`ScoringScheme`, con al menos una regla; ver 2.12) y cómo se clasifica (`RankingScheme`, ver 2.10), sin exponer el composite. Es una clase y no un record para no publicar la regla compuesta como componente.
   - **Un desafío nunca está sin reglamento**: se crea con `Challenge.draft(id, edición, nombre).publish(reglas, esquema)`, que publica la v1. El borrador (`Draft`) no puede puntuar; solo sabe publicar. Así se evita un `Optional` en `currentRulebook()` y la falla de "desafío sin reglamento". El borrador es solo el paso de creación: el desafío copia sus datos y no lo guarda.
-  - **El desafío numera las versiones**: `publish(reglas, esquema)` crea la siguiente (`v1`, `v2`…) y nunca edita la anterior. `currentRulebook()` da la vigente para capturar; `rulebook(versión)` da una exacta para recalcular con la versión con que se puntuó (lo que necesita el hallazgo 2).
+  - **El desafío numera las versiones**: `publish(reglas, esquema)` crea la siguiente (`v1`, `v2`…) y nunca edita la anterior. `currentRulebook()` da la vigente (con la que empieza a jugar una categoría sin resultados, 2.32); `rulebook(versión)` da una exacta para recalcular con la versión con que se puntuó (lo que necesita el hallazgo 2).
   - **Category** sigue siendo elegibilidad (edad, composición, robot), no un desafío.
   - **Ids**: `ChallengeId` nació tipado porque era nuevo; el id de edición era `String` y pasó a `EditionId` con el resto de las identidades tipadas (2.21).
   - **`Rulebook` es una entidad hija de `Challenge`**, identificada por su versión dentro del desafío; no es un value object comparable por valor.
@@ -324,17 +324,17 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
   La consigna pide dos cosas que se parecen y no son iguales: *“los resultados deben poder recalcularse utilizando exactamente la versión de reglas correspondiente”* y, en la tabla, *“Recálculo: reprocesar posiciones después de una corrección”*. Si se las fusiona, el caso de uso de ranking parecería tener que volver a correr todas las `ScoreRule` sobre cada `RawMetrics` cada vez que cambia una apelación.
 
 - **Qué se eligió**:  
-  - **Evaluar con la versión del reglamento del intento** (actualizado en 2.18): el intento se abre con la versión vigente de su desafío y la guarda; cada revisión, también la de una apelación aceptada, se puntúa con esa versión aunque el desafío publique otra. El snapshot guarda la versión, las métricas y el desglose.  
+  - **Evaluar con la versión del reglamento del intento** (actualizado en 2.18): el intento se abre con la versión con que juega su categoría (2.32) y la guarda; cada revisión, también la de una apelación aceptada, se puntúa con esa versión aunque el desafío publique otra. El snapshot guarda la versión, las métricas y el desglose.  
   - **Recalcular la tabla** (`RecalculateStandingsUseCase`) lee el último snapshot de cada intento, arma el total con la selección de rondas del reglamento y vuelve a ordenar con `RankingScheme`. Cumple la fila de la consigna: reprocesa **posiciones** después de una corrección. Cada cálculo es una versión nueva.  
   - No se re-aplica un reglamento sobre las mismas métricas: `Attempt.recalculateWith`, que lo permitía con cualquier versión, se borró en 2.18.
 
 - **Pros**:  
   - El recálculo es barato y determinista: la tabla sigue a la fotografía vigente, no reinterpreta la pista.  
   - La versión del reglamento queda fijada cuando nace el snapshot. La edición 2027 no reescribe la 2026.  
-  - Encaja la corrección por apelación: primero se evalúa de nuevo (métricas revisadas + reglamento vigente del desafío), después se reconstruye el ranking.
+  - Encaja la corrección por apelación: primero se evalúa de nuevo (métricas revisadas + reglamento del intento), después se reconstruye el ranking.
 
 - **Contras**:  
-  - Si un desafío publica una versión nueva, los intentos ya abiertos siguen con la suya: es lo que pide la consigna, pero una corrección del reglamento no alcanza a intentos anteriores.
+  - Si un desafío publica una versión nueva, los intentos ya abiertos siguen con la suya: es lo que pide la consigna, pero una corrección del reglamento no alcanza a intentos anteriores. Desde 2.32 tampoco cambia el orden de la tabla de una categoría que ya jugó: se clasifica con la versión que puntuó sus intentos.
 
 ---
 
@@ -358,7 +358,7 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
 - **F1: deuda que decidimos no resolver en este paso**:
   - ~~La tabla de posiciones todavía no usa el esquema.~~ Cerrada en 2.26: `StandingsTable` arma por equipo las rondas que el reglamento cuenta, ordena con `rulebook.rankingScheme()` y explica cada posición con `decide`. `TieBreakerChain` y `TeamScore` se eliminaron (regla #27).
   - ~~M no se valida contra las rondas programadas.~~ Resuelta: `RoundSelection.allowsRound(n)` (`BestNOfM` acepta hasta M) y `ScheduleRoundUseCase` rechaza con `BusinessRuleViolation` (422) la ronda M+1 antes de generar turnos; `BestNOfM.select` conserva su chequeo como red de seguridad.
-  - ~~Elegir el intento que representa a un equipo en una ronda queda en quien arma los `RoundScore`.~~ Cerrada en 2.26: `TeamAttempts` toma, por ronda, el mejor intento cuyo puntaje cuenta (`countableScore()`); uno descalificado o que espera una fuente no da ronda.
+  - ~~Elegir el intento que representa a un equipo en una ronda queda en quien arma los `RoundScore`.~~ Cerrada en 2.26 y definida por el reglamento en 2.32: `AttemptSelection` (`best-attempt` o `last-attempt`, con `perTurn`) dice cuántos intentos admite un turno y cuál cuenta; uno descalificado o que espera una fuente no da ronda.
 - **Patrones no aplicados**: Decorator sobre `RoundSelection` (no hay variación que lo pida). Los criterios por nombre llegaron después, con la configuración por API (`RuleCatalog`, 2.13).
 
 - **Pros**: agregar una forma de seleccionar rondas o un criterio de desempate es una clase nueva, sin tocar las existentes (OCP); el orden del desempate es dato del reglamento y viaja con su versión; cada posición explica qué criterio la decidió (desde 2.26).
@@ -409,6 +409,7 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
 - **F2: deuda que decidimos no resolver**:
   - ~~Nada impide poner una regla que resta en la lista de bonificaciones.~~ Cerrada en 2.17: cada regla es base, bonificación o deducción por tipo, y el bono por completar objetivos, que escapaba al tope, es una bonificación más.
   - ~~La demo no muestra el tope.~~ Cerrada en 2.15: los tres reglamentos de la demo tienen tope (40 / 30 / 30) y el desglose de los intentos de Laberinto muestra el recorte (demo actual en 2.30).
+- **Alcance del tope (corrección de la Entrega 1)**: el conjunto que se topea es el de las bonificaciones **de un intento**, no el acumulado del desafío ni de una ronda. Justificación en 2.32.
 - **Patrones no aplicados**: Decorator sobre `ScoreRule` (ver arriba); tope por regla (la consigna pide sobre el conjunto).
 
 ---
@@ -522,14 +523,14 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
   El intento recibía resultados en vez de producirlos. Su id lo elegía quien capturaba y el repositorio hacía `put`, así que capturar dos veces borraba el original (hallazgo 4); no se validaba turno, equipo ni juez. El desglose entraba armado desde el caso de uso, en cualquier estado: un intento descalificado y sin apelación quedó en 9999 (hallazgo 3). El estado era un enum que cualquier método pisaba, así que rechazar una de dos apelaciones lo liberaba, y un equipo con su único intento descalificado entraba a la tabla con 185. El intento no sabía con qué reglamento se puntuó: una apelación aceptada lo reevaluaba con el desafío que pasara quien llamaba (hallazgo 2). Para F3, las mediciones y el panel de jueces tienen que llegar por separado al mismo turno y el puntaje tiene que quedar pendiente, y visible como tal, hasta que estén las dos. Además, un ajuste de faltas perdía las mediciones con nombre y el consumo (issue #5).
 
 - **Solución Implementada**:
-  - **Identidad desde el turno**: `AttemptId(slot, número)` la deriva el dominio (`slot-7-1`); `AttemptIdentity(id, ronda, equipo)`. El mismo turno llega al mismo intento y un segundo resultado de la misma fuente se rechaza; las correcciones van por un ajuste de faltas o una apelación, con autor y motivo.
+  - **Identidad desde el turno**: `AttemptId(slot, número)` (`slot-7-1`); `AttemptIdentity(id, ronda, equipo)`. Hasta la corrección de la Entrega 1 el número lo mandaba quien capturaba en la ruta; desde 2.32 lo asigna `TurnAttempts` en el orden de llegada y la captura nombra solo el turno. El mismo turno llega al mismo intento y un segundo resultado de la misma fuente se rechaza; las correcciones van por un ajuste de faltas o una apelación, con autor y motivo.
   - **Cada fuente por separado (F3)**: lo que manda una fuente es un `SourceReport` sellado, `Measurements` (tiempo, objetivos, faltas, consumo y mediciones de sensores) o `JudgeScores` (nota de cada juez y mediciones del panel), y `SourceDelivery` le suma el juez que lo cargó. `Attempt.receive(entrega, reglamento)` revisa las mediciones con `Rulebook.check` y devuelve el `MeasurementCheck` (regla #28): si no cumplen, no cambia nada. Mientras falte una fuente que el reglamento exige el intento queda `AWAITING_SOURCES`, sin puntaje; con la última se puntúa con todas, en cualquier orden. Cada fuente suma lo suyo a las métricas (`addTo`) sin preguntar de qué tipo es (regla #8).
   - **El intento se puntúa solo**: ningún método público recibe un `ScoreBreakdown`. Una apelación aceptada trae métricas corregidas (`AppealRevision`) y el intento las puntúa; quién cambió y por qué viajan en `AuditNote`.
   - **Versión fijada (hallazgo 2)**: `RulebookReference(desafío, versión)` se guarda al abrir el intento y `EvaluationSnapshot` guarda la versión de cada revisión. Puntuar con otra versión falla. `ResolveAppealUseCase.acceptAppeal` ya no recibe el desafío: carga la versión del intento. `recalculateWith`, que puntuaba con cualquier reglamento, se borró.
   - **Estados (State, como `Appeal`)**: `AttemptState` con una clase por forma de comportarse: `WaitingAttemptState` (programado o esperando fuentes: solo toma resultados), `SettledAttemptState` (evaluado o ajustado: toma apelaciones, ajustes de faltas y la descalificación), `UnderAppealAttemptState` (cuenta las apelaciones abiertas y recuerda si vuelve a evaluado o ajustado) y `DisqualifiedAttemptState` (no toma nada). Lo que un estado no acepta lo rechaza un método por defecto que nombra el estado (409 en la API).
   - **Puntaje computable**: `countableScore()` es el desglose que cuenta, vacío antes de puntuar o si está descalificado (regla #24). La tabla solo usa intentos que cuentan (`TeamAttempts`, 2.26; antes `TeamScore`); un equipo sin ninguno no suma.
-  - **Validación contra la ronda**: `ScheduleRoundUseCase` guarda la ronda completa en `RoundRepository` (extendido en 2.23); `Round.slot(id)` y `Slot.isJudgedBy(juez)`. `ReceiveResultUseCase` exige que el turno exista (404), que el desafío coincida con la ronda (409) y que el juez esté asignado (422), toma el equipo del slot y abre el intento con la versión vigente del desafío.
-  - **API**: `PUT /attempts/{id}/measurements`, `PUT /attempts/{id}/judge-scores` y `GET /attempts/{id}/breakdown`, que muestra lo pendiente y lo que aportó cada fuente (README, "Cargar los resultados de un intento").
+  - **Validación contra la ronda**: `ScheduleRoundUseCase` guarda la ronda completa en `RoundRepository` (extendido en 2.23); `Round.slot(id)` y `Slot.isJudgedBy(juez)`. `ReceiveResultUseCase` exige que el turno exista (404), que el desafío coincida con la ronda (409) y que el juez esté asignado (422), toma el equipo del slot y abre el intento con la versión de su categoría (2.32).
+  - **API**: `GET /attempts/{id}/breakdown`, que muestra lo pendiente y lo que aportó cada fuente. La captura era `PUT /attempts/{id}/measurements|judge-scores`; desde 2.32 es `POST /slots/{slotId}/measurements|judge-scores`, con `GET /slots/{slotId}/results` (README, "Cargar los resultados de un turno").
   - **Persistencia**: migración V3 con el turno, la versión y la etapa en columnas, y las entregas, revisiones y eventos en JSONB. `Attempt.restore(identidad, referencia, AttemptProgress)` reconstruye sin repetir transiciones, como `Appeal.restore`; `AttemptStage` es el estado como dato y el único lugar que elige un estado por su nombre (regla #9). `AttemptEvent` pasa a ser sellado para que el mapper guarde cada tipo.
   - **Issue #5**: `RawMetrics.withPenalties` cambia solo las faltas.
 
@@ -847,7 +848,7 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
 - **Solución Implementada**:
   - **`Standings` por desafío y categoría** (`StandingsId`). Cada recálculo agrega
     una `StandingsVersion` y no edita las anteriores. El orden lo decide
-    `StandingsTable` con el `RankingScheme` vigente del desafío: ronda por ronda
+    `StandingsTable` con el `RankingScheme` de la versión con que juega la categoría (2.32): ronda por ronda
     (`TeamRounds` / `RoundResult`) y `decide` para explicar el puesto (`Placement`).
   - **Publicar es un resultado** (`StandingsPublication.Published` | `Blocked`):
     solo la última versión, y solo si `PublicationCheck` ve la misma tabla, cero
@@ -1211,6 +1212,42 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
   agregaría configuración de build por poco código). Los repositorios en memoria
   de `Edition`, `Team` y `Round` no copian porque esos agregados son inmutables.
 
+### 2.32 Correcciones de la Entrega 1: número de intento, intentos por turno, versión por categoría y alcance del tope
+
+- **Problema** (devolución de la Entrega 1):
+  - El número de intento lo elegía quien capturaba (`PUT /attempts/{slot}-{n}/…`): el dominio no garantizaba la numeración que 2.18 decía derivar.
+  - F1, *hay que definir*: cuántos intentos admite un turno y cuál cuenta para su ronda.
+  - F1, *hay que corregir*: al publicar una versión nueva, el recálculo armaba la tabla con el `RankingScheme` vigente aunque los intentos se hubieran puntuado con otro. Con v1 «mejores 1 de 2» (100 puntos) y v2 «todas las rondas», el mismo equipo pasaba a 140 sin que cambiara ningún resultado; y una v2 «mejores 1 de 1» dejaba la tabla sin poder recalcular.
+  - F2, *hay que definir*: si el tope de bonificaciones es por intento o por desafío.
+
+- **Qué se eligió**:
+  - **Número por llegada (`TurnAttempts`, dominio)**. La captura nombra el turno (`POST /slots/{slotId}/measurements|judge-scores`). `TurnAttempts.of` exige los intentos del turno numerados desde 1 sin huecos; `receiving` devuelve el último intento si todavía espera una fuente (se completa con su versión) o abre el siguiente número. Así un turno corre sus intentos uno detrás del otro y ningún cliente elige número.
+  - **Intentos por turno en el reglamento (`AttemptSelection`)**, como cuarta pieza del `RankingScheme`, junto a la selección de rondas y el desempate: `best-attempt` (cuenta el mejor intento con puntaje; a igual puntaje, el primero) y `last-attempt` (cuenta el último con resultado; si fue descalificado la ronda no aporta: un intento anterior no lo reemplaza, porque el equipo eligió volver a correr). Las dos llevan `perTurn`, el máximo de intentos por turno; `TurnAttempts` rechaza el siguiente con 422. Omitida, es `best-attempt` con `perTurn` 1: un intento por turno, que es lo que suponía la Entrega 1 y lo que juega la demo. La tabla explica `attemptRule` y, por ronda, el intento que contó y los demás del turno (`otherAttempts`). Se registra en `RuleCatalog` como las demás estrategias (OCP).
+  - **Una versión por categoría (`Challenge.rulebookInForce`, `CategoryRulebook`)**. Una categoría juega y se clasifica con la versión que puntuó sus intentos; sin resultados, con la vigente. Captura, programación (M de mejores N de M) y recálculo usan esa misma versión. `StandingsTable` guarda `rulebookVersion` y `CategoryResults` rechaza armar una tabla con intentos de otra versión. Resultados de una categoría con dos versiones, o con una que el desafío no publicó, son un dato inconsistente (500), no un pedido a corregir. Publicar una versión que no admite rondas ya programadas en una categoría sin resultados es un rechazo (422); en una categoría que ya jugó no importa, porque sigue con la suya.
+  - **Tope por intento (F2)**. `CappedAt` recorta las bonificaciones de cada intento al evaluarlo. Razones: (1) el puntaje de un intento queda cerrado y explicable apenas se evalúa, con el recorte en su desglose y en su snapshot de auditoría; (2) un tope por desafío dependería de qué rondas cuentan (mejores N de M) y qué intento cuenta en cada turno, que a su vez dependen de los puntajes: sería circular o exigiría elegir primero con puntajes sin tope; (3) una apelación aceptada cambia un intento y su tope, sin redistribuir el tope entre rondas que no se tocaron; (4) la consigna habla de «las bonificaciones obtenidas», que se obtienen en un recorrido.
+  - **`PublicationCheck`**: un turno cuenta como «con resultado» solo si tiene intentos y todos tienen desenlace; con varios intentos por turno, uno pendiente sigue bloqueando la publicación.
+  - **Front**: `GET /slots/{slotId}/results` devuelve los intentos del turno, la versión de la categoría, `attemptRule` y `acceptsResult`; la web no deriva número, versión ni límite.
+  - **Persistencia**: `V10` completa los reglamentos guardados con `best-attempt`/`perTurn` 1 y las tablas con `rulebookVersion` (la última versión del desafío, que era la que usaba el recálculo), `attemptRule` y `otherAttempts` vacío. `LegacyRankingDataMigrationTest` lo prueba sobre filas con la forma anterior.
+
+- **Alternativas descartadas**:
+  - Recalcular cada categoría con la versión vigente y re-evaluar sus intentos: contradice 2.9 y la consigna («exactamente la versión de reglas correspondiente»).
+  - Guardar en cada intento su propio `RankingScheme` y combinar versiones: dos equipos de la misma categoría podrían clasificarse con reglas distintas.
+  - Atar la versión a la ronda en vez de a la categoría: una tabla mezclaría rondas con distintas selecciones de N de M.
+  - Contador de intentos en `Slot`: el lifecycle de rondas es independiente de los resultados (`roboleague-domain/AGENTS.md`).
+
+- **Clases agregadas**: `AttemptSelection`, `BestAttempt`, `LastAttempt`, `TurnAttempts`, `CategoryRulebook`, `TurnResults`, `QueryTurnAttemptsUseCase`, `TurnResultsController`, `TurnResultsDto`, migración `V10`.
+- **Clases modificadas**: `RankingScheme`, `RulebookDefinition.Ranking`, `RuleCatalog`, `Challenge` (`rulebookInForce`), `RoundResult`, `TeamRounds`, `TeamAttempts`, `StandingsTable`, `CategoryResults`, `PublicationCheck`, `ReceiveResultCommand`/`ReceiveResultUseCase` (turno en vez de intento), `ScheduleRoundUseCase`, `PublishRulebookUseCase`, `CategoryResultsReader`, `ChallengeMapper`, `StandingsMapper`, `AttemptController` (sin captura), `AttemptDto` (`number`), `RulebookBody`/`RulebookDto`, `StandingsVersionDto`, `DemoFixture` y el front.
+- **Deuda**:
+  - Una categoría no puede cambiar de versión una vez que tiene resultados; corregir un reglamento a mitad del torneo exige un desafío nuevo o hacerlo antes de la primera captura.
+  - Intentos guardados con números salteados (solo posibles con el contrato anterior) son un dato inconsistente (500) al consultar o capturar ese turno.
+  - Una base con datos anteriores donde una categoría quedó con intentos de dos versiones (lo que producía el error corregido) no se repara sola: esa categoría responde 500 hasta limpiar los datos. Solo había datos de la demo, que se recrea al iniciar.
+  - La versión de una categoría se decide leyendo sus intentos: una publicación concurrente con la primera captura de una categoría, o con una programación, no se excluye (como dos programaciones concurrentes, 2.23).
+  - Con `perTurn` mayor a 1, un pedido de captura reenviado abre otro intento: no hay token de idempotencia. Con un intento por turno, el reenvío es 422 y no cambia nada.
+  - `V10` completa `rulebookVersion` de tablas viejas con la última versión del desafío al migrar, que puede no ser la vigente al calcularlas; el texto `attemptRule` de esas tablas es el histórico («el mejor intento de cada turno»).
+  - Dos capturas simultáneas que abren el mismo número chocan en la clave del intento y la segunda recibe 409 (como dos fuentes simultáneas, 2.18).
+
+---
+
 ## 3. Matriz Comparativa Exhaustiva de Trade-offs
 
 | Decisión Arquitectónica | Pros Clave | Contras y Costos Asociados | Alternativa Considerada y Rechazada |
@@ -1323,12 +1360,13 @@ Cada test vive en `src/test/java` del módulo y en el paquete de la clase que pr
 
 Lista consolidada con los nombres actuales del código. El detalle y la historia de cada decisión están en las secciones citadas. "Agregada" incluye las clases que nacieron para consumir la funcionalidad aunque llegaran en otra sección.
 
-### F1: mejores N de M rondas (2.10, 2.17, 2.26, 2.28, 2.30)
+### F1: mejores N de M rondas (2.10, 2.17, 2.26, 2.28, 2.30, 2.32)
 
 **Clases agregadas**
 - Reglamento (`evaluation.scheme`): `RankingScheme`, `RoundSelection` con `BestNOfM` y `AllRounds`, `RoundScore`, `ChallengeScore` (rondas consideradas, descartadas y la regla aplicada), `TieBreakCriterion` con `HigherTotal`, `LowerTime`, `LowerDeductions` y `HigherJudgeScore`, `TieBreakDecision` (`DecidedBy` | `Tied`) y `MissingGoesLast`.
-- Tabla (`ranking`, 2.26): `StandingsTable`, `TeamAttempts` (mejor intento computable por ronda), `TeamRounds`, `RoundResult`, `StandingsEntry`, `Placement`, `CategoryResults`; caso de uso `RecalculateStandingsUseCase`.
-- API: `StandingsVersionDto.EntryDto` (`selectionRule`, `considered`, `discarded`, `explanation`).
+- Intentos por turno (2.32): `AttemptSelection` con `BestAttempt` y `LastAttempt`; `TurnAttempts` (numeración por llegada y límite por turno); `CategoryRulebook`, `TurnResults` y `QueryTurnAttemptsUseCase`.
+- Tabla (`ranking`, 2.26): `StandingsTable` (con la versión de reglamento que la armó), `TeamAttempts` (el intento que cuenta por ronda según `AttemptSelection`), `TeamRounds`, `RoundResult` (con `otherAttempts`), `StandingsEntry`, `Placement`, `CategoryResults`; caso de uso `RecalculateStandingsUseCase`.
+- API: `StandingsVersionDto` (`rulebookVersion`) y `EntryDto` (`selectionRule`, `attemptRule`, `considered`, `discarded`, `explanation`); `TurnResultsController` y `TurnResultsDto`.
 
 **Clases modificadas**
 - `Rulebook` (tercer componente `rankingScheme()`), `Challenge` (`Draft.publish` y `publish` reciben el esquema), `RuleCatalog` (tipos `best-n-of-m`/`all-rounds` y códigos de criterio), `RulebookDefinition` (`Ranking`), `RulebookBody`, `RulebookDto` y `ChallengeMapper` (el bloque `ranking` del JSON).
@@ -1341,11 +1379,13 @@ Lista consolidada con los nombres actuales del código. El detalle y la historia
 - Ninguna `ScoreRule` cambió: N de M trabaja sobre puntajes ya calculados.
 
 **Deuda técnica que se decidió no resolver**
-- ~~M no se valida al programar.~~ Resuelta: `ScheduleRoundUseCase` consulta `RoundSelection.allowsRound` y rechaza la ronda M+1 con 422 (2.10).
+- ~~M no se valida al programar.~~ Resuelta: `ScheduleRoundUseCase` consulta `RoundSelection.allowsRound` del reglamento de la categoría y rechaza la ronda M+1 con 422 (2.10, 2.32).
+- ~~La tabla se recalculaba con el último reglamento.~~ Resuelta en 2.32: cada categoría juega y se clasifica con una sola versión.
+- Una categoría queda atada a la versión con que empezó a jugar: para cambiarle la selección de rondas a mitad del torneo hay que hacerlo antes de su primera captura.
 - Un criterio de desempate que mire otra métrica exige exponerla primero en `ChallengeScore` (2.10).
 - Los empates entre rondas con el mismo puntaje se resuelven por la más temprana, sin criterio configurable.
 
-### F2: tope global de bonificaciones (2.12, 2.17, 2.28)
+### F2: tope global de bonificaciones (2.12, 2.17, 2.28, 2.32)
 
 **Clases agregadas**
 - `ScoringScheme` (métricas, reglas y límite), `BonusLimit` con `CappedAt` y `Unlimited`, `ScoreRules` (2.16).
@@ -1360,19 +1400,22 @@ Lista consolidada con los nombres actuales del código. El detalle y la historia
 - `ScoringScheme` agrupó sus listas en `ScoreRules` y el desglose pasó a guardar secciones y derivar el total (2.16, 2.17).
 - Ninguna regla de bonificación cambió cómo puntúa.
 
+**Decisión de alcance (corrección de la Entrega 1)**
+- El tope se aplica por intento, no por desafío ni por ronda (2.12, 2.32).
+
 **Deuda técnica que se decidió no resolver**
 - El bono por segundo bajo el objetivo de la regla de tiempo es parte de la base y no entra al tope (2.17).
 - `all-objectives` es un hito sobre un campo fijo: se unifica con `milestone` cuando objetivos y faltas sean métricas declaradas (2.16, 2.17).
 - Los reglamentos guardados antes de las secciones no se reconstruyen (`CorruptDataException`); solo había datos de la demo (2.17).
 - La escala de `Points` es global (centésimas) y los parámetros siguen viajando como `double` (2.28).
 
-### F3: desafío mixto con dos fuentes (2.11, 2.16, 2.18)
+### F3: desafío mixto con dos fuentes (2.11, 2.16, 2.18, 2.32)
 
 **Clases agregadas**
 - Reglamento: `ResultSource`, `Metric`, `SourceContribution`, `MetricDefinition`, `MeasurementUnit`, `ValueRange`, `MetricSheet`, `MeasurementCheck` (`Accepted` | `Rejected`), `MetricDeclaration`, y las reglas medidas `PrecisionRule`, `VictimsRule`, `MilestoneBonusRule`, `CountedFaultRule` con `FaultTariff`, `VictimTariff` y `Milestone`.
 - Intento: `SourceReport` (sellado) con `Measurements` y `JudgeScores`, `SourceDelivery`, `SourceReceivedEvent`, `AttemptState` con `WaitingAttemptState`, `SettledAttemptState`, `UnderAppealAttemptState` y `DisqualifiedAttemptState`, `AttemptStage`, `AttemptProgress`, `AttemptId`, `RulebookReference`, `AppealRevision`, `AuditNote`, `AuditTrail`.
 - Aplicación: `ReceiveResultUseCase`, `ReceiveResultCommand`, `Reception` (`Received` | `Rejected`), `GetAttemptBreakdownUseCase`, `AttemptBreakdown`.
-- API: `AttemptController` (`PUT /attempts/{id}/measurements`, `PUT /attempts/{id}/judge-scores`, `GET /attempts/{id}/breakdown`), `MeasurementsBody`, `JudgeScoresBody`, `AttemptDto`, `BreakdownDto` (`awaiting`, `bySource`).
+- API: `TurnResultsController` (`POST /slots/{slotId}/measurements`, `POST /slots/{slotId}/judge-scores`, `GET /slots/{slotId}/results`, 2.32), `AttemptController` (`GET /attempts/{id}/breakdown`), `MeasurementsBody`, `JudgeScoresBody`, `AttemptDto`, `BreakdownDto` (`awaiting`, `bySource`).
 - Persistencia: `AttemptJpaEntity`, `AttemptMapper`, `JpaAttemptRepository` (con `@Version`), `SpringDataAttempts`, `MetricsJson`.
 
 **Clases modificadas**
@@ -1382,7 +1425,7 @@ Lista consolidada con los nombres actuales del código. El detalle y la historia
 **Refactorizaciones realizadas**
 - `Rulebook` dejó de usar un composite interno: guarda listas que pueden mezclar fuentes y combina evaluaciones con `RuleEvaluation.combining`/`concat` (2.11).
 - `CaptureAttemptResultUseCase` (que recibía un desglose armado) se reemplazó por `ReceiveResultUseCase` y `Attempt.receive`; el intento se puntúa solo (2.18).
-- El estado del intento pasó de enum a State; el id del intento se deriva del turno; `Attempt.recalculateWith` y `SlotReference` se eliminaron (2.18).
+- El estado del intento pasó de enum a State; el id del intento se deriva del turno y su número lo asigna el dominio (`TurnAttempts`, 2.32); `Attempt.recalculateWith` y `SlotReference` se eliminaron (2.18).
 
 **Deuda técnica que se decidió no resolver**
 - Tiempo, objetivos, faltas, consumo y notas de jueces siguen siendo campos fijos y no métricas declaradas; por eso `PenaltyRule` y `CountedFaultRule` sin franquicia calculan lo mismo (2.11, 2.16).

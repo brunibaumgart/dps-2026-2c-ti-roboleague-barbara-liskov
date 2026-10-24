@@ -77,9 +77,12 @@ controllers, DTOs, config y demo bajo `src/main/java/com/roboleague/api`.
 - Renderizar entrada del usuario con nodos/textContent, nunca innerHTML. Conservar
   todos los detalles de ErrorDto. Un 422 conserva el formulario; un 409 exige
   recargar datos antes de otra mutación. No retry automático ni doble submit.
-- Resultados consultan breakdown y la versión fijada mediante GET
-  /challenges/{id}/rulebook/versions/{version} si difiere de la actual. No usar
-  métricas vigentes para una captura histórica. GetRulebookUseCase es de lectura.
+- Resultados consultan GET /slots/{slotId}/results (intentos del turno, versión
+  de la categoría, attemptRule, acceptsResult), breakdown y la versión fijada
+  mediante GET /challenges/{id}/rulebook/versions/{version} si difiere de la
+  actual. No usar métricas vigentes para una captura histórica ni derivar en JS
+  el número de intento, la versión o el límite por turno. Las capturas van a
+  POST /slots/{slotId}/measurements|judge-scores. GetRulebookUseCase es de lectura.
 - Apelaciones y tabla consumen los contratos del frente 4 (`/attempts/{id}/appeals`,
   `/appeals/{id}/review|acceptance|rejection`, `/challenges/{id}/standings`).
   No calcular posiciones, desempates ni transiciones en JS.

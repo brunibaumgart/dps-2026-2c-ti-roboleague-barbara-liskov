@@ -62,13 +62,13 @@ class RegistrationControllerTest extends ApiTest {
         mvc.perform(get("/challenges/{id}/rounds", id + "-challenge").param("categoryId", id + "-large"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].roundId").value(roundId));
 
-        mvc.perform(put("/attempts/{id}/measurements", slot + "-1").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/slots/{slotId}/measurements", slot).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"challengeId": "%s-challenge", "judgeId": "%s-large-j1", "timeSeconds": 50,
                                  "objectives": 3, "penalties": 0, "consumption": 0, "measurements": {}}
                                 """.formatted(id, id)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("AWAITING_SOURCES"));
-        mvc.perform(put("/attempts/{id}/judge-scores", slot + "-1").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/slots/{slotId}/judge-scores", slot).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"challengeId": "%s-challenge", "judgeId": "%s-large-j1",
                                  "scores": {"%s-large-j1": 8}, "measurements": {}}

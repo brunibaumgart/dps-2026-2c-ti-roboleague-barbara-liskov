@@ -8,14 +8,16 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * How a rulebook ranks teams in its challenge: which rounds count (F1) and the ordered chain of criteria.
- * The chain starts with the total; the rest break ties. Each criterion names itself when it decides an order.
+ * How a rulebook ranks teams in its challenge: which rounds count (F1), how many attempts a turn admits and which
+ * of them counts for its round, and the ordered chain of criteria. The chain starts with the total; the rest break
+ * ties. Each criterion names itself when it decides an order.
  */
-public record RankingScheme(RoundSelection roundSelection, List<TieBreakCriterion> criteria)
-        implements Comparator<ChallengeScore> {
+public record RankingScheme(RoundSelection roundSelection, AttemptSelection attemptSelection,
+                            List<TieBreakCriterion> criteria) implements Comparator<ChallengeScore> {
 
     public RankingScheme {
         Objects.requireNonNull(roundSelection, "roundSelection cannot be null");
+        Objects.requireNonNull(attemptSelection, "attemptSelection cannot be null");
         criteria = List.copyOf(Objects.requireNonNull(criteria, "criteria cannot be null"));
         if (criteria.isEmpty()) {
             throw new IllegalArgumentException("a ranking scheme needs at least one criterion");
@@ -29,12 +31,19 @@ public record RankingScheme(RoundSelection roundSelection, List<TieBreakCriterio
         }
     }
 
+    /**
+     * A scheme with one attempt per turn, the default of a rulebook that does not say otherwise.
+     */
+    public RankingScheme(RoundSelection roundSelection, List<TieBreakCriterion> criteria) {
+        this(roundSelection, BestAttempt.single(), criteria);
+    }
+
     public RulebookDefinition.Ranking definition() {
         List<String> codes = new ArrayList<>();
         for (TieBreakCriterion criterion : criteria) {
             codes.add(criterion.code());
         }
-        return new RulebookDefinition.Ranking(roundSelection.definition(), codes);
+        return new RulebookDefinition.Ranking(roundSelection.definition(), attemptSelection.definition(), codes);
     }
 
     public TieBreakDecision decide(ChallengeScore a, ChallengeScore b) {

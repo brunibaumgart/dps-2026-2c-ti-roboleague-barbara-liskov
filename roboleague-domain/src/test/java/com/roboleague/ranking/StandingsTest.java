@@ -137,7 +137,7 @@ class StandingsTest {
     }
 
     private static StandingsTable table(int objectives) {
-        return StandingsTable.rank(BEST_2_OF_3,
+        return StandingsTable.rank(RULEBOOK,
                 List.of(new TeamAttempts(team("t-a"), List.of(scored("t-a", "r-1", 50, objectives, 0)))));
     }
 

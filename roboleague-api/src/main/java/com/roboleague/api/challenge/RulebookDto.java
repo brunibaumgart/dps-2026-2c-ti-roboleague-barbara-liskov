@@ -16,7 +16,8 @@ record RulebookDto(int version, List<String> requiredSources, List<RulebookBody.
                        List<RulebookBody.RuleBody> deductions, RulebookBody.StrategyBody bonusLimit) {
     }
 
-    record RankingView(RulebookBody.StrategyBody roundSelection, List<String> criteria) {
+    record RankingView(RulebookBody.StrategyBody roundSelection, RulebookBody.StrategyBody attemptSelection,
+                       List<String> criteria) {
     }
 
     static RulebookDto from(Rulebook rulebook) {
@@ -26,6 +27,7 @@ record RulebookDto(int version, List<String> requiredSources, List<RulebookBody.
                 body.metrics(),
                 new ScoringView(body.scoring().rules(), body.scoring().bonuses(), body.scoring().deductions(),
                         body.scoring().bonusLimit()),
-                new RankingView(body.ranking().roundSelection(), body.ranking().criteria()));
+                new RankingView(body.ranking().roundSelection(), body.ranking().attemptSelection(),
+                        body.ranking().criteria()));
     }
 }

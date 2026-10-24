@@ -58,7 +58,6 @@ import static com.roboleague.support.TestValues.TIME;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -179,7 +178,7 @@ class AttemptCorrectionControllerTest extends ApiTest {
                                 List.of(Judge.of(JudgeId.of(JUDGE), "Juez", "General"))),
                         new TimeWindow(LocalDateTime.of(2026, 11, 10, 9, 0), LocalDateTime.of(2026, 11, 10, 9, 10)))));
         String attemptId = slot + "-1";
-        mvc.perform(put("/attempts/{attemptId}/measurements", attemptId)
+        mvc.perform(post("/slots/{slotId}/measurements", slot)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"challengeId": "%s", "judgeId": "%s", "timeSeconds": 40, "objectives": 3,

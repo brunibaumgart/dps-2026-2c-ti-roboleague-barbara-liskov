@@ -27,6 +27,7 @@ import com.roboleague.evaluation.rules.PenaltyRule;
 import com.roboleague.evaluation.rules.TimeBasedRule;
 import com.roboleague.evaluation.scheme.BestNOfM;
 import com.roboleague.evaluation.scheme.HigherTotal;
+import com.roboleague.evaluation.scheme.LastAttempt;
 import com.roboleague.evaluation.scheme.LowerTime;
 import com.roboleague.evaluation.scheme.RankingScheme;
 import com.roboleague.repository.ConcurrentModificationConflict;
@@ -79,7 +80,7 @@ class JpaChallengeRepositoryTest {
     private static final Metric COLLISIONS = Metric.sensor("colisiones");
     private static final Metric CHECKPOINT = Metric.sensor("checkpoint");
     private static final RankingScheme BEST_THREE_OF_FIVE =
-            new RankingScheme(new BestNOfM(3, 5), List.of(new HigherTotal(), new LowerTime()));
+            new RankingScheme(new BestNOfM(3, 5), new LastAttempt(2), List.of(new HigherTotal(), new LowerTime()));
 
     @Autowired
     private JpaChallengeRepository repository;
@@ -141,6 +142,7 @@ class JpaChallengeRepositoryTest {
         assertThat(stored.currentRulebook().evaluate(run).items())
                 .anyMatch(item -> item.concept().equals("Tope de bonificaciones") && item.subtotal().equals(Points.of(-35)));
         assertThat(stored.currentRulebook().rankingScheme().roundSelection()).isEqualTo(new BestNOfM(3, 5));
+        assertThat(stored.currentRulebook().rankingScheme().attemptSelection()).isEqualTo(new LastAttempt(2));
     }
 
     @Test

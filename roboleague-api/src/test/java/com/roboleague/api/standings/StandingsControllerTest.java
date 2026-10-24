@@ -1,5 +1,6 @@
 package com.roboleague.api.standings;
 
+import com.roboleague.evaluation.AttemptId;
 import com.roboleague.api.ApiTest;
 import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ScoringScheme;
@@ -61,7 +62,6 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -173,8 +173,11 @@ class StandingsControllerTest extends ApiTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.entries[0].teamId").value(TEAM_A))
                 .andExpect(jsonPath("$.entries[0].total").value(100.0))
+                .andExpect(jsonPath("$.rulebookVersion").value(1))
                 .andExpect(jsonPath("$.entries[0].selectionRule").value("mejores 1 de 2 rondas"))
+                .andExpect(jsonPath("$.entries[0].attemptRule").value("1 intento por turno"))
                 .andExpect(jsonPath("$.entries[0].considered", hasSize(1)))
+                .andExpect(jsonPath("$.entries[0].considered[0].otherAttempts", hasSize(0)))
                 .andExpect(jsonPath("$.entries[0].considered[0].roundId").value("round-slot-api-std-best-a2"))
                 .andExpect(jsonPath("$.entries[0].considered[0].attemptId").value("slot-api-std-best-a2-1"))
                 .andExpect(jsonPath("$.entries[0].considered[0].total").value(100.0))
@@ -238,7 +241,7 @@ class StandingsControllerTest extends ApiTest {
     }
 
     private void score(String challenge, String attemptId, int objectives) throws Exception {
-        mvc.perform(put("/attempts/{attemptId}/measurements", attemptId)
+        mvc.perform(post("/slots/{slotId}/measurements", AttemptId.parse(attemptId).slotId().value())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"challengeId": "%s", "judgeId": "j-api-std", "timeSeconds": 60, "objectives": %d,

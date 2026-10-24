@@ -37,14 +37,14 @@ class StandingsJpaEntity {
         // required by JPA
     }
 
-    record VersionJson(int number, String calculatedAt, List<EntryJson> entries) {
+    record VersionJson(int number, String calculatedAt, int rulebookVersion, List<EntryJson> entries) {
     }
 
     record EntryJson(int position, String explanation, String teamId, String teamName, List<RoundJson> considered,
-                     List<RoundJson> discarded, String selectionRule) {
+                     List<RoundJson> discarded, String selectionRule, String attemptRule) {
     }
 
-    record RoundJson(String roundId, String attemptId, BigDecimal total) {
+    record RoundJson(String roundId, String attemptId, BigDecimal total, List<String> otherAttempts) {
     }
 
     record PublicationJson(int version, String publishedAt, String authorId, String reason) {

@@ -57,9 +57,12 @@ Leer también `../AGENTS.md`. Producción en
   inscripciones por registeredAt/TeamId y entrega las rondas guardadas al servicio
   de dominio para evitar conflictos. No trasladar el algoritmo al caso de uso.
 - `ReceiveResultUseCase` busca el slot, exige que el challenge recibido coincida
-  con la ronda incluso en la primera captura, valida el juez y toma su equipo. La primera captura abre el intento con el reglamento vigente;
-  las siguientes cargan la versión fijada en el intento. Guardar solo capturas
-  aceptadas, conservando la identidad derivada de slot/número.
+  con la ronda incluso en la primera captura, valida el juez y toma su equipo.
+  Recibe el turno, no el intento: `TurnAttempts` (dominio) entrega el intento que
+  espera una fuente o abre el siguiente número con la versión de la categoría
+  (`CategoryRulebook`), si su `AttemptSelection` admite otro. Un intento abierto
+  conserva su versión. Guardar solo capturas aceptadas; no aceptar números de
+  intento desde el cliente.
 - `ResolveAppealUseCase` acepta correcciones con el reglamento del intento,
   actualiza intento y apelación y recalcula las standings de su desafío y
   categoría al aceptar. Al rechazar, restaura el estado del intento mediante
@@ -76,8 +79,11 @@ Leer también `../AGENTS.md`. Producción en
   si hay apelaciones abiertas, turnos sin resultado o resultados posteriores al
   cálculo. Un bloqueo no guarda nada y devuelve cada motivo.
 - `RecalculateStandingsUseCase` calcula por desafío y categoría con el
-  `RankingScheme` vigente del desafío; cada cálculo agrega una versión y no
-  edita las anteriores.
+  `RankingScheme` de la versión que puntuó los intentos de la categoría (la
+  vigente si no hay resultados), vía `CategoryRulebook`; cada cálculo agrega una
+  versión y no edita las anteriores. Programación (`ScheduleRoundUseCase`) usa
+  la misma versión; `PublishRulebookUseCase` rechaza una versión que no admite
+  rondas ya programadas de categorías sin resultados.
 
 ## Integración y pruebas
 

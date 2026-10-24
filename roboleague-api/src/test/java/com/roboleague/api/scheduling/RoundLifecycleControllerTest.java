@@ -1,5 +1,6 @@
 package com.roboleague.api.scheduling;
 
+import com.roboleague.evaluation.AttemptId;
 import com.roboleague.api.ApiTest;
 import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ScoringScheme;
@@ -44,7 +45,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -173,7 +173,7 @@ class RoundLifecycleControllerTest extends ApiTest {
     }
 
     private static RequestBuilder measurements(String attemptId, String challengeId) {
-        return put("/attempts/{attemptId}/measurements", attemptId)
+        return post("/slots/{slotId}/measurements", AttemptId.parse(attemptId).slotId().value())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {"challengeId": "%s", "judgeId": "%s", "timeSeconds": 40, "objectives": 2,

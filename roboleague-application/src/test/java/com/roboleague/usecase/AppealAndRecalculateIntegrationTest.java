@@ -86,7 +86,7 @@ class AppealAndRecalculateIntegrationTest {
 
         registerTeamUseCase = new RegisterTeamUseCase(teamRepository, editionRepository, clock);
         InMemoryRoundRepository roundRepository = new InMemoryRoundRepository();
-        scheduleRoundUseCase = new ScheduleRoundUseCase(challengeRepository, editionRepository, teamRepository, roundRepository,
+        scheduleRoundUseCase = new ScheduleRoundUseCase(challengeRepository, editionRepository, teamRepository, roundRepository, attemptRepository,
                 new RoundSchedulerService(ids), ids);
         receiveResultUseCase = new ReceiveResultUseCase(attemptRepository, roundRepository, challengeRepository, clock, ids);
 
@@ -144,7 +144,7 @@ class AppealAndRecalculateIntegrationTest {
 
     private Attempt receive(AttemptId attemptId, Measurements measurements, String judgeId) {
         Reception reception = receiveResultUseCase.execute(
-                new ReceiveResultCommand(maze.getId(), attemptId, new SourceDelivery(measurements, JudgeId.of(judgeId))));
+                new ReceiveResultCommand(maze.getId(), attemptId.slotId(), new SourceDelivery(measurements, JudgeId.of(judgeId))));
         assertThat(reception).isInstanceOf(Reception.Received.class);
         return ((Reception.Received) reception).attempt();
     }

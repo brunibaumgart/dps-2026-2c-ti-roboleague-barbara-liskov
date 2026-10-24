@@ -103,6 +103,39 @@ class ChallengeTest {
     }
 
     @Test
+    @DisplayName("Una categoría sin resultados juega con la versión vigente")
+    void givenACategoryWithoutResultsThenItPlaysWithTheCurrentVersion() {
+        Challenge maze = mazeWithBase(100.0);
+        Rulebook second = maze.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(150.0)), List.of()), allRounds);
+
+        assertThat(maze.rulebookInForce(List.of())).isSameAs(second);
+    }
+
+    @Test
+    @DisplayName("Una categoría con resultados sigue con la versión que los puntuó aunque se publique otra")
+    void givenACategoryWithResultsThenItKeepsTheVersionThatScoredThem() {
+        Challenge maze = mazeWithBase(100.0);
+        Rulebook first = maze.currentRulebook();
+        maze.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(150.0)), List.of()), allRounds);
+
+        assertThat(maze.rulebookInForce(List.of(RulebookVersion.first(), RulebookVersion.first()))).isSameAs(first);
+    }
+
+    @Test
+    @DisplayName("Resultados de una categoría con dos versiones, o con una que no existe, son un dato inconsistente")
+    void givenResultsWithSeveralOrUnknownVersionsThenThereIsNoRulebookInForce() {
+        Challenge maze = mazeWithBase(100.0);
+        maze.publish(ScoringScheme.withoutBonuses(List.of(timeRuleWithBase(150.0)), List.of()), allRounds);
+
+        assertThatThrownBy(() -> maze.rulebookInForce(List.of(RulebookVersion.first(), new RulebookVersion(2))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageStartingWith("results of one category of ch-maze were scored with several rulebook versions");
+        assertThatThrownBy(() -> maze.rulebookInForce(List.of(new RulebookVersion(5))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("results of ch-maze were scored with v5, which it never published");
+    }
+
+    @Test
     @DisplayName("Restaurar versiones salteadas es un dato corrupto")
     void givenStoredVersionsThatSkipOneThenRestoringFails() {
         Challenge original = mazeWithBase(100.0);

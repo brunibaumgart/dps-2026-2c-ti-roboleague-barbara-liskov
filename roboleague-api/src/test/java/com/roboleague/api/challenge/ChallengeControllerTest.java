@@ -100,7 +100,24 @@ class ChallengeControllerTest extends ApiTest {
                 .andExpect(jsonPath("$.currentRulebook.scoring.rules[0].type").value("composite"))
                 .andExpect(jsonPath("$.currentRulebook.scoring.deductions[0].type").value("penalty"))
                 .andExpect(jsonPath("$.currentRulebook.scoring.bonusLimit.numbers.maximum").value(40.0))
-                .andExpect(jsonPath("$.currentRulebook.ranking.criteria[1]").value("lower-time"));
+                .andExpect(jsonPath("$.currentRulebook.ranking.criteria[1]").value("lower-time"))
+                .andExpect(jsonPath("$.currentRulebook.ranking.attemptSelection.type").value("best-attempt"))
+                .andExpect(jsonPath("$.currentRulebook.ranking.attemptSelection.numbers.perTurn").value(1.0));
+    }
+
+    @Test
+    @DisplayName("F1: el reglamento declara cuántos intentos admite un turno y cuál cuenta")
+    void aRulebookDeclaresItsAttemptSelection() throws Exception {
+        String rulebook = rulebook("penalty", 40).replace("\"criteria\":", "\"attemptSelection\": {\"type\": \"last-attempt\", \"numbers\": {\"perTurn\": 3}}, \"criteria\":");
+        mvc.perform(addChallenge("api-ed-ch", "api-ch-attempts", rulebook))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.currentRulebook.ranking.attemptSelection.type").value("last-attempt"))
+                .andExpect(jsonPath("$.currentRulebook.ranking.attemptSelection.numbers.perTurn").value(3.0));
+
+        mvc.perform(addChallenge("api-ed-ch", "api-ch-no-attempts",
+                        rulebook.replace("\"perTurn\": 3", "\"perTurn\": 0")))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.details[0]").value("attempt selection: a turn admits at least one attempt: 0"));
     }
 
     @Test

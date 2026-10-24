@@ -3,10 +3,6 @@ export const statusLabels = { SCHEDULED: 'Programado', IN_PROGRESS: 'En curso', 
   AWAITING_SOURCES: 'Esperando fuentes', EVALUATED: 'Evaluado', ADJUSTED: 'Ajustado', UNDER_APPEAL: 'En apelación', DISQUALIFIED: 'Descalificado' };
 export const appealLabels = { PENDING: 'Pendiente', UNDER_REVIEW: 'En revisión', ACCEPTED: 'Aceptada', REJECTED: 'Rechazada' };
 export const standingsLabels = { PROVISIONAL: 'Provisional', OFFICIAL: 'Oficial', REPLACED: 'Reemplazada' };
-export function attemptId(slotId, number) {
-  if (!slotId || !Number.isSafeInteger(number) || number < 1) throw new Error('El número de intento debe ser un entero positivo.');
-  return `${slotId}-${number}`;
-}
 export function teamCandidate(team) {
   return { id: team.id, name: team.name, institution: team.institution,
     members: team.members.map(({ id, fullName, birthDate, role }) => ({ id, fullName, birthDate, role })),

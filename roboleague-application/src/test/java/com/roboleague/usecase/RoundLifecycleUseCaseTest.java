@@ -141,7 +141,7 @@ class RoundLifecycleUseCaseTest {
 
     private void score(String teamId) {
         Reception reception = receive.execute(new ReceiveResultCommand(challenge.getId(),
-                AttemptId.of(slotOf(teamId), 1),
+                slotOf(teamId),
                 new SourceDelivery(new Measurements(new TrackPerformance(60, 2, 0), 0.0, Map.of()), JUDGE)));
         assertThat(reception).isInstanceOf(Reception.Received.class);
     }

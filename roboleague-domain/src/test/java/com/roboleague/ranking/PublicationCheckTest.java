@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class PublicationCheckTest {
 
-    private static final StandingsTable EMPTY = StandingsTable.rank(BEST_2_OF_3, List.of());
+    private static final StandingsTable EMPTY = StandingsTable.rank(RULEBOOK, List.of());
 
     @Test
     @DisplayName("A turn without an attempt, or whose attempt awaits a source, has no outcome yet")
@@ -42,6 +42,15 @@ class PublicationCheckTest {
 
         assertThat(check.unfinishedTurns()).isEqualTo(2);
         assertThat(check.openAppeals()).isZero();
+    }
+
+    @Test
+    @DisplayName("A turn whose later attempt awaits a source has no outcome yet, though an earlier one was scored")
+    void aTurnWithALaterAttemptAwaitingIsUnfinished() {
+        PublicationCheck check = PublicationCheck.of(EMPTY, List.of(round("t-a")),
+                List.of(scored("t-a", "r-1", 50, 3, 0), opened("t-a", "r-1", 2)));
+
+        assertThat(check.unfinishedTurns()).isEqualTo(1);
     }
 
     @Test

@@ -10,6 +10,7 @@ import com.roboleague.evaluation.definition.RuleArguments;
 import com.roboleague.evaluation.definition.RuleDefinition;
 import com.roboleague.evaluation.definition.RulebookDefinition;
 import com.roboleague.evaluation.definition.StrategyDefinition;
+import com.roboleague.evaluation.scheme.BestAttempt;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -31,7 +32,11 @@ record RulebookBody(List<MetricDeclarationBody> metrics, ScoringBody scoring, Ra
                        StrategyBody bonusLimit) {
     }
 
-    record RankingBody(StrategyBody roundSelection, List<String> criteria) {
+    /**
+     * Which rounds count, how many attempts a turn admits and which counts (optional: one attempt per turn), and the
+     * tie-break chain.
+     */
+    record RankingBody(StrategyBody roundSelection, StrategyBody attemptSelection, List<String> criteria) {
     }
 
     record RuleBody(String type, String name, Map<String, Double> numbers, Map<String, MetricBody> metrics,
@@ -51,7 +56,9 @@ record RulebookBody(List<MetricDeclarationBody> metrics, ScoringBody scoring, Ra
         return new RulebookDefinition(toDeclarations(metrics),
                 new RulebookDefinition.Scoring(toRules(scoring.rules()), new RulebookDefinition.Bonuses(
                         toRules(scoring.bonuses()), toStrategy(scoring.bonusLimit())), toRules(scoring.deductions())),
-                new RulebookDefinition.Ranking(toStrategy(ranking.roundSelection()), orEmpty(ranking.criteria())));
+                new RulebookDefinition.Ranking(toStrategy(ranking.roundSelection()),
+                        ranking.attemptSelection() == null ? BestAttempt.single().definition()
+                                : toStrategy(ranking.attemptSelection()), orEmpty(ranking.criteria())));
     }
 
     static RulebookBody from(RulebookDefinition definition) {
@@ -59,7 +66,8 @@ record RulebookBody(List<MetricDeclarationBody> metrics, ScoringBody scoring, Ra
                 new ScoringBody(fromRules(definition.scoring().rules()),
                         fromRules(definition.scoring().bonuses().rules()), fromRules(definition.scoring().deductions()),
                         fromStrategy(definition.scoring().bonuses().limit())),
-                new RankingBody(fromStrategy(definition.ranking().roundSelection()), definition.ranking().criteria()));
+                new RankingBody(fromStrategy(definition.ranking().roundSelection()),
+                        fromStrategy(definition.ranking().attemptSelection()), definition.ranking().criteria()));
     }
 
     private static List<MetricDeclaration> toDeclarations(List<MetricDeclarationBody> bodies) {

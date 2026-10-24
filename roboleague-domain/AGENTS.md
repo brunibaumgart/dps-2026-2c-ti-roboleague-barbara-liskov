@@ -81,8 +81,12 @@ constructor de valor permite rehidratar sin consultar el calendario actual.
   `repository.ConcurrentModificationConflict` ante escrituras concurrentes.
   `StandingsId` se deriva de desafío y categoría; no inventar un id textual
   aparte.
-- `AttemptId` contiene `SlotId` y número de intento. `RulebookReference` fija el
+- `AttemptId` contiene `SlotId` y número de intento. El número lo asigna
+  `TurnAttempts` en el orden de llegada, hasta el `perTurn` de la
+  `AttemptSelection`; nunca lo elige quien captura. `RulebookReference` fija el
   desafío y versión usados: capturas posteriores y correcciones deben conservarlos.
+  `Challenge.rulebookInForce` da la única versión con que juega y se clasifica una
+  categoría (la de sus intentos o, sin resultados, la vigente).
 - `Attempt.receive` valida la fuente y las métricas antes de aceptar la captura;
   una captura rechazada no cambia el agregado. No puntuar hasta recibir todas
   las fuentes requeridas ni reemplazar silenciosamente una fuente ya recibida.
@@ -111,8 +115,9 @@ Al extender reglas, revisar `RuleCatalogTest.everyRuleType()`,
 `ScoreRuleSectionsTest` y la tabla de reglas del README.
 
 Hay estrategias de rondas y desempate en `evaluation/scheme` y cálculo de tablas
-en `ranking`. `StandingsTable` ordena con `rulebook.rankingScheme()` y explica
-cada puesto con `decide`. No reintroducir `TieBreakerChain` ni `TeamScore`.
+en `ranking`. `StandingsTable.rank(rulebook, …)` ordena con el
+`rankingScheme()` de la versión de la categoría, guarda esa versión, elige el
+intento de cada turno con `AttemptSelection` y explica cada puesto con `decide`. No reintroducir `TieBreakerChain` ni `TeamScore`.
 
 ## Verificación
 

@@ -5,8 +5,9 @@ import com.roboleague.scheduling.SlotId;
 import java.util.Objects;
 
 /**
- * Identity of an attempt, given by its turn: the n-th attempt in a slot. The domain derives it, so two captures
- * for the same turn reach the same attempt instead of creating a second one that replaces the first.
+ * Identity of an attempt, given by its turn: the n-th attempt in a slot. The domain numbers it in arrival order
+ * ({@link TurnAttempts}), never whoever captures: a result reaches the attempt still awaiting a source, or opens the
+ * next one while the rulebook admits it, so no capture replaces an earlier attempt.
  */
 public record AttemptId(SlotId slotId, int number) {
     private static final char SEPARATOR = '-';

@@ -1,7 +1,6 @@
 package com.roboleague.api.demo;
 
 import com.roboleague.evaluation.Attempt;
-import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.JudgeScores;
 import com.roboleague.evaluation.Measurements;
 import com.roboleague.evaluation.Points;
@@ -16,6 +15,7 @@ import com.roboleague.scheduling.Judge;
 import com.roboleague.scheduling.JudgeId;
 import com.roboleague.scheduling.Round;
 import com.roboleague.scheduling.Slot;
+import com.roboleague.scheduling.SlotId;
 import com.roboleague.scheduling.Track;
 import com.roboleague.scheduling.TrackId;
 import com.roboleague.support.ActorId;
@@ -198,10 +198,10 @@ class DemoFixture implements ApplicationRunner {
 
         clock.advanceTo(endOf(rescueRound));
         Slot cyberRescue = slotOf(rescueRound, cyber);
-        receive(rescue, attemptIn(cyberRescue), new SourceDelivery(rescueRun(120.0, 3), judgeOf(cyberRescue)));
-        receive(rescue, attemptIn(cyberRescue), new SourceDelivery(rescuePanel(8.0, 7.0, 3), judgeOf(cyberRescue)));
+        receive(rescue, cyberRescue.getSlotId(), new SourceDelivery(rescueRun(120.0, 3), judgeOf(cyberRescue)));
+        receive(rescue, cyberRescue.getSlotId(), new SourceDelivery(rescuePanel(8.0, 7.0, 3), judgeOf(cyberRescue)));
         Slot titanRescue = slotOf(rescueRound, titan);
-        Attempt awaitingPanel = receive(rescue, attemptIn(titanRescue),
+        Attempt awaitingPanel = receive(rescue, titanRescue.getSlotId(),
                 new SourceDelivery(rescueRun(110.0, 4), judgeOf(titanRescue)));
 
         log.info("Demo loaded: edition {}, challenges ch-maze/ch-line/ch-rescue, maze rounds {}, appeal {}, "
@@ -220,7 +220,7 @@ class DemoFixture implements ApplicationRunner {
             Measurements run = runs.get(slot.getTeamId());
             if (run != null) {
                 attempts.put(slot.getTeamId(),
-                        receive(challenge, attemptIn(slot), new SourceDelivery(run, judgeOf(slot))));
+                        receive(challenge, slot.getSlotId(), new SourceDelivery(run, judgeOf(slot))));
             }
         }
         return attempts;
@@ -255,8 +255,8 @@ class DemoFixture implements ApplicationRunner {
         };
     }
 
-    private Attempt receive(Challenge challenge, AttemptId attemptId, SourceDelivery delivery) {
-        return switch (useCases.receiveResult().execute(new ReceiveResultCommand(challenge.getId(), attemptId, delivery))) {
+    private Attempt receive(Challenge challenge, SlotId slotId, SourceDelivery delivery) {
+        return switch (useCases.receiveResult().execute(new ReceiveResultCommand(challenge.getId(), slotId, delivery))) {
             case Reception.Received received -> received.attempt();
             case Reception.Rejected rejected ->
                     throw new IllegalStateException("Demo result rejected: " + rejected.problems());
@@ -270,10 +270,6 @@ class DemoFixture implements ApplicationRunner {
 
     private static LocalDateTime endOf(Round round) {
         return round.getSlots().stream().map(Slot::getEndTime).max(Comparator.naturalOrder()).orElseThrow();
-    }
-
-    private static AttemptId attemptIn(Slot slot) {
-        return AttemptId.of(slot.getSlotId(), 1);
     }
 
     private static JudgeId judgeOf(Slot slot) {

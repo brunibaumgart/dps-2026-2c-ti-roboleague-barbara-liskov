@@ -198,7 +198,7 @@ class StandingsUseCasesTest {
     }
 
     private void score(String roundId, String teamId, int objectives) {
-        Reception reception = receive.execute(new ReceiveResultCommand(challenge.getId(), attemptIn(roundId, teamId),
+        Reception reception = receive.execute(new ReceiveResultCommand(challenge.getId(), attemptIn(roundId, teamId).slotId(),
                 new SourceDelivery(new Measurements(new TrackPerformance(60, objectives, 0), 0.0, Map.of()), JUDGE)));
         assertThat(reception).isInstanceOf(Reception.Received.class);
     }
