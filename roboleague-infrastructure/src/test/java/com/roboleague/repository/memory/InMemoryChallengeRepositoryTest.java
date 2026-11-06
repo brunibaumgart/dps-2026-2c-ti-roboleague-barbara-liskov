@@ -29,4 +29,17 @@ class InMemoryChallengeRepositoryTest {
         assertThat(repository.findByEditionId(EditionId.of("empty"))).isEmpty();
         assertThat(repository.findById(ChallengeId.of("other"))).isPresent();
     }
+
+    @Test
+    void findsByIdsOnceOrderedByIdSkippingMissingOnesAndEmptyGivesNothing() {
+        var repository = new InMemoryChallengeRepository();
+        for (String id : List.of("b", "a", "c")) {
+            repository.save(Challenge.draft(ChallengeId.of(id), EditionId.of("edition"), id)
+                    .publish(ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objectives", Points.of(1))), List.of()),
+                            new RankingScheme(new AllRounds(), List.of(new HigherTotal()))));
+        }
+        assertThat(repository.findByIds(List.of(ChallengeId.of("c"), ChallengeId.of("a"), ChallengeId.of("none"),
+                ChallengeId.of("a")))).extracting(challenge -> challenge.getId().value()).containsExactly("a", "c");
+        assertThat(repository.findByIds(List.of())).isEmpty();
+    }
 }

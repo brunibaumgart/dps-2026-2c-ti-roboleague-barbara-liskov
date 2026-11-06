@@ -6,7 +6,13 @@ import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookReference;
 import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.ChallengeRepository;
+import com.roboleague.tournament.Challenge;
+import com.roboleague.tournament.ChallengeId;
 
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -29,6 +35,32 @@ public class GetAttemptBreakdownUseCase {
         Rulebook rulebook = challengeRepository.findById(scoredWith.challengeId())
                 .flatMap(challenge -> challenge.rulebook(scoredWith.version()))
                 .orElseThrow(() -> new InconsistentStateException("Rulebook " + scoredWith + " not found"));
+        return explain(attempt, rulebook);
+    }
+
+    /**
+     * The explained attempts with those ids, keyed by id, in two reads however many attempts or challenges there
+     * are: the attempts and their challenges (none for an empty collection). A stored reference that does not exist
+     * is an InconsistentStateException.
+     */
+    public Map<AttemptId, AttemptBreakdown> byIds(Collection<AttemptId> attemptIds) {
+        Map<AttemptId, Attempt> found = StoredReferences.byIds(attemptIds, attemptRepository::findByIds,
+                Attempt::getId, "Attempt not found");
+        List<ChallengeId> challengeIds = found.values().stream()
+                .map(attempt -> attempt.getRulebookReference().challengeId()).distinct().toList();
+        Map<ChallengeId, Challenge> challenges = StoredReferences.byIds(challengeIds, challengeRepository::findByIds,
+                Challenge::getId, "Challenge not found");
+        Map<AttemptId, AttemptBreakdown> explained = new LinkedHashMap<>();
+        for (Attempt attempt : found.values()) {
+            RulebookReference scoredWith = attempt.getRulebookReference();
+            Rulebook rulebook = challenges.get(scoredWith.challengeId()).rulebook(scoredWith.version())
+                    .orElseThrow(() -> new InconsistentStateException("Rulebook " + scoredWith + " not found"));
+            explained.put(attempt.getId(), explain(attempt, rulebook));
+        }
+        return explained;
+    }
+
+    private static AttemptBreakdown explain(Attempt attempt, Rulebook rulebook) {
         return new AttemptBreakdown(attempt, attempt.awaitedSources(rulebook), attempt.contributionsBySource(rulebook));
     }
 }

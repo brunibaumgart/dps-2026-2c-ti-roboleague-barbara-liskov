@@ -5,6 +5,7 @@ import com.roboleague.evaluation.AttemptId;
 import com.roboleague.scheduling.RoundId;
 import com.roboleague.tournament.TeamId;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,7 +17,11 @@ import java.util.Optional;
 public interface AttemptRepository {
     void save(Attempt attempt);
     Optional<Attempt> findById(AttemptId attemptId);
+    /** The attempts with those ids, ordered by id; ids that do not exist are simply absent. */
+    List<Attempt> findByIds(Collection<AttemptId> ids);
     List<Attempt> findByTeamId(TeamId teamId);
     List<Attempt> findByRoundId(RoundId roundId);
+    /** The attempts of any of those rounds, ordered by attempt id; empty ids give an empty list. */
+    List<Attempt> findByRoundIds(Collection<RoundId> roundIds);
     List<Attempt> findAll();
 }

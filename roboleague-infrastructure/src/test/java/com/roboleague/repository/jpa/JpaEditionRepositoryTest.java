@@ -166,4 +166,19 @@ class JpaEditionRepositoryTest {
                                              LocalDateTime registeredAt) {
         return new Registration(TeamId.of(teamId), EditionId.of(editionId), category.id(), START, registeredAt);
     }
+
+    @Test
+    @DisplayName("findByIds returns only the requested editions that exist, once and ordered by id; nothing for no ids")
+    void findsEditionsByIds() {
+        for (String id : List.of("ed-ids-c", "ed-ids-a", "ed-ids-b")) {
+            repository.save(edition(id, List.of(JUNIOR)));
+        }
+
+        List<Edition> found = repository.findByIds(List.of(EditionId.of("ed-ids-c"), EditionId.of("ed-ids-a"),
+                EditionId.of("ed-ids-missing"), EditionId.of("ed-ids-a")));
+
+        assertThat(found).extracting(Edition::getId)
+                .containsExactly(EditionId.of("ed-ids-a"), EditionId.of("ed-ids-c"));
+        assertThat(repository.findByIds(List.of())).isEmpty();
+    }
 }

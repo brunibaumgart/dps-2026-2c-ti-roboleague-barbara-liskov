@@ -5,12 +5,14 @@ import com.roboleague.evaluation.Rulebook;
 import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.RoundRepository;
 import com.roboleague.scheduling.Round;
+import com.roboleague.scheduling.RoundId;
 import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.Challenge;
 
-import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -40,17 +42,19 @@ public class CategoryRulebook {
     }
 
     /**
-     * The attempts of those rounds, round by round and, within a turn, in the order they were opened.
+     * The attempts of those rounds, round by round and, within a turn, in the order they were opened. One read of
+     * attempts however many rounds there are.
      */
     public List<Attempt> attemptsOf(List<Round> categoryRounds) {
-        List<Attempt> played = new ArrayList<>();
+        Map<RoundId, Integer> position = new HashMap<>();
         for (Round round : categoryRounds) {
-            played.addAll(attempts.findByRoundId(round.getId()).stream()
-                    .sorted(Comparator.comparing((Attempt attempt) -> attempt.getSlotId().value())
-                            .thenComparingInt(attempt -> attempt.getId().number()))
-                    .toList());
+            position.putIfAbsent(round.getId(), position.size());
         }
-        return played;
+        return attempts.findByRoundIds(position.keySet()).stream()
+                .sorted(Comparator.comparingInt((Attempt attempt) -> position.get(attempt.getRoundId()))
+                        .thenComparing(attempt -> attempt.getSlotId().value())
+                        .thenComparingInt(attempt -> attempt.getId().number()))
+                .toList();
     }
 
     public Rulebook inForce(Challenge challenge, CategoryId categoryId) {

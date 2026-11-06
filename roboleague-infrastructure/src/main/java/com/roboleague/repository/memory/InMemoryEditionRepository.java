@@ -24,6 +24,12 @@ public class InMemoryEditionRepository implements EditionRepository {
     }
 
     @Override
+    public List<Edition> findByIds(Collection<EditionId> ids) {
+        return ids.stream().distinct().map(storage::get).filter(Objects::nonNull)
+                .sorted(Comparator.comparing(found -> found.getId().value())).toList();
+    }
+
+    @Override
     public List<Edition> findByTeamId(TeamId teamId) {
         return findAll().stream().filter(e -> e.registration(teamId).isPresent()).toList();
     }

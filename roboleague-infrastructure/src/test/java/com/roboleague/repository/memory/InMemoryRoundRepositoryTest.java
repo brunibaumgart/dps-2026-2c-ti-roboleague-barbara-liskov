@@ -77,4 +77,14 @@ class InMemoryRoundRepositoryTest {
                         List.of(Judge.of(JudgeId.of("judge"), "Judge", "General"))),
                 new TimeWindow(start, start.plusMinutes(5)), Duration.ofMinutes(1)));
     }
+
+    @Test
+    void findsByIdsOnceOrderedByIdSkippingMissingOnesAndEmptyGivesNothing() {
+        repository.save(round("r2", "s2", 2));
+        repository.save(round("r1", "s1", 1));
+        repository.save(round("r3", "s3", 3));
+        assertThat(repository.findByIds(List.of(RoundId.of("r3"), RoundId.of("r1"), RoundId.of("none"),
+                RoundId.of("r1")))).extracting(round -> round.getId().value()).containsExactly("r1", "r3");
+        assertThat(repository.findByIds(List.of())).isEmpty();
+    }
 }

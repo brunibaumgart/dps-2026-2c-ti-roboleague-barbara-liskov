@@ -295,4 +295,34 @@ class JpaAttemptRepositoryTest {
         return Attempt.of(new AttemptIdentity(AttemptId.of(SlotId.of(slotId), 1), RoundId.of(roundId), TeamId.of(teamId)),
                 RulebookReference.of(ChallengeId.of("ch-rescue"), RESCUE));
     }
+
+    @Test
+    @DisplayName("findByIds returns only the requested attempts that exist, once and ordered by id; nothing for no ids")
+    void findsAttemptsByIds() {
+        repository.save(attempt("s-ids-c", "r-ids-1", "t-ids"));
+        repository.save(attempt("s-ids-a", "r-ids-1", "t-ids"));
+        repository.save(attempt("s-ids-b", "r-ids-1", "t-ids"));
+
+        List<Attempt> found = repository.findByIds(List.of(AttemptId.parse("s-ids-c-1"), AttemptId.parse("s-ids-a-1"),
+                AttemptId.parse("s-ids-missing-1"), AttemptId.parse("s-ids-a-1")));
+
+        assertThat(found).extracting(Attempt::getId)
+                .containsExactly(AttemptId.parse("s-ids-a-1"), AttemptId.parse("s-ids-c-1"));
+        assertThat(repository.findByIds(List.of())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("findByRoundIds returns the attempts of any of those rounds ordered by id; nothing for no rounds")
+    void findsAttemptsByRoundIds() {
+        repository.save(attempt("s-rids-b", "r-rids-1", "t-rids"));
+        repository.save(attempt("s-rids-a", "r-rids-3", "t-rids"));
+        repository.save(attempt("s-rids-c", "r-rids-2", "t-rids"));
+
+        List<Attempt> found = repository.findByRoundIds(List.of(RoundId.of("r-rids-3"), RoundId.of("r-rids-1"),
+                RoundId.of("r-rids-3"), RoundId.of("r-rids-none")));
+
+        assertThat(found).extracting(Attempt::getId)
+                .containsExactly(AttemptId.parse("s-rids-a-1"), AttemptId.parse("s-rids-b-1"));
+        assertThat(repository.findByRoundIds(List.of())).isEmpty();
+    }
 }

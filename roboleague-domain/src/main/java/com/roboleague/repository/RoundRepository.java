@@ -6,6 +6,7 @@ import com.roboleague.scheduling.RoundScope;
 import com.roboleague.scheduling.SlotId;
 import com.roboleague.tournament.ChallengeId;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,6 +18,8 @@ import java.util.Optional;
 public interface RoundRepository {
     void save(Round round);
     Optional<Round> findById(RoundId roundId);
+    /** The rounds with those ids, ordered by id; ids that do not exist are simply absent. */
+    List<Round> findByIds(Collection<RoundId> ids);
     Optional<Round> findByScope(RoundScope scope);
     List<Round> findByChallengeId(ChallengeId challengeId);
     List<Round> findAll();
