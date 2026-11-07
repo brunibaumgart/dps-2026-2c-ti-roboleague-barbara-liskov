@@ -27,6 +27,6 @@ public class QueryEditionsUseCase {
      * collection). A stored reference that does not exist is an InconsistentStateException.
      */
     public Map<EditionId, Edition> byIds(Collection<EditionId> ids) {
-        return StoredReferences.byIds(ids, editions::findByIds, Edition::getId, "Edition not found");
+        return StoredReferences.byIds(ids, editions::findByIds, Edition::getId, "Stored edition not found");
     }
 }

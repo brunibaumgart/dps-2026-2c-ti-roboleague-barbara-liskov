@@ -9,7 +9,6 @@ import com.roboleague.scheduling.SlotId;
 import com.roboleague.tournament.ChallengeId;
 
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -41,8 +40,7 @@ public class InMemoryRoundRepository implements RoundRepository {
 
     @Override
     public List<Round> findByIds(Collection<RoundId> ids) {
-        return ids.stream().distinct().map(storage::get).filter(Objects::nonNull)
-                .sorted(Comparator.comparing(found -> found.getId().value())).toList();
+        return Batches.find(ids, this::findById, round -> round.getId().value());
     }
 
     @Override

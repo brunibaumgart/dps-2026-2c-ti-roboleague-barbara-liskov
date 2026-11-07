@@ -29,9 +29,7 @@ public class InMemoryChallengeRepository implements ChallengeRepository {
 
     @Override
     public List<Challenge> findByIds(Collection<ChallengeId> ids) {
-        return ids.stream().distinct().map(storage::get).filter(Objects::nonNull)
-                .map(InMemoryChallengeRepository::copy)
-                .sorted(Comparator.comparing(found -> found.getId().value())).toList();
+        return Batches.find(ids, this::findById, challenge -> challenge.getId().value());
     }
 
     @Override

@@ -1,10 +1,12 @@
 # Query API (Entrega 3). Writes stay in REST. Fields are added, never removed or retyped.
 
+"""Raíz de consulta; cada campo delega en un caso de uso de lectura de application."""
 type Query {
   "Todas las ediciones, por id."
   editions: [Edition!]!
 }
 
+"""Edición del torneo con sus fechas y número; sale de QueryEditionsUseCase."""
 type Edition {
   id: ID!
   name: String!

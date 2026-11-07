@@ -24,8 +24,7 @@ public class InMemoryTeamRepository implements TeamRepository {
 
     @Override
     public List<Team> findByIds(Collection<TeamId> ids) {
-        return ids.stream().distinct().map(storage::get).filter(Objects::nonNull)
-                .sorted(Comparator.comparing(found -> found.getId().value())).toList();
+        return Batches.find(ids, this::findById, team -> team.getId().value());
     }
 
     @Override

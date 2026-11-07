@@ -9,7 +9,6 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Collections;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -50,12 +49,7 @@ public class JpaAttemptRepository implements AttemptRepository {
 
     @Override
     public List<Attempt> findByIds(Collection<AttemptId> ids) {
-        List<String> keys = ids.stream().distinct().map(AttemptId::value).toList();
-        if (keys.isEmpty()) {
-            return List.of();
-        }
-        return jpa.findAllById(keys).stream().map(this::toDomain)
-                .sorted(Comparator.comparing(found -> found.getId().value())).toList();
+        return Batches.load(ids, AttemptId::value, jpa::findAllById, this::toDomain, JpaAttemptRepository::idOf);
     }
 
     @Override
@@ -70,17 +64,17 @@ public class JpaAttemptRepository implements AttemptRepository {
 
     @Override
     public List<Attempt> findByRoundIds(Collection<RoundId> roundIds) {
-        List<String> keys = roundIds.stream().distinct().map(RoundId::value).toList();
-        if (keys.isEmpty()) {
-            return List.of();
-        }
-        return jpa.findByRoundIdIn(keys).stream().map(this::toDomain)
-                .sorted(Comparator.comparing(found -> found.getId().value())).toList();
+        return Batches.load(roundIds, RoundId::value, jpa::findByRoundIdIn, this::toDomain,
+                JpaAttemptRepository::idOf);
     }
 
     @Override
     public List<Attempt> findAll() {
         return jpa.findAll().stream().map(this::toDomain).toList();
+    }
+
+    private static String idOf(Attempt attempt) {
+        return attempt.getId().value();
     }
 
     private Attempt toDomain(AttemptJpaEntity entity) {

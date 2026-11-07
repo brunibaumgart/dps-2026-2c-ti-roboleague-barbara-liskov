@@ -45,11 +45,11 @@ public class GetAttemptBreakdownUseCase {
      */
     public Map<AttemptId, AttemptBreakdown> byIds(Collection<AttemptId> attemptIds) {
         Map<AttemptId, Attempt> found = StoredReferences.byIds(attemptIds, attemptRepository::findByIds,
-                Attempt::getId, "Attempt not found");
+                Attempt::getId, "Stored attempt not found");
         List<ChallengeId> challengeIds = found.values().stream()
                 .map(attempt -> attempt.getRulebookReference().challengeId()).distinct().toList();
         Map<ChallengeId, Challenge> challenges = StoredReferences.byIds(challengeIds, challengeRepository::findByIds,
-                Challenge::getId, "Challenge not found");
+                Challenge::getId, "Challenge of an attempt not found");
         Map<AttemptId, AttemptBreakdown> explained = new LinkedHashMap<>();
         for (Attempt attempt : found.values()) {
             RulebookReference scoredWith = attempt.getRulebookReference();

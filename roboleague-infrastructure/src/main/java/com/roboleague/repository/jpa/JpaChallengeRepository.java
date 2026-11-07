@@ -9,7 +9,6 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Collections;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -51,12 +50,8 @@ public class JpaChallengeRepository implements ChallengeRepository {
 
     @Override
     public List<Challenge> findByIds(Collection<ChallengeId> ids) {
-        List<String> keys = ids.stream().distinct().map(ChallengeId::value).toList();
-        if (keys.isEmpty()) {
-            return List.of();
-        }
-        return jpa.findAllById(keys).stream().map(this::toDomain)
-                .sorted(Comparator.comparing(found -> found.getId().value())).toList();
+        return Batches.load(ids, ChallengeId::value, jpa::findAllById, this::toDomain,
+                challenge -> challenge.getId().value());
     }
 
     @Override

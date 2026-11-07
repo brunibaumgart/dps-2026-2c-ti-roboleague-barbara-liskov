@@ -25,8 +25,7 @@ public class InMemoryEditionRepository implements EditionRepository {
 
     @Override
     public List<Edition> findByIds(Collection<EditionId> ids) {
-        return ids.stream().distinct().map(storage::get).filter(Objects::nonNull)
-                .sorted(Comparator.comparing(found -> found.getId().value())).toList();
+        return Batches.find(ids, this::findById, edition -> edition.getId().value());
     }
 
     @Override

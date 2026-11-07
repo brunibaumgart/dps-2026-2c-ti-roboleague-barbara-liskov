@@ -28,9 +28,7 @@ public class InMemoryAttemptRepository implements AttemptRepository {
 
     @Override
     public List<Attempt> findByIds(Collection<AttemptId> ids) {
-        return ids.stream().distinct().map(storage::get).filter(Objects::nonNull)
-                .map(InMemoryAttemptRepository::copy)
-                .sorted(Comparator.comparing(found -> found.getId().value())).toList();
+        return Batches.find(ids, this::findById, attempt -> attempt.getId().value());
     }
 
     @Override

@@ -26,6 +26,6 @@ public class GetChallengeUseCase {
      */
     public Map<ChallengeId, Challenge> byIds(Collection<ChallengeId> challengeIds) {
         return StoredReferences.byIds(challengeIds, challengeRepository::findByIds, Challenge::getId,
-                "Challenge not found");
+                "Stored challenge not found");
     }
 }

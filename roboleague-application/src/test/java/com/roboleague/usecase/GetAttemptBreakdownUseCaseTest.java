@@ -172,7 +172,26 @@ class GetAttemptBreakdownUseCaseTest {
                 new TrackPerformance(60.0, 0, 0), 0.0, Map.of(ZONE.name(), 0.0, DISTANCE.name(), 0.0)), JUDGE)));
 
         assertThatThrownBy(() -> new GetAttemptBreakdownUseCase(attempts, new InMemoryChallengeRepository())
-                .byIds(List.of(ATTEMPT))).isInstanceOf(InconsistentStateException.class);
+                .byIds(List.of(ATTEMPT))).isInstanceOf(InconsistentStateException.class)
+                .hasMessage("Challenge of an attempt not found: [ch-capped]");
+    }
+
+    @Test
+    void givenAnAttemptScoredWithAVersionItsChallengeNoLongerHasThenTheBatchIsInconsistent() {
+        Challenge stored = challenges.findById(CHALLENGE).orElseThrow();
+        stored.publish(ScoringScheme.withoutBonuses(List.of(TimeBasedRule.standard(Points.of(50), 60.0)), List.of()),
+                new RankingScheme(new AllRounds(), List.of(new HigherTotal())));
+        challenges.save(stored);
+        receive.execute(new ReceiveResultCommand(CHALLENGE, ATTEMPT.slotId(), new SourceDelivery(new Measurements(
+                new TrackPerformance(60.0, 0, 0), 0.0, Map.of()), JUDGE)));
+        // The same challenge as stored before v2 was published: the attempt's version is gone.
+        InMemoryChallengeRepository onlyFirstVersion = new InMemoryChallengeRepository();
+        onlyFirstVersion.save(Challenge.restore(Challenge.draft(CHALLENGE, EditionId.of("ed-1"), "Laberinto"),
+                List.of(stored.rulebooks().getFirst())));
+
+        assertThatThrownBy(() -> new GetAttemptBreakdownUseCase(attempts, onlyFirstVersion).byIds(List.of(ATTEMPT)))
+                .isInstanceOf(InconsistentStateException.class)
+                .hasMessage("Rulebook ch-capped v2 not found");
     }
 
     @Test

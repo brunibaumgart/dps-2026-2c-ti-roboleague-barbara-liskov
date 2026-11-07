@@ -41,7 +41,7 @@ public class QueryRoundsUseCase {
      * or standings.
      */
     public Map<RoundId, Round> byIds(Collection<RoundId> ids) {
-        return StoredReferences.byIds(ids, rounds::findByIds, Round::getId, "Round not found");
+        return StoredReferences.byIds(ids, rounds::findByIds, Round::getId, "Stored round not found");
     }
 
     public List<Round> list(ChallengeId id, Optional<CategoryId> category) {

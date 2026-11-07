@@ -10,7 +10,6 @@ import com.roboleague.tournament.ChallengeId;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -55,12 +54,8 @@ public class JpaRoundRepository implements RoundRepository {
 
     @Override
     public List<Round> findByIds(Collection<RoundId> ids) {
-        List<String> keys = ids.stream().distinct().map(RoundId::value).toList();
-        if (keys.isEmpty()) {
-            return List.of();
-        }
-        return jpa.findAllById(keys).stream().map(RoundMapper::toDomain)
-                .sorted(Comparator.comparing(found -> found.getId().value())).toList();
+        return Batches.load(ids, RoundId::value, jpa::findAllById, RoundMapper::toDomain,
+                round -> round.getId().value());
     }
 
     @Override

@@ -1,8 +1,8 @@
 package com.roboleague.usecase;
 
+import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.TurnAttempts;
-import com.roboleague.evaluation.Attempt;
 import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.ChallengeRepository;
 import com.roboleague.repository.RoundRepository;
@@ -34,18 +34,21 @@ public class QueryTurnAttemptsUseCase {
     public QueryTurnAttemptsUseCase(RoundRepository roundRepository, AttemptRepository attemptRepository,
                                     ChallengeRepository challengeRepository) {
         this.roundRepository = Objects.requireNonNull(roundRepository, "roundRepository cannot be null");
-        Objects.requireNonNull(attemptRepository, "attemptRepository cannot be null");
         this.challengeRepository = Objects.requireNonNull(challengeRepository, "challengeRepository cannot be null");
         this.categoryRulebook = new CategoryRulebook(roundRepository, attemptRepository);
     }
 
+    /**
+     * The turn of one slot, or NotFoundException("Slot", slotId). Reads: the round by slot (1), then the three of
+     * {@link #ofLoadedRounds} for its category, so 4 in all.
+     */
     public TurnResults execute(SlotId slotId) {
         Objects.requireNonNull(slotId, "slotId cannot be null");
         Round round = roundRepository.findBySlotId(slotId)
                 .orElseThrow(() -> new NotFoundException("Slot", slotId));
         round.slot(slotId).orElseThrow(() -> new InconsistentStateException(
                 "Round " + round.getId() + " was found by slot " + slotId + " but does not contain it"));
-        return ofRounds(List.of(round.getId())).get(slotId);
+        return ofLoadedRounds(List.of(round)).get(slotId);
     }
 
     /**
@@ -55,14 +58,21 @@ public class QueryTurnAttemptsUseCase {
      * InconsistentStateException: the ids come from slots already loaded.
      */
     public Map<SlotId, TurnResults> ofRounds(Collection<RoundId> roundIds) {
-        Map<RoundId, Round> found = StoredReferences.byIds(roundIds, roundRepository::findByIds, Round::getId,
-                "Round not found");
-        List<ChallengeId> challengeIds = found.values().stream().map(Round::getChallengeId).distinct().toList();
+        return ofLoadedRounds(StoredReferences.byIds(roundIds, roundRepository::findByIds, Round::getId,
+                "Stored round not found").values());
+    }
+
+    /**
+     * Reads: the challenges of the rounds (1) and, per distinct (challenge, category), the category's rounds (1)
+     * and attempts (1).
+     */
+    private Map<SlotId, TurnResults> ofLoadedRounds(Collection<Round> rounds) {
+        List<ChallengeId> challengeIds = rounds.stream().map(Round::getChallengeId).distinct().toList();
         Map<ChallengeId, Challenge> challenges = StoredReferences.byIds(challengeIds,
                 challengeRepository::findByIds, Challenge::getId, "Challenge of a round not found");
         Map<SlotId, TurnResults> results = new LinkedHashMap<>();
         Map<CategoryKey, List<Round>> groups = new LinkedHashMap<>();
-        for (Round round : found.values()) {
+        for (Round round : rounds) {
             groups.computeIfAbsent(new CategoryKey(round.getChallengeId(), round.getCategoryId()),
                     key -> new ArrayList<>()).add(round);
         }

@@ -46,7 +46,14 @@ class QueryTurnAttemptsOfRoundsTest {
     private final InMemoryRoundRepository rounds = new InMemoryRoundRepository();
     private final InMemoryAttemptRepository attempts = new InMemoryAttemptRepository();
     private final ReceiveResultUseCase receive = new ReceiveResultUseCase(attempts, rounds, challenges, CLOCK, ids());
-    private final QueryTurnAttemptsUseCase query = new QueryTurnAttemptsUseCase(rounds, attempts, challenges);
+    // Captures above go to the plain repositories, so the counts below belong to the query alone; one counter per
+    // port, so a read of rounds is never mistaken for a read of challenges with the same method name.
+    private final ReadCounts roundReads = new ReadCounts();
+    private final ReadCounts attemptReads = new ReadCounts();
+    private final ReadCounts challengeReads = new ReadCounts();
+    private final QueryTurnAttemptsUseCase query = new QueryTurnAttemptsUseCase(
+            new CountingRoundRepository(rounds, roundReads), new CountingAttemptRepository(attempts, attemptReads),
+            new CountingChallengeRepository(challenges, challengeReads));
 
     QueryTurnAttemptsOfRoundsTest() {
         ScoringScheme scoring = ScoringScheme.withoutBonuses(List.of(new ObjectivesRule("Objetivos", Points.of(20))), List.of());
@@ -83,12 +90,35 @@ class QueryTurnAttemptsOfRoundsTest {
         assertThat(twice.rulebook().version()).isEqualTo(new RulebookVersion(1));
         assertThat(turns.get(SlotId.of("r-2-team-b")).rulebook().version()).isEqualTo(new RulebookVersion(1));
         assertThat(turns.get(SlotId.of("r-rescue-team-d")).rulebook().version()).isEqualTo(new RulebookVersion(2));
+        // Rounds (1) and challenges (1), then the category's rounds (1) and attempts (1) for each of two categories.
+        assertThat(totalReads()).isEqualTo(6);
+        assertThat(roundReads.of("findByIds")).isEqualTo(1);
+        assertThat(challengeReads.of("findByIds")).isEqualTo(1);
+        assertThat(roundReads.of("findByChallengeId")).isEqualTo(2);
+        assertThat(attemptReads.of("findByRoundIds")).isEqualTo(2);
+    }
+
+    @Test
+    void givenRoundsOfOneCategoryThenTheBatchCostsFourReadsHoweverManyRounds() {
+        query.ofRounds(List.of(RoundId.of("r-1")));
+        int one = totalReads();
+        query.ofRounds(List.of(RoundId.of("r-1"), RoundId.of("r-2"), RoundId.of("r-1")));
+
+        assertThat(one).isEqualTo(4);
+        assertThat(totalReads() - one).isEqualTo(4);
+        assertThat(attemptReads.of("findByRoundId")).isZero();
     }
 
     @Test
     void givenOneSlotThenExecuteAgreesWithOfRounds() {
         TurnResults single = query.execute(SlotId.of("r-1-team-a"));
 
+        // The round by slot (1), then its challenge (1) and the category's rounds (1) and attempts (1); the round
+        // found by slot is not read again.
+        assertThat(totalReads()).isEqualTo(4);
+        assertThat(roundReads.of("findBySlotId")).isEqualTo(1);
+        assertThat(roundReads.of("findByIds")).isZero();
+        assertThat(challengeReads.of("findByIds")).isEqualTo(1);
         assertThat(single.attempts()).extracting(Attempt::getId).isEqualTo(
                 query.ofRounds(List.of(RoundId.of("r-1"))).get(SlotId.of("r-1-team-a")).attempts()
                         .stream().map(Attempt::getId).toList());
@@ -114,6 +144,10 @@ class QueryTurnAttemptsOfRoundsTest {
     @Test
     void givenNoRoundsThenTheMapIsEmpty() {
         assertThat(query.ofRounds(List.of())).isEmpty();
+    }
+
+    private int totalReads() {
+        return roundReads.total() + attemptReads.total() + challengeReads.total();
     }
 
     private void capture(String slot, int objectives) {

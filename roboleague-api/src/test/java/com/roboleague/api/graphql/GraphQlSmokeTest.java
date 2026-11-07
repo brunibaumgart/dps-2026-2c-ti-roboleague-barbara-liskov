@@ -16,7 +16,7 @@ class GraphQlSmokeTest extends ApiTest {
 
     @Test
     void editionsAnswersWithTheStoredEditions() throws Exception {
-        String id = "gql-smoke-" + System.nanoTime();
+        String id = "ed-gql-smoke";
         mvc.perform(EditionRequests.edition(id)).andExpect(status().isCreated());
 
         List<String> ids = graphQl.document("{ editions { id name editionNumber startDate endDate } }")

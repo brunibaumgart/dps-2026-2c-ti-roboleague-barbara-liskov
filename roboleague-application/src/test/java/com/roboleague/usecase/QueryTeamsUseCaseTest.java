@@ -14,7 +14,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class QueryTeamsUseCaseTest {
     private final InMemoryTeamRepository teams = new InMemoryTeamRepository();
-    private final QueryTeamsUseCase query = new QueryTeamsUseCase(teams);
+    private final ReadCounts reads = new ReadCounts();
+    private final QueryTeamsUseCase query = new QueryTeamsUseCase(new CountingTeamRepository(teams, reads));
 
     QueryTeamsUseCaseTest() {
         teams.save(team("team-a"));
@@ -39,6 +40,8 @@ class QueryTeamsUseCaseTest {
 
         assertThat(found).containsOnlyKeys(TeamId.of("team-a"), TeamId.of("team-b"));
         assertThat(found.get(TeamId.of("team-a")).getId()).isEqualTo(TeamId.of("team-a"));
+        assertThat(reads.of("findByIds")).isEqualTo(1);
+        assertThat(reads.total()).isEqualTo(1);
     }
 
     @Test
@@ -49,7 +52,8 @@ class QueryTeamsUseCaseTest {
     }
 
     @Test
-    void givenNoIdsThenTheMapIsEmpty() {
+    void givenNoIdsThenTheMapIsEmptyWithoutReading() {
         assertThat(query.byIds(List.of())).isEmpty();
+        assertThat(reads.total()).isZero();
     }
 }
