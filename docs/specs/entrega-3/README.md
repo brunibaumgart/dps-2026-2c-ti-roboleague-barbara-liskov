@@ -1,6 +1,6 @@
 # Entrega 3: API GraphQL de consulta sobre la aplicación existente
 
-Estado: **planificada, sin implementar**. Este directorio es el plan completo
+Estado: **en curso**: fases 0 y 1 implementadas (PR #23), fases 2–6 pendientes. Este directorio es el plan completo
 para que un agente (o una persona) la implemente de punta a punta. Leer este
 README entero antes de abrir las specs numeradas; cada spec dice qué archivos
 toca, qué decisiones ya están tomadas y cómo se verifica.

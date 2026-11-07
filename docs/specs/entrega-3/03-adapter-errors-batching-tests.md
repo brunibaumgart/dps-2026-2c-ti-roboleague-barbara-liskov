@@ -1,6 +1,6 @@
 # 03 — Adaptador GraphQL: dependencias, resolvers, errores, lote y tests
 
-Estado: planificada. Fases 0, 2, 3 y 4 del README. Todo en `roboleague-api`.
+Estado: fase 0 **implementada** (PR #23); fases 2, 3 y 4 planificadas. Fases 0, 2, 3 y 4 del README. Todo en `roboleague-api`.
 
 ## 1. Fase 0: dependencias y esqueleto
 
@@ -100,6 +100,15 @@ Comprobar después del cambio que `TransactionalUseCasesTest` y
 - Arrancar la app (o leer el log del test): Spring for GraphQL imprime un
   informe de inspección del esquema ("GraphQL schema inspection"). Debe decir
   `Unmapped fields: {}`. Ese informe es el control de la fase 2 también.
+
+Resultado de la fase 0 (2026-11-06): `spring-webflux` llega en scope test con
+`spring-boot-starter-graphql-test`, así que el tester funciona sin dependencia
+extra. El informe de inspección dice `Unmapped fields: {}`. En el navegador,
+`/graphiql` carga, el panel de docs lista el esquema y ejecuta consultas; el
+autocompletado del editor queda en «Loading...» porque el bundle de
+`@graphiql/react` 0.37.7 que trae Boot no resuelve `@emotion/is-prop-valid` en
+`esm.sh` (error en consola). No es nuestro código: queda anotado en DESIGN
+2.33 y en la deuda; la demo se apoya en docs + ejecución y en los `curl`.
 
 ## 2. Fase 2: estructura del adaptador
 

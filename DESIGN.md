@@ -1248,6 +1248,31 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
 
 ---
 
+### 2.33 API GraphQL de consulta (Entrega 3): lecturas por lote y esqueleto del adaptador
+
+Plan completo y decisiones D1–D12 en `docs/specs/entrega-3/`. Esta sección registra lo que ya está en el código (fases 0 y 1) y se completa a medida que entran las fases siguientes.
+
+- **Problema**: un campo GraphQL se resuelve por fila (`Standings.entries[*].team`, `RoundResult.attempt`, `Slot.turn`), y cada caso de uso corre en su propia transacción (2.16): sin una sesión compartida entre filas, N filas son N lecturas (N+1). El `DataLoader` de GraphQL junta las claves de un mismo nivel, pero necesita un caso de uso que acepte una colección de ids. Además, `CategoryRulebook` leía los intentos de una categoría con una consulta por ronda.
+
+- **Qué se eligió** (spec 02):
+  - **`findByIds(Collection<XxxId>)` en los puertos `Team`, `Attempt`, `Round`, `Challenge` y `Edition`, y `findByRoundIds` en `Attempt`**: deduplican, con ids vacíos devuelven vacío sin leer, y ordenan por id (el que llama decide el orden de salida). Adaptador JPA con `findAllById`/`findByRoundIdIn`; en memoria con el mapa. Un método por puerto que de verdad se consume desde un lote (ISP), no una interfaz genérica `findByIds` para los siete.
+  - **`byIds`/`ofRounds` en los casos de uso de lectura existentes** (`QueryRoundsUseCase`, `GetAttemptBreakdownUseCase`, `GetChallengeUseCase`, `QueryEditionsUseCase`, `QueryTurnAttemptsUseCase`) y dos nuevos, `QueryTeamsUseCase` y `QueryTeamResultsUseCase` (rondas y turnos de un equipo en un desafío en cuatro o cinco lecturas, no una por ronda). `StoredReferences.byIds` concentra el patrón: pedir, indexar por id y tratar un id que no volvió como `InconsistentStateException`, porque una referencia guardada que no resuelve es un dato inconsistente (500), no un 404.
+  - **`CategoryRulebook` lee los intentos de la categoría en una sola consulta** (`findByRoundIds`), ordenados por posición de ronda, slot y número de intento; el comportamiento observable no cambia (mismos tests, con un test de conteo de lecturas).
+  - **Esqueleto del adaptador** (spec 03 §1): `spring-boot-starter-graphql` sobre MVC en `/graphql`, `schema.graphqls` con `Query.editions` y los escalares de `Edition`, `EditionQueries` (`@Controller`, mismo caso de uso que `EditionController`) y `EditionView` (view plano, misma exención que los DTO, 2.15). GraphiQL habilitado en `/graphiql`. `HttpGraphQlTester` en `ApiTest`, no en una subclase: una anotación distinta en la subclase sería un segundo contexto Spring y otro Postgres en la suite.
+
+- **Alternativas descartadas**:
+  - Una sesión Hibernate por request GraphQL (Open Session in View): contradice 2.16 y oculta el N+1 en vez de eliminarlo.
+  - Lote solo para `team` (el caso más visible): cada relación por id sin lote es un N+1 esperando a que una pantalla lo pida; el costo marginal por puerto es un método y dos tests.
+  - Módulo `roboleague-graphql` aparte: sin clase de arranque propia no se puede testear sin api (D1).
+
+- **Clases agregadas**: `QueryTeamsUseCase`, `QueryTeamResultsUseCase`, `TeamTurn`, `StoredReferences`, `EditionQueries`, `EditionView`, `schema.graphqls`.
+- **Clases modificadas**: los cinco puertos y sus adaptadores JPA y en memoria, `SpringDataAttempts`, `CategoryRulebook`, `StoredTurn`, `QueryTurnAttemptsUseCase`, `QueryRoundsUseCase`, `GetAttemptBreakdownUseCase`, `GetChallengeUseCase`, `QueryEditionsUseCase`, `UseCaseConfig`, `ApiTest`.
+- **Deuda** (se amplía con las fases siguientes):
+  - Las listas por padre (`Edition.challenges`, `Attempt.appeals`) siguen costando una lectura por padre; no hay `findByEditionIds` ni `findByAttemptIds` todavía.
+  - La consola GraphiQL que trae Boot carga todo desde `esm.sh`: sin red queda en blanco (D10) y, con red, el autocompletado del editor queda en «Loading...» porque el bundle de `@graphiql/react` 0.37.7 no resuelve `@emotion/is-prop-valid` en ese CDN; el panel de docs y la ejecución funcionan. Para la demo valen las consultas `curl` del README; servir GraphiQL sin CDN queda como mejora.
+
+---
+
 ## 3. Matriz Comparativa Exhaustiva de Trade-offs
 
 | Decisión Arquitectónica | Pros Clave | Contras y Costos Asociados | Alternativa Considerada y Rechazada |

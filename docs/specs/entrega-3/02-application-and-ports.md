@@ -1,6 +1,6 @@
 # 02 — Casos de uso de lectura y puerto para el lote
 
-Estado: planificada. Fase 1 del README. No depende de GraphQL: todo lo de
+Estado: **implementada** (PR #23, DESIGN 2.33). Fase 1 del README. No depende de GraphQL: todo lo de
 esta spec es Java plano en `roboleague-domain` (un método de puerto),
 `roboleague-infrastructure` (dos adaptadores) y `roboleague-application`
 (dos casos de uso y un método). Se verifica sin Docker salvo el adaptador JPA.

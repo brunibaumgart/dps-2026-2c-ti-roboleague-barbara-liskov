@@ -1,0 +1,14 @@
+# Query API (Entrega 3). Writes stay in REST. Fields are added, never removed or retyped.
+
+type Query {
+  "Todas las ediciones, por id."
+  editions: [Edition!]!
+}
+
+type Edition {
+  id: ID!
+  name: String!
+  editionNumber: Int!
+  startDate: String!
+  endDate: String!
+}
