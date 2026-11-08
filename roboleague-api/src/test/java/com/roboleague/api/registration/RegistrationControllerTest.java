@@ -198,6 +198,23 @@ class RegistrationControllerTest extends ApiTest {
     }
 
     @Test
+    void aTeamWithAMemberAndRobotOfAnotherTeamOfTheEditionIsUnprocessableAndNotSaved() throws Exception {
+        String id = "http-roster";
+        edition(id);
+        register(id, id + "-a", "Alpha", 1000).andExpect(status().isCreated());
+        String copycat = team(id + "-b", "Copycat", 1000).replace(id + "-b-member", id + "-a-member")
+                .replace(id + "-b-robot", id + "-a-robot");
+
+        mvc.perform(post("/editions/{id}/registrations", id).contentType(MediaType.APPLICATION_JSON)
+                        .content(enrollment(id + "-small", copycat)))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.details", contains("Participant " + id + "-a-member already competes for team "
+                        + id + "-a", "Robot " + id + "-a-robot already competes for team " + id + "-a")));
+        mvc.perform(get("/editions/{id}/registrations", id)).andExpect(jsonPath("$", hasSize(1)));
+        register(id, id + "-b", "Own people", 1000).andExpect(status().isCreated());
+    }
+
+    @Test
     void invalidOrUnknownUpdateLeavesExistingTeamUntouched() throws Exception {
         String id = "http05-bad-update";
         edition(id);

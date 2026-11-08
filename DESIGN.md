@@ -685,6 +685,17 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
   antes de guardar. ChangeRegistrationCategoryUseCase modifica una relación y
   conserva sus tiempos. Programación revalida antes de generar ids; rankings
   resuelven los participantes actuales sin cambiar cálculos del frente 4.
+- **Un integrante y un robot por equipo en cada edición**: `EditionRoster`
+  (`tournament.eligibility`) recibe los equipos inscriptos en una edición y nombra
+  cada integrante (`ParticipantId`) o robot (`RobotId`) que un candidato comparte
+  con otro equipo; la propia inscripción del candidato no cuenta. Inscribir un
+  equipo nuevo o canónico y actualizar uno inscripto lo consultan antes de
+  guardar, y los conflictos vuelven como motivos de `TeamIneligibleException`
+  (422), junto con los de elegibilidad en una actualización. No es una
+  especificación más porque mira otros agregados: `EligibilityCandidate` sigue
+  siendo equipo, categoría y fecha. La misma persona o robot puede competir en
+  otra edición. *Límite*: la identidad es el id que manda el cliente; dos ids
+  distintos para la misma persona no se detectan.
 - **Rehidratación**: Edition.restore valida pertenencia, categorías, fecha de
   referencia y unicidad, conservando los tiempos sin reevaluar equipos. Team
   admite construcción completa de su estado; Documentation.restore conserva
@@ -1454,7 +1465,8 @@ Lista consolidada con los nombres actuales del código. El detalle y la historia
 
 **Deuda técnica que se decidió no resolver**
 - Tiempo, objetivos, faltas, consumo y notas de jueces siguen siendo campos fijos y no métricas declaradas; por eso `PenaltyRule` y `CountedFaultRule` sin franquicia calculan lo mismo (2.11, 2.16).
-- Del panel solo se valida al juez que carga, no a cada juez que puntúa; no se valida el horario del turno y un turno `SCHEDULED` acepta resultados (2.18, 2.29).
+- Del panel solo se valida al juez que carga, no a cada juez que puntúa; no se valida el horario del turno y un turno `SCHEDULED` acepta resultados (2.18, 2.29). Validar a cada juez exige que la ronda conozca su panel: hoy guarda solo el juez asignado a cada turno, y los jueces nombrados al programar que no recibieron turnos se pierden.
+- Las notas de los jueces no tienen escala ni máximo: `JudgeScores` solo exige que sean finitas y no negativas, así que una nota de 9999 se acepta y se multiplica por `weightMultiplier`. La salida sería declarar la escala en la regla `judges` (un `maxScore` opcional) y revisarla al capturar el panel y al corregirlo en una apelación.
 - `ScoreRule.source()` admite una sola fuente: una regla que combine sensores y panel no se puede expresar (2.11).
 - Una métrica declarada que ninguna regla lee igual se exige en la captura, y su rango no se cruza con los parámetros de la regla (2.16).
 - Dos fuentes simultáneas se resuelven con bloqueo optimista: la segunda recibe 409 y el cliente tiene que reintentar; no hay reintento automático (2.18).
