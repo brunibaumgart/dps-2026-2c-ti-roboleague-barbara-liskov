@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.QueryRounds;
 import com.roboleague.port.in.InconsistentStateException;
 import com.roboleague.port.in.NotFoundException;
 
@@ -19,7 +20,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
-public class QueryRoundsUseCase {
+public class QueryRoundsUseCase implements QueryRounds {
     private final ChallengeRepository challenges;
     private final EditionRepository editions;
     private final RoundRepository rounds;

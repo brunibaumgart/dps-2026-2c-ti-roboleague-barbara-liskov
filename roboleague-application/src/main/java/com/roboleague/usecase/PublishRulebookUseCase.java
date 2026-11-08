@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.PublishRulebook;
 import com.roboleague.port.in.NotFoundException;
 import com.roboleague.port.in.Publication;
 
@@ -26,7 +27,7 @@ import java.util.TreeSet;
  * to what is played after it: a category that already has results keeps the version that scored them, and one that
  * does not will play with the new version, so the new version has to admit the rounds already scheduled for it.
  */
-public class PublishRulebookUseCase {
+public class PublishRulebookUseCase implements PublishRulebook {
     private final ChallengeRepository challengeRepository;
     private final RoundRepository roundRepository;
     private final CategoryRulebook categoryRulebook;

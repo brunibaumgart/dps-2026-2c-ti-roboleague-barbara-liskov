@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.ResolveAppeal;
 import com.roboleague.port.in.AppealAcceptance;
 import com.roboleague.port.in.InconsistentStateException;
 import com.roboleague.port.in.NotFoundException;
@@ -39,7 +40,7 @@ import java.util.Set;
  * new revision and the standings of its category are recalculated, so the correction shows up as a new version.
  * Rejecting it keeps the score and releases the attempt once no other appeal is open.
  */
-public class ResolveAppealUseCase {
+public class ResolveAppealUseCase implements ResolveAppeal {
     private final Clock clock;
     private final IdGenerator ids;
 

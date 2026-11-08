@@ -6,9 +6,9 @@ import com.roboleague.evaluation.SourceReport;
 import com.roboleague.scheduling.JudgeId;
 import com.roboleague.scheduling.SlotId;
 import com.roboleague.tournament.ChallengeId;
-import com.roboleague.usecase.QueryTurnAttemptsUseCase;
+import com.roboleague.port.in.QueryTurnAttempts;
 import com.roboleague.port.in.ReceiveResultCommand;
-import com.roboleague.usecase.ReceiveResultUseCase;
+import com.roboleague.port.in.ReceiveResult;
 import com.roboleague.port.in.Reception;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -33,10 +33,10 @@ import java.util.Map;
 @RequestMapping("/slots/{slotId}")
 class TurnResultsController {
 
-    private final ReceiveResultUseCase receiveResult;
-    private final QueryTurnAttemptsUseCase turnAttempts;
+    private final ReceiveResult receiveResult;
+    private final QueryTurnAttempts turnAttempts;
 
-    TurnResultsController(ReceiveResultUseCase receiveResult, QueryTurnAttemptsUseCase turnAttempts) {
+    TurnResultsController(ReceiveResult receiveResult, QueryTurnAttempts turnAttempts) {
         this.receiveResult = receiveResult;
         this.turnAttempts = turnAttempts;
     }
