@@ -2,7 +2,7 @@ package com.roboleague.api.graphql;
 
 import com.roboleague.api.graphql.view.ChallengeView;
 import com.roboleague.tournament.ChallengeId;
-import com.roboleague.usecase.GetChallengeUseCase;
+import com.roboleague.port.in.GetChallenge;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.stereotype.Controller;
@@ -16,9 +16,9 @@ import java.util.Objects;
 @Controller
 class ChallengeQueries {
 
-    private final GetChallengeUseCase getChallenge;
+    private final GetChallenge getChallenge;
 
-    ChallengeQueries(GetChallengeUseCase getChallenge) {
+    ChallengeQueries(GetChallenge getChallenge) {
         this.getChallenge = Objects.requireNonNull(getChallenge);
     }
 
