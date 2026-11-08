@@ -1,16 +1,269 @@
 # Query API (Entrega 3). Writes stay in REST. Fields are added, never removed or retyped.
+# Esquema completo de docs/specs/entrega-3/01-schema.md. Es la base compartida: no se edita sin avisar en el grupo.
 
-"""Raíz de consulta; cada campo delega en un caso de uso de lectura de application."""
 type Query {
   "Todas las ediciones, por id."
   editions: [Edition!]!
+  edition(id: ID!): Edition
+  challenge(id: ID!): Challenge
+  team(id: ID!): Team
+  round(id: ID!): Round
+  "Un turno, buscado por su id de slot."
+  slot(id: ID!): Slot
+  "Un intento por su id <slot>-<numero>."
+  attempt(id: ID!): Attempt
+  appeal(id: ID!): Appeal
+  "La tabla de un desafío en una categoría; existe aunque nunca se haya calculado."
+  standings(challengeId: ID!, categoryId: ID!): Standings!
 }
 
-"""Edición del torneo con sus fechas y número; sale de QueryEditionsUseCase."""
 type Edition {
   id: ID!
   name: String!
   editionNumber: Int!
+  tournament: Tournament!
   startDate: String!
   endDate: String!
+  categories: [Category!]!
+  challenges: [Challenge!]!
+  "Inscripciones de la edición; con categoryId, solo las de esa categoría (400 si no la ofrece)."
+  registrations(categoryId: ID): [Registration!]!
 }
+
+type Tournament { id: ID!, name: String!, description: String!, season: Season! }
+type Season { id: ID!, year: Int!, name: String! }
+
+type Category {
+  id: ID!
+  name: String!
+  minMembers: Int!
+  maxMembers: Int!
+  minAge: Int!
+  maxAge: Int
+  maxWeightGrams: Float!
+  maxLengthMm: Float!
+  maxWidthMm: Float!
+  maxHeightMm: Float!
+}
+
+type Registration {
+  editionId: ID!
+  categoryId: ID!
+  category: Category!
+  registeredAt: String!
+  referenceDate: String!
+  team: Team!
+}
+
+type Team {
+  id: ID!
+  name: String!
+  institution: String!
+  members: [Member!]!
+  robot: Robot!
+  documentation: Documentation!
+  "Lo que el equipo corrió en un desafío (y opcionalmente una categoría), ronda por ronda: la consulta de la consigna."
+  results(challengeId: ID!, categoryId: ID): [TeamTurn!]!
+}
+
+type Member { id: ID!, fullName: String!, birthDate: String!, role: String! }
+type Robot {
+  id: ID!
+  name: String!
+  weightGrams: Float!
+  lengthMm: Float!
+  widthMm: Float!
+  heightMm: Float!
+  actuatorCount: Int!
+  sensors: [String!]!
+}
+type Documentation {
+  documents: [Document!]!
+  verified: Boolean!
+  verifiedAt: String
+  verifiedBy: String
+  revocationReason: String
+}
+type Document { kind: String!, reference: String! }
+
+"Un turno de un equipo en una ronda, con sus intentos en el orden en que se abrieron."
+type TeamTurn {
+  round: Round!
+  slot: Slot!
+  attempts: [Attempt!]!
+}
+
+type Challenge {
+  id: ID!
+  name: String!
+  editionId: ID!
+  edition: Edition!
+  currentRulebook: Rulebook!
+  rulebooks: [Rulebook!]!
+  rulebook(version: Int!): Rulebook
+  rounds(categoryId: ID): [Round!]!
+  standings(categoryId: ID!): Standings!
+  appeals(categoryId: ID!): [Appeal!]!
+}
+
+type Rulebook {
+  version: Int!
+  requiredSources: [ResultSource!]!
+  "Cuántos intentos admite por turno y cuál cuenta, como lo dice el dominio (AttemptSelection.describe)."
+  attemptRule: String!
+  "Qué rondas cuentan (RoundSelection.describe)."
+  selectionRule: String!
+  "Códigos de los criterios de desempate, en orden (RulebookDefinition.ranking.criteria)."
+  tieBreakCriteria: [String!]!
+}
+
+type Round {
+  id: ID!
+  number: Int!
+  name: String!
+  status: RoundStatus!
+  challengeId: ID!
+  editionId: ID!
+  categoryId: ID!
+  challenge: Challenge!
+  category: Category!
+  slots: [Slot!]!
+}
+
+type Slot {
+  id: ID!
+  roundId: ID!
+  teamId: ID!
+  team: Team!
+  track: Track!
+  judges: [Judge!]!
+  startTime: String!
+  endTime: String!
+  intervalSeconds: Int!
+  status: SlotStatus!
+  cancellation: Cancellation
+  "Lo que ve quien carga resultados: reglamento, regla de intentos y los intentos del turno."
+  turn: Turn!
+}
+
+"Un turno visto desde la captura (mismo contenido que GET /slots/{id}/results)."
+type Turn {
+  "Versión del reglamento con la que juega la categoría del turno."
+  rulebookVersion: Int!
+  attemptRule: String!
+  acceptsResult: Boolean!
+  attempts: [Attempt!]!
+}
+
+type Track { id: ID!, name: String!, surfaceType: String!, active: Boolean! }
+type Judge { id: ID!, fullName: String!, specialty: String! }
+type Cancellation { actorId: String!, reason: String!, cancelledAt: String! }
+
+type Attempt {
+  id: ID!
+  number: Int!
+  slotId: ID!
+  roundId: ID!
+  teamId: ID!
+  challengeId: ID!
+  rulebookVersion: Int!
+  status: AttemptStatus!
+  received: [ResultSource!]!
+  "Puntaje que cuenta para la tabla; null mientras espera una fuente o si está descalificado."
+  score: Float
+  team: Team!
+  round: Round!
+  breakdown: ScoreBreakdown!
+  appeals: [Appeal!]!
+}
+
+"Cómo se explica el puntaje: lo que falta, cada ítem (tope y piso incluidos), lo que aportó cada fuente y cada revisión."
+type ScoreBreakdown {
+  total: Float
+  awaiting: [ResultSource!]!
+  items: [ScoreItem!]!
+  notes: [String!]!
+  bySource: [SourceContribution!]!
+  revisions: [Revision!]!
+}
+type ScoreItem { concept: String!, rawMetric: String!, formula: String!, subtotal: Float! }
+type SourceContribution { source: ResultSource!, label: String!, subtotal: Float!, items: [ScoreItem!]! }
+type Revision {
+  number: Int!
+  rulebookVersion: Int!
+  authorId: String!
+  reason: String!
+  total: Float!
+  timestamp: String!
+}
+
+type Standings {
+  challengeId: ID!
+  categoryId: ID!
+  "Todas las versiones sin filas, de la más vieja a la más nueva."
+  versions: [StandingsVersionSummary!]!
+  latest: StandingsVersion
+  official: StandingsVersion
+  pending: Pending!
+}
+type StandingsVersionSummary {
+  number: Int!
+  calculatedAt: String!
+  status: StandingsStatus!
+  publication: Publication
+}
+type StandingsVersion {
+  number: Int!
+  calculatedAt: String!
+  status: StandingsStatus!
+  publication: Publication
+  rulebookVersion: Int!
+  entries: [StandingsEntry!]!
+}
+type Publication { publishedAt: String!, publishedBy: String!, notes: String! }
+type Pending { openAppeals: Int!, unfinishedTurns: Int!, outdated: Boolean! }
+
+type StandingsEntry {
+  position: Int!
+  explanation: String!
+  teamId: ID!
+  "Nombre tal como lo guardó la versión (TeamIdentity): no cuesta una consulta."
+  teamName: String!
+  "El equipo canónico de hoy: se resuelve por lotes (D5)."
+  team: Team!
+  total: Float!
+  selectionRule: String!
+  attemptRule: String!
+  considered: [RoundResult!]!
+  discarded: [RoundResult!]!
+}
+type RoundResult {
+  roundId: ID!
+  attemptId: ID!
+  total: Float!
+  otherAttemptIds: [ID!]!
+  round: Round!
+  attempt: Attempt!
+}
+
+type Appeal {
+  id: ID!
+  attemptId: ID!
+  teamId: ID!
+  reason: String!
+  evidence: String!
+  status: AppealStatus!
+  reviewerId: String
+  submittedAt: String!
+  resolutionNotes: String
+  resolvedAt: String
+  attempt: Attempt!
+  team: Team!
+}
+
+enum ResultSource { AUTOMATIC_MEASUREMENTS, JUDGE_PANEL }
+enum AttemptStatus { SCHEDULED, AWAITING_SOURCES, EVALUATED, UNDER_APPEAL, ADJUSTED, DISQUALIFIED }
+enum RoundStatus { SCHEDULED, IN_PROGRESS, COMPLETED }
+enum SlotStatus { SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED }
+enum StandingsStatus { PROVISIONAL, OFFICIAL, REPLACED }
+enum AppealStatus { PENDING, UNDER_REVIEW, ACCEPTED, REJECTED }
