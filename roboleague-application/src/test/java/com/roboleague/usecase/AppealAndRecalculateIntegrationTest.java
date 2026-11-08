@@ -1,5 +1,10 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.AppealAcceptance;
+import com.roboleague.port.in.ReceiveResultCommand;
+import com.roboleague.port.in.Reception;
+import com.roboleague.port.in.ScheduleRoundCommand;
+
 import com.roboleague.evaluation.*;
 import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.rules.AllObjectivesBonusRule;

@@ -11,7 +11,7 @@ import com.roboleague.tournament.EditionHeader;
 import com.roboleague.tournament.EditionId;
 import com.roboleague.tournament.Season;
 import com.roboleague.tournament.Tournament;
-import com.roboleague.usecase.CreateEditionCommand;
+import com.roboleague.port.in.CreateEditionCommand;
 import com.roboleague.usecase.CreateEditionUseCase;
 import com.roboleague.usecase.QueryEditionsUseCase;
 import org.springframework.http.HttpStatus;

@@ -1,5 +1,8 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.NotFoundException;
+import com.roboleague.port.in.RegisteredTeam;
+
 import com.roboleague.repository.memory.InMemoryEditionRepository;
 import com.roboleague.repository.memory.InMemoryTeamRepository;
 import com.roboleague.tournament.*;
@@ -31,7 +34,7 @@ class UpdateRegistrationUseCaseTest {
     @Test
     void canChangeRobotAndCategoryTogetherWithoutValidatingTheObsoleteCategory() {
         Team candidate = original.withRobot(RegistrationFixtures.robot(2500));
-        RegistrationView result = useCase.execute(edition.getId(), original.getId(), large.id(), candidate);
+        RegisteredTeam result = useCase.execute(edition.getId(), original.getId(), large.id(), candidate);
         assertThat(result.team()).isSameAs(candidate);
         assertThat(result.registration().categoryId()).isEqualTo(large.id());
         assertThat(result.registration().registeredAt()).isEqualTo(TIME);
@@ -83,7 +86,7 @@ class UpdateRegistrationUseCaseTest {
         var stored = editions.findById(edition.getId()).orElseThrow();
         QueryRegistrationsUseCase query = new QueryRegistrationsUseCase(editions, teams);
         assertThat(query.get(edition.getId(), original.getId()).team().getName()).isEqualTo("Updated");
-        assertThat(query.list(edition.getId())).extracting(RegistrationView::team).containsExactly(candidate);
+        assertThat(query.list(edition.getId())).extracting(RegisteredTeam::team).containsExactly(candidate);
         assertThat(editions.findById(edition.getId())).containsSame(stored);
         assertThat(teams.findById(original.getId())).containsSame(candidate);
     }

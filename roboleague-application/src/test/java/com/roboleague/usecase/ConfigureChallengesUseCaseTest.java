@@ -1,5 +1,10 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.AddChallengeCommand;
+import com.roboleague.port.in.CreateEditionCommand;
+import com.roboleague.port.in.NotFoundException;
+import com.roboleague.port.in.Publication;
+
 import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RuleCatalog;
 import com.roboleague.evaluation.Rulebook;

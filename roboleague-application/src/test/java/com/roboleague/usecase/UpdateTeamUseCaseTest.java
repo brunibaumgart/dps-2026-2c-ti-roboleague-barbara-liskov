@@ -1,5 +1,7 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.NotFoundException;
+
 import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.rules.ObjectivesRule;

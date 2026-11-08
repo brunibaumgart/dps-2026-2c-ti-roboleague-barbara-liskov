@@ -4,7 +4,7 @@ import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.scheduling.JudgeId;
 import com.roboleague.support.ActorId;
-import com.roboleague.usecase.AttemptCorrection;
+import com.roboleague.port.in.AttemptCorrection;
 import com.roboleague.usecase.CorrectAttemptUseCase;
 import com.roboleague.usecase.GetAttemptBreakdownUseCase;
 import org.springframework.web.bind.annotation.GetMapping;

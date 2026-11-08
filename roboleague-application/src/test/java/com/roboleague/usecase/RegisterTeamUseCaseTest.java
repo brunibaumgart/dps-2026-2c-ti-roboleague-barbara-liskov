@@ -1,5 +1,7 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.NotFoundException;
+
 import com.roboleague.repository.memory.InMemoryEditionRepository;
 import com.roboleague.repository.memory.InMemoryTeamRepository;
 import com.roboleague.support.ConflictException;

@@ -1,5 +1,9 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.InconsistentStateException;
+import com.roboleague.port.in.NotFoundException;
+import com.roboleague.port.in.RegisteredTeam;
+
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.TeamRepository;
 import com.roboleague.tournament.*;
@@ -16,13 +20,13 @@ public class QueryRegistrationsUseCase {
         this.teams = Objects.requireNonNull(teams);
     }
 
-    public List<RegistrationView> list(EditionId editionId) {
+    public List<RegisteredTeam> list(EditionId editionId) {
         return edition(editionId).getRegistrations().stream()
                 .sorted(Comparator.comparing(Registration::registeredAt).thenComparing(Registration::teamId))
                 .map(this::view).toList();
     }
 
-    public RegistrationView get(EditionId editionId, TeamId teamId) {
+    public RegisteredTeam get(EditionId editionId, TeamId teamId) {
         Registration registration = edition(editionId).registration(teamId)
                 .orElseThrow(() -> new NotFoundException("Registration", teamId + " in " + editionId));
         return view(registration);
@@ -32,9 +36,9 @@ public class QueryRegistrationsUseCase {
         return editions.findById(id).orElseThrow(() -> new NotFoundException("Edition", id));
     }
 
-    private RegistrationView view(Registration registration) {
+    private RegisteredTeam view(Registration registration) {
         Team team = teams.findById(registration.teamId())
                 .orElseThrow(() -> new InconsistentStateException("Registered team not found: " + registration.teamId()));
-        return new RegistrationView(registration, team);
+        return new RegisteredTeam(registration, team);
     }
 }

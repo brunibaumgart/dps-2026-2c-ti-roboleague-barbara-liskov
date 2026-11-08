@@ -1,4 +1,4 @@
-package com.roboleague.usecase;
+package com.roboleague.port.in;
 
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.scheduling.Round;

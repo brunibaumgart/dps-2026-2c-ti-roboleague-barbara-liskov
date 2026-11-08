@@ -1,5 +1,9 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.Publication;
+import com.roboleague.port.in.ReceiveResultCommand;
+import com.roboleague.port.in.Reception;
+
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.Measurements;
 import com.roboleague.evaluation.Points;

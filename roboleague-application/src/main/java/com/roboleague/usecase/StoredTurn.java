@@ -1,5 +1,7 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.InconsistentStateException;
+
 import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.TurnAttempts;
 import com.roboleague.repository.AttemptRepository;

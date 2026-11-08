@@ -1,5 +1,7 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.ScheduleRoundCommand;
+
 import com.roboleague.repository.memory.InMemoryAttemptRepository;
 import com.roboleague.repository.memory.InMemoryEditionRepository;
 import com.roboleague.repository.memory.InMemoryRoundRepository;

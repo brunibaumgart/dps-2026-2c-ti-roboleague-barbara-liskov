@@ -1,5 +1,9 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.InconsistentStateException;
+import com.roboleague.port.in.NotFoundException;
+import com.roboleague.port.in.ScheduleRoundCommand;
+
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.ChallengeRepository;

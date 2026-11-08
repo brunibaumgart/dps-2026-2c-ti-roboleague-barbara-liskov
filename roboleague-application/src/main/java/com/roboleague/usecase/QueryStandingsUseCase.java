@@ -1,5 +1,9 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.CalculatedVersion;
+import com.roboleague.port.in.NotFoundException;
+import com.roboleague.port.in.StandingsOverview;
+
 import com.roboleague.ranking.Standings;
 import com.roboleague.ranking.StandingsId;
 import com.roboleague.ranking.StandingsVersion;
@@ -35,11 +39,5 @@ public class QueryStandingsUseCase {
                         "Standings " + id + " have no version " + number));
         return new CalculatedVersion(calculated, version);
     }
-
-    public record CalculatedVersion(Standings standings, StandingsVersion version) {
-        public CalculatedVersion {
-            Objects.requireNonNull(standings, "standings cannot be null");
-            Objects.requireNonNull(version, "version cannot be null");
-        }
-    }
 }
+

@@ -1,5 +1,10 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.AttemptBreakdown;
+import com.roboleague.port.in.InconsistentStateException;
+import com.roboleague.port.in.NotFoundException;
+import com.roboleague.port.in.ReceiveResultCommand;
+
 import com.roboleague.evaluation.AttemptId;
 import com.roboleague.evaluation.CappedAt;
 import com.roboleague.evaluation.MeasurementUnit;

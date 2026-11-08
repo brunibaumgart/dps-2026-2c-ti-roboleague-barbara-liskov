@@ -1,5 +1,8 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.NotFoundException;
+import com.roboleague.port.in.Publication;
+
 import com.roboleague.evaluation.RuleCatalog;
 import com.roboleague.evaluation.Rulebook;
 import com.roboleague.evaluation.RulebookAssembly;
