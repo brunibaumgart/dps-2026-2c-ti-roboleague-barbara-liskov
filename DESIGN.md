@@ -19,7 +19,8 @@ Cómo leerlo: el capítulo 2 registra cada decisión en el orden en que se tomó
 El capítulo 6 resume, para cada funcionalidad nueva de la Entrega 2 (F1, F2 y
 F3), las clases agregadas y modificadas, las refactorizaciones y la deuda
 técnica que se dejó a propósito; el capítulo 7 reúne en una tabla los patrones
-y técnicas que se decidió no aplicar y sus consecuencias.
+y técnicas que se decidió no aplicar y sus consecuencias; el capítulo 8 hace lo
+mismo que el 6 para la propuesta de valor de la Entrega 3 (API GraphQL).
 
 | Módulo | Responsabilidad y dependencia de producción |
 | --- | --- |
@@ -409,7 +410,7 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
 - **F2: deuda que decidimos no resolver**:
   - ~~Nada impide poner una regla que resta en la lista de bonificaciones.~~ Cerrada en 2.17: cada regla es base, bonificación o deducción por tipo, y el bono por completar objetivos, que escapaba al tope, es una bonificación más.
   - ~~La demo no muestra el tope.~~ Cerrada en 2.15: los tres reglamentos de la demo tienen tope (40 / 30 / 30) y el desglose de los intentos de Laberinto muestra el recorte (demo actual en 2.30).
-- **Alcance del tope (corrección de la Entrega 1)**: el conjunto que se topea es el de las bonificaciones **de un intento**, no el acumulado del desafío ni de una ronda. Justificación en 2.32.
+- **Alcance del tope (corrección de la devolución de la Entrega 2)**: el conjunto que se topea es el de las bonificaciones **de un intento**, no el acumulado del desafío ni de una ronda. Justificación en 2.32.
 - **Patrones no aplicados**: Decorator sobre `ScoreRule` (ver arriba); tope por regla (la consigna pide sobre el conjunto).
 
 ---
@@ -523,7 +524,7 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
   El intento recibía resultados en vez de producirlos. Su id lo elegía quien capturaba y el repositorio hacía `put`, así que capturar dos veces borraba el original (hallazgo 4); no se validaba turno, equipo ni juez. El desglose entraba armado desde el caso de uso, en cualquier estado: un intento descalificado y sin apelación quedó en 9999 (hallazgo 3). El estado era un enum que cualquier método pisaba, así que rechazar una de dos apelaciones lo liberaba, y un equipo con su único intento descalificado entraba a la tabla con 185. El intento no sabía con qué reglamento se puntuó: una apelación aceptada lo reevaluaba con el desafío que pasara quien llamaba (hallazgo 2). Para F3, las mediciones y el panel de jueces tienen que llegar por separado al mismo turno y el puntaje tiene que quedar pendiente, y visible como tal, hasta que estén las dos. Además, un ajuste de faltas perdía las mediciones con nombre y el consumo (issue #5).
 
 - **Solución Implementada**:
-  - **Identidad desde el turno**: `AttemptId(slot, número)` (`slot-7-1`); `AttemptIdentity(id, ronda, equipo)`. Hasta la corrección de la Entrega 1 el número lo mandaba quien capturaba en la ruta; desde 2.32 lo asigna `TurnAttempts` en el orden de llegada y la captura nombra solo el turno. El mismo turno llega al mismo intento y un segundo resultado de la misma fuente se rechaza; las correcciones van por un ajuste de faltas o una apelación, con autor y motivo.
+  - **Identidad desde el turno**: `AttemptId(slot, número)` (`slot-7-1`); `AttemptIdentity(id, ronda, equipo)`. Hasta la corrección de la devolución de la Entrega 2 el número lo mandaba quien capturaba en la ruta; desde 2.32 lo asigna `TurnAttempts` en el orden de llegada y la captura nombra solo el turno. El mismo turno llega al mismo intento y un segundo resultado de la misma fuente se rechaza; las correcciones van por un ajuste de faltas o una apelación, con autor y motivo.
   - **Cada fuente por separado (F3)**: lo que manda una fuente es un `SourceReport` sellado, `Measurements` (tiempo, objetivos, faltas, consumo y mediciones de sensores) o `JudgeScores` (nota de cada juez y mediciones del panel), y `SourceDelivery` le suma el juez que lo cargó. `Attempt.receive(entrega, reglamento)` revisa las mediciones con `Rulebook.check` y devuelve el `MeasurementCheck` (regla #28): si no cumplen, no cambia nada. Mientras falte una fuente que el reglamento exige el intento queda `AWAITING_SOURCES`, sin puntaje; con la última se puntúa con todas, en cualquier orden. Cada fuente suma lo suyo a las métricas (`addTo`) sin preguntar de qué tipo es (regla #8).
   - **El intento se puntúa solo**: ningún método público recibe un `ScoreBreakdown`. Una apelación aceptada trae métricas corregidas (`AppealRevision`) y el intento las puntúa; quién cambió y por qué viajan en `AuditNote`.
   - **Versión fijada (hallazgo 2)**: `RulebookReference(desafío, versión)` se guarda al abrir el intento y `EvaluationSnapshot` guarda la versión de cada revisión. Puntuar con otra versión falla. `ResolveAppealUseCase.acceptAppeal` ya no recibe el desafío: carga la versión del intento. `recalculateWith`, que puntuaba con cualquier reglamento, se borró.
@@ -1223,9 +1224,9 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
   agregaría configuración de build por poco código). Los repositorios en memoria
   de `Edition`, `Team` y `Round` no copian porque esos agregados son inmutables.
 
-### 2.32 Correcciones de la Entrega 1: número de intento, intentos por turno, versión por categoría y alcance del tope
+### 2.32 Correcciones de la devolución de la Entrega 2: número de intento, intentos por turno, versión por categoría y alcance del tope
 
-- **Problema** (devolución de la Entrega 1):
+- **Problema** (devolución de la Entrega 2, commit `7f321c5`):
   - El número de intento lo elegía quien capturaba (`PUT /attempts/{slot}-{n}/…`): el dominio no garantizaba la numeración que 2.18 decía derivar.
   - F1, *hay que definir*: cuántos intentos admite un turno y cuál cuenta para su ronda.
   - F1, *hay que corregir*: al publicar una versión nueva, el recálculo armaba la tabla con el `RankingScheme` vigente aunque los intentos se hubieran puntuado con otro. Con v1 «mejores 1 de 2» (100 puntos) y v2 «todas las rondas», el mismo equipo pasaba a 140 sin que cambiara ningún resultado; y una v2 «mejores 1 de 1» dejaba la tabla sin poder recalcular.
@@ -1261,7 +1262,7 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
 
 ### 2.33 API GraphQL de consulta (Entrega 3): lecturas por lote y esqueleto del adaptador
 
-Plan completo y decisiones D1–D12 en `docs/specs/entrega-3/`. Esta sección registra lo que ya está en el código (fases 0 y 1) y se completa a medida que entran las fases siguientes.
+Plan completo en `docs/specs/entrega-3/`. La primera parte registra las lecturas por lote y el esqueleto (fases 0 y 1); la segunda, las decisiones del adaptador (D1–D12) con sus alternativas.
 
 - **Problema**: un campo GraphQL se resuelve por fila (`Standings.entries[*].team`, `RoundResult.attempt`, `Slot.turn`), y cada caso de uso corre en su propia transacción (2.16): sin una sesión compartida entre filas, N filas son N lecturas (N+1). El `DataLoader` de GraphQL junta las claves de un mismo nivel, pero necesita un caso de uso que acepte una colección de ids. Además, `CategoryRulebook` leía los intentos de una categoría con una consulta por ronda.
 
@@ -1281,6 +1282,57 @@ Plan completo y decisiones D1–D12 en `docs/specs/entrega-3/`. Esta sección re
 - **Deuda** (se amplía con las fases siguientes):
   - Las listas por padre (`Edition.challenges`, `Attempt.appeals`) siguen costando una lectura por padre; no hay `findByEditionIds` ni `findByAttemptIds` todavía.
   - La consola GraphiQL que trae Boot carga todo desde `esm.sh`: sin red queda en blanco (D10) y, con red, el autocompletado del editor queda en «Loading...» porque el bundle de `@graphiql/react` 0.37.7 no resuelve `@emotion/is-prop-valid` en ese CDN; el panel de docs y la ejecución funcionan. Para la demo valen las consultas `curl` del README; servir GraphiQL sin CDN queda como mejora.
+
+#### Decisiones del adaptador GraphQL (D1–D12)
+
+- **Problema**: la consigna pide exponer el dominio de consulta por GraphQL, conviviendo con REST, sin duplicar lógica de negocio y con el dominio libre de frameworks. Los consumidores (pantalla de pista, aplicación de un equipo, prensa) piden combinaciones distintas de los mismos datos.
+
+- **Qué se eligió**:
+  - **D1, segundo adaptador de entrada en `roboleague-api`** (`com.roboleague.api.graphql`), junto a REST. Comparte `UseCaseConfig`, `TransactionalUseCases` y los casos de uso. `spring-graphql` solo está en api: domain y application no ganan dependencias (regla #11).
+  - **D2, solo consultas** (`type Query`). Las escrituras siguen en REST, con sus resultados `sealed` traducidos a 201, 409 y 422.
+  - **D3, schema-first**: `schema.graphqls` es el contrato y los métodos `@QueryMapping`/`@SchemaMapping`/`@BatchMapping` lo cumplen. Decidir qué **no** exponer es más fácil en un archivo que en anotaciones sobre clases Java.
+  - **D4, views propios**: los resolvers devuelven records `*View` del paquete `graphql.view` (ids como `String`, fechas ISO, `Points` como `Float`, igual que el JSON de REST), nunca agregados del dominio. Las relaciones no se embeben: cada view guarda los ids que necesitan sus resolvers hijos y la relación se resuelve solo si la consulta la pide. Los views son vistas planas, exentas de la regla #2 como los DTO (2.15).
+  - **Resolvers que llaman casos de uso, nunca repositorios**: misma regla que los controllers. Se verifica con `grep -rn Repository roboleague-api/src/main/java/com/roboleague/api/graphql`, que tiene que dar vacío. Los resolvers dependen de los puertos de entrada (2.34).
+  - **D5, toda relación por id va en lote** (`@BatchMapping`, el DataLoader de Spring for GraphQL), detrás de los `byIds` de la primera parte de esta sección.
+  - **D6, errores**: un `DataFetcherExceptionResolverAdapter` con la misma tabla que `ApiExceptionHandler`, salvo 409 y 422, que son de escrituras: `NotFoundException` → `NOT_FOUND`, `IllegalArgumentException` → `BAD_REQUEST`, base caída → `INTERNAL_ERROR` con el texto `UNAVAILABLE`, el resto → `INTERNAL_ERROR` genérico, con el detalle solo en el log. La tabla queda duplicada a propósito entre los dos adaptadores: son dos contratos de salida distintos y cada uno cambia por su cliente. Las búsquedas por id son nullables: un id inexistente devuelve `null` **y** una entrada en `errors`, nunca un objeto de relleno (regla #24). Se reutiliza la misma `NotFoundException` que REST en lugar de un resultado `sealed` nuevo para lecturas (reglas #27 y #28).
+  - **D7, fechas como `String` ISO**, igual que REST, sin scalars propios.
+  - **D8, profundidad máxima 10** con `MaxQueryDepthInstrumentation`, sin contar la introspección: el esquema tiene ciclos (`Challenge → edition → challenges → …`) y la consulta de introspección de GraphiQL supera los 10 niveles.
+  - **D9, sin subscription** (capítulo 7).
+  - **D10, el front web no cambia**: la demo usa GraphiQL y `curl`.
+  - **D11, sin migraciones**: los lotes usan `findAllById` y `findByRoundIdIn`.
+  - **D12, `Slot.turn` agrupa** los cuatro campos de captura de un turno (`rulebookVersion`, `attemptRule`, `acceptsResult`, `attempts`): un solo lote por categoría en lugar de cuatro resolvers sobre el mismo caso de uso.
+
+- **El N+1**: aparece en cada relación que se resuelve por fila de una lista, porque cada caso de uso corre en su propia transacción y no hay sesión compartida entre filas. Se midió primero `StandingsEntry.team` resuelto por fila (⟨medir⟩ sentencias para ⟨medir⟩ filas) y después en lote (⟨medir⟩). Cada relación en lote tiene un test de conteo que afirma lo mismo con 1 y con 3 filas; los números están en `docs/graphql-vs-rest.md`. Las listas por padre (`Edition.challenges`, `Attempt.appeals`…) quedaron con una lectura por padre (capítulo 8).
+
+- **Alternativas descartadas**:
+  - Módulo Maven `roboleague-graphql` aparte (D1): necesitaría su propia clase de arranque para testearse o depender de api, con un ciclo.
+  - Mutaciones por GraphQL (D2): duplicarían los contratos de escritura.
+  - Code-first (D3): ata el esquema a nombres Java.
+  - Exponer los agregados o reutilizar los DTO REST (D4): exponen ids tipados y `Points` sin convertir, y los DTO embeben hijos de forma ansiosa, justo lo que GraphQL evita.
+  - Devolver HTTP 404/400 en GraphQL o campos `!` en las búsquedas (D6): GraphQL reporta errores por campo, y un 404 en un campo `!` dejaría en `null` toda la rama.
+  - Sin límite de profundidad (D8): una consulta recursiva no tendría tope. Límite por complejidad de campo: no hay una métrica para calibrarlo.
+
+- **Reglas de la cursada**: #11 (GraphQL solo en api), #2 (los views son vistas planas), #24 (`null` más `errors`, nunca relleno), #27 y #28 (misma `NotFoundException` que REST, sin un resultado `sealed` duplicado). La regla #18 ya no aplica a los puertos de entrada (2.34).
+
+### 2.34 Puertos de entrada (corrección de la devolución de la Entrega 2)
+
+- **Problema** (devolución de la Entrega 2, "Arquitectura, hay que corregir"): los controllers dependían de las clases concretas de los casos de uso; los comandos y las respuestas vivían en application, fuera del modelo del dominio; y `RegistrationController` construía el `Team` del dominio con el `Clock` (`toTeam(clock)`), algo que le corresponde al caso de uso.
+
+- **Qué se eligió**:
+  - **Una interfaz por caso de uso en `com.roboleague.port.in`** (domain), con verbo y sin sufijo (`RegisterTeam`, `ReceiveResult`, `QueryStandings`…), 28 en total. Cada `XxxUseCase` de application la implementa; las clases no cambiaron de nombre.
+  - **Comandos, resultados y excepciones del contrato en el mismo paquete**: los comandos, `Publication`, `Reception`, `AttemptBreakdown`, `TurnResults`, `TeamTurn`, `StandingsOverview`, `CalculatedVersion` (antes anidado en `QueryStandingsUseCase`), `NotFoundException` e `InconsistentStateException`. `RegistrationView` se renombró `RegisteredTeam` para no chocar con el view GraphQL del mismo nombre.
+  - **Los adaptadores de entrada (REST y GraphQL) dependen solo de las interfaces.** `config/` (composition root) y `demo/` son los únicos que conocen `com.roboleague.usecase`. `InputPortBoundaryTest` falla si un adaptador vuelve a importarlo.
+  - **El reloj lo usa el caso de uso**: el controller envía un `TeamCandidate` (domain) sin fechas, y `RegisterTeam` y `UpdateRegistration` construyen el `Team` con el `Clock`. El contrato HTTP no cambió.
+  - Las transacciones no cambiaron: `TransactionalUseCases` usa proxies de clase, que también implementan la interfaz.
+
+- **Por qué**: es la regla de dependencias del esquema hexagonal visto en clase. El núcleo define qué ofrece (puertos de entrada) y qué necesita (puertos de salida: `*Repository`, `Clock`, `IdGenerator`), y los adaptadores solo conocen esos contratos. Con dos adaptadores de entrada (REST y GraphQL), la interfaz es el contrato que comparten.
+
+- **Alternativa descartada**: mantener los casos de uso concretos, que era la decisión de la Entrega 2 (fila "Interfaz por caso de uso" del capítulo 7, ahora quitada). Era más barata, pero dejaba a los adaptadores acoplados a la implementación y los contratos fuera del dominio.
+
+- **Consecuencias**: 28 interfaces con una implementación cada una. Lo que las justifica es el límite del núcleo, no la cantidad de implementaciones; fuera de ese límite sigue valiendo no crear interfaces por las dudas (regla #18). `AGENTS.md` describe la regla nueva.
+
+- **Clases agregadas**: las 28 interfaces de `port.in`, `TeamCandidate`, `CalculatedVersion`, `InputPortBoundaryTest`, `TeamCandidateTest`.
+- **Clases modificadas**: los 28 `XxxUseCase` (`implements`), los controllers REST, `EditionQueries`, `TeamBody`, `RegistrationController`, `UpdateRegistrationUseCase` (recibe `Clock`), `UseCaseConfig`; los comandos y resultados movidos de paquete.
 
 ---
 
@@ -1305,6 +1357,8 @@ Plan completo y decisiones D1–D12 en `docs/specs/entrega-3/`. Esta sección re
 | **Estados del intento con State (`AttemptState`)** | Cada estado acepta solo lo suyo (fuentes, apelaciones, ajustes, descalificación) y cuenta sus apelaciones abiertas. | Cuatro clases y un `AttemptStage` para persistir el estado como dato. | Enum de estado que cada método pisa. Rechazada: rechazar una de dos apelaciones liberaba el intento (2.18). |
 | **Puntos exactos (`Points`, `BigDecimal` escala 2)** | El orden de una suma no cambia la tabla; el desempate del reglamento llega a correr. | Conversión en los bordes (`doubleValue()` en DTOs) y parámetros que rechazan más de dos decimales. | `double` con tolerancia. Rechazada: no es transitivo y depende de un umbral arbitrario (2.28). |
 | **Persistencia JSONB por agregado** | Cada agregado se lee y se escribe entero; la forma del JSON la fija el adaptador, no el dominio. | Sin integridad relacional dentro del JSON; consultas por hijos con índices GIN. | Tablas hijas y entidades JPA anotadas en el dominio. Rechazada: nadie consulta los hijos por separado y metería JPA en el núcleo (2.14, 2.27). |
+| **API GraphQL de consulta junto a REST (2.33, D1–D5)** | Cada cliente pide exactamente lo que necesita en un viaje; el dominio no cambia; los resolvers reutilizan los casos de uso. | Dos adaptadores que mantener; N+1 latente en cada relación por fila; errores en 200 con `errors[]`. | GraphQL en lugar de REST, o mutaciones por GraphQL: rechazadas (D2). |
+| **Puertos de entrada en el dominio (2.34)** | Los adaptadores dependen de contratos del núcleo, no de implementaciones; REST y GraphQL comparten el mismo contrato. | 28 interfaces con una implementación cada una; un caso de uso nuevo declara primero su interfaz. | Casos de uso concretos inyectados en los controllers (Entrega 2): rechazada por la devolución. |
 
 ---
 
@@ -1388,6 +1442,8 @@ Cada test vive en `src/test/java` del módulo y en el paquete de la clase que pr
   - `attempt/AttemptControllerTest` (F2, F3): captura de cada fuente, desglose pendiente y por fuente, el ítem "Tope de bonificaciones" con su métrica, fórmula y subtotal, y los 404/409/422 de la captura. `attempt/AttemptCorrectionControllerTest`: ajuste de faltas y descalificación con la versión nueva de la tabla.
   - `appeal/AppealControllerTest` y `standings/StandingsControllerTest` (F1): ciclo de apelaciones, recálculo, publicación bloqueada (409 con motivos) y `considered`/`discarded`/`selectionRule` con mejores 1 de 2.
   - `ApiExceptionHandlerTest`: cada causa con su estado y las fallas técnicas sin detalles internos. `config/TransactionalUseCasesTest`: un caso de uso que falla después de guardar no deja nada guardado. `demo/DemoFixtureTest`: los tres desafíos, los doce tipos de regla, descartes, desempates por segundo y tercer criterio, el turno cancelado y que cargar la demo dos veces da los mismos ids, horas y totales. `WebFrontendTest`: el front se sirve en el mismo puerto.
+- **Pruebas de API GraphQL** (`roboleague-api`, `api/graphql`, subclases de `ApiTest` con `HttpGraphQlTester`): las consultas principales de cada área (torneo y equipos, desafíos e intentos, ranking y apelaciones), la consulta anidada de la consigna (equipo → resultados por ronda → desglose), un id inexistente (`null` + `NOT_FOUND`), un campo inexistente (`ValidationError`), una consulta de más de 10 niveles (rechazada) y la introspección (aceptada). Los tests de conteo, uno por relación en lote, son la evidencia del N+1: con las estadísticas de Hibernate afirman las mismas sentencias con 1 y con 3 filas.
+- **Límite de los adaptadores** (`InputPortBoundaryTest`): ningún controller ni resolver importa `com.roboleague.usecase` (2.34).
 - **Cobertura**: JaCoCo deja un reporte por módulo en `<módulo>/target/site/jacoco` y uno agregado en `roboleague-api/target/site/jacoco-aggregate`, que la CI publica como artefacto `coverage-report`. `verify` falla si las líneas o ramas de `roboleague-domain` o `roboleague-application` bajan del mínimo de su `pom.xml` (2.31).
 
 ---
@@ -1436,7 +1492,7 @@ Lista consolidada con los nombres actuales del código. El detalle y la historia
 - `ScoringScheme` agrupó sus listas en `ScoreRules` y el desglose pasó a guardar secciones y derivar el total (2.16, 2.17).
 - Ninguna regla de bonificación cambió cómo puntúa.
 
-**Decisión de alcance (corrección de la Entrega 1)**
+**Decisión de alcance (corrección de la devolución de la Entrega 2)**
 - El tope se aplica por intento, no por desafío ni por ronda (2.12, 2.32).
 
 **Deuda técnica que se decidió no resolver**
@@ -1480,7 +1536,6 @@ Lista consolidada con los nombres actuales del código. El detalle y la historia
 | Event sourcing | `Attempt` (revisiones y eventos) y `Standings` (versiones) | Las revisiones guardadas ya son el registro de auditoría; reconstruir desde eventos exige versionar y reproducir eventos sin un beneficio que la consigna pida (2.18) | Los eventos documentan, pero no son la fuente de verdad: si snapshot y evento difirieran manda el snapshot. Cada fila guarda su historial completo en JSONB y crece con cada corrección |
 | CQRS (modelo de lectura separado) | Tablas de posiciones y desgloses | La lectura es barata y del mismo agregado; un segundo modelo agregaría sincronización | La tabla se recalcula de forma sincrónica dentro del caso de uso que corrige (apelación, ajuste) y una captura nueva no la actualiza: queda `pending.outdated` hasta recalcular a mano |
 | Publicación de eventos de dominio (bus, listeners) | Recalcular la tabla al cambiar un puntaje | Un caso de uso explícito es más simple de seguir y corre en la misma transacción | Cada caso de uso que cambia un puntaje tiene que llamar al recálculo; olvidarlo deja la tabla vieja (lo detecta el bloqueo de publicación por resultados posteriores) |
-| Interfaz por caso de uso (puerto de entrada) | `roboleague-application` | Hay una sola implementación por caso de uso y los controllers no necesitan variarla | Controllers y `UseCaseConfig` dependen de clases concretas; las pruebas de API ejercitan la pila real en vez de dobles del caso de uso |
 | Bounded contexts separados o microservicios | `tournament`, `scheduling`, `evaluation`, `ranking` | Comparten tipos y una misma transacción; no hay equipos ni ciclos de despliegue distintos | Un solo despliegue; un cambio en un tipo compartido se propaga a todas las áreas; quedan ciclos de paquetes (`evaluation` ↔ `evaluation.rules`/`definition`, 2.13) |
 | Anotaciones de Spring, JPA o Jackson en domain/application | Agregados, reglas y casos de uso | Mantener el núcleo sin frameworks (regla #11) y la API/persistencia como adaptadores | Un mapper y una entidad JPA por agregado, `RulebookBody` y `ChallengeMapper` duplican la traducción JSON ↔ definición, y las transacciones dependen de proxies de clase de `TransactionalUseCases` (un caso de uso `final` o fuera del paquete quedaría sin transacción) |
 | Agregados mapeados por ORM (tablas hijas, `@OneToMany`) | Reglamentos, inscripciones, integrantes, slots, revisiones | Cada agregado se lee y se escribe entero y nadie consulta los hijos por separado; se eligió JSONB (2.14, 2.27) | Sin integridad relacional dentro del JSON: `findByTeamId`/`findBySlotId` usan contención con índices GIN y la unicidad de `SlotId` la comprueba el adaptador. Cambiar la forma del JSON exige migrar o aceptar `CorruptDataException` al leer datos viejos |
@@ -1498,3 +1553,41 @@ Lista consolidada con los nombres actuales del código. El detalle y la historia
 | `@Transactional` en los casos de uso | `roboleague-application` | Metería Spring en el núcleo (2.19) | Las transacciones dependen de que el bean esté en el paquete exacto `com.roboleague.usecase`; la prueba de rollback necesita `SaveThenFailUseCase` en ese paquete de tests |
 | Mocks (Mockito) | Tests de casos de uso | Los adaptadores en memoria prueban comportamiento y no interacciones; Mockito estaba declarado y sin uso (2.31) | Los adaptadores en memoria se mantienen junto con cada puerto y copian los agregados mutables; una falla técnica a mitad de transacción solo se prueba a nivel API |
 | Motor de reglas externo con DSL (Drools) | Puntuación | Strategy + Composite y `RuleCatalog` alcanzan y se prueban con Java (capítulo 4) | Cada tipo de regla nuevo requiere código Java y un despliegue; un organizador no puede inventar una fórmula sin programar |
+| Subscription GraphQL con el ranking en vivo (D9) | Tabla de posiciones | Requiere WebSocket y publicar un evento de dominio en cada cambio de puntaje; este capítulo ya descartó un bus de eventos para el recálculo | El ranking se consulta, no se empuja. Camino si hiciera falta: `RecalculateStandingsUseCase` → evento → `Sinks.many()` → `@SubscriptionMapping` |
+| Mutaciones por GraphQL (D2) | Captura, apelaciones, publicación | Duplicarían los contratos de escritura (resultados `sealed` → 201/409/422) | Las escrituras siguen solo en REST |
+| Esquema generado desde clases (code-first, D3) | `schema.graphqls` | Ata el esquema a nombres Java y hace más difícil decidir qué no exponer | El esquema se mantiene a mano y el informe de inspección al arrancar avisa si un campo queda sin resolver |
+| Scalars `Date`/`DateTime` (D7) | Fechas del esquema | Una dependencia más para el mismo texto ISO que usa REST | El cliente parsea las fechas como texto |
+| DataLoader en las listas por padre | `Edition.challenges`, `Challenge.rounds`, `Attempt.appeals` | Una consulta de la demo tiene de 1 a 3 padres de cada tipo | Una lectura por padre; el camino (`findByEditionIds`…) es el mismo de los lotes por id |
+| Límite por complejidad de campo (`MaxQueryComplexityInstrumentation`) | Toda consulta GraphQL | No hay una métrica real para calibrar el costo de cada campo | Solo se limita la profundidad (10) |
+| Módulo Maven aparte para GraphQL (D1) | `roboleague-api` | Sin clase de arranque propia no se puede testear sin api | GraphQL convive con REST en el mismo módulo |
+| Paginación (Relay connections) | Listas del esquema | Las listas son chicas (equipos de una categoría, rondas de un desafío) | Una edición grande devuelve todo |
+| Persisted queries y caché por campo | API GraphQL | Sin métrica que lo justifique | Cada consulta se valida y ejecuta entera |
+
+---
+
+## 8. Propuesta de valor (Entrega 3): clases, refactorizaciones y deuda
+
+API GraphQL de consulta sobre la aplicación existente (2.33) y la corrección de arquitectura de la devolución de la Entrega 2 (2.34). Comparación con REST en `docs/graphql-vs-rest.md`.
+
+**Clases agregadas**
+- Puertos y lecturas por lote (2.33): `findByIds` en cinco puertos y `findByRoundIds`, `Batches` (jpa y memory), `StoredReferences`, `QueryTeamsUseCase`, `QueryTeamResultsUseCase`, `TeamTurn`.
+- Adaptador GraphQL: `schema.graphqls`, los `XxxQueries` de `api.graphql`, el resolver de errores, la configuración del límite de profundidad y los 31 records de `api.graphql.view`. ⟨completar con los nombres finales de cada área⟩
+- Puertos de entrada (2.34): las 28 interfaces de `port.in`, `TeamCandidate`, `CalculatedVersion`.
+- Tests: `GraphQlSmokeTest`, los tests de consultas y de conteo de cada área, `InputPortBoundaryTest`, `TeamCandidateTest`. ⟨completar con los nombres finales⟩
+
+**Clases modificadas**
+- Los cinco puertos con lote, sus adaptadores JPA y en memoria, `CategoryRulebook` (una lectura por categoría), los casos de uso de lectura con `byIds`/`ofRounds`, `UseCaseConfig`, `ApiTest`.
+- Los 28 casos de uso (implementan su puerto), los controllers REST y `TeamBody` (envía un `TeamCandidate`).
+
+**Refactorizaciones realizadas**
+- Comandos, resultados y excepciones del contrato movidos de application a `port.in` (domain); `RegistrationView` renombrado `RegisteredTeam`.
+- `CategoryRulebook` pasó de una consulta por ronda a una por categoría.
+- `toTeam(clock)` salió del controller: el caso de uso construye el equipo con el reloj.
+
+**Deuda técnica que se decidió no resolver**
+- Las listas por padre (`Edition.challenges`, `Challenge.rounds`, `Attempt.appeals`…) cuestan una lectura por padre.
+- Sin límite de tamaño de respuesta: solo se limita la profundidad.
+- Sin subscription (capítulo 7).
+- Sin autenticación, igual que REST.
+- GraphiQL depende de un CDN: sin red queda en blanco. El plan B son las consultas `curl` del README.
+- La tabla de errores está duplicada entre `ApiExceptionHandler` y el resolver de GraphQL a propósito (2.33): si se agrega una excepción del contrato, hay que mapearla en los dos.
