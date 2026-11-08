@@ -1,6 +1,6 @@
 package com.roboleague.api.graphql.view;
 
-import com.roboleague.usecase.StandingsOverview;
+import com.roboleague.port.in.StandingsOverview;
 
 /**
  * GraphQL view of what blocks publishing now: open appeals, turns without a result, and whether the latest version

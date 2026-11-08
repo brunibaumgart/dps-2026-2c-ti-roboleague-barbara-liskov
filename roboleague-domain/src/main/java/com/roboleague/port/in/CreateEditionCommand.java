@@ -1,4 +1,4 @@
-package com.roboleague.usecase;
+package com.roboleague.port.in;
 
 import com.roboleague.tournament.Category;
 import com.roboleague.tournament.DateRange;

@@ -1,5 +1,8 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.InconsistentStateException;
+import com.roboleague.port.in.NotFoundException;
+
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.tournament.Edition;
 import com.roboleague.tournament.EditionId;

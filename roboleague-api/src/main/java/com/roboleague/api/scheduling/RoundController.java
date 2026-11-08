@@ -7,7 +7,7 @@ import com.roboleague.tournament.ChallengeId;
 import com.roboleague.usecase.GetChallengeUseCase;
 import com.roboleague.usecase.QueryRoundsUseCase;
 import com.roboleague.usecase.RoundLifecycleUseCase;
-import com.roboleague.usecase.ScheduleRoundCommand;
+import com.roboleague.port.in.ScheduleRoundCommand;
 import com.roboleague.usecase.ScheduleRoundUseCase;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;

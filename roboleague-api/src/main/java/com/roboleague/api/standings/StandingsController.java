@@ -1,5 +1,6 @@
 package com.roboleague.api.standings;
 
+import com.roboleague.port.in.CalculatedVersion;
 import com.roboleague.api.ErrorDto;
 import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.ranking.Standings;
@@ -51,7 +52,7 @@ class StandingsController {
     @GetMapping("/versions/{version}")
     StandingsVersionDto version(@PathVariable String challengeId, @PathVariable int version,
                                 @RequestParam String categoryId) {
-        QueryStandingsUseCase.CalculatedVersion found = queryStandings.version(id(challengeId, categoryId), version);
+        CalculatedVersion found = queryStandings.version(id(challengeId, categoryId), version);
         return StandingsVersionDto.from(found.standings(), found.version());
     }
 

@@ -1,7 +1,7 @@
 package com.roboleague.api.attempt;
 
 import com.roboleague.scheduling.SlotId;
-import com.roboleague.usecase.TurnResults;
+import com.roboleague.port.in.TurnResults;
 
 import java.util.List;
 

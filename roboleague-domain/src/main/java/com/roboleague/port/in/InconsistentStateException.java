@@ -1,4 +1,4 @@
-package com.roboleague.usecase;
+package com.roboleague.port.in;
 
 /**
  * A stored aggregate references another one that should exist and does not, such as an attempt whose rulebook

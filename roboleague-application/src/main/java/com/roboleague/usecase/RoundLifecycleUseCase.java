@@ -1,5 +1,7 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.NotFoundException;
+
 import com.roboleague.repository.AttemptRepository;
 import com.roboleague.repository.RoundRepository;
 import com.roboleague.scheduling.Round;

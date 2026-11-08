@@ -4,7 +4,7 @@ import com.roboleague.evaluation.Attempt;
 import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreBreakdown;
-import com.roboleague.usecase.AttemptBreakdown;
+import com.roboleague.port.in.AttemptBreakdown;
 
 import java.util.List;
 

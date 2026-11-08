@@ -1,5 +1,9 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.InconsistentStateException;
+import com.roboleague.port.in.NotFoundException;
+import com.roboleague.port.in.RegisteredTeam;
+
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.repository.TeamRepository;
 import com.roboleague.tournament.*;
@@ -16,7 +20,7 @@ public class UpdateRegistrationUseCase {
         this.teams = Objects.requireNonNull(teams);
     }
 
-    public RegistrationView execute(EditionId editionId, TeamId teamId, CategoryId categoryId, Team candidate) {
+    public RegisteredTeam execute(EditionId editionId, TeamId teamId, CategoryId categoryId, Team candidate) {
         Objects.requireNonNull(candidate, "candidate cannot be null");
         if (!teamId.equals(candidate.getId())) {
             throw new IllegalArgumentException("A team update cannot change its identity");
@@ -33,6 +37,6 @@ public class UpdateRegistrationUseCase {
         editions.save(changed);
         Registration saved = changed.registration(teamId).orElseThrow(() -> new InconsistentStateException(
                 "Edition " + editionId + " lost the registration of team " + teamId + " it just saved"));
-        return new RegistrationView(saved, candidate);
+        return new RegisteredTeam(saved, candidate);
     }
 }

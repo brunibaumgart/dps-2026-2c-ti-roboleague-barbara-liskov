@@ -1,6 +1,6 @@
 package com.roboleague.api.graphql.view;
 
-import com.roboleague.usecase.TeamTurn;
+import com.roboleague.port.in.TeamTurn;
 
 import java.util.List;
 

@@ -1,5 +1,7 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.CreateEditionCommand;
+
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.support.ConflictException;
 import com.roboleague.tournament.Category;

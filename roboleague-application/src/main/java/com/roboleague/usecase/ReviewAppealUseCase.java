@@ -1,5 +1,7 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.NotFoundException;
+
 import com.roboleague.ranking.appeal.Appeal;
 import com.roboleague.ranking.appeal.AppealId;
 import com.roboleague.repository.AppealRepository;

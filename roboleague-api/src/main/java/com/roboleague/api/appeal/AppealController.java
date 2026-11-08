@@ -12,7 +12,7 @@ import com.roboleague.support.ActorId;
 import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.ChallengeId;
 import com.roboleague.tournament.TeamId;
-import com.roboleague.usecase.AppealAcceptance;
+import com.roboleague.port.in.AppealAcceptance;
 import com.roboleague.usecase.FileAppealUseCase;
 import com.roboleague.usecase.QueryAppealsUseCase;
 import com.roboleague.usecase.ResolveAppealUseCase;

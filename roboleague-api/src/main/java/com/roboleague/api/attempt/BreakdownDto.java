@@ -7,7 +7,7 @@ import com.roboleague.evaluation.ScoreBreakdown;
 import com.roboleague.evaluation.ScoreItem;
 import com.roboleague.evaluation.SourceContribution;
 import com.roboleague.evaluation.audit.AttemptScoreSnapshot;
-import com.roboleague.usecase.AttemptBreakdown;
+import com.roboleague.port.in.AttemptBreakdown;
 
 import java.time.LocalDateTime;
 import java.util.List;

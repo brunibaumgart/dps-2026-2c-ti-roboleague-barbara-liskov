@@ -1,5 +1,7 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.NotFoundException;
+
 import com.roboleague.repository.ChallengeRepository;
 import com.roboleague.repository.EditionRepository;
 import com.roboleague.tournament.Challenge;

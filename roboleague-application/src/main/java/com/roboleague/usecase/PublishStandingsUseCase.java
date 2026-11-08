@@ -1,5 +1,7 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.NotFoundException;
+
 import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.ranking.Standings;
 import com.roboleague.ranking.StandingsId;

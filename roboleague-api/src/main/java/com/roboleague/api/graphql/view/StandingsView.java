@@ -2,7 +2,7 @@ package com.roboleague.api.graphql.view;
 
 import com.roboleague.ranking.Standings;
 import com.roboleague.ranking.StandingsId;
-import com.roboleague.usecase.StandingsOverview;
+import com.roboleague.port.in.StandingsOverview;
 
 import java.util.List;
 
