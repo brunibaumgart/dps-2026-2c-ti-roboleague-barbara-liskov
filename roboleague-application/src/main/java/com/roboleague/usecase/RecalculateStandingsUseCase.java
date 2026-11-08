@@ -1,6 +1,5 @@
 package com.roboleague.usecase;
 
-import com.roboleague.port.in.RecalculateStandings;
 import com.roboleague.ranking.Standings;
 import com.roboleague.ranking.StandingsId;
 import com.roboleague.ranking.StandingsTable;
@@ -14,7 +13,7 @@ import java.util.Objects;
  * Calculates the standings of a challenge in a category with the results as they are now. The first calculation
  * creates them; each later one adds a provisional version and keeps the previous ones as they were.
  */
-public class RecalculateStandingsUseCase implements RecalculateStandings {
+public class RecalculateStandingsUseCase {
     private final CategoryResultsReader results;
     private final StandingsRepository standings;
     private final Clock clock;

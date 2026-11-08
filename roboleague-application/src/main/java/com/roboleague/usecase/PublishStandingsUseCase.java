@@ -1,6 +1,5 @@
 package com.roboleague.usecase;
 
-import com.roboleague.port.in.PublishStandings;
 import com.roboleague.port.in.NotFoundException;
 
 import com.roboleague.evaluation.audit.AuditNote;
@@ -16,7 +15,7 @@ import java.util.Objects;
  * Makes a version of the standings official. The standings check it against the competition as it is now: when
  * something blocks it nothing is stored and every reason comes back.
  */
-public class PublishStandingsUseCase implements PublishStandings {
+public class PublishStandingsUseCase {
     private final CategoryResultsReader results;
     private final StandingsRepository standings;
     private final Clock clock;

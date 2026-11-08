@@ -1,6 +1,5 @@
 package com.roboleague.usecase;
 
-import com.roboleague.port.in.CreateEdition;
 import com.roboleague.port.in.CreateEditionCommand;
 
 import com.roboleague.repository.EditionRepository;
@@ -14,7 +13,7 @@ import java.util.Objects;
 /**
  * Configures an event: a new edition of a tournament with its dates and categories.
  */
-public class CreateEditionUseCase implements CreateEdition {
+public class CreateEditionUseCase {
     private final EditionRepository editionRepository;
 
     public CreateEditionUseCase(EditionRepository editionRepository) {

@@ -3,13 +3,6 @@
 Leer también `../AGENTS.md`. Producción en
 `src/main/java/com/roboleague/usecase`; depende únicamente del dominio.
 
-Cada `XxxUseCase` implementa su puerto de entrada `com.roboleague.port.in.Xxx`.
-Sus comandos, resultados y las excepciones del contrato (`NotFoundException`,
-`InconsistentStateException`) viven también en `port.in`. Un caso de uso nuevo
-declara primero su interfaz en domain; un método público que un adaptador
-necesita va en la interfaz. Los helpers internos (`CategoryResultsReader`,
-`StoredReferences`…) quedan en este módulo.
-
 ## Coordinación
 
 - Inyectar puertos y servicios por constructor. Los puertos `*Repository` viven

@@ -1,6 +1,5 @@
 package com.roboleague.usecase;
 
-import com.roboleague.port.in.QueryTurnAttempts;
 import com.roboleague.port.in.InconsistentStateException;
 import com.roboleague.port.in.NotFoundException;
 import com.roboleague.port.in.TurnResults;
@@ -31,7 +30,7 @@ import java.util.Objects;
  * plays with and whether it takes another result (never once the turn was cancelled), so the capture form never picks an attempt number, a rulebook or
  * a limit of its own. Reads only.
  */
-public class QueryTurnAttemptsUseCase implements QueryTurnAttempts {
+public class QueryTurnAttemptsUseCase {
     private final RoundRepository roundRepository;
     private final ChallengeRepository challengeRepository;
     private final CategoryRulebook categoryRulebook;

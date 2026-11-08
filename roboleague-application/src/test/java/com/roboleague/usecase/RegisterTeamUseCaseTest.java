@@ -1,9 +1,5 @@
 package com.roboleague.usecase;
 
-import java.util.Optional;
-import java.util.Map;
-import com.roboleague.support.ActorId;
-import com.roboleague.port.in.TeamCandidate;
 import com.roboleague.port.in.NotFoundException;
 
 import com.roboleague.repository.memory.InMemoryEditionRepository;
@@ -146,25 +142,5 @@ class RegisterTeamUseCaseTest {
         assertThat(editions.findByTeamId(canonical.getId())).hasSize(2);
         assertThatThrownBy(() -> register.execute(second.getId(), senior.id(), TeamId.of("missing")))
                 .isInstanceOf(NotFoundException.class).hasMessageContaining("Team not found");
-    }
-
-    @Test
-    void aCandidateIsBuiltWithTheServerClockBeforeItIsRegistered() {
-        Category open = category("open", 1, 2, 10, 25, 1500);
-        Edition other = edition("ed-candidate", LocalDate.of(2027, 1, 1), open);
-        editions.save(other);
-
-        Registration registration = register.execute(other.getId(), open.id(), candidate("t-candidate", 1000));
-
-        Team saved = teams.findById(TeamId.of("t-candidate")).orElseThrow();
-        assertThat(registration.registeredAt()).isEqualTo(TIME);
-        assertThat(saved.getDocumentation().getVerifiedAt()).isEqualTo(TIME);
-        assertThat(saved.getMembers()).singleElement().satisfies(member -> assertThat(member.fullName()).isEqualTo("Ana"));
-    }
-
-    private static TeamCandidate candidate(String id, double robotWeight) {
-        return new TeamCandidate(TeamId.of(id), id, "School", RegistrationFixtures.robot(id + "-robot", robotWeight),
-                List.of(new TeamCandidate.Member(ParticipantId.of(id + "-m-1"), "Ana", LocalDate.of(2010, 1, 1), "MEMBER")),
-                Map.of("CONSENT", "consent.pdf"), Optional.of(ActorId.of("inspector")));
     }
 }

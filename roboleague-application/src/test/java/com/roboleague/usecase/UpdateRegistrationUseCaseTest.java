@@ -1,12 +1,5 @@
 package com.roboleague.usecase;
 
-import java.util.Optional;
-import java.util.Map;
-import java.util.List;
-import java.time.LocalDate;
-import com.roboleague.support.ActorId;
-import com.roboleague.port.in.TeamCandidate;
-import static com.roboleague.support.TestValues.CLOCK;
 import com.roboleague.port.in.NotFoundException;
 import com.roboleague.port.in.RegisteredTeam;
 
@@ -25,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class UpdateRegistrationUseCaseTest {
     private final InMemoryEditionRepository editions = new InMemoryEditionRepository();
     private final InMemoryTeamRepository teams = new InMemoryTeamRepository();
-    private final UpdateRegistrationUseCase useCase = new UpdateRegistrationUseCase(editions, teams, CLOCK);
+    private final UpdateRegistrationUseCase useCase = new UpdateRegistrationUseCase(editions, teams);
     private final Team original = RegistrationFixtures.team("combined-team");
     private final Category small = RegistrationFixtures.category("small", 1, 4, 10, 25, 1500);
     private final Category large = RegistrationFixtures.category("large", 1, 4, 10, 25, 3000);
@@ -113,23 +106,5 @@ class UpdateRegistrationUseCaseTest {
     private void assertUnchanged() {
         assertThat(teams.findById(original.getId())).containsSame(original);
         assertThat(editions.findById(edition.getId())).containsSame(edition);
-    }
-
-    @Test
-    void aCandidateIsBuiltWithTheServerClockAndReplacesTheTeamAndCategoryTogether() {
-        TeamCandidate heavier = candidate(original.getId().value(), 2500);
-
-        RegisteredTeam result = useCase.execute(edition.getId(), original.getId(), large.id(), heavier);
-
-        assertThat(result.registration().categoryId()).isEqualTo(large.id());
-        assertThat(result.team().getRobot().getSpecification().weightGrams()).isEqualTo(2500);
-        assertThat(result.team().getDocumentation().getVerifiedAt()).isEqualTo(TIME);
-        assertThat(teams.findById(original.getId())).contains(result.team());
-    }
-
-    private static TeamCandidate candidate(String id, double robotWeight) {
-        return new TeamCandidate(TeamId.of(id), id, "School", RegistrationFixtures.robot(id + "-robot", robotWeight),
-                List.of(new TeamCandidate.Member(ParticipantId.of(id + "-m-1"), "Ana", LocalDate.of(2010, 1, 1), "MEMBER")),
-                Map.of("CONSENT", "consent.pdf"), Optional.of(ActorId.of("inspector")));
     }
 }

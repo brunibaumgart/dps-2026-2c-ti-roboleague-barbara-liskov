@@ -1,6 +1,5 @@
 package com.roboleague.usecase;
 
-import com.roboleague.port.in.QueryTeams;
 import com.roboleague.port.in.InconsistentStateException;
 import com.roboleague.port.in.NotFoundException;
 
@@ -16,7 +15,7 @@ import java.util.Objects;
  * Reads the canonical teams: one by id, or many at once for whoever got their ids from registrations, slots or
  * standings. Reads only.
  */
-public class QueryTeamsUseCase implements QueryTeams {
+public class QueryTeamsUseCase {
     private final TeamRepository teams;
 
     public QueryTeamsUseCase(TeamRepository teams) {

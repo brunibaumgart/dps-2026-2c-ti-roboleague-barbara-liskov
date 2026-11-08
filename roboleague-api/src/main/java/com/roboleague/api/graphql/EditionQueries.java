@@ -1,7 +1,7 @@
 package com.roboleague.api.graphql;
 
 import com.roboleague.api.graphql.view.EditionView;
-import com.roboleague.port.in.QueryEditions;
+import com.roboleague.usecase.QueryEditionsUseCase;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.stereotype.Controller;
 
@@ -14,9 +14,9 @@ import java.util.Objects;
 @Controller
 class EditionQueries {
 
-    private final QueryEditions editions;
+    private final QueryEditionsUseCase editions;
 
-    EditionQueries(QueryEditions editions) {
+    EditionQueries(QueryEditionsUseCase editions) {
         this.editions = Objects.requireNonNull(editions);
     }
 

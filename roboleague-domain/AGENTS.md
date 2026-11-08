@@ -1,9 +1,7 @@
 # Dominio
 
 Leer también `../AGENTS.md`. Código en `src/main/java/com/roboleague/`:
-`tournament`, `scheduling`, `evaluation`, `ranking`, puertos de salida en
-`repository` y puertos de entrada en `port.in` (interfaces de casos de uso con sus
-comandos y resultados; las implementa application).
+`tournament`, `scheduling`, `evaluation`, `ranking` y puertos en `repository`.
 Es Java plano: no introducir dependencias de application/infrastructure/API.
 
 Creación y transiciones reciben fechas o `OperationAudit` explícitos. Los
