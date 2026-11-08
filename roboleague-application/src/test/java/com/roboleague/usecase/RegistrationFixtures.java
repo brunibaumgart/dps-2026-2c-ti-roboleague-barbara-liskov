@@ -26,12 +26,17 @@ final class RegistrationFixtures {
     }
 
     static Robot robot(double weight) {
-        return new Robot(RobotId.of("robot-1"), "Robot", RobotSpecification.of(weight, 100, 100, 100, 2, Set.of("LIDAR")));
+        return robot("robot-1", weight);
     }
 
+    static Robot robot(String id, double weight) {
+        return new Robot(RobotId.of(id), "Robot", RobotSpecification.of(weight, 100, 100, 100, 2, Set.of("LIDAR")));
+    }
+
+    /** A team whose members and robot are its own, so several of them can share an edition. */
     static Team team(String id) {
-        return Team.of(TeamId.of(id), id, "School", robot(1000),
-                List.of(member("m-1", LocalDate.of(2010, 1, 1)), member("m-2", LocalDate.of(2010, 1, 1))),
+        return Team.of(TeamId.of(id), id, "School", robot(id + "-robot", 1000),
+                List.of(member(id + "-m-1", LocalDate.of(2010, 1, 1)), member(id + "-m-2", LocalDate.of(2010, 1, 1))),
                 new Documentation().withDocument("CONSENT", "consent.pdf").verify(ActorId.of("inspector"), TIME));
     }
 }
