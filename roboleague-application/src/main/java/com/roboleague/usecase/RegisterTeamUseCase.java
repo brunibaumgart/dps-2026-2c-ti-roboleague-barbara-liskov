@@ -1,5 +1,7 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.RegisterTeam;
+import com.roboleague.port.in.TeamCandidate;
 import com.roboleague.port.in.InconsistentStateException;
 import com.roboleague.port.in.NotFoundException;
 
@@ -12,7 +14,7 @@ import com.roboleague.tournament.*;
 import java.util.Objects;
 
 /** Enrolls new or canonical teams without overwriting an existing team's state. */
-public class RegisterTeamUseCase {
+public class RegisterTeamUseCase implements RegisterTeam {
     private final TeamRepository teams;
     private final EditionRepository editions;
     private final Clock clock;
@@ -23,6 +25,13 @@ public class RegisterTeamUseCase {
         this.clock = Objects.requireNonNull(clock, "clock cannot be null");
     }
 
+    @Override
+    public Registration execute(EditionId editionId, CategoryId categoryId, TeamCandidate candidate) {
+        Objects.requireNonNull(candidate, "candidate cannot be null");
+        return execute(editionId, categoryId, candidate.toTeam(clock.now()));
+    }
+
+    /** Registers a team already built with its dates; adapters send a {@link TeamCandidate} instead. */
     public Registration execute(EditionId editionId, CategoryId categoryId, Team newTeam) {
         Objects.requireNonNull(newTeam, "team cannot be null");
         Edition edition = edition(editionId);
@@ -38,6 +47,7 @@ public class RegisterTeamUseCase {
                 "Edition " + editionId + " lost the registration of team " + newTeam.getId() + " it just saved"));
     }
 
+    @Override
     public Registration execute(EditionId editionId, CategoryId categoryId, TeamId teamId) {
         Edition edition = edition(editionId);
         Team canonical = teams.findById(teamId)

@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.ChangeRegistrationCategory;
 import com.roboleague.port.in.InconsistentStateException;
 import com.roboleague.port.in.NotFoundException;
 
@@ -10,7 +11,7 @@ import com.roboleague.tournament.*;
 import java.util.Objects;
 
 /** Changes the category of one enrollment, preserving its identity, calendar and original timestamp. */
-public class ChangeRegistrationCategoryUseCase {
+public class ChangeRegistrationCategoryUseCase implements ChangeRegistrationCategory {
     private final TeamRepository teams;
     private final EditionRepository editions;
 

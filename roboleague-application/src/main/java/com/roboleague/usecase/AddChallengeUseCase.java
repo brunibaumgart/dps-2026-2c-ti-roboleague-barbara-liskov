@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.AddChallenge;
 import com.roboleague.port.in.AddChallengeCommand;
 import com.roboleague.port.in.NotFoundException;
 import com.roboleague.port.in.Publication;
@@ -17,7 +18,7 @@ import java.util.Objects;
  * Adds a challenge to an edition by publishing its first rulebook. A definition with problems is rejected,
  * not thrown: whoever sent it gets every problem back.
  */
-public class AddChallengeUseCase {
+public class AddChallengeUseCase implements AddChallenge {
     private final EditionRepository editionRepository;
     private final ChallengeRepository challengeRepository;
     private final RuleCatalog catalog;

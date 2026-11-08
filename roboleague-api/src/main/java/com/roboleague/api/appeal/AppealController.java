@@ -13,10 +13,10 @@ import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.ChallengeId;
 import com.roboleague.tournament.TeamId;
 import com.roboleague.port.in.AppealAcceptance;
-import com.roboleague.usecase.FileAppealUseCase;
-import com.roboleague.usecase.QueryAppealsUseCase;
-import com.roboleague.usecase.ResolveAppealUseCase;
-import com.roboleague.usecase.ReviewAppealUseCase;
+import com.roboleague.port.in.FileAppeal;
+import com.roboleague.port.in.QueryAppeals;
+import com.roboleague.port.in.ResolveAppeal;
+import com.roboleague.port.in.ReviewAppeal;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,13 +40,13 @@ import static com.roboleague.api.RequestValues.text;
 @RestController
 class AppealController {
 
-    private final FileAppealUseCase fileAppeal;
-    private final ReviewAppealUseCase reviewAppeal;
-    private final ResolveAppealUseCase resolveAppeal;
-    private final QueryAppealsUseCase queryAppeals;
+    private final FileAppeal fileAppeal;
+    private final ReviewAppeal reviewAppeal;
+    private final ResolveAppeal resolveAppeal;
+    private final QueryAppeals queryAppeals;
 
-    AppealController(FileAppealUseCase fileAppeal, ReviewAppealUseCase reviewAppeal, ResolveAppealUseCase resolveAppeal,
-                     QueryAppealsUseCase queryAppeals) {
+    AppealController(FileAppeal fileAppeal, ReviewAppeal reviewAppeal, ResolveAppeal resolveAppeal,
+                     QueryAppeals queryAppeals) {
         this.fileAppeal = fileAppeal;
         this.reviewAppeal = reviewAppeal;
         this.resolveAppeal = resolveAppeal;

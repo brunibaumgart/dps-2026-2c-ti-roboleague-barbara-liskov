@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.UpdateTeam;
 import com.roboleague.port.in.NotFoundException;
 
 import com.roboleague.repository.EditionRepository;
@@ -14,7 +15,7 @@ import java.util.List;
 import java.util.Objects;
 
 /** Replaces canonical immutable state only after validating every enrollment. */
-public class UpdateTeamUseCase {
+public class UpdateTeamUseCase implements UpdateTeam {
     private final TeamRepository teams;
     private final EditionRepository editions;
 
