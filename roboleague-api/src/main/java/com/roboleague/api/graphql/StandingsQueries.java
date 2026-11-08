@@ -4,12 +4,12 @@ import com.roboleague.api.graphql.view.AppealView;
 import com.roboleague.api.graphql.view.AttemptView;
 import com.roboleague.api.graphql.view.StandingsView;
 import com.roboleague.evaluation.AttemptId;
+import com.roboleague.port.in.QueryAppeals;
+import com.roboleague.port.in.QueryStandings;
 import com.roboleague.ranking.StandingsId;
 import com.roboleague.ranking.appeal.AppealId;
 import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.ChallengeId;
-import com.roboleague.usecase.QueryAppealsUseCase;
-import com.roboleague.usecase.QueryStandingsUseCase;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.graphql.data.method.annotation.SchemaMapping;
@@ -26,10 +26,10 @@ import java.util.Objects;
 @Controller
 class StandingsQueries {
 
-    private final QueryStandingsUseCase queryStandings;
-    private final QueryAppealsUseCase queryAppeals;
+    private final QueryStandings queryStandings;
+    private final QueryAppeals queryAppeals;
 
-    StandingsQueries(QueryStandingsUseCase queryStandings, QueryAppealsUseCase queryAppeals) {
+    StandingsQueries(QueryStandings queryStandings, QueryAppeals queryAppeals) {
         this.queryStandings = Objects.requireNonNull(queryStandings);
         this.queryAppeals = Objects.requireNonNull(queryAppeals);
     }

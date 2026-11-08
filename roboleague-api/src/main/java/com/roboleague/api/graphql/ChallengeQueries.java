@@ -6,16 +6,16 @@ import com.roboleague.api.graphql.view.EditionView;
 import com.roboleague.api.graphql.view.RoundView;
 import com.roboleague.api.graphql.view.RulebookView;
 import com.roboleague.api.graphql.view.StandingsView;
+import com.roboleague.port.in.GetChallenge;
+import com.roboleague.port.in.QueryAppeals;
+import com.roboleague.port.in.QueryEditions;
+import com.roboleague.port.in.QueryRounds;
+import com.roboleague.port.in.QueryStandings;
 import com.roboleague.ranking.StandingsId;
 import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.ChallengeId;
 import com.roboleague.tournament.Edition;
 import com.roboleague.tournament.EditionId;
-import com.roboleague.usecase.GetChallengeUseCase;
-import com.roboleague.usecase.QueryAppealsUseCase;
-import com.roboleague.usecase.QueryEditionsUseCase;
-import com.roboleague.usecase.QueryRoundsUseCase;
-import com.roboleague.usecase.QueryStandingsUseCase;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.BatchMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
@@ -37,15 +37,15 @@ import java.util.Optional;
 @Controller
 class ChallengeQueries {
 
-    private final GetChallengeUseCase getChallenge;
-    private final QueryEditionsUseCase queryEditions;
-    private final QueryRoundsUseCase queryRounds;
-    private final QueryStandingsUseCase queryStandings;
-    private final QueryAppealsUseCase queryAppeals;
+    private final GetChallenge getChallenge;
+    private final QueryEditions queryEditions;
+    private final QueryRounds queryRounds;
+    private final QueryStandings queryStandings;
+    private final QueryAppeals queryAppeals;
 
-    ChallengeQueries(GetChallengeUseCase getChallenge, QueryEditionsUseCase queryEditions,
-                     QueryRoundsUseCase queryRounds, QueryStandingsUseCase queryStandings,
-                     QueryAppealsUseCase queryAppeals) {
+    ChallengeQueries(GetChallenge getChallenge, QueryEditions queryEditions,
+                     QueryRounds queryRounds, QueryStandings queryStandings,
+                     QueryAppeals queryAppeals) {
         this.getChallenge = Objects.requireNonNull(getChallenge);
         this.queryEditions = Objects.requireNonNull(queryEditions);
         this.queryRounds = Objects.requireNonNull(queryRounds);
