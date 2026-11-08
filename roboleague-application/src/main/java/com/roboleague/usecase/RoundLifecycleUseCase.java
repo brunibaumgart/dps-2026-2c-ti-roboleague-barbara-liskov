@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.RoundLifecycle;
 import com.roboleague.port.in.NotFoundException;
 
 import com.roboleague.repository.AttemptRepository;
@@ -21,7 +22,7 @@ import java.util.function.UnaryOperator;
  * did not show up) records who did it and why, frees its resources and stops the standings from waiting for it.
  * The lifecycle does not follow the results: capturing a result neither starts nor completes a turn.
  */
-public class RoundLifecycleUseCase {
+public class RoundLifecycleUseCase implements RoundLifecycle {
     private final RoundRepository rounds;
     private final AttemptRepository attempts;
     private final Clock clock;

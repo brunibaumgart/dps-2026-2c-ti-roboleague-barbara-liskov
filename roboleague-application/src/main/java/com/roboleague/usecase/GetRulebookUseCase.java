@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.GetRulebook;
 import com.roboleague.port.in.NotFoundException;
 
 import com.roboleague.evaluation.Rulebook;
@@ -10,7 +11,7 @@ import com.roboleague.tournament.ChallengeId;
 import java.util.Objects;
 
 /** Reads a published historical version without republishing or changing it. */
-public class GetRulebookUseCase {
+public class GetRulebookUseCase implements GetRulebook {
     private final ChallengeRepository challenges;
 
     public GetRulebookUseCase(ChallengeRepository challenges) {

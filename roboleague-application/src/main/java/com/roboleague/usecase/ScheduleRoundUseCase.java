@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.ScheduleRound;
 import com.roboleague.port.in.InconsistentStateException;
 import com.roboleague.port.in.NotFoundException;
 import com.roboleague.port.in.ScheduleRoundCommand;
@@ -29,7 +30,7 @@ import java.util.Objects;
  * Use case to schedule a competition round and assign slots, tracks, and judges. Every turn has to fall within the
  * dates of the edition, and the round has to fit the rulebook its category plays with ({@link CategoryRulebook}).
  */
-public class ScheduleRoundUseCase {
+public class ScheduleRoundUseCase implements ScheduleRound {
     private final IdGenerator ids;
 
     private final ChallengeRepository challengeRepository;
