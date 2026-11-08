@@ -9,6 +9,7 @@ import com.roboleague.scheduling.SlotId;
 import com.roboleague.tournament.ChallengeId;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -49,6 +50,12 @@ public class JpaRoundRepository implements RoundRepository {
     @Override
     public Optional<Round> findById(RoundId roundId) {
         return jpa.findById(roundId.value()).map(RoundMapper::toDomain);
+    }
+
+    @Override
+    public List<Round> findByIds(Collection<RoundId> ids) {
+        return Batches.load(ids, RoundId::value, jpa::findAllById, RoundMapper::toDomain,
+                round -> round.getId().value());
     }
 
     @Override

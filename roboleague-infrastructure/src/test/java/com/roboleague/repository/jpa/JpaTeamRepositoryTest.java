@@ -142,4 +142,20 @@ class JpaTeamRepositoryTest {
                                 "MEMBER", reference)),
                 documentation);
     }
+
+    @Test
+    @DisplayName("findByIds returns only the requested teams that exist, once and ordered by id; nothing for no ids")
+    void findsTeamsByIds() {
+        for (String id : List.of("t-ids-c", "t-ids-a", "t-ids-b")) {
+            repository.save(team(id, Documentation.restore(Map.of("seguro", "files/seguro.pdf"), false, null, null,
+                    null)));
+        }
+        entityManager.clear();
+
+        List<Team> found = repository.findByIds(List.of(TeamId.of("t-ids-c"), TeamId.of("t-ids-a"),
+                TeamId.of("t-ids-missing"), TeamId.of("t-ids-a")));
+
+        assertThat(found).extracting(Team::getId).containsExactly(TeamId.of("t-ids-a"), TeamId.of("t-ids-c"));
+        assertThat(repository.findByIds(List.of())).isEmpty();
+    }
 }

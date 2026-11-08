@@ -24,6 +24,11 @@ public class InMemoryEditionRepository implements EditionRepository {
     }
 
     @Override
+    public List<Edition> findByIds(Collection<EditionId> ids) {
+        return Batches.find(ids, this::findById, edition -> edition.getId().value());
+    }
+
+    @Override
     public List<Edition> findByTeamId(TeamId teamId) {
         return findAll().stream().filter(e -> e.registration(teamId).isPresent()).toList();
     }

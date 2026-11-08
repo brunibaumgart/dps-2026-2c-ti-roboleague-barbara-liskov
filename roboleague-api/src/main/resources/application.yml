@@ -9,6 +9,10 @@ spring:
     deserialization:
       # A misspelled field is a 400, not silently ignored (a "penalties" list would be lost).
       fail-on-unknown-properties: true
+  graphql:
+    graphiql:
+      # Read-only console on /graphiql for the demo; the API itself is /graphql.
+      enabled: true
   jpa:
     open-in-view: false
     hibernate:

@@ -5,6 +5,7 @@ import com.roboleague.tournament.Challenge;
 import com.roboleague.tournament.ChallengeId;
 import com.roboleague.tournament.EditionId;
 
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -24,6 +25,11 @@ public class InMemoryChallengeRepository implements ChallengeRepository {
     @Override
     public Optional<Challenge> findById(ChallengeId id) {
         return Optional.ofNullable(storage.get(id)).map(InMemoryChallengeRepository::copy);
+    }
+
+    @Override
+    public List<Challenge> findByIds(Collection<ChallengeId> ids) {
+        return Batches.find(ids, this::findById, challenge -> challenge.getId().value());
     }
 
     @Override

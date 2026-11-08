@@ -8,6 +8,7 @@ import com.roboleague.tournament.TeamId;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collections;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -47,6 +48,11 @@ public class JpaAttemptRepository implements AttemptRepository {
     }
 
     @Override
+    public List<Attempt> findByIds(Collection<AttemptId> ids) {
+        return Batches.load(ids, AttemptId::value, jpa::findAllById, this::toDomain, JpaAttemptRepository::idOf);
+    }
+
+    @Override
     public List<Attempt> findByTeamId(TeamId teamId) {
         return jpa.findByTeamId(teamId.value()).stream().map(this::toDomain).toList();
     }
@@ -57,8 +63,18 @@ public class JpaAttemptRepository implements AttemptRepository {
     }
 
     @Override
+    public List<Attempt> findByRoundIds(Collection<RoundId> roundIds) {
+        return Batches.load(roundIds, RoundId::value, jpa::findByRoundIdIn, this::toDomain,
+                JpaAttemptRepository::idOf);
+    }
+
+    @Override
     public List<Attempt> findAll() {
         return jpa.findAll().stream().map(this::toDomain).toList();
+    }
+
+    private static String idOf(Attempt attempt) {
+        return attempt.getId().value();
     }
 
     private Attempt toDomain(AttemptJpaEntity entity) {

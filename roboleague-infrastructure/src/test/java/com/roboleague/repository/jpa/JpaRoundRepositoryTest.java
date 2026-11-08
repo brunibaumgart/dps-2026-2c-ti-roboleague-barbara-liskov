@@ -179,4 +179,20 @@ class JpaRoundRepositoryTest {
         }
         return round;
     }
+
+    @Test
+    @DisplayName("findByIds returns only the requested rounds that exist, once and ordered by id; nothing for no ids")
+    void findsRoundsByIds() {
+        repository.save(round("ch-ids", "r-ids-c", 3, "s-ids-c"));
+        repository.save(round("ch-ids", "r-ids-a", 1, "s-ids-a"));
+        repository.save(round("ch-ids", "r-ids-b", 2, "s-ids-b"));
+        entityManager.clear();
+
+        List<Round> found = repository.findByIds(List.of(RoundId.of("r-ids-c"), RoundId.of("r-ids-a"),
+                RoundId.of("r-ids-missing"), RoundId.of("r-ids-a")));
+
+        assertThat(found).extracting(Round::getId).containsExactly(RoundId.of("r-ids-a"), RoundId.of("r-ids-c"));
+        assertThat(found.getFirst().getSlots()).hasSize(1);
+        assertThat(repository.findByIds(List.of())).isEmpty();
+    }
 }

@@ -189,4 +189,20 @@ class JpaChallengeRepositoryTest {
     void givenAnUnknownIdThenNothingIsFound() {
         assertThat(repository.findById(ChallengeId.of("ch-none"))).isEmpty();
     }
+
+    @Test
+    @DisplayName("findByIds returns only the requested challenges that exist, once and ordered by id; nothing for no ids")
+    void findsChallengesByIds() {
+        repository.save(mazeWithTwoVersions("ch-ids-c"));
+        repository.save(mazeWithTwoVersions("ch-ids-a"));
+        repository.save(mazeWithTwoVersions("ch-ids-b"));
+
+        List<Challenge> found = repository.findByIds(List.of(ChallengeId.of("ch-ids-c"), ChallengeId.of("ch-ids-a"),
+                ChallengeId.of("ch-ids-missing"), ChallengeId.of("ch-ids-a")));
+
+        assertThat(found).extracting(Challenge::getId)
+                .containsExactly(ChallengeId.of("ch-ids-a"), ChallengeId.of("ch-ids-c"));
+        assertThat(found.getFirst().rulebook(RulebookVersion.first())).isPresent();
+        assertThat(repository.findByIds(List.of())).isEmpty();
+    }
 }

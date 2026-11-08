@@ -30,6 +30,8 @@ import com.roboleague.usecase.QueryEditionsUseCase;
 import com.roboleague.usecase.QueryRegistrationsUseCase;
 import com.roboleague.usecase.QueryRoundsUseCase;
 import com.roboleague.usecase.QueryStandingsUseCase;
+import com.roboleague.usecase.QueryTeamResultsUseCase;
+import com.roboleague.usecase.QueryTeamsUseCase;
 import com.roboleague.usecase.QueryTurnAttemptsUseCase;
 import com.roboleague.usecase.RecalculateStandingsUseCase;
 import com.roboleague.usecase.ReceiveResultUseCase;
@@ -207,6 +209,16 @@ class UseCaseConfig {
     @Bean
     QueryRegistrationsUseCase queryRegistrationsUseCase(EditionRepository editions, TeamRepository teams) {
         return new QueryRegistrationsUseCase(editions, teams);
+    }
+
+    @Bean
+    QueryTeamsUseCase queryTeamsUseCase(TeamRepository teams) { return new QueryTeamsUseCase(teams); }
+
+    @Bean
+    QueryTeamResultsUseCase queryTeamResultsUseCase(TeamRepository teams, ChallengeRepository challenges,
+                                                    EditionRepository editions, RoundRepository rounds,
+                                                    AttemptRepository attempts) {
+        return new QueryTeamResultsUseCase(teams, challenges, editions, rounds, attempts);
     }
 
     @Bean

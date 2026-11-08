@@ -27,6 +27,11 @@ public class InMemoryAttemptRepository implements AttemptRepository {
     }
 
     @Override
+    public List<Attempt> findByIds(Collection<AttemptId> ids) {
+        return Batches.find(ids, this::findById, attempt -> attempt.getId().value());
+    }
+
+    @Override
     public List<Attempt> findByTeamId(TeamId teamId) {
         return storage.values().stream()
                 .filter(a -> a.getTeamId().equals(teamId))
@@ -39,6 +44,16 @@ public class InMemoryAttemptRepository implements AttemptRepository {
         return storage.values().stream()
                 .filter(a -> a.getRoundId().equals(roundId))
                 .map(InMemoryAttemptRepository::copy)
+                .toList();
+    }
+
+    @Override
+    public List<Attempt> findByRoundIds(Collection<RoundId> roundIds) {
+        Set<RoundId> wanted = Set.copyOf(roundIds);
+        return storage.values().stream()
+                .filter(a -> wanted.contains(a.getRoundId()))
+                .map(InMemoryAttemptRepository::copy)
+                .sorted(Comparator.comparing(found -> found.getId().value()))
                 .toList();
     }
 

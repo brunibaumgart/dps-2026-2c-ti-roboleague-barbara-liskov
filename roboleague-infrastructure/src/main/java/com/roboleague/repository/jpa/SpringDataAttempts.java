@@ -2,6 +2,7 @@ package com.roboleague.repository.jpa;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 
 interface SpringDataAttempts extends JpaRepository<AttemptJpaEntity, String> {
@@ -9,4 +10,6 @@ interface SpringDataAttempts extends JpaRepository<AttemptJpaEntity, String> {
     List<AttemptJpaEntity> findByTeamId(String teamId);
 
     List<AttemptJpaEntity> findByRoundId(String roundId);
+
+    List<AttemptJpaEntity> findByRoundIdIn(Collection<String> roundIds);
 }

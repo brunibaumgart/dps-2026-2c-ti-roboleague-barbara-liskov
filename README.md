@@ -22,6 +22,12 @@ java -jar roboleague-api/target/roboleague-api-1.0-SNAPSHOT.jar   # API y web en
 
 Sin perfil, la app usa la base tal como esté (Flyway aplica las migraciones pendientes). Para cargar el escenario de ejemplo, ver "Correr la demo".
 
+**GraphQL (en curso, Entrega 3).** La misma aplicación expone una API GraphQL
+de solo consulta en `POST /graphql` y la consola GraphiQL en
+`http://localhost:8080/graphiql`; por ahora el esquema solo tiene `editions`.
+El contrato completo (esquema, errores, consultas de ejemplo y comparación con
+REST) llega con el PR de la Entrega 3; el plan está en `docs/specs/entrega-3/`.
+
 El reloj de la aplicación usa `America/Argentina/Buenos_Aires` por defecto.
 Se configura con `ROBOLEAGUE_TIME_ZONE` (un identificador válido de `ZoneId`, por
 ejemplo `UTC`); no toma la zona implícita de la máquina. Los timestamps siguen

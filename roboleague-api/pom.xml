@@ -34,11 +34,22 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
+        <!-- GraphQL query API on /graphql over MVC (Entrega 3); versions come from the Boot BOM. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-graphql</artifactId>
+        </dependency>
 
         <!-- API tests: @SpringBootTest + MockMvc over the real app and a real Postgres. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- GraphQL tests: HttpGraphQlTester over MockMvc, in the same context as the REST tests. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-graphql-test</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

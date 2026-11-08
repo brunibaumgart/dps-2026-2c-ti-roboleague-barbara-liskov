@@ -6,6 +6,7 @@ import com.roboleague.tournament.EditionId;
 import com.roboleague.tournament.TeamId;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -40,6 +41,12 @@ public class JpaEditionRepository implements EditionRepository {
     @Override
     public Optional<Edition> findById(EditionId id) {
         return jpa.findById(id.value()).map(EditionMapper::toDomain);
+    }
+
+    @Override
+    public List<Edition> findByIds(Collection<EditionId> ids) {
+        return Batches.load(ids, EditionId::value, jpa::findAllById, EditionMapper::toDomain,
+                edition -> edition.getId().value());
     }
 
     @Override

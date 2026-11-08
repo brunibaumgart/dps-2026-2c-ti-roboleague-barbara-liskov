@@ -5,6 +5,7 @@ import com.roboleague.tournament.Team;
 import com.roboleague.tournament.TeamId;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -34,6 +35,11 @@ public class JpaTeamRepository implements TeamRepository {
     @Override
     public Optional<Team> findById(TeamId id) {
         return jpa.findById(id.value()).map(TeamMapper::toDomain);
+    }
+
+    @Override
+    public List<Team> findByIds(Collection<TeamId> ids) {
+        return Batches.load(ids, TeamId::value, jpa::findAllById, TeamMapper::toDomain, team -> team.getId().value());
     }
 
     @Override

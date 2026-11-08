@@ -23,6 +23,11 @@ public class InMemoryTeamRepository implements TeamRepository {
     }
 
     @Override
+    public List<Team> findByIds(Collection<TeamId> ids) {
+        return Batches.find(ids, this::findById, team -> team.getId().value());
+    }
+
+    @Override
     public List<Team> findAll() {
         return storage.values().stream().sorted(Comparator.comparing(team -> team.getId().value())).toList();
     }
