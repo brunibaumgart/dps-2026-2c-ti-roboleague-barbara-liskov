@@ -12,8 +12,8 @@ import com.roboleague.tournament.EditionId;
 import com.roboleague.tournament.Season;
 import com.roboleague.tournament.Tournament;
 import com.roboleague.port.in.CreateEditionCommand;
-import com.roboleague.port.in.CreateEdition;
-import com.roboleague.port.in.QueryEditions;
+import com.roboleague.usecase.CreateEditionUseCase;
+import com.roboleague.usecase.QueryEditionsUseCase;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,11 +34,11 @@ import static com.roboleague.api.RequestValues.required;
 @RestController
 class EditionController {
 
-    private final CreateEdition createEdition;
+    private final CreateEditionUseCase createEdition;
 
-    private final QueryEditions query;
+    private final QueryEditionsUseCase query;
 
-    EditionController(CreateEdition createEdition, QueryEditions query) {
+    EditionController(CreateEditionUseCase createEdition, QueryEditionsUseCase query) {
         this.query = query;
         this.createEdition = createEdition;
     }

@@ -1,6 +1,5 @@
 package com.roboleague.usecase;
 
-import com.roboleague.port.in.QueryTeamResults;
 import com.roboleague.port.in.InconsistentStateException;
 import com.roboleague.port.in.NotFoundException;
 import com.roboleague.port.in.TeamTurn;
@@ -31,7 +30,7 @@ import java.util.stream.Collectors;
 /**
  * What a team did in a challenge: each of its turns, round by round, with the attempts it ran. Reads only.
  */
-public class QueryTeamResultsUseCase implements QueryTeamResults {
+public class QueryTeamResultsUseCase {
     private final TeamRepository teams;
     private final ChallengeRepository challenges;
     private final EditionRepository editions;

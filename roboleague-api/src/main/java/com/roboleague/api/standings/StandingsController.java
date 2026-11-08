@@ -9,9 +9,9 @@ import com.roboleague.ranking.StandingsPublication;
 import com.roboleague.support.ActorId;
 import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.ChallengeId;
-import com.roboleague.port.in.PublishStandings;
-import com.roboleague.port.in.QueryStandings;
-import com.roboleague.port.in.RecalculateStandings;
+import com.roboleague.usecase.PublishStandingsUseCase;
+import com.roboleague.usecase.QueryStandingsUseCase;
+import com.roboleague.usecase.RecalculateStandingsUseCase;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,12 +33,12 @@ import static com.roboleague.api.RequestValues.text;
 @RequestMapping("/challenges/{challengeId}/standings")
 class StandingsController {
 
-    private final QueryStandings queryStandings;
-    private final RecalculateStandings recalculateStandings;
-    private final PublishStandings publishStandings;
+    private final QueryStandingsUseCase queryStandings;
+    private final RecalculateStandingsUseCase recalculateStandings;
+    private final PublishStandingsUseCase publishStandings;
 
-    StandingsController(QueryStandings queryStandings, RecalculateStandings recalculateStandings,
-                        PublishStandings publishStandings) {
+    StandingsController(QueryStandingsUseCase queryStandings, RecalculateStandingsUseCase recalculateStandings,
+                        PublishStandingsUseCase publishStandings) {
         this.queryStandings = queryStandings;
         this.recalculateStandings = recalculateStandings;
         this.publishStandings = publishStandings;

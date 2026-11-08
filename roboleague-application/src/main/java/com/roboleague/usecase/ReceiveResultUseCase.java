@@ -1,6 +1,5 @@
 package com.roboleague.usecase;
 
-import com.roboleague.port.in.ReceiveResult;
 import com.roboleague.port.in.InconsistentStateException;
 import com.roboleague.port.in.NotFoundException;
 import com.roboleague.port.in.ReceiveResultCommand;
@@ -34,7 +33,7 @@ import java.util.Objects;
  * numbered by the domain in the order it arrives, with the rulebook its category plays with, while that rulebook
  * admits another attempt per turn ({@link TurnAttempts}).
  */
-public class ReceiveResultUseCase implements ReceiveResult {
+public class ReceiveResultUseCase {
     private final Clock clock;
     private final IdGenerator ids;
 

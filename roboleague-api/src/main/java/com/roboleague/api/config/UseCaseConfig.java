@@ -227,8 +227,8 @@ class UseCaseConfig {
     }
 
     @Bean
-    UpdateRegistrationUseCase updateRegistrationUseCase(EditionRepository editions, TeamRepository teams, Clock clock) {
-        return new UpdateRegistrationUseCase(editions, teams, clock);
+    UpdateRegistrationUseCase updateRegistrationUseCase(EditionRepository editions, TeamRepository teams) {
+        return new UpdateRegistrationUseCase(editions, teams);
     }
     @Bean
     GetRulebookUseCase getRulebookUseCase(ChallengeRepository challenges) {

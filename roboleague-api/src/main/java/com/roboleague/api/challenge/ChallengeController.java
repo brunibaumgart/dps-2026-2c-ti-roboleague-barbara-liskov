@@ -7,12 +7,12 @@ import com.roboleague.tournament.Challenge;
 import com.roboleague.tournament.ChallengeId;
 import com.roboleague.tournament.EditionId;
 import com.roboleague.port.in.AddChallengeCommand;
-import com.roboleague.port.in.AddChallenge;
-import com.roboleague.port.in.GetChallenge;
-import com.roboleague.port.in.GetRulebook;
-import com.roboleague.port.in.ListEditionChallenges;
+import com.roboleague.usecase.AddChallengeUseCase;
+import com.roboleague.usecase.GetChallengeUseCase;
+import com.roboleague.usecase.GetRulebookUseCase;
+import com.roboleague.usecase.ListEditionChallengesUseCase;
 import com.roboleague.port.in.Publication;
-import com.roboleague.port.in.PublishRulebook;
+import com.roboleague.usecase.PublishRulebookUseCase;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,15 +30,15 @@ import java.util.List;
 @RestController
 class ChallengeController {
 
-    private final AddChallenge addChallenge;
-    private final PublishRulebook publishRulebook;
-    private final GetChallenge getChallenge;
+    private final AddChallengeUseCase addChallenge;
+    private final PublishRulebookUseCase publishRulebook;
+    private final GetChallengeUseCase getChallenge;
 
-    private final ListEditionChallenges listChallenges;
-    private final GetRulebook getRulebook;
+    private final ListEditionChallengesUseCase listChallenges;
+    private final GetRulebookUseCase getRulebook;
 
-    ChallengeController(AddChallenge addChallenge, PublishRulebook publishRulebook,
-                        GetChallenge getChallenge, ListEditionChallenges listChallenges, GetRulebook getRulebook) {
+    ChallengeController(AddChallengeUseCase addChallenge, PublishRulebookUseCase publishRulebook,
+                        GetChallengeUseCase getChallenge, ListEditionChallengesUseCase listChallenges, GetRulebookUseCase getRulebook) {
         this.listChallenges = listChallenges;
         this.getRulebook = getRulebook;
         this.addChallenge = addChallenge;

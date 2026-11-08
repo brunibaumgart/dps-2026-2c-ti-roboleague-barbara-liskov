@@ -5,8 +5,8 @@ import com.roboleague.evaluation.audit.AuditNote;
 import com.roboleague.scheduling.JudgeId;
 import com.roboleague.support.ActorId;
 import com.roboleague.port.in.AttemptCorrection;
-import com.roboleague.port.in.CorrectAttempt;
-import com.roboleague.port.in.GetAttemptBreakdown;
+import com.roboleague.usecase.CorrectAttemptUseCase;
+import com.roboleague.usecase.GetAttemptBreakdownUseCase;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,10 +28,10 @@ import static com.roboleague.api.RequestValues.text;
 @RequestMapping("/attempts/{attemptId}")
 class AttemptController {
 
-    private final GetAttemptBreakdown getBreakdown;
-    private final CorrectAttempt correctAttempt;
+    private final GetAttemptBreakdownUseCase getBreakdown;
+    private final CorrectAttemptUseCase correctAttempt;
 
-    AttemptController(GetAttemptBreakdown getBreakdown, CorrectAttempt correctAttempt) {
+    AttemptController(GetAttemptBreakdownUseCase getBreakdown, CorrectAttemptUseCase correctAttempt) {
         this.getBreakdown = getBreakdown;
         this.correctAttempt = correctAttempt;
     }

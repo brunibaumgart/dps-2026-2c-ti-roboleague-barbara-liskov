@@ -1,6 +1,5 @@
 package com.roboleague.usecase;
 
-import com.roboleague.port.in.QueryEditions;
 import com.roboleague.port.in.InconsistentStateException;
 import com.roboleague.port.in.NotFoundException;
 
@@ -14,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class QueryEditionsUseCase implements QueryEditions {
+public class QueryEditionsUseCase {
     private final EditionRepository editions;
     public QueryEditionsUseCase(EditionRepository editions) { this.editions = Objects.requireNonNull(editions); }
 

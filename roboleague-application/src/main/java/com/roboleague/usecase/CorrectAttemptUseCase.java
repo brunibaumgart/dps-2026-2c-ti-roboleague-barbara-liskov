@@ -1,6 +1,5 @@
 package com.roboleague.usecase;
 
-import com.roboleague.port.in.CorrectAttempt;
 import com.roboleague.port.in.AttemptCorrection;
 import com.roboleague.port.in.InconsistentStateException;
 import com.roboleague.port.in.NotFoundException;
@@ -30,7 +29,7 @@ import java.util.Objects;
  * attempt's own rulebook) or a disqualification by a judge of its turn. Either way the attempt keeps its history
  * and the standings of its challenge and category are recalculated, so the correction shows up as a new version.
  */
-public class CorrectAttemptUseCase implements CorrectAttempt {
+public class CorrectAttemptUseCase {
     private final Clock clock;
     private final IdGenerator ids;
 

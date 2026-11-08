@@ -1,6 +1,5 @@
 package com.roboleague.usecase;
 
-import com.roboleague.port.in.QueryRegistrations;
 import com.roboleague.port.in.InconsistentStateException;
 import com.roboleague.port.in.NotFoundException;
 import com.roboleague.port.in.RegisteredTeam;
@@ -13,7 +12,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
-public class QueryRegistrationsUseCase implements QueryRegistrations {
+public class QueryRegistrationsUseCase {
     private final EditionRepository editions;
     private final TeamRepository teams;
     public QueryRegistrationsUseCase(EditionRepository editions, TeamRepository teams) {

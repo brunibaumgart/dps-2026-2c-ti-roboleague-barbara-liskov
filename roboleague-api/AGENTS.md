@@ -10,9 +10,7 @@ controllers, DTOs, config y demo bajo `src/main/java/com/roboleague/api`.
 - Recibir records de request y devolver DTOs mediante `XxxDto.from(...)`.
   No serializar directamente agregados, estados o entidades JPA.
 - Validar presencia y formato del transporte y convertirlos a commands/valores
-  del núcleo. Invocar casos de uso a través de su puerto de entrada
-  (`com.roboleague.port.in`); controllers y resolvers no importan
-  `com.roboleague.usecase`. No acceder desde
+  del núcleo. Invocar casos de uso para operaciones de negocio; no acceder desde
   controllers a repositorios JPA para evitar ese flujo. Las invariantes permanecen
   en domain y la coordinación en application, aunque la API traduzca sus errores.
 - Mantener `ErrorDto {error, details}` y `ApiExceptionHandler` (extiende
@@ -96,10 +94,7 @@ controllers, DTOs, config y demo bajo `src/main/java/com/roboleague/api`.
 ## Cableado y ejecución
 
 - Registrar casos de uso y servicios en `config/UseCaseConfig` sin agregar Spring
-  a domain/application. Es el único lugar (con `demo/`) que conoce las clases
-  concretas de `com.roboleague.usecase`.
-- Un controller no construye agregados con el reloj: envía un comando
-  (por ejemplo `TeamCandidate`) y el caso de uso le da las fechas.
+  a domain/application.
 - Ensamblar Clock/IdGenerator en esa configuración, con `@Profile("!demo")`:
   el perfil demo usa `DemoClock` y `DemoIds` de `DemoConfig`.
   `roboleague.time-zone` usa `ROBOLEAGUE_TIME_ZONE`, con default `America/Argentina/Buenos_Aires`.

@@ -1,6 +1,5 @@
 package com.roboleague.usecase;
 
-import com.roboleague.port.in.GetChallenge;
 import com.roboleague.port.in.InconsistentStateException;
 import com.roboleague.port.in.NotFoundException;
 
@@ -12,7 +11,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 
-public class GetChallengeUseCase implements GetChallenge {
+public class GetChallengeUseCase {
     private final ChallengeRepository challengeRepository;
 
     public GetChallengeUseCase(ChallengeRepository challengeRepository) {
