@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.QueryStandings;
 import com.roboleague.port.in.CalculatedVersion;
 import com.roboleague.port.in.NotFoundException;
 import com.roboleague.port.in.StandingsOverview;
@@ -15,7 +16,7 @@ import java.util.Objects;
  * The standings of a challenge in a category, if they were calculated, next to what would block publishing them
  * right now.
  */
-public class QueryStandingsUseCase {
+public class QueryStandingsUseCase implements QueryStandings {
     private final CategoryResultsReader results;
     private final StandingsRepository standings;
 

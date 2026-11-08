@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.GetAttemptBreakdown;
 import com.roboleague.port.in.AttemptBreakdown;
 import com.roboleague.port.in.InconsistentStateException;
 import com.roboleague.port.in.NotFoundException;
@@ -23,7 +24,7 @@ import java.util.Objects;
  * Explains an attempt with the rulebook version it is scored with: what is still pending and, once scored, how
  * each source contributed.
  */
-public class GetAttemptBreakdownUseCase {
+public class GetAttemptBreakdownUseCase implements GetAttemptBreakdown {
     private final AttemptRepository attemptRepository;
     private final ChallengeRepository challengeRepository;
 

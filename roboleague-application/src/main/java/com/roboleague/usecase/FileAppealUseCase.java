@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.FileAppeal;
 import com.roboleague.port.in.NotFoundException;
 
 import com.roboleague.evaluation.Attempt;
@@ -18,7 +19,7 @@ import java.util.Objects;
 /**
  * Use case to file an appeal against an attempt result.
  */
-public class FileAppealUseCase {
+public class FileAppealUseCase implements FileAppeal {
     private final Clock clock;
     private final IdGenerator ids;
 
