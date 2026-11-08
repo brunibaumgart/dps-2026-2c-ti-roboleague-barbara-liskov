@@ -4,11 +4,11 @@ import com.roboleague.scheduling.*;
 import com.roboleague.support.ActorId;
 import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.ChallengeId;
-import com.roboleague.usecase.GetChallengeUseCase;
-import com.roboleague.usecase.QueryRoundsUseCase;
-import com.roboleague.usecase.RoundLifecycleUseCase;
+import com.roboleague.port.in.GetChallenge;
+import com.roboleague.port.in.QueryRounds;
+import com.roboleague.port.in.RoundLifecycle;
 import com.roboleague.port.in.ScheduleRoundCommand;
-import com.roboleague.usecase.ScheduleRoundUseCase;
+import com.roboleague.port.in.ScheduleRound;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,13 +26,13 @@ import static com.roboleague.api.RequestValues.text;
  */
 @RestController
 class RoundController {
-    private final ScheduleRoundUseCase schedule;
-    private final QueryRoundsUseCase query;
-    private final GetChallengeUseCase challenges;
-    private final RoundLifecycleUseCase lifecycle;
+    private final ScheduleRound schedule;
+    private final QueryRounds query;
+    private final GetChallenge challenges;
+    private final RoundLifecycle lifecycle;
 
-    RoundController(ScheduleRoundUseCase schedule, QueryRoundsUseCase query, GetChallengeUseCase challenges,
-                    RoundLifecycleUseCase lifecycle) {
+    RoundController(ScheduleRound schedule, QueryRounds query, GetChallenge challenges,
+                    RoundLifecycle lifecycle) {
         this.schedule = schedule;
         this.query = query;
         this.challenges = challenges;
