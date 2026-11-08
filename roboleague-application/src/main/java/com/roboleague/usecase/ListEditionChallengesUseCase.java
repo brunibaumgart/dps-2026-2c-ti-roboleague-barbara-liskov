@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.ListEditionChallenges;
 import com.roboleague.port.in.NotFoundException;
 
 import com.roboleague.repository.ChallengeRepository;
@@ -10,7 +11,7 @@ import com.roboleague.tournament.EditionId;
 import java.util.List;
 import java.util.Objects;
 
-public class ListEditionChallengesUseCase {
+public class ListEditionChallengesUseCase implements ListEditionChallenges {
     private final EditionRepository editions;
     private final ChallengeRepository challenges;
     public ListEditionChallengesUseCase(EditionRepository editions, ChallengeRepository challenges) {

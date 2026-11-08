@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.QueryAppeals;
 import com.roboleague.port.in.NotFoundException;
 
 import com.roboleague.evaluation.Attempt;
@@ -17,7 +18,7 @@ import java.util.Objects;
 /**
  * Appeals by id, of one attempt, or of every attempt a challenge ran in a category; oldest first.
  */
-public class QueryAppealsUseCase {
+public class QueryAppealsUseCase implements QueryAppeals {
     private static final Comparator<Appeal> FILING_ORDER = Comparator.comparing(Appeal::getSubmittedAt)
             .thenComparing(appeal -> appeal.getAppealId().value());
 

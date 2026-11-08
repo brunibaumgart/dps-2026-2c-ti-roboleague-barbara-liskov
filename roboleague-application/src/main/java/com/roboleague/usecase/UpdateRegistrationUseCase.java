@@ -1,5 +1,8 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.TeamCandidate;
+import com.roboleague.port.in.UpdateRegistration;
+import com.roboleague.support.Clock;
 import com.roboleague.port.in.InconsistentStateException;
 import com.roboleague.port.in.NotFoundException;
 import com.roboleague.port.in.RegisteredTeam;
@@ -11,15 +14,24 @@ import com.roboleague.tournament.*;
 import java.util.Objects;
 
 /** Validates a combined team/category candidate before either repository is written. */
-public class UpdateRegistrationUseCase {
+public class UpdateRegistrationUseCase implements UpdateRegistration {
     private final EditionRepository editions;
     private final TeamRepository teams;
+    private final Clock clock;
 
-    public UpdateRegistrationUseCase(EditionRepository editions, TeamRepository teams) {
+    public UpdateRegistrationUseCase(EditionRepository editions, TeamRepository teams, Clock clock) {
         this.editions = Objects.requireNonNull(editions);
         this.teams = Objects.requireNonNull(teams);
+        this.clock = Objects.requireNonNull(clock, "clock cannot be null");
     }
 
+    @Override
+    public RegisteredTeam execute(EditionId editionId, TeamId teamId, CategoryId categoryId, TeamCandidate candidate) {
+        Objects.requireNonNull(candidate, "candidate cannot be null");
+        return execute(editionId, teamId, categoryId, candidate.toTeam(clock.now()));
+    }
+
+    /** Same update with a team already built with its dates; adapters send a {@link TeamCandidate} instead. */
     public RegisteredTeam execute(EditionId editionId, TeamId teamId, CategoryId categoryId, Team candidate) {
         Objects.requireNonNull(candidate, "candidate cannot be null");
         if (!teamId.equals(candidate.getId())) {
