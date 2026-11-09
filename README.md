@@ -22,11 +22,11 @@ java -jar roboleague-api/target/roboleague-api-1.0-SNAPSHOT.jar   # API y web en
 
 Sin perfil, la app usa la base tal como esté (Flyway aplica las migraciones pendientes). Para cargar el escenario de ejemplo, ver "Correr la demo".
 
-**GraphQL (en curso, Entrega 3).** La misma aplicación expone una API GraphQL
-de solo consulta en `POST /graphql` y la consola GraphiQL en
-`http://localhost:8080/graphiql`; por ahora el esquema solo tiene `editions`.
-El contrato completo (esquema, errores, consultas de ejemplo y comparación con
-REST) llega con el PR de la Entrega 3; el plan está en `docs/specs/entrega-3/`.
+**GraphQL (Entrega 3).** La misma aplicación expone una API GraphQL de solo
+consulta en `POST /graphql` y la consola GraphiQL en
+`http://localhost:8080/graphiql`. El esquema, los errores, las consultas de
+ejemplo y el límite de profundidad están en [«API GraphQL»](#api-graphql); la
+comparación con REST, en [`docs/graphql-vs-rest.md`](docs/graphql-vs-rest.md).
 
 El reloj de la aplicación usa `America/Argentina/Buenos_Aires` por defecto.
 Se configura con `ROBOLEAGUE_TIME_ZONE` (un identificador válido de `ZoneId`, por
@@ -120,7 +120,9 @@ Corre los tres tipos de test. Todos se llaman `*Test`, así que `mvn test` tambi
 | --- | --- | --- |
 | Unitario | Reglas, agregados, casos de uso | JUnit 5 (tests parametrizados), AssertJ, repositorios en memoria |
 | Repositorio | Que un agregado se guarda y vuelve igual | `@DataJpaTest` contra Postgres en Testcontainers |
-| API | Rutas, códigos HTTP, JSON y el cableado entero | `@SpringBootTest` + MockMvc sobre la app real (subclases de `ApiTest`) |
+| API | Rutas, códigos HTTP, JSON, consultas GraphQL y el cableado entero | `@SpringBootTest` + MockMvc y `HttpGraphQlTester` sobre la app real (subclases de `ApiTest`) |
+
+Los tests de conteo de GraphQL (uno por relación resuelta en lote) son la evidencia del N+1: afirman con las estadísticas de Hibernate que pedir una relación cuesta las mismas sentencias con 1 y con 3 filas.
 
 Cada test vive en el mismo módulo y paquete que la clase que prueba (`evaluation/rules/RuleInvariantsTest` prueba `evaluation/rules`). Las invariantes de los value objects se prueban con tablas `@ParameterizedTest` que comprueban el tipo **y** el mensaje de cada rechazo.
 
@@ -146,7 +148,7 @@ Arquitectura hexagonal: todas las dependencias apuntan hacia adentro.
 | `roboleague-domain` | Agregados, value objects, servicios de dominio y puertos (`*Repository`). Java plano, sin Spring. | nada |
 | `roboleague-application` | Casos de uso. Java plano, sin Spring. | domain |
 | `roboleague-infrastructure` | Adaptadores de salida: Postgres para los siete agregados (entidad JPA propia + mapper + migración Flyway) y repositorios en memoria para tests de casos de uso. | domain |
-| `roboleague-api` | Composition root de Spring Boot, controllers REST, DTOs, manejo de errores, `DemoFixture`. | application, infrastructure |
+| `roboleague-api` | Composition root de Spring Boot, controllers REST, API GraphQL (`api.graphql`), DTOs, manejo de errores, `DemoFixture`. | application, infrastructure |
 
 Los paquetes no cambiaron al separar módulos (`com.roboleague.usecase`, `com.roboleague.repository.memory`, …).
 
@@ -210,6 +212,8 @@ Todas las respuestas de error usan `ErrorDto {error, details}`. Además de los c
 | GET | `/challenges/{id}/standings/versions/{v}?categoryId=` | 200 `StandingsVersionDto` | 400; 404 |
 | POST | `/challenges/{id}/standings/versions?categoryId=` | 201 `StandingsVersionDto` (provisional, con `rulebookVersion`) | 400; 404 |
 | POST | `/challenges/{id}/standings/versions/{v}/publication?categoryId=` | 200 `StandingsDto` | 400; 404; 409 bloqueada, con cada motivo en `details` |
+| POST | `/graphql` | 200 con `{data, errors}`; ver «API GraphQL» | Siempre 200: un id inexistente es `errors[].extensions.classification = NOT_FOUND` con `data.<campo> = null`; un campo inexistente o un argumento inválido, `ValidationError` sin `data`; un dato mal formado, `BAD_REQUEST` |
+| GET | `/graphiql` | 200, consola interactiva | — |
 
 El detalle de cada cuerpo está en las secciones siguientes.
 
@@ -509,6 +513,124 @@ Hay una tabla por desafío y categoría. Cada recálculo agrega una versión; ni
 
 Solo se publica la última versión, y solo si no hay apelaciones abiertas, no quedan turnos sin resultado y los resultados no cambiaron desde ese cálculo. Si algo lo bloquea, **409** con cada motivo en `details`. Publicar reemplaza a la oficial anterior, que queda `REPLACED`.
 
+## API GraphQL
+
+Segundo adaptador de entrada, **solo de consulta**, sobre los mismos casos de uso que REST (DESIGN 2.33, decisiones D1 y D2). Las escrituras siguen en REST.
+
+- Endpoint: `POST /graphql`. Consola interactiva: `GET /graphiql`.
+- Esquema: [`roboleague-api/src/main/resources/graphql/schema.graphqls`](roboleague-api/src/main/resources/graphql/schema.graphqls). Cubre ediciones, categorías, equipos, desafíos, rondas, turnos, intentos con su desglose explicado (`ScoreBreakdown`), tablas de posiciones y apelaciones.
+- Comparación con REST sobre dos casos medidos: [`docs/graphql-vs-rest.md`](docs/graphql-vs-rest.md).
+
+> GraphiQL carga React desde un CDN: sin internet queda en blanco. Las consultas `curl` de abajo funcionan igual sin red.
+
+### Tres consultas de ejemplo (sobre la demo)
+
+**A. La de la consigna: equipo → resultados por ronda → desglose, en un solo pedido.**
+
+```bash
+curl -s localhost:8080/graphql -H 'Content-Type: application/json' -d '{"query":
+  "{ team(id: \"t-b\") { name results(challengeId: \"ch-maze\") { round { number name } attempts { id status score breakdown { items { concept rawMetric formula subtotal } bySource { label subtotal } revisions { number reason total } } } } } }"}'
+```
+
+Respuesta recortada (la demo tiene cuatro rondas; se muestran la 1 y la 2, la
+apelada, con dos revisiones):
+
+```json
+{"data": {"team": {"name": "TitanTeam", "results": [
+  {"round": {"number": 1, "name": "Ronda Clasificatoria 1"},
+   "attempts": [{"id": "demo-3-1", "status": "EVALUATED", "score": 232.0, "breakdown": "…"}]},
+  {"round": {"number": 2, "name": "Ronda Clasificatoria 2"},
+   "attempts": [{"id": "demo-7-1", "status": "ADJUSTED", "score": 257.5,
+     "breakdown": {
+       "items": [
+         {"concept": "Regla de Tiempo", "rawMetric": "45.00 s",
+          "formula": "Base 100.0 + (15.00s por debajo del objetivo * 1.50)", "subtotal": 122.5},
+         {"concept": "Objetivos", "rawMetric": "5 objetivos", "formula": "5 obj * 20.0 pts", "subtotal": 100.0},
+         "…"],
+       "bySource": [{"label": "Mediciones automáticas", "subtotal": 292.5}],
+       "revisions": [
+         {"number": 1, "reason": "Every source arrived", "total": 197.5},
+         {"number": 2, "reason": "Revision due to accepted appeal demo-43: Penalizaciones corregidas tras revision", "total": 257.5}]}}]},
+  "… (rondas 3 y 4)"]}}}
+```
+
+**B. Podio oficial para prensa.**
+
+```bash
+curl -s localhost:8080/graphql -H 'Content-Type: application/json' -d '{"query":
+  "{ standings(challengeId: \"ch-maze\", categoryId: \"cat-junior\") { official { number entries { position teamName total explanation } } } }"}'
+```
+
+```json
+{"data": {"standings": {"official": {"number": 2, "entries": [
+  {"position": 1, "teamName": "TitanTeam", "total": 717.0, "explanation": "Primer puesto"},
+  {"position": 2, "teamName": "CyberTeam", "total": 717.0,
+   "explanation": "Empata en puntaje con el puesto 1; desempata por Menor tiempo"},
+  {"position": 3, "teamName": "NovaTeam", "total": 717.0,
+   "explanation": "Empata en puntaje con el puesto 2; desempata por Menor descuento por penalizaciones"}]}}}}
+```
+
+**C. Navegación inversa: de una apelación a su intento y su equipo.**
+
+```bash
+curl -s localhost:8080/graphql -H 'Content-Type: application/json' -d '{"query":
+  "{ appeal(id: \"demo-43\") { status reason attempt { score breakdown { revisions { number total reason } } } team { name institution } } }"}'
+```
+
+```json
+{"data": {"appeal": {"status": "ACCEPTED", "reason": "Penalizacion inexistente",
+  "attempt": {"score": 257.5, "breakdown": {"revisions": [
+    {"number": 1, "total": 197.5, "reason": "Every source arrived"},
+    {"number": 2, "total": 257.5, "reason": "Revision due to accepted appeal demo-43: Penalizaciones corregidas tras revision"}]}},
+  "team": {"name": "TitanTeam", "institution": "ITBA"}}}}
+```
+
+`demo-43` es el id que `DemoIds` le da a la única apelación de la demo (el log
+de arranque lo imprime: `appeal demo-43`).
+
+### Errores
+
+GraphQL responde **siempre 200**; los errores van en `errors[]`, cada uno con su clasificación en `extensions.classification`. La tabla es la misma que la de REST (`ApiExceptionHandler`), salvo 409 y 422, que son de escrituras:
+
+| Caso | Clasificación | `data` |
+| --- | --- | --- |
+| Id inexistente (`team(id: "t-zzz")`) | `NOT_FOUND`, con el mensaje (`Team not found: t-zzz`) | El campo en `null`; el resto de la respuesta llega |
+| Campo inexistente o argumento inválido | `ValidationError`, antes de ejecutar | Sin `data` |
+| Dato mal formado (categoría ajena a la edición) | `BAD_REQUEST`, con el mensaje | El campo en `null` |
+| Base no disponible | `INTERNAL_ERROR` con el texto `UNAVAILABLE` | El campo en `null` |
+| Cualquier otro error | `INTERNAL_ERROR` con un texto genérico; el detalle va al log, nunca a la respuesta | El campo en `null` |
+
+Id inexistente, `{ team(id: "t-zzz") { name } }`:
+
+```json
+{"errors": [{"message": "Team not found: t-zzz", "locations": [{"line": 1, "column": 3}],
+             "path": ["team"], "extensions": {"classification": "NOT_FOUND"}}],
+ "data": {"team": null}}
+```
+
+Campo inexistente, `{ team(id: "t-b") { nombre } }`: se rechaza en la
+validación, antes de ejecutar nada, y no hay `data`:
+
+```json
+{"errors": [{"message": "Validation error (FieldUndefined@[team/nombre]) : Field 'nombre' in type 'Team' is undefined",
+             "locations": [{"line": 1, "column": 21}], "extensions": {"classification": "ValidationError"}}]}
+```
+
+Las búsquedas por id son nullables a propósito: si fueran `!`, un id inexistente dejaría en `null` toda la rama que lo contiene.
+
+### Límite de profundidad
+
+Una consulta puede anidar hasta **10 niveles**. El esquema tiene ciclos (`Challenge → edition → challenges → …`) y sin límite una consulta recursiva haría trabajar al servidor sin tope. La consulta de introspección de GraphiQL no cuenta, para que la consola siga mostrando la documentación y el autocompletado.
+
+### Qué no expone
+
+| No está en GraphQL | Dónde está | Por qué |
+| --- | --- | --- |
+| Escrituras (mutaciones) | Todo `POST`/`PUT` de REST | La consigna pide exponer el dominio de consulta; duplicarlas duplicaría sus contratos de error (D2) |
+| Reglas de puntaje del reglamento | `GET /challenges/{id}/rulebook/versions/{v}` | Quien lee resultados necesita versión, fuentes y reglas de conteo en palabras, no la definición de cada regla |
+| Métricas revisadas de una apelación | `GET /appeals/{id}` | Son la entrada de una escritura; su efecto se ve en `breakdown.revisions` |
+| Subscription con el ranking en vivo | — | Opcional en la consigna; no se implementó (DESIGN, cap. 7) |
+
 ## Inscripción y cambios de equipo (casos de uso)
 
 La edición contiene `Registration`, identificada por edición/equipo, con la
@@ -645,6 +767,8 @@ esa comprobación de UI.
 
 **Un endpoint.** Controller en `roboleague-api/src/main/java/com/roboleague/api/<contexto>/`, con su DTO. Si el caso de uso es nuevo, su `@Bean` va en `UseCaseConfig`. El test extiende `ApiTest` y usa ids propios (el contexto y la base se comparten entre clases de test).
 
+**Un campo GraphQL.** Agregar el campo a `schema.graphqls`. Si es escalar, va como componente del record `*View` de su tipo (en `api.graphql.view`). Si es una relación, un `@SchemaMapping` en el `XxxQueries` que corresponda, que llame a un caso de uso (nunca a un repositorio). Si se resuelve por cada fila de una lista, `@BatchMapping` con un caso de uso `byIds`, y un test de conteo. Al arrancar, el informe de inspección del esquema no tiene que listar campos sin resolver. Si cambia un caso de la comparación, actualizar `docs/graphql-vs-rest.md`.
+
 **Un tipo de regla nuevo.** Clase en `roboleague-domain/.../evaluation/rules/` que implementa la interfaz de su sección (`BaseRule`, `BonusRule` o `DeductionRule`), con `TYPE`, constantes para los nombres de sus parámetros, `static from(RuleDefinition)` y `definition()` (los dos usan las mismas constantes), y `metrics()` con las métricas con nombre que lee. Un registro en la sección que le corresponde en `RuleCatalog.standard()`, un caso en `RuleCatalogTest.everyRuleType()` y en `ScoreRuleSectionsTest`, y una fila en la tabla de "Configurar el evento y los desafíos". Las reglas existentes no se tocan.
 
 **Validar una captura contra el reglamento.** `rulebook.check(fuente, mediciones)` revisa lo que mandó una fuente: que estén todas las métricas declaradas para ella, ninguna de más, cada una en su unidad y rango. Devuelve `MeasurementCheck.Accepted` o `Rejected(problemas)`. `Attempt.receive` lo llama con cada fuente que llega y no cambia nada si la rechaza; `ReceiveResultUseCase` lo traduce a 422.
@@ -662,4 +786,5 @@ esa comprobación de UI.
 
 ## Más
 
-- [`DESIGN.md`](DESIGN.md): contextos, decisiones de diseño, patrones y alternativas descartadas; el capítulo 6 resume clases, refactorizaciones y deuda de F1, F2 y F3, y el capítulo 7 los patrones que se decidió no aplicar.
+- [`DESIGN.md`](DESIGN.md): contextos, decisiones de diseño, patrones y alternativas descartadas; el capítulo 6 resume clases, refactorizaciones y deuda de F1, F2 y F3, el capítulo 7 los patrones que se decidió no aplicar y el capítulo 8 la propuesta de valor de la Entrega 3 (API GraphQL).
+- [`docs/graphql-vs-rest.md`](docs/graphql-vs-rest.md): REST y GraphQL comparados sobre dos casos, con peticiones, bytes y la evidencia del N+1.
