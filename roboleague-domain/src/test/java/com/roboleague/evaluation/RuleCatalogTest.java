@@ -256,6 +256,22 @@ class RuleCatalogTest {
                         withRule(new RuleDefinition("precision", "Precisión",
                                 RuleArguments.of(Parameters.none().with("maxPoints", 50.0))))),
                         "rule 'Precisión': missing metric 'accuracy'"),
+                Arguments.of(Named.of("métrica declarada más amplia de lo que la regla acepta (víctimas)",
+                        withDeduction(new AbandonedVictimsRule("Abandonadas", RESCUED, new VictimTariff(2, Points.of(10)))
+                                .definition())),
+                        "rule 'Abandonadas' accepts metric 'rescatadas' between 0.0 and 2.0, but the rulebook "
+                                + "declares it between 0.0 and 4.0"),
+                Arguments.of(Named.of("métrica declarada más amplia de lo que la regla acepta (precisión)",
+                        new RulebookDefinition(
+                                List.of(new MetricDeclaration(PRECISION, MeasurementUnit.RATIO,
+                                        ValueRange.between(0.0, 100.0).definition())),
+                                new RulebookDefinition.Scoring(
+                                        List.of(new PrecisionRule("Precisión", PRECISION, Points.of(50)).definition()),
+                                        NO_BONUSES, List.of()),
+                                new RulebookDefinition.Ranking(ALL_ROUNDS, BestAttempt.single().definition(),
+                                        List.of("higher-total")))),
+                        "rule 'Precisión' accepts metric 'precision' between 0.0 and 1.0, but the rulebook "
+                                + "declares it between 0.0 and 100.0"),
                 Arguments.of(Named.of("N de M inválido", new RulebookDefinition(List.of(),
                                 new RulebookDefinition.Scoring(List.of(time), NO_BONUSES, List.of()),
                                 new RulebookDefinition.Ranking(new StrategyDefinition(BestNOfM.TYPE,

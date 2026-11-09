@@ -8,9 +8,11 @@ import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
+import com.roboleague.evaluation.ValueRange;
 
 import java.math.BigDecimal;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -53,6 +55,11 @@ public final class PrecisionRule implements BaseRule {
     @Override
     public Set<Metric> metrics() {
         return Set.of(accuracy);
+    }
+
+    @Override
+    public Map<Metric, ValueRange> acceptedValues() {
+        return Map.of(accuracy, ValueRange.between(0.0, 1.0));
     }
 
     @Override

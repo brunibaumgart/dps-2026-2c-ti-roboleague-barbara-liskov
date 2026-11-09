@@ -6,6 +6,7 @@ import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.TrackPerformance;
+import com.roboleague.evaluation.ValueRange;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -48,6 +49,16 @@ class MeasuredRulesTest {
         PrecisionRule rule = new PrecisionRule("Precisión", PRECISION, Points.of(80));
 
         assertThat(subtotal(rule, measuring(PRECISION, precision))).isEqualTo(Points.of(expected));
+    }
+
+    @Test
+    @DisplayName("Las reglas que acotan una métrica declaran qué valores aceptan, para cruzarlos al publicar")
+    void givenARuleThatBoundsItsMetricThenItDeclaresTheValuesItAccepts() {
+        assertThat(new PrecisionRule("Precisión", PRECISION, Points.of(80)).acceptedValues())
+                .containsExactly(Map.entry(PRECISION, ValueRange.between(0.0, 1.0)));
+        assertThat(new AbandonedVictimsRule("Abandonadas", RESCUED, new VictimTariff(4, Points.of(10))).acceptedValues())
+                .containsExactly(Map.entry(RESCUED, ValueRange.between(0.0, 4.0)));
+        assertThat(new VictimsRule("Rescatadas", RESCUED, Points.of(25)).acceptedValues()).isEmpty();
     }
 
     @Test

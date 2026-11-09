@@ -16,24 +16,30 @@ import java.util.Set;
 /**
  * How a rulebook scores an attempt: the metrics it declares, its score and bonus rules, and the limit on the sum
  * of bonuses (F2). The bonus rules are ordinary score rules; the limit wraps their sum without changing any of them.
- * Every metric a rule reads has to be declared, so a misspelled name is rejected when publishing, not when scoring.
+ * Every metric a rule reads has to be declared, and declared no wider than the rule accepts, so a misspelled name
+ * or a capture the rule could not score is rejected when publishing, not when scoring.
  */
 public record ScoringScheme(MetricSheet metrics, ScoreRules scoreRules, BonusLimit bonusLimit) {
     public ScoringScheme {
         Objects.requireNonNull(metrics, "metrics cannot be null");
         Objects.requireNonNull(scoreRules, "scoreRules cannot be null");
         Objects.requireNonNull(bonusLimit, "bonusLimit cannot be null");
-        List<String> undeclared = new ArrayList<>();
+        List<String> problems = new ArrayList<>();
         for (ScoreRule rule : scoreRules.all()) {
             for (Metric metric : rule.metrics()) {
                 if (!metrics.declares(metric)) {
-                    undeclared.add("rule '" + rule.getRuleName() + "' reads metric '" + metric.name() + "' ("
+                    problems.add("rule '" + rule.getRuleName() + "' reads metric '" + metric.name() + "' ("
                             + metric.source() + "), which the rulebook does not declare");
                 }
             }
+            rule.acceptedValues().forEach((metric, accepted) -> metrics.definitionOf(metric)
+                    .filter(declared -> !accepted.covers(declared.range()))
+                    .ifPresent(declared -> problems.add("rule '" + rule.getRuleName() + "' accepts metric '"
+                            + metric.name() + "' " + accepted.describe() + ", but the rulebook declares it "
+                            + declared.range().describe())));
         }
-        if (!undeclared.isEmpty()) {
-            throw new IllegalArgumentException(String.join("; ", undeclared));
+        if (!problems.isEmpty()) {
+            throw new IllegalArgumentException(String.join("; ", problems));
         }
     }
 

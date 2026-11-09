@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -30,6 +31,10 @@ public record MetricSheet(List<MetricDefinition> metrics) {
 
     public boolean declares(Metric metric) {
         return metrics.stream().anyMatch(declared -> declared.metric().equals(metric));
+    }
+
+    public Optional<MetricDefinition> definitionOf(Metric metric) {
+        return metrics.stream().filter(declared -> declared.metric().equals(metric)).findFirst();
     }
 
     /**

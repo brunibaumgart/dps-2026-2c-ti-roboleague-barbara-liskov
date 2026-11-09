@@ -8,8 +8,10 @@ import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
+import com.roboleague.evaluation.ValueRange;
 
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -56,6 +58,11 @@ public final class AbandonedVictimsRule implements DeductionRule {
     @Override
     public Set<Metric> metrics() {
         return Set.of(rescued);
+    }
+
+    @Override
+    public Map<Metric, ValueRange> acceptedValues() {
+        return Map.of(rescued, ValueRange.between(0.0, tariff.totalVictims()));
     }
 
     @Override
