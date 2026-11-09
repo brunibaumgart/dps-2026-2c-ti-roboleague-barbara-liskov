@@ -1302,7 +1302,7 @@ Plan completo en `docs/specs/entrega-3/`. La primera parte registra las lecturas
   - **D11, sin migraciones**: los lotes usan `findAllById` y `findByRoundIdIn`.
   - **D12, `Slot.turn` agrupa** los cuatro campos de captura de un turno (`rulebookVersion`, `attemptRule`, `acceptsResult`, `attempts`): un solo lote por categoría en lugar de cuatro resolvers sobre el mismo caso de uso.
 
-- **El N+1**: aparece en cada relación que se resuelve por fila de una lista, porque cada caso de uso corre en su propia transacción y no hay sesión compartida entre filas. Se midió primero `StandingsEntry.team` resuelto por fila (⟨medir⟩ sentencias para ⟨medir⟩ filas) y después en lote (⟨medir⟩). Cada relación en lote tiene un test de conteo que afirma lo mismo con 1 y con 3 filas; los números están en `docs/graphql-vs-rest.md`. Las listas por padre (`Edition.challenges`, `Attempt.appeals`…) quedaron con una lectura por padre (capítulo 8).
+- **El N+1**: aparece en cada relación que se resuelve por fila de una lista, porque cada caso de uso corre en su propia transacción y no hay sesión compartida entre filas. Se midió primero `StandingsEntry.team` resuelto por fila (3 sentencias extra para 3 filas, 1 para 1 fila: crece con las filas) y después en lote (1 sentencia extra con 1 y con 3 filas; la consulta completa cuesta 9 en los dos casos). Cada relación en lote tiene un test de conteo que afirma lo mismo con 1 y con 3 filas; los números están en `docs/graphql-vs-rest.md`. Las listas por padre (`Edition.challenges`, `Attempt.appeals`…) quedaron con una lectura por padre (capítulo 8).
 
 - **Alternativas descartadas**:
   - Módulo Maven `roboleague-graphql` aparte (D1): necesitaría su propia clase de arranque para testearse o depender de api, con un ciclo.
@@ -1571,9 +1571,9 @@ API GraphQL de consulta sobre la aplicación existente (2.33) y la corrección d
 
 **Clases agregadas**
 - Puertos y lecturas por lote (2.33): `findByIds` en cinco puertos y `findByRoundIds`, `Batches` (jpa y memory), `StoredReferences`, `QueryTeamsUseCase`, `QueryTeamResultsUseCase`, `TeamTurn`.
-- Adaptador GraphQL: `schema.graphqls`, los `XxxQueries` de `api.graphql`, el resolver de errores, la configuración del límite de profundidad y los 31 records de `api.graphql.view`. ⟨completar con los nombres finales de cada área⟩
+- Adaptador GraphQL (`api.graphql`): `schema.graphqls`, `EditionQueries`, `TeamQueries`, `ChallengeQueries`, `RoundQueries`, `AttemptQueries`, `StandingsQueries`, `GraphQlErrorResolver`, `GraphQlConfig` (límite de profundidad) y los 33 records de `api.graphql.view`.
 - Puertos de entrada (2.34): las 28 interfaces de `port.in`, `TeamCandidate`, `CalculatedVersion`.
-- Tests: `GraphQlSmokeTest`, los tests de consultas y de conteo de cada área, `InputPortBoundaryTest`, `TeamCandidateTest`. ⟨completar con los nombres finales⟩
+- Tests: `GraphQlSmokeTest`, `GraphQlTournamentTest`, `GraphQlTeamBatchingTest`, `GraphQlRankingTest`, `GraphQlEvaluationTest`, `GraphQlEvaluationBatchingTest`, `GraphQlErrorsTest`, `GraphQlDepthLimitTest`, `InputPortBoundaryTest`, `TeamCandidateTest`; en application, `CategoryRulebookTest`, `QueryTeamsUseCaseTest`, `QueryTeamResultsUseCaseTest`, `QueryTurnAttemptsOfRoundsTest` con los dobles `Counting*Repository` y `ReadCounts`.
 
 **Clases modificadas**
 - Los cinco puertos con lote, sus adaptadores JPA y en memoria, `CategoryRulebook` (una lectura por categoría), los casos de uso de lectura con `byIds`/`ofRounds`, `UseCaseConfig`, `ApiTest`.

@@ -532,7 +532,27 @@ curl -s localhost:8080/graphql -H 'Content-Type: application/json' -d '{"query":
   "{ team(id: \"t-b\") { name results(challengeId: \"ch-maze\") { round { number name } attempts { id status score breakdown { items { concept rawMetric formula subtotal } bySource { label subtotal } revisions { number reason total } } } } } }"}'
 ```
 
-<!-- TODO(@intilauberer): pegar la respuesta real recortada, con la demo levantada. -->
+Respuesta recortada (la demo tiene cuatro rondas; se muestran la 1 y la 2, la
+apelada, con dos revisiones):
+
+```json
+{"data": {"team": {"name": "TitanTeam", "results": [
+  {"round": {"number": 1, "name": "Ronda Clasificatoria 1"},
+   "attempts": [{"id": "demo-3-1", "status": "EVALUATED", "score": 232.0, "breakdown": "…"}]},
+  {"round": {"number": 2, "name": "Ronda Clasificatoria 2"},
+   "attempts": [{"id": "demo-7-1", "status": "ADJUSTED", "score": 257.5,
+     "breakdown": {
+       "items": [
+         {"concept": "Regla de Tiempo", "rawMetric": "45.00 s",
+          "formula": "Base 100.0 + (15.00s por debajo del objetivo * 1.50)", "subtotal": 122.5},
+         {"concept": "Objetivos", "rawMetric": "5 objetivos", "formula": "5 obj * 20.0 pts", "subtotal": 100.0},
+         "…"],
+       "bySource": [{"label": "Mediciones automáticas", "subtotal": 292.5}],
+       "revisions": [
+         {"number": 1, "reason": "Every source arrived", "total": 197.5},
+         {"number": 2, "reason": "Revision due to accepted appeal demo-43: Penalizaciones corregidas tras revision", "total": 257.5}]}}]},
+  "… (rondas 3 y 4)"]}}}
+```
 
 **B. Podio oficial para prensa.**
 
@@ -541,7 +561,14 @@ curl -s localhost:8080/graphql -H 'Content-Type: application/json' -d '{"query":
   "{ standings(challengeId: \"ch-maze\", categoryId: \"cat-junior\") { official { number entries { position teamName total explanation } } } }"}'
 ```
 
-<!-- TODO(@intilauberer): pegar la respuesta real recortada. -->
+```json
+{"data": {"standings": {"official": {"number": 2, "entries": [
+  {"position": 1, "teamName": "TitanTeam", "total": 717.0, "explanation": "Primer puesto"},
+  {"position": 2, "teamName": "CyberTeam", "total": 717.0,
+   "explanation": "Empata en puntaje con el puesto 1; desempata por Menor tiempo"},
+  {"position": 3, "teamName": "NovaTeam", "total": 717.0,
+   "explanation": "Empata en puntaje con el puesto 2; desempata por Menor descuento por penalizaciones"}]}}}}
+```
 
 **C. Navegación inversa: de una apelación a su intento y su equipo.**
 
@@ -550,7 +577,16 @@ curl -s localhost:8080/graphql -H 'Content-Type: application/json' -d '{"query":
   "{ appeal(id: \"demo-43\") { status reason attempt { score breakdown { revisions { number total reason } } } team { name institution } } }"}'
 ```
 
-<!-- TODO(@intilauberer): confirmar el id de la apelación de la demo (lo genera DemoIds) y pegar la respuesta real. -->
+```json
+{"data": {"appeal": {"status": "ACCEPTED", "reason": "Penalizacion inexistente",
+  "attempt": {"score": 257.5, "breakdown": {"revisions": [
+    {"number": 1, "total": 197.5, "reason": "Every source arrived"},
+    {"number": 2, "total": 257.5, "reason": "Revision due to accepted appeal demo-43: Penalizaciones corregidas tras revision"}]}},
+  "team": {"name": "TitanTeam", "institution": "ITBA"}}}}
+```
+
+`demo-43` es el id que `DemoIds` le da a la única apelación de la demo (el log
+de arranque lo imprime: `appeal demo-43`).
 
 ### Errores
 
@@ -564,18 +600,21 @@ GraphQL responde **siempre 200**; los errores van en `errors[]`, cada uno con su
 | Base no disponible | `INTERNAL_ERROR` con el texto `UNAVAILABLE` | El campo en `null` |
 | Cualquier otro error | `INTERNAL_ERROR` con un texto genérico; el detalle va al log, nunca a la respuesta | El campo en `null` |
 
+Id inexistente, `{ team(id: "t-zzz") { name } }`:
+
 ```json
-{
-  "errors": [{
-    "message": "Team not found: t-zzz",
-    "path": ["team"],
-    "extensions": {"classification": "NOT_FOUND"}
-  }],
-  "data": {"team": null}
-}
+{"errors": [{"message": "Team not found: t-zzz", "locations": [{"line": 1, "column": 3}],
+             "path": ["team"], "extensions": {"classification": "NOT_FOUND"}}],
+ "data": {"team": null}}
 ```
 
-<!-- TODO(@intilauberer): reemplazar por la salida real y sumar un ejemplo de ValidationError. -->
+Campo inexistente, `{ team(id: "t-b") { nombre } }`: se rechaza en la
+validación, antes de ejecutar nada, y no hay `data`:
+
+```json
+{"errors": [{"message": "Validation error (FieldUndefined@[team/nombre]) : Field 'nombre' in type 'Team' is undefined",
+             "locations": [{"line": 1, "column": 21}], "extensions": {"classification": "ValidationError"}}]}
+```
 
 Las búsquedas por id son nullables a propósito: si fueran `!`, un id inexistente dejaría en `null` toda la rama que lo contiene.
 

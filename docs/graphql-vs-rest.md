@@ -1,14 +1,10 @@
 # REST y GraphQL en RoboLeague: dos casos medidos
 
-> **Borrador para completar con la demo levantada.** Las celdas marcadas
-> `⟨medir⟩` se reemplazan por el número real antes de entregar (la spec 04 pide
-> no dejar placeholders). Al final está la lista de qué medir y con qué
-> comando.
-
 **Cómo se midió:** demo cargada (`java -jar roboleague-api/target/*.jar
 --spring.profiles.active=demo`), `curl -s -o /dev/null -w '%{size_download}'`
 para los bytes de cada pedido REST y el mismo `curl` con el documento GraphQL
-para GraphQL. Fecha: ⟨medir⟩. Commit: ⟨medir⟩.
+para GraphQL. Fecha: 2026-11-09. Commit: `2410351` (main) con la rama del
+PR #32 (`044fec1`), que aporta `Query.team` y los lotes de `team`.
 
 Los dos casos son clientes reales de una plataforma de competencias: una
 pantalla en la pista y un medio de prensa. Cada uno necesita una combinación
@@ -60,8 +56,8 @@ respuesta en tres niveles, y cada nivel depende del anterior:
 
 | | REST | GraphQL |
 | --- | --- | --- |
-| Peticiones | 1 + ⟨medir: turnos de t-b⟩ + ⟨medir: intentos⟩ = ⟨medir⟩ (la spec estima 1 + 4 + 4 = 9) | 1 |
-| Bytes recibidos | ⟨medir: suma de todos⟩ | ⟨medir⟩ |
+| Peticiones | 1 + 4 turnos de `t-b` + 4 intentos = **9** | **1** |
+| Bytes recibidos | **17 210** (rondas 4 610; cuatro `results` de 307 a 312; cuatro `breakdown` de 2 778 a 3 003) | **5 707** |
 | Datos de más (sobre-obtención) | Las rondas traen los slots de los otros equipos, con pista, jueces y horarios. `results` trae `rulebookVersion`, `attemptRule` y `acceptsResult`, que la pantalla no muestra. `breakdown` trae `awaiting` y `notes`. | Ninguno: solo los campos pedidos. |
 | Datos de menos (sub-obtención) | La ronda no trae los intentos ni el desglose: cada uno es otro viaje, y el cliente tiene que saber qué slot es de `t-b`. | Ninguno. |
 | Viajes dependientes | 3 niveles (rondas → turnos → intentos) | 0 |
@@ -91,8 +87,8 @@ institución de cada equipo.
 
 | | REST | GraphQL |
 | --- | --- | --- |
-| Peticiones | 1 (`GET /challenges/ch-maze/standings?categoryId=cat-junior`) + 1 por fila para la institución (`GET /editions/ed-1/registrations/{teamId}`) = 1 + ⟨medir: filas⟩ | 1 |
-| Bytes | ⟨medir⟩. Trae `versions`, `latest` y `official` completos, con `considered`/`discarded` de cada fila, y `pending`. | ⟨medir⟩ (5 campos por fila) |
+| Peticiones | 1 (`GET /challenges/ch-maze/standings?categoryId=cat-junior`) + 1 por fila para la institución (`GET /editions/ed-1/registrations/{teamId}`) = 1 + 3 = **4** | **1** |
+| Bytes | **6 011** (tabla 4 037 + tres inscripciones de 656 a 660). Trae `versions`, `latest` y `official` completos, con `considered`/`discarded` de cada fila, y `pending`. | **513** (5 campos por fila; 423 sin `team { institution }`) |
 | Sobre-obtención | Todo lo anterior. Si la última versión es la oficial, `latest` y `official` llegan repetidas. | Ninguna. |
 | Sub-obtención | La fila trae `teamId` y `teamName`, pero no la institución: un pedido más por fila. | `team { institution }` en la misma consulta, resuelto por lote. |
 
@@ -116,26 +112,37 @@ duplicada.
 
 ## Evidencia del N+1
 
-**Consulta:** `standings { latest { entries { team { institution } } } }` con
-⟨medir⟩ equipos.
+**Consulta:** `standings { latest { entries { team { id institution } } } }`
+con una tabla de 1 fila y otra de 3 filas, misma consulta con y sin `team`.
+Estadísticas de Hibernate sobre Postgres (Testcontainers), con warm-up y
+`statistics.clear()` justo antes del pedido.
 
-| Implementación | Sentencias SQL para `team` | Dónde se mide |
-| --- | --- | --- |
-| `@SchemaMapping` por fila (`QueryTeamsUseCase.get`) | ⟨medir⟩ (una por fila) | Medición de @nnicokim antes del cambio |
-| `@BatchMapping` + `QueryTeamsUseCase.byIds` | ⟨medir⟩ (una para todas) | Test de conteo de `team` |
+| Implementación | Filas | Sin `team` | Con `team` | Costo de `team` |
+| --- | ---: | ---: | ---: | ---: |
+| `@SchemaMapping` por fila (`QueryTeams.get`) | 1 | 8 | 9 | 1 |
+| `@SchemaMapping` por fila (`QueryTeams.get`) | 3 | 8 | 11 | **3** (una por fila) |
+| `@BatchMapping` + `QueryTeams.byIds` | 1 | 8 | 9 | 1 |
+| `@BatchMapping` + `QueryTeams.byIds` | 3 | 8 | 9 | **1** (una para todas) |
+
+La medición por fila es de la rama de @nnicokim antes de reemplazar el
+resolver; con esa implementación el test de lote falla (delta 3 en vez de 1).
+La medición en lote es `GraphQlTeamBatchingTest`, que también cubre los otros
+cuatro campos `team` (`Registration`, `Slot`, `Attempt`, `Appeal`): 1 sentencia
+extra con 1 y con 3 filas, 0 con el lote vacío.
 
 Los demás lotes, medidos directamente en lote (un test de conteo por campo, que
 afirma lo mismo con N = 1 y N = 3 filas):
 
-| Relación | Sentencias | Test |
+| Relación | Sentencias extra (N = 1 y N = 3) | Test |
 | --- | --- | --- |
-| `RoundResult.attempt`, `Appeal.attempt` | ⟨medir⟩ | @cachoJDG |
-| `RoundResult.round`, `Attempt.round` | ⟨medir⟩ | @cachoJDG |
-| `Round.challenge` | ⟨medir⟩ | @cachoJDG |
-| `Round.category` | ⟨medir⟩ | @cachoJDG |
-| `Attempt.breakdown` | 0 extra si el padre ya lo trajo; ⟨medir⟩ si no | @cachoJDG |
-| `Slot.turn` | ⟨medir⟩ por (desafío, categoría) | @cachoJDG |
-| `Challenge.edition` | ⟨medir⟩ | @Iker-Galante |
+| `RoundResult.attempt`, `Appeal.attempt` | 2 (intentos y sus desafíos, para explicar el puntaje) | `GraphQlEvaluationBatchingTest` |
+| `RoundResult.round`, `Attempt.round` | 1 | `GraphQlEvaluationBatchingTest` |
+| `Round.challenge` | 1 | `GraphQlEvaluationBatchingTest` |
+| `Round.category` | 1 (las ediciones; la categoría se filtra de ellas) | `GraphQlEvaluationBatchingTest` |
+| `Attempt.breakdown` | 0 si el padre ya lo trajo; 2 bajo un turno (intentos y desafíos) | `GraphQlEvaluationBatchingTest` |
+| `Slot.turn` | 4 por (desafío, categoría): rondas, desafíos, rondas de la categoría, intentos de la categoría | `GraphQlEvaluationBatchingTest` |
+| `Challenge.edition` | 1 (2 con raíces con alias: una para la primera y una para el resto) | `GraphQlRankingTest` |
+| `*.team` (cinco campos) | 1 | `GraphQlTeamBatchingTest` |
 
 **Por qué existe el N+1 acá:** cada caso de uso corre en su propia transacción
 (`TransactionalUseCases`), así que no hay una sesión de Hibernate compartida
@@ -160,22 +167,20 @@ lote queda como deuda (DESIGN, cap. 8).
 
 ---
 
-## Para completar (checklist de medición)
+## Cómo repetir la medición
 
-Con la demo levantada y las ramas de GraphQL mergeadas:
+Con la demo levantada:
 
 ```bash
 # bytes de un pedido REST
 curl -s -o /dev/null -w '%{size_download}\n' 'localhost:8080/challenges/ch-maze/rounds?categoryId=cat-junior'
 
-# bytes de una consulta GraphQL
+# bytes de una consulta GraphQL (el documento de la consulta A en consulta-a.json)
 curl -s -o /dev/null -w '%{size_download}\n' localhost:8080/graphql \
   -H 'Content-Type: application/json' -d @consulta-a.json
 ```
 
-- [ ] Caso A: contar los turnos de `t-b` en Laberinto y sus intentos (fija el número de pedidos REST).
-- [ ] Caso A: bytes de cada pedido REST y de la consulta GraphQL.
-- [ ] Caso B: cantidad de filas del podio oficial; bytes REST y GraphQL.
-- [ ] N+1: números de @nnicokim (antes y después de `team`) y de cada test de conteo.
-- [ ] Fecha y commit de la medición.
-- [ ] Borrar el aviso de borrador de arriba.
+Los turnos de `t-b` en Laberinto son los slots `demo-3`, `demo-7`, `demo-11`
+y `demo-15`; sus intentos, `demo-3-1`, `demo-7-1`, `demo-11-1` y `demo-15-1`.
+Las sentencias SQL salen de los tests de conteo:
+`mvn -B -pl roboleague-api -am -Dtest='GraphQl*BatchingTest,GraphQlRankingTest' -Dsurefire.failIfNoSpecifiedTests=false test`.

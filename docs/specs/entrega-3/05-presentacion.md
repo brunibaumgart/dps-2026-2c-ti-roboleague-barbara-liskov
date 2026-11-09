@@ -1,7 +1,7 @@
 # 05 — Presentación en video: guion por integrante
 
-Estado: guion listo para ensayar. Los números marcados `⟨medir⟩` salen de
-`docs/graphql-vs-rest.md` cuando termine la medición.
+Estado: guion listo para ensayar, con los números medidos el 2026-11-09
+(`docs/graphql-vs-rest.md`).
 
 ## Qué pide la cátedra (consigna publicada para la Entrega 3)
 
@@ -130,14 +130,14 @@ el contrato común. `InputPortBoundaryTest` impide volver atrás.
    REST escribe, GraphQL consulta, y los dos llaman a los mismos casos de uso.
 2. **Consulta de la consigna en vivo (45 s):** `team(id: "t-b") { results(…) { round … attempts { breakdown { items … revisions … } } } }`,
    en un solo pedido.
-3. **Contraste con REST (45 s):** la misma pantalla en REST son ⟨medir⟩
-   pedidos en tres niveles y ⟨medir⟩ bytes contra ⟨medir⟩. Mostrar un
+3. **Contraste con REST (45 s):** la misma pantalla en REST son 9
+   pedidos en tres niveles (1 + 4 + 4) y 17 210 bytes contra 5 707. Mostrar un
    `GET /challenges/ch-maze/rounds` y señalar lo que sobra (slots de otros
    equipos, jueces, pistas: sobre-obtención) y lo que falta (el desglose:
    sub-obtención).
 4. **N+1 (20 s):** pedir `team { institution }` en cada fila del podio costaba
-   ⟨medir⟩ sentencias; con el lote cuesta ⟨medir⟩. Existe porque cada caso de
-   uso es su propia transacción.
+   una sentencia por fila (3 para 3 filas); con el lote cuesta 1, tenga 1 o 3
+   filas. Existe porque cada caso de uso es su propia transacción.
 5. **Decisiones del esquema (10 s):** solo consultas (D2), schema-first (D3),
    views propios (D4), búsquedas nullables con error `NOT_FOUND` (D6),
    profundidad 10 (D8). No se expone: mutaciones, reglas de puntaje completas,
