@@ -1,5 +1,6 @@
 package com.roboleague.usecase;
 
+import com.roboleague.port.in.ReviewAppeal;
 import com.roboleague.port.in.NotFoundException;
 
 import com.roboleague.ranking.appeal.Appeal;
@@ -12,7 +13,7 @@ import java.util.Objects;
 /**
  * Use case to transition an appeal into UNDER_REVIEW by an assigned arbitrator/judge.
  */
-public class ReviewAppealUseCase {
+public class ReviewAppealUseCase implements ReviewAppeal {
     private final AppealRepository appealRepository;
 
     public ReviewAppealUseCase(AppealRepository appealRepository) {

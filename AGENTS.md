@@ -23,8 +23,11 @@ La arquitectura es hexagonal (puertos y adaptadores), con modelado DDD y
 separación dominio/aplicación compatible con la regla de dependencias de Clean
 Architecture. El flujo de ejecución puede llegar a Postgres; las dependencias
 del código apuntan al núcleo: infrastructure implementa puertos definidos en
-domain. Los métodos de los casos de uso son la entrada al núcleo; no crear una
-interfaz por clase solamente para reproducir un diagrama arquitectónico.
+domain. La entrada al núcleo son los **puertos de entrada** de
+`com.roboleague.port.in` (domain): una interfaz por caso de uso, con sus comandos
+y resultados. Application los implementa y los adaptadores (REST, GraphQL)
+dependen solo de la interfaz, nunca de `com.roboleague.usecase`. Fuera de ese
+límite, no crear interfaces por clase sin una variación concreta.
 
 `tournament`, `scheduling`, `evaluation` y `ranking` son áreas del modelo que
 comparten tipos. Sus paquetes no establecen por sí solos bounded contexts
@@ -33,8 +36,8 @@ invariantes y necesidades del negocio, antes de separar módulos o servicios.
 
 | Módulo                      | Responsabilidad                                                | Dependencias de producción          |
 | --------------------------- | -------------------------------------------------------------- | ----------------------------------- |
-| `roboleague-domain`         | Agregados, objetos de valor, servicios y puertos `*Repository` | Java, sin frameworks                |
-| `roboleague-application`    | Casos de uso en `com.roboleague.usecase`                       | domain                              |
+| `roboleague-domain`         | Agregados, objetos de valor, servicios, puertos `*Repository` y puertos de entrada (`port.in`) | Java, sin frameworks |
+| `roboleague-application`    | Casos de uso en `com.roboleague.usecase`, que implementan `port.in` | domain                       |
 | `roboleague-infrastructure` | Adaptadores JPA/Postgres y repositorios en memoria             | domain y frameworks de persistencia |
 | `roboleague-api`            | REST, DTOs, composition root, transacciones y demo             | application e infrastructure        |
 
