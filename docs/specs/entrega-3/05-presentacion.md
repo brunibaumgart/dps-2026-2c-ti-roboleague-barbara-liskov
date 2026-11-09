@@ -1,165 +1,180 @@
-# 05 — Presentación oral: guion, demo y preguntas
+# 05 — Presentación en video: guion por integrante
 
-Estado: planificada. Fase 6. Es un documento para el **equipo**: presenta un
-integrante elegido al azar al empezar la clase, así que los cinco tienen que
-poder dar esta charla entera. Los números marcados `[medir]` se completan con
-los valores de `docs/graphql-vs-rest.md` cuando la fase 5 termine.
+Estado: guion listo para ensayar, con los números medidos el 2026-11-09
+(`docs/graphql-vs-rest.md`).
 
-Formato que pide la consigna: Dominio → Propuesta de valor → Decisiones clave
-→ Preguntas. "La gestión del tiempo disponible es parte de la evaluación":
-confirmar con la cátedra cuántos minutos hay y ajustar la tabla de abajo.
-Supuesto de trabajo: 15 minutos de exposición + preguntas.
+## Qué pide la cátedra (consigna publicada para la Entrega 3)
 
-## Reparto del tiempo
+La consigna publicada en el campus reemplaza al PDF en lo que difieren:
 
-| Bloque | Minutos | Qué se muestra |
+- **Video de YouTube no listado, de 8 a 12 minutos.** Sin video no se evalúa
+  el TPI.
+- **Se ven y hablan los 5 integrantes**, cada uno de al menos una parte
+  distinta del sistema.
+- **Contenido mínimo:** decisiones de dominio, implementación de los
+  endpoints, refactors entre entregas y propuesta de valor. **En cada uno,
+  qué alternativas se exploraron y por qué se eligió la que quedó.**
+- La forma es libre: alcanza con una llamada de Meet grabada y bien
+  presentada.
+
+Se entregan dos links: el repo con el hash del último commit, y el video.
+
+## Reparto del tiempo (objetivo: 10 a 11 minutos)
+
+| # | Quién | Bloque | Tiempo | En pantalla |
+| --- | --- | --- | --- | --- |
+| 0 | @brunibaumgart | Apertura | 0:20 | Cámaras de los 5 |
+| 1 | @brunibaumgart | Decisiones de dominio | 2:00 | Diagrama de agregados, DESIGN cap. 3 |
+| 2 | @Iker-Galante | Implementación de los endpoints | 2:00 | README «Contratos», un `curl`, `ErrorDto` |
+| 3 | @nnicokim | Refactors de la Entrega 1 a la 2 | 2:00 | Antes/después en código o DESIGN 2.8 y 2.26 |
+| 4 | @cachoJDG | Refactors de la Entrega 2 a la 3 | 2:00 | DESIGN 2.32 y 2.34, `InputPortBoundaryTest` |
+| 5 | @intilauberer | Propuesta de valor: GraphQL | 2:30 | GraphiQL o `curl` en vivo, `graphql-vs-rest.md` |
+| 6 | @intilauberer | Cierre | 0:20 | Cámaras de los 5 |
+
+**Regla para todos:** en cada decisión, decir las tres cosas en este orden:
+**qué elegimos, qué alternativa descartamos y por qué.** Si falta el "por
+qué", la decisión no cuenta.
+
+---
+
+## 0. Apertura (@brunibaumgart, 20 s)
+
+> Somos barbara-liskov. RoboLeague es una plataforma para competencias de
+> robótica: configura el evento, inscribe equipos, programa rondas, captura
+> resultados, calcula puntajes explicables, publica posiciones y gestiona
+> apelaciones. Les contamos cuatro cosas: el dominio, los endpoints, cómo
+> cambió el diseño entre entregas y la API GraphQL de esta entrega.
+
+## 1. Decisiones de dominio (@brunibaumgart, 2 min)
+
+**Arranque (20 s):** el problema en una frase. Cada desafío puntúa distinto,
+los resultados se recalculan con la versión exacta del reglamento, todo
+puntaje se explica y nada se sobreescribe.
+
+**Decisiones (1 min 40 s):**
+
+| Decisión | Alternativa descartada | Por qué |
 | --- | --- | --- |
-| 1. Dominio desde cero | 4 | Un diagrama de los siete agregados y el flujo "en seis pasos" |
-| 2. Propuesta de valor: GraphQL | 6 | GraphiQL en vivo: consulta A, contraste con REST, error, N+1 |
-| 3. Decisiones clave | 4 | Tabla D1–D12 con alternativa y consecuencia |
-| 4. Preguntas | resto | Cualquier integrante responde |
+| Reglas de puntaje como **Strategy + Composite**, registradas en `RuleCatalog` (2.2) | Un `switch` por tipo de regla en un servicio | Una regla nueva es una clase y un registro; ninguna regla existente se toca (OCP) |
+| **Reglamento inmutable y versionado por desafío** (`Rulebook`, 2.8) | Una política global que se edita | Editar reescribiría resultados ya publicados; la consigna pide recalcular con la versión exacta |
+| **Auditoría append-only**: cada ajuste agrega una revisión con autor y motivo (2.3) | Sobreescribir el puntaje | La consigna pide conservar originales y modificaciones |
+| **State** para el intento y la apelación (2.5, 2.18) | Un enum con `if` en cada operación | Cada estado decide qué acepta y rechaza el resto con un error que lo nombra; no hay un `if` por estado repartido en cada operación |
+| **Desglose explicable** (`ScoreBreakdown` con un ítem por contribución) | Devolver un número | Sin el desglose no hay apelación posible |
 
-## Bloque 1: el dominio (la audiencia no lo conoce)
+**Mostrar:** el diagrama de los agregados (`Edition`, `Team`, `Challenge`,
+`Round`, `Attempt`, `Appeal`, `Standings`) y la matriz del capítulo 3.
 
-Contar con una sola frase por concepto, en este orden, apoyándose en la demo:
+## 2. Implementación de los endpoints (@Iker-Galante, 2 min)
 
-1. **Problema**: una organización corre competencias de robótica con
-   categorías, desafíos y rondas; cada desafío puntúa distinto; los
-   resultados se recalculan con la versión exacta de reglas; todo puntaje se
-   explica; nada se sobreescribe.
-2. **Actores**: organizador (edición, categorías, desafíos, publica tabla),
-   equipo (se inscribe, corre, apela), juez (asignado a un turno, carga
-   mediciones o panel), árbitro de apelaciones.
-3. **Agregados** (uno por frase): `Edition` (categorías e inscripciones),
-   `Team` (estado canónico, inmutable), `Challenge` (reglamentos versionados,
-   nunca se editan), `Round`/`Slot` (programación de turnos con pista y
-   juez), `Attempt` (identidad `<slot>-<n>`, fuentes, revisiones append-only,
-   estados), `Appeal` (máquina de estados), `Standings` (versiones, solo la
-   última se publica).
-4. **Reglas centrales**: el puntaje se calcula con la versión que el intento
-   guardó al abrirse; la tabla recalcula **posiciones**, no re-evalúa pista;
-   publicar exige sin apelaciones abiertas, sin turnos sin resultado y sin
-   resultados posteriores.
-5. **Puntos de extensión**: una regla nueva = una clase + registro en
-   `RuleCatalog`; un criterio de desempate = una clase; una selección de
-   rondas/intentos = una clase; un endpoint o un campo GraphQL = un adaptador
-   que llama al mismo caso de uso.
-6. **Arquitectura**: hexagonal en cuatro módulos; domain y application sin
-   frameworks; Postgres con JSONB por agregado; cada caso de uso en una
-   transacción; CI con unit, repositorio (Testcontainers) y API.
+**Arquitectura (30 s):** hexagonal en cuatro módulos. Domain y application sin
+frameworks; infrastructure implementa los puertos; api es el composition root
+con REST y GraphQL. Los controllers solo traducen y llaman a un puerto de
+entrada.
 
-Historia de la demo para apoyarse: Laberinto, mejores 3 de 5, tres equipos,
-TitanTeam apela la ronda 2 (`demo-7-1`), el recálculo da la v2 donde los tres
-empatan en 717 y desempata por tiempo y después por descuento; la v2 es la
-oficial. Rescate es el desafío mixto: `demo-19-1` espera el panel.
+**Decisiones (1 min 30 s):**
 
-## Bloque 2: propuesta de valor (demo en vivo)
+| Decisión | Alternativa descartada | Por qué |
+| --- | --- | --- |
+| Recursos en plural y **transiciones como sub-recursos** (`/appeals/{id}/acceptance`, `/standings/versions/{v}/publication`) | Verbos en la URL (`/acceptAppeal`) | Convención REST de la clase 9: sustantivos y un conjunto chico de operaciones |
+| **DTO propios** (`XxxDto.from(...)`), nunca agregados serializados | Exponer el dominio con anotaciones de Jackson | El dominio no puede cambiar el contrato, y no lleva anotaciones de framework |
+| **Taxonomía de errores**: 400, 404, 409 (conflicto), 422 (regla de negocio), 500 y 503, con `ErrorDto {error, details}` | Solo 200/400/500 ("three's company", clase 9) o `ProblemDetail` | 409 y 422 le dicen al cliente cosas distintas: reintentar con otro dato o corregir el pedido |
+| **Persistencia con JPA y un JSONB por agregado**, con locking optimista | Tablas hijas con `@OneToMany` | Cada agregado se lee y se escribe entero; nadie consulta los hijos por separado |
+| **Transacción por caso de uso** con un proxy en el composition root (`TransactionalUseCases`) | `@Transactional` en application | Application queda sin Spring |
+| Tests de repositorio y de API **contra Postgres real** (Testcontainers) | Mocks de los repositorios | La consigna pide que los mocks no reemplacen las pruebas de persistencia ni de API |
 
-Preparación antes de la clase (en la máquina que se lleva):
+**Mostrar:** la tabla «Contratos» del README y un `curl` a
+`/challenges/ch-maze/standings?categoryId=cat-junior`.
 
-```bash
-docker compose up -d --wait
-mvn -B package -DskipTests
-java -jar roboleague-api/target/roboleague-api-1.0-SNAPSHOT.jar --spring.profiles.active=demo
-```
+## 3. Refactors de la Entrega 1 a la 2 (@nnicokim, 2 min)
 
-Abrir `http://localhost:8080/graphiql` y una terminal con los `curl` del
-README listos en el historial. Tener `docs/graphql-vs-rest.md` abierto.
+La devolución de la Entrega 1 marcó seis puntos y la Entrega 2 trajo F1, F2
+y F3. Elegir tres o cuatro:
 
-Guion:
+| Antes (Entrega 1) | Después (Entrega 2) | Por qué cambió |
+| --- | --- | --- |
+| El reglamento "inmutable" se podía modificar (`addRule` público) | `CompositeScoreRule` guarda `List.copyOf` y no tiene `addRule` | Con una regla agregada, el mismo intento pasaba de 205 a 175 puntos sin cambiar la versión |
+| Una edición = una prueba | `Challenge` como agregado con su reglamento versionado (2.8) | La demo pedía tres desafíos en un evento, con reglas por desafío (F1, F2, F3 viven en el reglamento) |
+| `Ranking` + `TieBreakerChain` en código | `Standings` versionadas; la cadena de desempate se declara en el reglamento (2.4, 2.26) | Una corrección no reescribe una tabla ya vista; publicar solo la última evita publicar una tabla desactualizada |
+| La inscripción se validaba una vez | `Registration` por edición y revalidación al cambiar el equipo (2.22) | Un equipo podía dejar de ser elegible después de inscribirse |
 
-1. **Qué es** (30 s): un esquema tipado de consulta; el cliente escribe qué
-   campos quiere y recibe exactamente eso, anidado, en un viaje. Convive con
-   REST: REST escribe, GraphQL consulta.
-2. **Por qué acá** (30 s): los consumidores son distintos (pantalla de pista,
-   app de equipo, prensa) y cada uno quiere otra combinación de los mismos
-   datos. Con REST cada combinación es un endpoint nuevo o varios viajes.
-3. **Consulta A en GraphiQL** (2 min): `team(id: "t-b") { … results(challengeId: "ch-maze") … breakdown … }`.
-   Mostrar el autocompletado del esquema (eso es el contrato). Señalar en la
-   respuesta: rondas en orden, `demo-7-1` con dos revisiones y 257,5, el ítem
-   "Tope de bonificaciones" en `items`.
-4. **Contraste REST** (1,5 min): la misma pantalla en REST son `[medir]`
-   pedidos (`rounds` → `slots/{id}/results` × 4 → `breakdown` × 4) y
-   `[medir]` bytes contra `[medir]`; mostrar un `GET /challenges/ch-maze/rounds?categoryId=cat-junior`
-   y señalar todo lo que la pantalla no usa (slots de otros equipos, jueces,
-   pistas). Eso es sobre-obtención; que no traiga el desglose es
-   sub-obtención.
-5. **Consulta B, podio** (30 s): `standings(...) { official { entries { position teamName total explanation } } }`;
-   contra `GET .../standings` que trae `versions`, `latest`, `official`,
-   `pending` y `considered`/`discarded` por fila. Agregar `team { institution }`
-   en vivo: el campo cuesta una consulta más, **una**, no tres: pasar al punto 6.
-6. **N+1** (1 min): abrir `GraphQlBatchingTest`: la diferencia de sentencias
-   entre pedir `teamName` (gratis, viene en la versión) y `team { institution }`
-   es 1 para tres equipos. Antes del `@BatchMapping` era 3 (`[medir]`, anotado
-   en el doc). Explicar en una frase por qué existe: cada caso de uso es su
-   propia transacción, no hay sesión compartida entre filas.
-7. **Error** (30 s): `edition(id: "nope") { name }` → `data.edition: null` y
-   `errors[0].extensions.classification: NOT_FOUND`; escribir un campo mal y
-   mostrar que la validación lo rechaza antes de ejecutar.
-8. **Qué no se expone y por qué** (30 s): mutaciones (D2), el reglamento
-   completo, métricas de apelación. "Cuando dudás, dejalo afuera: se puede
-   agregar, no se puede quitar" (clase 9).
+**Costo del cambio (lo midió la devolución):** F1 agregó 13 clases y modificó
+3, sin tocar ninguna regla de puntaje; F2 agregó 4. F3 sí modificó código
+existente (cada regla declara su fuente) y quedó documentado.
 
-## Bloque 3: decisiones clave
+**Mostrar:** DESIGN 2.8 y 2.26, o el diff de `CompositeScoreRule`.
 
-Llevar la tabla D1–D12 del README de estas specs en una slide, con tres
-columnas: alternativas consideradas, decisión, consecuencia observada. Las
-que más preguntas generan, con la respuesta corta:
+## 4. Refactors de la Entrega 2 a la 3 (@cachoJDG, 2 min)
 
-- **¿Por qué no devolver los agregados directo al esquema?** Expondría
-  `EditionId`/`Points` sin conversión y ataría el esquema a nombres internos;
-  los views son el contrato, igual que los DTO en REST (D4).
-- **¿Por qué no un módulo aparte?** No habría clase de arranque para
-  testearlo sin depender de api; el costo es un paquete más dentro de api,
-  separado por nombre (D1).
-- **¿Duplican lógica?** No: `grep Repository` en el paquete graphql da vacío;
-  cada campo llama al mismo caso de uso que REST. Lo que se agregó en
-  application son dos lecturas (`QueryTeams`, `QueryTeamResults`) y un
-  método, Java plano con tests propios.
-- **¿Trataron el N+1 en todos lados?** En toda relación que se resuelve por
-  id: `team`, `attempt`, `breakdown`, `round`, `challenge`, `edition`/`category`
-  y `turn`, cada una con su test de conteo (tabla "Estrategia por relación"
-  del README de las specs). Las listas por padre (`challenges` de una edición,
-  `appeals` de un intento) cuestan una lectura por padre, nunca por hijo;
-  su lote es deuda documentada (cap. 8).
-- **¿Y si no hay internet en el aula?** GraphiQL carga de un CDN y queda en
-  blanco; las mismas consultas están como `curl` en el README y se ensayaron
-  sin red (plan B, checklist).
-- **¿Por qué `Slot.turn` y no los campos sueltos?** Un campo = un lote por
-  ronda; cuatro campos sueltos serían cuatro cargas de lo mismo (D12). Es el
-  mismo agrupamiento que `GET /slots/{id}/results`.
-- **¿Y la subscription?** No se hizo: exige WebSocket y publicar eventos de
-  dominio, que el diseño descartó para el recálculo; el camino está escrito (D9).
-- **¿Qué gana REST?** Caché HTTP por URL, códigos de estado por recurso,
-  escrituras con resultados `sealed`. Por eso convive y no reemplaza.
+La devolución de la Entrega 2 marcó cinco puntos. Todos se resolvieron:
 
-## Bloque 4: preguntas probables
+| Punto de la devolución | Qué se eligió | Alternativa descartada |
+| --- | --- | --- |
+| El número de intento lo elegía quien captura | El dominio lo asigna por orden de llegada (`TurnAttempts`); la captura nombra el turno | Validar el número que manda el cliente: seguía pudiendo saltear |
+| La tabla se armaba con la última versión del reglamento | Cada categoría juega con la versión que puntuó sus intentos (`CategoryRulebook`) | Re-evaluar con la versión vigente (contradice la consigna); versión por intento (dos equipos con reglas distintas) |
+| Cuántos intentos por turno y cuál cuenta | `AttemptSelection` en el reglamento: `best-attempt` o `last-attempt`, con `perTurn` | Fijarlo en código |
+| ¿El tope de bonificaciones es por intento o por desafío? | Por intento, con cuatro razones (DESIGN 2.32) | Por desafío: depende de qué rondas cuentan, que depende de los puntajes; sería circular |
+| Faltan puertos de entrada | Una interfaz por caso de uso en el dominio; los controllers solo conocen la interfaz; `toTeam(clock)` pasó al caso de uso (2.34) | Mantener los casos de uso concretos (era nuestra decisión en la Entrega 2) |
 
-Respuestas de una o dos frases; cualquiera del equipo las tiene que poder dar.
+**Para decir:** el último punto lo habíamos descartado a propósito. La
+devolución nos mostró que dejaba a los adaptadores acoplados a la
+implementación, y con dos adaptadores (REST y GraphQL) la interfaz pasó a ser
+el contrato común. `InputPortBoundaryTest` impide volver atrás.
 
-| Pregunta | Respuesta |
+**Mostrar:** DESIGN 2.32 y 2.34, y el test de límites.
+
+## 5. Propuesta de valor: GraphQL (@intilauberer, 2 min 30 s)
+
+1. **Qué y por qué (30 s):** la pantalla de la pista, la app de un equipo y la
+   prensa piden combinaciones distintas de los mismos datos. Con REST, cada
+   combinación es un endpoint nuevo o varios viajes. GraphQL convive con REST:
+   REST escribe, GraphQL consulta, y los dos llaman a los mismos casos de uso.
+2. **Consulta de la consigna en vivo (45 s):** `team(id: "t-b") { results(…) { round … attempts { breakdown { items … revisions … } } } }`,
+   en un solo pedido.
+3. **Contraste con REST (45 s):** la misma pantalla en REST son 9
+   pedidos en tres niveles (1 + 4 + 4) y 17 210 bytes contra 5 707. Mostrar un
+   `GET /challenges/ch-maze/rounds` y señalar lo que sobra (slots de otros
+   equipos, jueces, pistas: sobre-obtención) y lo que falta (el desglose:
+   sub-obtención).
+4. **N+1 (20 s):** pedir `team { institution }` en cada fila del podio costaba
+   una sentencia por fila (3 para 3 filas); con el lote cuesta 1, tenga 1 o 3
+   filas. Existe porque cada caso de uso es su propia transacción.
+5. **Decisiones del esquema (10 s):** solo consultas (D2), schema-first (D3),
+   views propios (D4), búsquedas nullables con error `NOT_FOUND` (D6),
+   profundidad 10 (D8). No se expone: mutaciones, reglas de puntaje completas,
+   métricas de apelación.
+
+**Alternativas para nombrar:** GraphQL en lugar de REST (se pierde caché HTTP
+y códigos por recurso), mutaciones por GraphQL (duplicarían contratos), lote
+solo para `team` (el resto quedaba como N+1 latente), subscription del ranking
+(no se hizo: exige eventos de dominio que el diseño descartó).
+
+## 6. Cierre (@intilauberer, 20 s)
+
+> La aplicación tiene dos adaptadores de entrada sobre los mismos casos de uso,
+> el dominio sigue sin frameworks y cada decisión está en DESIGN.md con su
+> alternativa. Gracias.
+
+---
+
+## Cómo grabar
+
+- **Meet grabado** alcanza. Cada uno con cámara encendida mientras habla y
+  pantalla compartida cuando muestra algo.
+- Un ensayo completo con cronómetro antes de grabar. Si un bloque se pasa de
+  2:30, cortar filas de la tabla, no apurar el "por qué".
+- Demo con la app levantada en el perfil `demo` (`docker compose up -d`,
+  `java -jar … --spring.profiles.active=demo`). Si GraphiQL no carga (CDN),
+  usar los `curl` del README.
+- Subir a YouTube como **no listado** y verificar que dure entre 8 y 12
+  minutos y que se vea y escuche a los 5.
+
+## Anexo: preguntas que pueden hacer en clase
+
+| Pregunta | Respuesta corta |
 | --- | --- |
-| ¿Qué pasa si una consulta pide todo el grafo recursivamente? | Límite de profundidad 10 por instrumentación (D8); una consulta más profunda se rechaza antes de ejecutar. Sin límite de tamaño de lista: deuda registrada. |
-| ¿Cómo se versiona el esquema? | Agregando campos; no se quitan ni cambian de tipo. Si hubiera que deprecar, `@deprecated` en el SDL. |
-| ¿Dónde están las transacciones en GraphQL? | Igual que REST: cada caso de uso es una transacción (`TransactionalUseCases`); un request GraphQL con varios campos son varias transacciones de lectura. Como no escribe, no hace falta atomicidad entre campos. |
-| ¿Cómo evitan que GraphQL rompa el dominio? | Dependencias Maven: domain y application no conocen `spring-graphql`; el esquema y los views están en api; la regla "resolver → caso de uso" se verifica con `grep`. |
-| ¿Por qué 200 con `errors` y no 404? | Es el protocolo GraphQL: una consulta puede fallar en una rama y responder las otras; la clasificación va en `extensions`. |
-| ¿Cómo probaron el N+1? | Estadísticas de Hibernate en el contexto de test: se cuentan sentencias preparadas con y sin el campo; para `team` la diferencia es 1 con el lote y N sin él; cada lote tiene su aserción con la constante explicada. |
-| ¿Por qué 200 y `INTERNAL_ERROR` si la base está caída, y no 503 como REST? | `ErrorType` de Spring for GraphQL no tiene `SERVICE_UNAVAILABLE`; se devuelve `INTERNAL_ERROR` con el mismo texto que REST y se loguea igual (D6). |
-| ¿Los puntos no eran exactos? | En el modelo sí (`Points`, DESIGN 2.28). GraphQL los muestra como `Float`, igual que REST con `Double`: es presentación, el cálculo no pasa por ahí (D4). |
-| ¿Qué es DataLoader y qué hace `@BatchMapping`? | DataLoader junta las claves que los resolvers de un mismo nivel piden y las carga de una vez; `@BatchMapping` declara un resolver que recibe la lista de padres y devuelve el mapa padre → hijo, y Spring registra el DataLoader. |
-| ¿Puede un cliente escribir por GraphQL? | No; las escrituras tienen resultados `sealed` con códigos por caso (201/409/422) y siguen en REST (D2). |
-| ¿Cuánto costó? | Dos casos de uso de lectura, un método de puerto en dos adaptadores, un paquete en api con esquema, ~30 views, 6 clases de resolvers, 1 resolver de errores y 7 tests. Cero cambios en domain salvo el puerto. |
-| ¿Qué harían distinto con más tiempo? | Lotes para las listas por padre, subscription del ranking, complejidad por costo en vez de profundidad, una pantalla del front sobre GraphQL, GraphiQL servido sin CDN. |
-
-## Ensayo
-
-- Cada integrante hace la demo completa una vez con la demo cargada, cronometrada.
-- Además de la demo entera, cada uno prepara en profundidad la parte del
-  "Reparto sugerido" del README de estas specs (esquema, application, lotes,
-  errores/tests, docs): si le toca presentar, esa es la parte donde puede
-  entrar al código en vivo si la cátedra lo pide; para las otras cuatro
-  alcanza con el guion y la tabla de preguntas.
-- Si GraphiQL no abre: usar los `curl` del README (mismas consultas).
-- Si Docker falla en la máquina: tener grabado un GIF de la consulta A y B y
-  el test de N+1 corriendo (`mvn -B -pl roboleague-api -am -Dtest=GraphQlBatchingTest -Dsurefire.failIfNoSpecifiedTests=false test`).
+| ¿Duplican lógica en GraphQL? | No: cada campo llama al mismo caso de uso que REST, y `grep Repository` en el paquete graphql da vacío. |
+| ¿Por qué 200 con `errors` y no 404? | Es el protocolo: una consulta puede fallar en una rama y responder las otras; la clasificación va en `extensions`. |
+| ¿Qué pasa con una consulta recursiva? | Se rechaza antes de ejecutar si pasa los 10 niveles (D8). |
+| ¿Por qué interfaces con una sola implementación, si la regla #18 dice que no? | Lo que las justifica es el límite del núcleo (puerto de entrada), no la cantidad de implementaciones (regla #37, DESIGN 2.34). |
+| ¿Los puntos no eran exactos? | En el modelo sí (`Points`, 2.28); GraphQL los muestra como `Float`, igual que REST. |
+| ¿Qué harían con más tiempo? | Lotes para las listas por padre, la subscription del ranking, límite por complejidad y GraphiQL sin CDN. |
