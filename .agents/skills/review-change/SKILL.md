@@ -36,6 +36,9 @@ Contrastar con los contratos de `README.md` y las secciones pertinentes de
   Los repositorios en memoria no adquieren rollback por estar dentro del proxy.
 - API: DTOs propios, códigos y `ErrorDto` coherentes, JSON desconocido rechazado,
   bean de repositorio único y tests con ids que no colisionen en contexto compartido.
+- GraphQL: cada campo del esquema tiene resolver o componente de view;
+  resolvers sin repositorios; relaciones por fila con `@BatchMapping`; errores
+  clasificados sin mensajes internos; tests con `HttpGraphQlTester` e ids propios.
 
 ## Sustentar y comunicar hallazgos
 

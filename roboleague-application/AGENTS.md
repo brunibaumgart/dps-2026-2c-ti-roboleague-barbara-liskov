@@ -56,6 +56,11 @@ necesita va en la interfaz. Los helpers internos (`CategoryResultsReader`,
 - QueryEditions/QueryRegistrations/QueryRounds y ListEditionChallenges son entradas
   de lectura: validan padres/filtros, entregan datos actuales y no escriben.
   RegistrationView reúne relación y Team canónico sin incluir conceptos HTTP.
+- Lecturas para GraphQL: `QueryTeamsUseCase` (`get`, y `byIds`, que lanza
+  `InconsistentStateException` ante una referencia rota),
+  `QueryTeamResultsUseCase` (número fijo de lecturas, rondas e intentos en
+  orden), `QueryRoundsUseCase.bySlot`, y `byIds`/`ofRounds` en rondas,
+  desglose, desafío y ediciones. Un lote lee una vez por llamada, no por id.
 - Programación revalida equipos canónicos antes de generar ids/guardar rondas.
   CategoryResultsReader resuelve los TeamIds de las registrations contra TeamRepository.
   No conservar listas paralelas de Team dentro de Edition.

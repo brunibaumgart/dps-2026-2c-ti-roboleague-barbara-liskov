@@ -35,6 +35,29 @@ controllers, DTOs, config y demo bajo `src/main/java/com/roboleague/api`.
   código existente. Seguir imports actuales y revisar los POM antes de copiar
   ejemplos de otras versiones.
 
+## API GraphQL (Entrega 3, DESIGN 2.33)
+
+- Schema-first: el esquema vive en `src/main/resources/graphql/schema.graphqls`
+  y solo tiene `type Query`. Las escrituras siguen en REST.
+- Cada tipo padre tiene su `XxxQueries` en `api.graphql`, con
+  `@QueryMapping`/`@SchemaMapping`/`@BatchMapping`. Llamar puertos de
+  `port.in`, nunca repositorios ni `com.roboleague.usecase`; convertir los ids
+  de texto en el resolver.
+- Los views viven en `api.graphql.view`: records planos con `from(...)`, sin
+  relaciones embebidas, con componentes que se llaman como los campos del SDL.
+- Toda relación que se resuelve por fila de una lista va con `@BatchMapping`
+  sobre un `byIds`/`ofRounds` del puerto. Las listas por padre cuestan una
+  lectura por padre (deuda en DESIGN cap. 8).
+- Errores en `GraphQlErrorResolver`: `NotFoundException` → `NOT_FOUND`,
+  `IllegalArgumentException` → `BAD_REQUEST`, base caída y fallas técnicas →
+  `INTERNAL_ERROR` con los textos genéricos de REST. Si se agrega una excepción
+  del contrato, mapearla también acá. Las búsquedas singulares son nullable.
+- `GraphQlConfig` limita la profundidad a 10 sin contar la introspección.
+- Tests en `api/graphql`, extendiendo `ApiTest` (da `HttpGraphQlTester`), con
+  ids `*-gql-*`. Los tests de lote cuentan sentencias con las estadísticas de
+  Hibernate. Al arrancar, la inspección del esquema no debe listar campos sin
+  resolver. GraphiQL (`/graphiql`) es una consola, no un contrato.
+
 ## Inscripción y programación (spec 05)
 
 - Consultas pasan por QueryEditionsUseCase, ListEditionChallengesUseCase,

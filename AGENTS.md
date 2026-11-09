@@ -29,6 +29,10 @@ y resultados. Application los implementa y los adaptadores (REST, GraphQL)
 dependen solo de la interfaz, nunca de `com.roboleague.usecase`. Fuera de ese
 límite, no crear interfaces por clase sin una variación concreta.
 
+GraphQL (`api.graphql`) es otro adaptador de entrada: solo lecturas, resolvers
+que llaman puertos de entrada, views propios y relaciones por fila resueltas en
+lote. Ver `roboleague-api/AGENTS.md`.
+
 `tournament`, `scheduling`, `evaluation` y `ranking` son áreas del modelo que
 comparten tipos. Sus paquetes no establecen por sí solos bounded contexts
 independientes ni microservicios. Justificar nuevos límites por lenguaje,
@@ -39,7 +43,7 @@ invariantes y necesidades del negocio, antes de separar módulos o servicios.
 | `roboleague-domain`         | Agregados, objetos de valor, servicios, puertos `*Repository` y puertos de entrada (`port.in`) | Java, sin frameworks |
 | `roboleague-application`    | Casos de uso en `com.roboleague.usecase`, que implementan `port.in` | domain                       |
 | `roboleague-infrastructure` | Adaptadores JPA/Postgres y repositorios en memoria             | domain y frameworks de persistencia |
-| `roboleague-api`            | REST, DTOs, composition root, transacciones y demo             | application e infrastructure        |
+| `roboleague-api`            | REST, GraphQL de consulta, DTOs, composition root, transacciones y demo | application e infrastructure |
 
 Application usa infrastructure **solo en tests**, para los adaptadores en memoria.
 Mantener las dependencias hacia el dominio; no introducir HTTP, Spring, JPA o

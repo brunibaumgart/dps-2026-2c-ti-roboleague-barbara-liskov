@@ -1,6 +1,6 @@
 # 03 — Adaptador GraphQL: dependencias, resolvers, errores, lote y tests
 
-Estado: fase 0 **implementada** (PR #23); fases 2, 3 y 4 planificadas. Fases 0, 2, 3 y 4 del README. Todo en `roboleague-api`.
+Estado: **implementada**: fase 0 en el PR #23; fases 2, 3 y 4 en los PRs #29, #30, #32, #33 y #35. Fases 0, 2, 3 y 4 del README. Todo en `roboleague-api`.
 
 ## 1. Fase 0: dependencias y esqueleto
 
