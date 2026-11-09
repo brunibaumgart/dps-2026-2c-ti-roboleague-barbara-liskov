@@ -51,7 +51,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -64,7 +66,10 @@ import java.util.TreeSet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
+import static org.hamcrest.Matchers.contains;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -252,6 +257,50 @@ class DemoFixtureTest {
         Attempt awaiting = rescueAttemptOf(TITAN);
         assertThat(awaiting.getStatus()).isEqualTo(Attempt.AttemptStatus.AWAITING_SOURCES);
         assertThat(awaiting.countableScore()).isEmpty();
+    }
+
+    /**
+     * The three GraphQL examples of the README («API GraphQL»), sent as written: A is the query of the assignment
+     * (team → results per round → breakdown) and answers in one request.
+     */
+    @Test
+    void theGraphQlExamplesOfTheReadmeAnswerWhatItShows() throws Exception {
+        graphQl("{ team(id: \"t-b\") { name results(challengeId: \"ch-maze\") { round { number name } attempts { id "
+                + "status score breakdown { items { concept rawMetric formula subtotal } bySource { label subtotal } "
+                + "revisions { number reason total } } } } } }")
+                .andExpect(jsonPath("$.data.team.name").value("TitanTeam"))
+                .andExpect(jsonPath("$.data.team.results.length()").value(4))
+                .andExpect(jsonPath("$.data.team.results[1].round.number").value(2))
+                .andExpect(jsonPath("$.data.team.results[1].attempts[0].id").value("demo-7-1"))
+                .andExpect(jsonPath("$.data.team.results[1].attempts[0].status").value("ADJUSTED"))
+                .andExpect(jsonPath("$.data.team.results[1].attempts[0].score").value(257.5))
+                .andExpect(jsonPath("$.data.team.results[1].attempts[0].breakdown.revisions[*].total")
+                        .value(contains(197.5, 257.5)))
+                .andExpect(jsonPath("$.data.team.results[1].attempts[0].breakdown.bySource[0].subtotal").value(292.5));
+
+        graphQl("{ standings(challengeId: \"ch-maze\", categoryId: \"cat-junior\") { official { number entries "
+                + "{ position teamName total explanation } } } }")
+                .andExpect(jsonPath("$.data.standings.official.number").value(2))
+                .andExpect(jsonPath("$.data.standings.official.entries[*].teamName")
+                        .value(contains("TitanTeam", "CyberTeam", "NovaTeam")))
+                .andExpect(jsonPath("$.data.standings.official.entries[*].total").value(contains(717.0, 717.0, 717.0)));
+
+        graphQl("{ appeal(id: \"demo-43\") { status reason attempt { score breakdown { revisions { number total "
+                + "reason } } } team { name institution } } }")
+                .andExpect(jsonPath("$.data.appeal.status").value("ACCEPTED"))
+                .andExpect(jsonPath("$.data.appeal.reason").value("Penalizacion inexistente"))
+                .andExpect(jsonPath("$.data.appeal.attempt.score").value(257.5))
+                .andExpect(jsonPath("$.data.appeal.attempt.breakdown.revisions.length()").value(2))
+                .andExpect(jsonPath("$.data.appeal.team.name").value("TitanTeam"))
+                .andExpect(jsonPath("$.data.appeal.team.institution").value("ITBA"));
+    }
+
+    /** POST /graphql with the query as JSON; any entry in {@code errors} fails the test. */
+    private ResultActions graphQl(String query) throws Exception {
+        return mvc.perform(post("/graphql").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"query\": \"" + query.replace("\"", "\\\"") + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.errors").doesNotExist());
     }
 
     /**

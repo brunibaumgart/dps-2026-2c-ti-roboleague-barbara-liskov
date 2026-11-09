@@ -3,12 +3,15 @@ package com.roboleague.evaluation.rules;
 import com.roboleague.evaluation.Metric;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
+import com.roboleague.evaluation.ValueRange;
 import com.roboleague.evaluation.definition.RuleArguments;
 import com.roboleague.evaluation.definition.RuleDefinition;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
@@ -71,6 +74,20 @@ public class CompositeScoreRule implements BaseRule {
             read.addAll(rule.metrics());
         }
         return Set.copyOf(read);
+    }
+
+    /**
+     * What its children accept: a composite scores a capture only if every child can, so a metric bounded by two
+     * children accepts the values both accept.
+     */
+    @Override
+    public Map<Metric, ValueRange> acceptedValues() {
+        Map<Metric, ValueRange> accepted = new HashMap<>();
+        for (ScoreRule rule : rules) {
+            rule.acceptedValues().forEach((metric, range) -> accepted.merge(metric, range, (one, other) ->
+                    new ValueRange(Math.max(one.min(), other.min()), Math.min(one.max(), other.max()))));
+        }
+        return Map.copyOf(accepted);
     }
 
     @Override

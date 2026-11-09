@@ -272,6 +272,19 @@ class RuleCatalogTest {
                                         List.of("higher-total")))),
                         "rule 'Precisión' accepts metric 'precision' between 0.0 and 1.0, but the rulebook "
                                 + "declares it between 0.0 and 100.0"),
+                Arguments.of(Named.of("métrica declarada más amplia de lo que acepta una hija de compuesta (precisión)",
+                        new RulebookDefinition(
+                                List.of(new MetricDeclaration(PRECISION, MeasurementUnit.RATIO,
+                                        ValueRange.between(0.0, 100.0).definition())),
+                                new RulebookDefinition.Scoring(
+                                        List.of(new RuleDefinition("composite", "Desempeño", RuleArguments.ofRules(
+                                                List.of(new PrecisionRule("Precisión", PRECISION, Points.of(50))
+                                                        .definition())))),
+                                        NO_BONUSES, List.of()),
+                                new RulebookDefinition.Ranking(ALL_ROUNDS, BestAttempt.single().definition(),
+                                        List.of("higher-total")))),
+                        "rule 'Desempeño' accepts metric 'precision' between 0.0 and 1.0, but the rulebook "
+                                + "declares it between 0.0 and 100.0"),
                 Arguments.of(Named.of("N de M inválido", new RulebookDefinition(List.of(),
                                 new RulebookDefinition.Scoring(List.of(time), NO_BONUSES, List.of()),
                                 new RulebookDefinition.Ranking(new StrategyDefinition(BestNOfM.TYPE,

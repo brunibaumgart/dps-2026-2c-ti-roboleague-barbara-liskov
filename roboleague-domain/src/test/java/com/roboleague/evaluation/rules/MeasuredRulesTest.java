@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -59,6 +60,19 @@ class MeasuredRulesTest {
         assertThat(new AbandonedVictimsRule("Abandonadas", RESCUED, new VictimTariff(4, Points.of(10))).acceptedValues())
                 .containsExactly(Map.entry(RESCUED, ValueRange.between(0.0, 4.0)));
         assertThat(new VictimsRule("Rescatadas", RESCUED, Points.of(25)).acceptedValues()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Una compuesta acepta lo que aceptan sus hijas, así su cota también se cruza al publicar")
+    void givenACompositeThenItAcceptsWhatItsChildrenAccept() {
+        CompositeScoreRule withPrecision = new CompositeScoreRule("Desempeño", List.of(
+                new PrecisionRule("Precisión", PRECISION, Points.of(80)),
+                new ObjectivesRule("Objetivos", Points.of(20))));
+        CompositeScoreRule withoutBounds = new CompositeScoreRule("Desempeño", List.of(
+                new ObjectivesRule("Objetivos", Points.of(20))));
+
+        assertThat(withPrecision.acceptedValues()).containsExactly(Map.entry(PRECISION, ValueRange.between(0.0, 1.0)));
+        assertThat(withoutBounds.acceptedValues()).isEmpty();
     }
 
     @Test
