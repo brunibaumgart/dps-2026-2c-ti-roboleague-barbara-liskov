@@ -1,6 +1,6 @@
 # Entrega 3: API GraphQL de consulta sobre la aplicación existente
 
-Estado: **en curso**: fases 0 y 1 implementadas (PR #23), fases 2–6 pendientes. Este directorio es el plan completo
+Estado: **implementada** (PRs #23, #25, #28 a #35); ver "Implementación realizada". Este directorio es el plan completo
 para que un agente (o una persona) la implemente de punta a punta. Leer este
 README entero antes de abrir las specs numeradas; cada spec dice qué archivos
 toca, qué decisiones ya están tomadas y cómo se verifica.
@@ -188,9 +188,9 @@ ensaya la parte que le toca.
 
 ## Checklist de entrega (para el equipo)
 
-- [ ] PR mergeado y CI verde; anotar el **hash del último commit** en la entrega.
-- [ ] `git tag entrega-3 <hash>` y `git tag entrega-2 7f321c5` (merge del PR #20,
-      13/10/2026, el commit que se entregó; hoy no hay tags en el repo).
+- [x] PR mergeado y CI verde; anotar el **hash del último commit** en la entrega.
+- [x] `git tag entrega-3` sobre ese commit y `git tag entrega-2 7f321c5` (merge
+      del PR #20, 13/10/2026, el commit que se entregó).
 - [ ] PR revisado por alguien que no escribió el cambio (regla del equipo).
 - [ ] Cada fase dejó su parte de `DESIGN.md` escrita el día que cerró; cada
       integrante escribió o revisó la sección que le toca del reparto.
@@ -202,6 +202,25 @@ ensaya la parte que le toca.
 - [ ] Demo probada **sin red** (wifi apagado): si GraphiQL queda en blanco (CDN),
       los `curl` del README responden las mismas consultas; el que presenta los
       tiene en el historial de la terminal.
+
+## Implementación realizada
+
+Las fases 0 a 6 están en `main`. Clases agregadas y modificadas,
+refactorizaciones y deuda: `DESIGN.md` cap. 8. Desviaciones respecto de este plan:
+
+- **D4: los resolvers dependen de puertos de entrada, no de casos de uso
+  concretos.** La devolución de la Entrega 2 pidió puertos de entrada; desde el
+  PR #28 cada caso de uso implementa una interfaz de `port.in` y los resolvers
+  solo la conocen (DESIGN 2.34, `InputPortBoundaryTest`).
+- **Tests de lote:** el `GraphQlBatchingTest` del plan quedó en dos clases por
+  área, `GraphQlTeamBatchingTest` y `GraphQlEvaluationBatchingTest`.
+- **Presentación (spec 05):** la consigna publicada en el campus pide un video
+  de 8 a 12 minutos en el que hablan los cinco, en lugar de la presentación oral
+  de un integrante al azar. El guion se reescribió para el video.
+- **Límite conocido:** el lote de `team` agrega una sola lectura, pero
+  `QueryRegistrationsUseCase.list` y `CategoryResultsReader` siguen leyendo un
+  equipo por inscripción. El costo total de `Edition.registrations` y del
+  cálculo de la tabla crece con los inscriptos; el de la relación `team`, no.
 
 ## Fuera de alcance
 

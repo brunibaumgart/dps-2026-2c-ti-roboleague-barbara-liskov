@@ -1,6 +1,6 @@
 # 04 — Documentación: README, DESIGN, comparación REST/GraphQL, AGENTS
 
-Estado: en curso (borrador de README, DESIGN, comparación y guion; faltan las mediciones y AGENTS). Fase 5 del README. Se hace **después** de que la suite
+Estado: **implementada** (README, DESIGN y comparación en el PR #31; AGENTS y estado de las specs en el PR que cierra la entrega). Fase 5 del README. Se hace **después** de que la suite
 pase, porque los números de la comparación se miden sobre la demo real.
 
 ## 1. `README.md`

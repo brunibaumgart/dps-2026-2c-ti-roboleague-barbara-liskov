@@ -1,6 +1,6 @@
 # 01 — Esquema GraphQL
 
-Estado: planificada. Fase 2 del README. Depende de la spec 02 (casos de uso
+Estado: **implementada** (PRs #25, #29, #30, #32, #33). Fase 2 del README. Depende de la spec 02 (casos de uso
 nuevos) para `Team.results`, `team(id)`, `slot(id)` y el lote de `team`.
 
 ## Qué se expone y qué no
