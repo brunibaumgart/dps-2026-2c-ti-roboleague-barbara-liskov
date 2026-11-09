@@ -16,6 +16,7 @@ import com.roboleague.port.in.TurnResults;
 import com.roboleague.scheduling.Round;
 import com.roboleague.scheduling.RoundId;
 import com.roboleague.scheduling.SlotId;
+import com.roboleague.tournament.CategoryId;
 import com.roboleague.tournament.Challenge;
 import com.roboleague.tournament.ChallengeId;
 import com.roboleague.tournament.Edition;
@@ -85,8 +86,9 @@ class RoundQueries {
                 rounds.stream().map(round -> EditionId.of(round.editionId())).distinct().toList());
         return byKey(rounds, round -> {
             Edition edition = editions.get(EditionId.of(round.editionId()));
+            CategoryId categoryId = CategoryId.of(round.categoryId());
             return edition.getCategories().stream()
-                    .filter(category -> category.id().value().equals(round.categoryId()))
+                    .filter(category -> category.id().equals(categoryId))
                     .findFirst().map(CategoryView::from)
                     .orElseThrow(() -> new InconsistentStateException("Category " + round.categoryId()
                             + " of round " + round.id() + " is not offered in edition " + edition.getId()));
