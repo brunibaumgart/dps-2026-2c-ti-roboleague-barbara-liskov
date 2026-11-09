@@ -5,10 +5,12 @@ import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.RawMetrics;
 import com.roboleague.evaluation.ResultSource;
 import com.roboleague.evaluation.ScoreItem;
+import com.roboleague.evaluation.ValueRange;
 import com.roboleague.evaluation.definition.RuleDefinition;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -70,6 +72,15 @@ public interface ScoreRule {
      * consumption and judge scores are fixed fields of the captured metrics, not named metrics.
      */
     Set<Metric> metrics();
+
+    /**
+     * The values this rule can score for each metric it bounds (a precision between 0 and 1, rescued victims up
+     * to those placed). The rulebook rejects at publication a declaration wider than this, so a capture inside
+     * the declared range can always be scored; a rule with no bound of its own declares nothing.
+     */
+    default Map<Metric, ValueRange> acceptedValues() {
+        return Map.of();
+    }
 
     /**
      * How this rule is described to be stored or sent through the API; {@code RuleCatalog} rebuilds it.

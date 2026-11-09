@@ -43,6 +43,13 @@ public record ValueRange(double min, double max) {
         return value >= min && value <= max;
     }
 
+    /**
+     * Whether every value of {@code other} is also in this range.
+     */
+    public boolean covers(ValueRange other) {
+        return other.min >= min && other.max <= max;
+    }
+
     public String describe() {
         return Double.isFinite(max) ? "between " + min + " and " + max : "at least " + min;
     }

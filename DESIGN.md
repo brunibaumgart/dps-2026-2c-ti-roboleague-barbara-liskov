@@ -478,7 +478,7 @@ mientras `Edition` contiene Registration y referencia equipos canónicos por Tea
   - Tiempo, objetivos, faltas, consumo y notas de jueces siguen siendo campos fijos de `TrackPerformance`/`EvaluationFeedback` y no se declaran. Pasarlos a métricas declaradas toca el intento y la persistencia de apelaciones (frentes 2 y 4); con eso se podría unificar `PenaltyRule` con `CountedFaultRule` (2.11).
   - Los reglamentos guardados antes de este cambio no tienen `metrics`: si alguna regla lee una métrica con nombre ya no se reconstruyen (`CorruptDataException`, 500). Solo había datos de la demo, que se recargan en cada arranque.
   - Se permiten métricas declaradas que ninguna regla lee; la captura igual las exige.
-  - El rango de una métrica no se cruza con los parámetros de la regla (por ejemplo, que el máximo de víctimas rescatadas coincida con `totalVictims`).
+  - ~~El rango de una métrica no se cruza con los parámetros de la regla (por ejemplo, que el máximo de víctimas rescatadas coincida con `totalVictims`).~~ Resuelta (observación de la devolución de la Entrega 2): cada regla declara en `acceptedValues()` qué valores puede puntuar de cada métrica que acota (`PrecisionRule`: 0 a 1; `AbandonedVictimsRule`: 0 a `totalVictims`) y `ScoringScheme` cruza esa cota con la declaración al construirse, así que publicar un reglamento que declara `rescued` entre 0 y 10 con 4 víctimas es 422 (`rule 'X' accepts metric 'rescued' between 0.0 and 4.0, but the rulebook declares it between 0.0 and 10.0`). Como la captura ya se revisa contra la declaración, una medición aceptada siempre se puede puntuar y ningún intento queda trabado; la excepción al evaluar queda solo como invariante.
 
 ---
 
