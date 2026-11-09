@@ -3,8 +3,6 @@ package com.roboleague.api.graphql;
 import com.jayway.jsonpath.JsonPath;
 import com.roboleague.api.ApiTest;
 import com.roboleague.api.EditionRequests;
-import com.roboleague.api.graphql.view.AppealView;
-import com.roboleague.api.graphql.view.AttemptView;
 import com.roboleague.evaluation.Points;
 import com.roboleague.evaluation.ScoringScheme;
 import com.roboleague.evaluation.rules.ObjectivesRule;
@@ -57,7 +55,6 @@ import org.springframework.http.MediaType;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -98,8 +95,6 @@ class GraphQlRankingTest extends ApiTest {
     private RoundRepository rounds;
     @Autowired
     private RegisterTeamUseCase registerTeam;
-    @Autowired
-    private StandingsQueries standingsQueries;
     @Autowired
     private EntityManagerFactory entityManagerFactory;
 
@@ -228,19 +223,18 @@ class GraphQlRankingTest extends ApiTest {
                 .path("appeal.resolvedAt").valueIsNull();
     }
 
-    /**
-     * No {@code Attempt} is reachable from {@code Query} in this branch yet ({@code Query.attempt} and
-     * {@code RoundResult.attempt} come from the evaluation area), so the resolver is called directly with the view a
-     * parent would hand it.
-     */
     @Test
-    void theAppealsOfAnAttemptAreItsOwnOldestFirst() {
-        List<AppealView> appealsOfA = standingsQueries.attemptAppeals(attempt(ATTEMPT_A, "slot-gql-rank-a", TEAM_A));
-        List<AppealView> appealsOfB = standingsQueries.attemptAppeals(attempt(ATTEMPT_B, "slot-gql-rank-b", TEAM_B));
-
-        assertThat(appealsOfA).extracting(AppealView::id).containsExactly(appealId);
-        assertThat(appealsOfA).extracting(AppealView::status).containsExactly("PENDING");
-        assertThat(appealsOfB).isEmpty();
+    void theAppealsOfAnAttemptAreItsOwn() {
+        graphQl.document("""
+                        { a: attempt(id: "%s") { id appeals { id attemptId teamId status } }
+                          b: attempt(id: "%s") { id appeals { id } } }
+                        """.formatted(ATTEMPT_A, ATTEMPT_B))
+                .execute()
+                .path("a.appeals[*].id").entityList(String.class).containsExactly(appealId)
+                .path("a.appeals[0].attemptId").entity(String.class).isEqualTo(ATTEMPT_A)
+                .path("a.appeals[0].teamId").entity(String.class).isEqualTo(TEAM_A)
+                .path("a.appeals[0].status").entity(String.class).isEqualTo("PENDING")
+                .path("b.appeals").entityList(Object.class).hasSize(0);
     }
 
     @Test
@@ -262,11 +256,10 @@ class GraphQlRankingTest extends ApiTest {
      * Evidence of the batch (D5): asking for {@code edition} costs a fixed number of statements however many
      * challenges the response has, each in its own edition. Resolved per challenge it would cost one per challenge.
      * <p>
-     * No list of challenges is reachable from {@code Query} in this branch yet ({@code Edition.challenges} and
-     * {@code Round.challenge} belong to other areas), so the rows are aliases of {@code Query.challenge}. Measured with
-     * graphql-java 25: the first root alias is dispatched on its own and the rest in one batch, so N &gt;= 2 aliases
-     * cost {@value #STATEMENTS_FOR_ALIASED_ROOTS} statements whether N is 3 or 5. Rows inside one list (the case of
-     * {@code Edition.challenges}) share a single dispatch.
+     * Here the rows are aliases of {@code Query.challenge}. Measured with graphql-java 25: the first root alias is
+     * dispatched on its own and the rest in one batch, so N &gt;= 2 aliases cost
+     * {@value #STATEMENTS_FOR_ALIASED_ROOTS} statements whether N is 3 or 5. Rows inside one list share a single
+     * dispatch: see {@link #theChallengesOfAnEditionResolveTheirEditionInOneStatementForOneOrThreeChallenges()}.
      */
     @Test
     void resolvingTheEditionOfEveryChallengeCostsTheSameStatementsForThreeOrFiveChallenges() throws Exception {
@@ -284,29 +277,58 @@ class GraphQlRankingTest extends ApiTest {
         assertThat(extraStatementsForEditions(ids)).isEqualTo(STATEMENTS_FOR_ALIASED_ROOTS);
     }
 
+    /**
+     * The same batch under a list ({@code Edition.challenges}): every row is dispatched together, so asking for the
+     * edition of each challenge costs one statement with one challenge and with three.
+     */
+    @Test
+    void theChallengesOfAnEditionResolveTheirEditionInOneStatementForOneOrThreeChallenges() throws Exception {
+        for (int count : List.of(1, 3)) {
+            String edition = "ed-gql-rank-list-" + count;
+            if (editions.findById(EditionId.of(edition)).isEmpty()) {
+                mvc.perform(EditionRequests.edition(edition)).andExpect(status().isCreated());
+                for (int n = 1; n <= count; n++) {
+                    mvc.perform(EditionRequests.challenge(edition, "ch-gql-rank-list-" + count + "-" + n))
+                            .andExpect(status().isCreated());
+                }
+            }
+        }
+
+        assertThat(extraStatementsUnderAList("ed-gql-rank-list-1")).isEqualTo(ONE_STATEMENT_FOR_ONE_CHALLENGE);
+        assertThat(extraStatementsUnderAList("ed-gql-rank-list-3")).isEqualTo(ONE_STATEMENT_FOR_ONE_CHALLENGE);
+    }
+
     /** The {@code findByIds} of the editions: one {@code select ... where id in (...)}. */
     private static final long ONE_STATEMENT_FOR_ONE_CHALLENGE = 1;
     /** One {@code findByIds} for the first root alias and one for all the others together. */
     private static final long STATEMENTS_FOR_ALIASED_ROOTS = 2;
 
     private long extraStatementsForEditions(List<String> challengeIds) {
-        String base = aliased(challengeIds, "id name");
-        String withEditions = aliased(challengeIds, "id name edition { id name }");
+        return extraStatements(aliased(challengeIds, "id name"), aliased(challengeIds, "id name edition { id name }"),
+                "c1.id");
+    }
+
+    private long extraStatementsUnderAList(String edition) {
+        String query = "{ edition(id: \"" + edition + "\") { challenges { id name %s } } }";
+        return extraStatements(query.formatted(""), query.formatted("edition { id name }"), "edition.challenges");
+    }
+
+    private long extraStatements(String base, String withEditions, String answered) {
         Statistics statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
         boolean wasEnabled = statistics.isStatisticsEnabled();
         statistics.setStatisticsEnabled(true);
         try {
             graphQl.document(withEditions).execute(); // warm-up: first use of the statements and mappings
-            return statementsOf(statistics, withEditions) - statementsOf(statistics, base);
+            return statementsOf(statistics, withEditions, answered) - statementsOf(statistics, base, answered);
         } finally {
             statistics.setStatisticsEnabled(wasEnabled);
         }
     }
 
     /** Clears right before the query and reads right after it: the suite shares the context and runs on one thread. */
-    private long statementsOf(Statistics statistics, String document) {
+    private long statementsOf(Statistics statistics, String document, String answered) {
         statistics.clear();
-        graphQl.document(document).execute().path("c1.id").hasValue();
+        graphQl.document(document).execute().path(answered).hasValue();
         return statistics.getPrepareStatementCount();
     }
 
@@ -315,11 +337,6 @@ class GraphQlRankingTest extends ApiTest {
         return IntStream.range(0, challengeIds.size())
                 .mapToObj(i -> "c" + (i + 1) + ": challenge(id: \"" + challengeIds.get(i) + "\") { " + fields + " }")
                 .collect(Collectors.joining(" ", "{ ", " }"));
-    }
-
-    private static AttemptView attempt(String id, String slot, String team) {
-        return new AttemptView(id, 1, slot, "round-" + slot, team, CHALLENGE, 1, "EVALUATED", List.of(), null,
-                Optional.empty());
     }
 
     private void schedule(String slotId, String teamId, int number) {
